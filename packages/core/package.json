@@ -10,5 +10,8 @@
   },
   "scripts": {
     "build": "bun build ./src/index.ts --target=node --format=esm --outdir ./dist"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }
