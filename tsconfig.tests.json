@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "node"],
+    "composite": false,
+    "declaration": false,
+    "emitDeclarationOnly": false,
+    "noEmit": true
+  },
+  "include": [
+    "packages/adapter-github/test",
+    "packages/adapter-gitlab/test",
+    "packages/catalog/test",
+    "packages/cli/test",
+    "packages/core/test",
+    "packages/taxonomy/test",
+    "packages/toolchain/test",
+    "packages/adapter-github/package.json",
+    "packages/adapter-gitlab/package.json",
+    "packages/catalog/package.json",
+    "packages/cli/package.json",
+    "packages/core/package.json",
+    "packages/taxonomy/package.json",
+    "packages/toolchain/package.json"
+  ]
+}

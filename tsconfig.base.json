@@ -32,6 +32,6 @@
       "keelson": ["./packages/cli/src/index.ts"]
     },
     "allowImportingTsExtensions": true,
-    "types": ["bun"]
+    "types": ["node"]
   }
 }

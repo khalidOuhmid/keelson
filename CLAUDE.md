@@ -36,7 +36,8 @@ bun run check && bun run e2e
   figées par `bun.lock`.
 - **TypeScript** strict partout (`strict`, `noUncheckedIndexedAccess`,
   `exactOptionalPropertyTypes`), project references, `tsc -b` pour le typecheck (déclarations
-  uniquement, dans `types/`).
+  uniquement, dans `types/`). Les types globaux sont cloisonnés par projet — voir la contrainte de
+  runtime Node ci-dessous.
 - **Biome** pour le lint et le format. Pas d'ESLint, pas de Prettier.
 - **UI** (`packages/ui`) : React 19 + Vite + Tailwind CSS v4. Tests de composants avec `bun test` +
   Testing Library + happy-dom (preload `scripts/test-preload.ts` déclaré dans `bunfig.toml`). E2E
@@ -49,9 +50,21 @@ Les packages exécutés chez l'utilisateur — `cli`, `core`, `taxonomy`, `catal
 `Bun.*`, ni `bun:*`. Ils sont buildés avec `bun build --target=node` pour que `npx keelson`
 fonctionne sur Node ≥ 20 sans Bun installé. Bun reste l'outillage de développement.
 
-Le garde-fou est `scripts/check-runtime.ts`, vérifié par `scripts/check-runtime.test.ts` : il échoue
-si un fichier `src/` d'un package runtime importe `bun:*` ou référence `Bun.`. Les fichiers de test
-peuvent utiliser `bun:test` librement.
+Deux barrières indépendantes la font respecter :
+
+1. **Le typecheck.** Le `tsconfig.json` de chaque package runtime déclare `"types": ["node"]` et
+   n'inclut que `src/` : les types de Bun n'y sont pas visibles, donc `tsc -b` refuse toute
+   référence à `Bun` ou à `bun:*`. Les dossiers `test/` de ces packages sont typés à part par
+   `tsconfig.tests.json` à la racine (`"types": ["bun", "node"]`, `noEmit`), et peuvent donc
+   utiliser `bun:test` librement. `bun run typecheck` enchaîne les deux passes.
+   `scripts/` et `packages/ui` gardent les types de Bun.
+2. **Le garde-fou `scripts/check-runtime.ts`**, vérifié par `scripts/check-runtime.test.ts` : il
+   échoue si un fichier `src/` d'un package runtime importe `bun:*` ou référence `Bun.`. Il attrape
+   ce que le typecheck ne peut pas voir (fichiers non inclus dans un projet, usages dans des
+   chaînes, `globalThis.Bun`).
+
+En ajoutant un package runtime, lui donner `"types": ["node"]`, l'inscrire dans `RUNTIME_PACKAGES`
+de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 
 ### Dépendances prévues pour les lots suivants
 
@@ -72,7 +85,7 @@ peuvent utiliser `bun:test` librement.
 | -------------------- | ------------------------------------------------------ |
 | `bun run lint`       | `biome check .`                                         |
 | `bun run format`     | `biome check --write .`                                 |
-| `bun run typecheck`  | `tsc -b`                                                |
+| `bun run typecheck`  | `tsc -b` puis `tsc -p tsconfig.tests.json`              |
 | `bun run test`       | `bun test` sur tous les packages                        |
 | `bun run build`      | build de tous les packages, CLI ciblée Node             |
 | `bun run e2e`        | Playwright                                              |
