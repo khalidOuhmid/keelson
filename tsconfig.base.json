@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "types",
+    "rootDir": ".",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@keelson/adapter-github": ["./packages/adapter-github/src/index.ts"],
+      "@keelson/adapter-gitlab": ["./packages/adapter-gitlab/src/index.ts"],
+      "@keelson/catalog": ["./packages/catalog/src/index.ts"],
+      "@keelson/core": ["./packages/core/src/index.ts"],
+      "@keelson/taxonomy": ["./packages/taxonomy/src/index.ts"],
+      "@keelson/toolchain": ["./packages/toolchain/src/index.ts"],
+      "@keelson/ui": ["./packages/ui/src/index.ts"],
+      "keelson": ["./packages/cli/src/index.ts"]
+    },
+    "allowImportingTsExtensions": true,
+    "types": ["bun"]
+  }
+}

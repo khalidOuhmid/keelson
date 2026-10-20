@@ -1,0 +1,29 @@
+{
+  "name": "keelson-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -b",
+    "test": "bun test",
+    "build": "bun run --filter '*' build",
+    "e2e": "playwright test",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@happy-dom/global-registrator": "^21.0.3",
+    "@playwright/test": "^1.64.1",
+    "@types/bun": "^1.4.3",
+    "typescript": "^7.0.2"
+  }
+}

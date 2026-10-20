@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/adapter-github" },
+    { "path": "./packages/adapter-gitlab" },
+    { "path": "./packages/catalog" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/core" },
+    { "path": "./packages/taxonomy" },
+    { "path": "./packages/toolchain" },
+    { "path": "./packages/ui" },
+    { "path": "./scripts" }
+  ]
+}
