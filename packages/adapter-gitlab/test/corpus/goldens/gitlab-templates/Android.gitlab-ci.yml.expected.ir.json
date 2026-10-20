@@ -1,0 +1,181 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "lintDebug",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "interruptible",
+          "range": {
+            "start": 2943,
+            "end": 2963
+          }
+        },
+        {
+          "key": "script",
+          "range": {
+            "start": 2980,
+            "end": 3056
+          }
+        },
+        {
+          "key": "artifacts",
+          "range": {
+            "start": 3058,
+            "end": 3175
+          }
+        }
+      ],
+      "range": {
+        "start": 2930,
+        "end": 3175
+      }
+    },
+    {
+      "id": "assembleDebug",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "interruptible",
+          "range": {
+            "start": 3208,
+            "end": 3228
+          }
+        },
+        {
+          "key": "script",
+          "range": {
+            "start": 3245,
+            "end": 3283
+          }
+        },
+        {
+          "key": "artifacts",
+          "range": {
+            "start": 3285,
+            "end": 3334
+          }
+        }
+      ],
+      "range": {
+        "start": 3191,
+        "end": 3334
+      }
+    },
+    {
+      "id": "debugTests",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "lintDebug",
+            "optional": false,
+            "artifacts": true
+          },
+          {
+            "job": "assembleDebug",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "interruptible",
+          "range": {
+            "start": 3448,
+            "end": 3468
+          }
+        },
+        {
+          "key": "script",
+          "range": {
+            "start": 3484,
+            "end": 3544
+          }
+        }
+      ],
+      "range": {
+        "start": 3398,
+        "end": 3544
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "image",
+      "range": {
+        "start": 543,
+        "end": 579
+      }
+    },
+    {
+      "key": "variables",
+      "range": {
+        "start": 580,
+        "end": 1331
+      }
+    },
+    {
+      "key": "before_script",
+      "range": {
+        "start": 1378,
+        "end": 2880
+      }
+    }
+  ]
+}

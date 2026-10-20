@@ -1,0 +1,13 @@
+sans-stage:
+  script:
+    - echo implicite
+
+avant:
+  stage: .pre
+  script:
+    - echo avant
+
+apres:
+  stage: .post
+  script:
+    - echo apres

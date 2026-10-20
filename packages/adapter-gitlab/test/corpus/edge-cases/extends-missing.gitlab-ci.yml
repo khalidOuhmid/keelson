@@ -1,0 +1,8 @@
+stages:
+  - test
+
+orphelin:
+  extends: .absent
+  stage: test
+  script:
+    - echo orphelin

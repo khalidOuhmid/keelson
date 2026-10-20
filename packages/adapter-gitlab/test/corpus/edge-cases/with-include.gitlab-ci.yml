@@ -1,0 +1,20 @@
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - local: /ci/partagé.yml
+  - project: groupe/projet
+    file: /ci/distant.yml
+
+stages:
+  - build
+  - test
+
+compile:
+  stage: build
+  script:
+    - make
+
+herite:
+  extends: .venu-d-un-include
+  stage: test
+  script:
+    - make check

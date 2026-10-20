@@ -1,0 +1,24 @@
+stages:
+  - build
+  - test
+
+compile:
+  stage: build
+  script:
+    - make
+
+paquet:
+  stage: build
+  script:
+    - make package
+
+unit:
+  stage: test
+  needs:
+    - job: compile
+      artifacts: false
+    - job: paquet
+      optional: true
+    - paquet
+  script:
+    - make check

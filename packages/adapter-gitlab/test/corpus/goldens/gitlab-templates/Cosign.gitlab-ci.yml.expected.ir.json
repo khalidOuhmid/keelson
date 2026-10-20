@@ -1,0 +1,80 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "docker-build",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "default"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "variables",
+          "range": {
+            "start": 602,
+            "end": 714
+          }
+        },
+        {
+          "key": "id_tokens",
+          "range": {
+            "start": 716,
+            "end": 819
+          }
+        },
+        {
+          "key": "after_script",
+          "range": {
+            "start": 821,
+            "end": 995
+          }
+        }
+      ],
+      "range": {
+        "start": 586,
+        "end": 995
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 541,
+        "end": 585
+      }
+    }
+  ]
+}

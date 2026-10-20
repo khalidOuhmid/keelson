@@ -1,0 +1,82 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 140,
+        "end": 145
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 150,
+        "end": 154
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 182,
+            "end": 201
+          }
+        }
+      ],
+      "range": {
+        "start": 156,
+        "end": 201
+      }
+    },
+    {
+      "id": "herite",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [".venu-d-un-include"],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 256,
+            "end": 281
+          }
+        }
+      ],
+      "range": {
+        "start": 202,
+        "end": 281
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 127
+      }
+    }
+  ]
+}

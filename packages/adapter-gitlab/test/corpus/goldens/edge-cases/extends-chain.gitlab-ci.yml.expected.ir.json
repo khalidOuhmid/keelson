@@ -1,0 +1,118 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 287,
+        "end": 292
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 297,
+        "end": 301
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "prepare",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 329,
+            "end": 356
+          }
+        }
+      ],
+      "range": {
+        "start": 303,
+        "end": 356
+      }
+    },
+    {
+      "id": "final",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "extends",
+          "template": ".niveau2"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "prepare",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "extends",
+          "template": ".niveau1"
+        }
+      },
+      "environment": {
+        "value": {
+          "name": "niveau2",
+          "url": "https://niveau1.example.org"
+        },
+        "origin": {
+          "kind": "extends",
+          "template": ".niveau2"
+        }
+      },
+      "extends": [".niveau3"],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 386,
+            "end": 411
+          }
+        }
+      ],
+      "range": {
+        "start": 357,
+        "end": 411
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": ".niveau1",
+      "range": {
+        "start": 0,
+        "end": 136
+      }
+    },
+    {
+      "id": ".niveau2",
+      "range": {
+        "start": 137,
+        "end": 214
+      }
+    },
+    {
+      "id": ".niveau3",
+      "range": {
+        "start": 215,
+        "end": 274
+      }
+    }
+  ],
+  "opaque": []
+}

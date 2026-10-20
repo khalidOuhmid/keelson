@@ -1,0 +1,115 @@
+{
+  "stages": [
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 12,
+        "end": 18
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "chaine",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "production"
+        },
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 72,
+            "end": 109
+          }
+        }
+      ],
+      "range": {
+        "start": 20,
+        "end": 109
+      }
+    },
+    {
+      "id": "objet",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "staging",
+          "url": "https://staging.example.org",
+          "action": "start"
+        },
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 223,
+            "end": 257
+          }
+        }
+      ],
+      "range": {
+        "start": 110,
+        "end": 257
+      }
+    },
+    {
+      "id": "arret",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "staging",
+          "action": "stop"
+        },
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 333,
+            "end": 361
+          }
+        }
+      ],
+      "range": {
+        "start": 258,
+        "end": 361
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

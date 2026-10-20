@@ -66,18 +66,26 @@ Deux barrières indépendantes la font respecter :
 En ajoutant un package runtime, lui donner `"types": ["node"]`, l'inscrire dans `RUNTIME_PACKAGES`
 de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 
+### Dépendances installées
+
+| Dépendance      | Où                              | Usage                                        |
+| --------------- | ------------------------------- | -------------------------------------------- |
+| `yaml` (eemeli) | `adapter-gitlab`                | parsing, ranges des nœuds, anchors, merge     |
+| `zod` v4        | `core`, `adapter-gitlab`        | schémas des opérations                        |
+| `fast-check`    | devDependency racine            | tests de propriétés                           |
+
 ### Dépendances prévues pour les lots suivants
 
 À ne pas installer avant le lot qui les utilise :
 
 | Dépendance        | Usage                                                  | Lot    |
 | ----------------- | ------------------------------------------------------ | ------ |
-| `yaml` (eemeli)   | adaptateurs CI, API Document/CST, aller-retour         | L1     |
-| `commander`       | parsing des commandes de la CLI                        | L1     |
-| `zod` v4          | schémas du catalogue et de la toolchain                | L3, L4 |
 | `@xyflow/react`   | rendu des graphes pipeline et toolchain                | L2     |
 | CodeMirror 6      | édition des blocs YAML opaques                         | L2     |
 | Zustand           | état de l'UI                                           | L2     |
+
+`commander` n'a finalement pas été installé : la CLI parse ses arguments à la main, ce qui suffit
+tant que les commandes restent simples et évite une dépendance dans le bundle `npx keelson`.
 
 ## Scripts racine
 
@@ -90,6 +98,23 @@ de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 | `bun run build`      | build de tous les packages, CLI ciblée Node             |
 | `bun run e2e`        | Playwright                                              |
 | `bun run check`      | lint + typecheck + test + build — ce que lance la CI    |
+| `bun run corpus:update` | régénère les goldens IR du corpus (diff à relire)   |
+
+## Tests de propriétés
+
+Les propriétés fast-check vivent dans `packages/adapter-gitlab/test/properties/`. Elles vérifient
+l'aller-retour, l'inversabilité, le déterminisme et la localité des éditions sur tout le corpus.
+
+- `KEELSON_FC_RUNS` fixe le nombre de runs (25 par défaut, pour garder `bun run test` sous deux
+  secondes). Avant une PR qui touche `adapter-gitlab`, passer `KEELSON_FC_RUNS=500`.
+- `KEELSON_FC_SEED` force un seed. En CI le seed est fixé à `20261020` pour que les échecs soient
+  reproductibles ; en local il est aléatoire, et fast-check affiche le seed et le contre-exemple
+  minimal en cas d'échec.
+
+Le corpus est dans `packages/adapter-gitlab/test/corpus/` : `gitlab-templates/` (20 templates
+officiels MIT, provenance et SHA dans `LICENSES.md`, intégrité dans `CHECKSUMS.txt`), `edge-cases/`
+(fixtures maison) et `goldens/` (IR attendue). **Ne jamais ajouter de fichier de CI venant d'un
+employeur ou d'un client.**
 
 ## Workflow front avec Impeccable (obligatoire pour tout changement dans `packages/ui`)
 

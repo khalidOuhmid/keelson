@@ -1,0 +1,144 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "build",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 4615,
+            "end": 4657
+          }
+        }
+      ],
+      "range": {
+        "start": 4068,
+        "end": 4657
+      }
+    },
+    {
+      "id": "tests",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 5094,
+            "end": 5135
+          }
+        }
+      ],
+      "range": {
+        "start": 4658,
+        "end": 5135
+      }
+    },
+    {
+      "id": "deploy",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "production"
+        },
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 5162,
+            "end": 5208
+          }
+        }
+      ],
+      "range": {
+        "start": 5136,
+        "end": 5234
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "image",
+      "range": {
+        "start": 982,
+        "end": 1025
+      }
+    },
+    {
+      "key": "variables",
+      "range": {
+        "start": 1051,
+        "end": 1436
+      }
+    },
+    {
+      "key": "cache",
+      "range": {
+        "start": 2214,
+        "end": 3487
+      }
+    },
+    {
+      "key": "before_script",
+      "range": {
+        "start": 3994,
+        "end": 4067
+      }
+    }
+  ]
+}

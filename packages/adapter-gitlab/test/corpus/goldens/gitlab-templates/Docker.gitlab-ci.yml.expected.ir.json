@@ -1,0 +1,93 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "docker-build",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "image",
+          "range": {
+            "start": 606,
+            "end": 624
+          }
+        },
+        {
+          "key": "services",
+          "range": {
+            "start": 641,
+            "end": 669
+          }
+        },
+        {
+          "key": "variables",
+          "range": {
+            "start": 671,
+            "end": 744
+          }
+        },
+        {
+          "key": "before_script",
+          "range": {
+            "start": 746,
+            "end": 843
+          }
+        },
+        {
+          "key": "script",
+          "range": {
+            "start": 975,
+            "end": 1272
+          }
+        },
+        {
+          "key": "rules",
+          "range": {
+            "start": 1329,
+            "end": 1399
+          }
+        }
+      ],
+      "range": {
+        "start": 555,
+        "end": 1399
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

@@ -1,0 +1,120 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 12,
+        "end": 17
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 22,
+        "end": 26
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 54,
+            "end": 73
+          }
+        }
+      ],
+      "range": {
+        "start": 28,
+        "end": 73
+      }
+    },
+    {
+      "id": "paquet",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 99,
+            "end": 126
+          }
+        }
+      ],
+      "range": {
+        "start": 74,
+        "end": 126
+      }
+    },
+    {
+      "id": "unit",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "compile",
+            "optional": false,
+            "artifacts": false
+          },
+          {
+            "job": "paquet",
+            "optional": true,
+            "artifacts": true
+          },
+          {
+            "job": "paquet",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 252,
+            "end": 277
+          }
+        }
+      ],
+      "range": {
+        "start": 127,
+        "end": 277
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

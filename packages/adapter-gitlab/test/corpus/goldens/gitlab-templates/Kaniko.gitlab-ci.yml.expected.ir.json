@@ -1,0 +1,59 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "kaniko-build",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "extends",
+          "template": ".kaniko-build"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [".kaniko-build"],
+      "opaque": [],
+      "range": {
+        "start": 3589,
+        "end": 3628
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": ".kaniko-build",
+      "range": {
+        "start": 517,
+        "end": 3588
+      }
+    }
+  ],
+  "opaque": []
+}

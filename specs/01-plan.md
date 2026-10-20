@@ -64,8 +64,10 @@ de code serveur · observabilité runtime · sécurité runtime · policy-as-cod
 - Parsing via le **CST** de `yaml` (eemeli), pas seulement l'AST : c'est le CST qui porte les
   commentaires, l'ordre et les anchors.
 - Édition par **patch en place** : on ne régénère jamais le document entier.
-- **Invariant testé** : un parse → emit sans modification produit des octets identiques. Vérifié sur
-  un corpus réel de fichiers GitLab CI au lot L1.
+- **Invariant testé** : un parse → emit sans modification produit des octets identiques. Vérifié au
+  lot L1 sur un corpus de 34 fichiers (20 templates officiels MIT de `gitlab-org/gitlab`, 14
+  fixtures écrites à la main), et par quatre propriétés fast-check : aller-retour, inverse,
+  déterminisme, localité.
 - Les `include` distants et les `extends` multi-fichiers sont **résolus en lecture seule** pour
   l'affichage. L'écriture ne touche que le fichier local.
 
@@ -82,6 +84,23 @@ corrigées** dans `.devsecops/toolchain.yaml`. L'inférence propose, le fichier 
   d'outils du catalogue.
 - **Catalogue** — les outils, filtrables par couche et par licence.
 
+## 7 bis. Opérations sérialisables
+
+Toute édition passe par une **opération** : un objet JSON pur, validé par un schéma zod, portant
+`v: 1` et un `baseHash` (SHA-256 du texte sur lequel elle a été calculée). `apply` rejette un
+`baseHash` périmé (`STALE_DOCUMENT`) et une version inconnue (`UNSUPPORTED_VERSION`).
+
+Chaque application rend un `inverse` : une opération `splice` qui restaure les octets d'origine,
+ancrée sur le hash du nouveau texte. `splice` est l'inverse universel — toute opération, aussi
+structurée soit-elle, s'annule par un remplacement de plage.
+
+Conséquence : une séquence d'éditions est **transportable**. On peut la calculer d'un côté et
+l'appliquer de l'autre, la journaliser, la rejouer, l'annuler. C'est la base du futur **lot L8
+(flotte)** : produire des opérations pour N dépôts depuis un seul endroit, puis les appliquer en
+masse via `keelson apply ops.json` (hors périmètre de L1, où aucune commande d'application n'est
+exposée). Les codes d'erreur étant des contrats publics documentés dans
+[diagnostics.md](diagnostics.md), un client distant peut interpréter un refus sans lire le code.
+
 ## 8. CLI
 
 | Commande                        | Effet                                                        |
@@ -91,6 +110,7 @@ corrigées** dans `.devsecops/toolchain.yaml`. L'inférence propose, le fichier 
 | `keelson coverage --require <couches>` | code ≠ 0 si une couche requise n'est pas couverte      |
 | `keelson export`                | exporte le modèle                                             |
 | `keelson catalog lint`          | valide le catalogue, signale les outils périmés               |
+| `keelson apply ops.json`        | applique une séquence d'opérations (lot L8)                   |
 
 ## 9. Logos et licences
 
@@ -115,3 +135,4 @@ depuis plus de six mois.
 | L5  | Propositions d'outils et insertion de jobs                                     |
 | L6  | `adapter-github`                                                               |
 | L7  | Packaging open source : documentation, CONTRIBUTING, publication npm            |
+| L8  | Flotte : `keelson apply ops.json`, édition de N dépôts depuis un seul endroit    |

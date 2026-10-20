@@ -1,0 +1,15 @@
+.a:
+  extends: .b
+  stage: test
+
+.b:
+  extends: .a
+  image: node
+
+stages:
+  - test
+
+boucle:
+  extends: .a
+  script:
+    - echo boucle

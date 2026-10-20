@@ -10,5 +10,10 @@
   },
   "scripts": {
     "build": "bun build ./src/index.ts --target=node --format=esm --outdir ./dist"
+  },
+  "dependencies": {
+    "@keelson/core": "workspace:*",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   }
 }

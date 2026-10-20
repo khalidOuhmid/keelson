@@ -1,0 +1,33 @@
+.niveau1:
+  image: alpine:3
+  stage: build
+  needs:
+    - prepare
+  environment:
+    name: niveau1
+    url: https://niveau1.example.org
+
+.niveau2:
+  extends: .niveau1
+  stage: test
+  environment:
+    name: niveau2
+
+.niveau3:
+  extends: .niveau2
+  script:
+    - echo niveau3
+
+stages:
+  - build
+  - test
+
+prepare:
+  stage: build
+  script:
+    - echo prepare
+
+final:
+  extends: .niveau3
+  script:
+    - echo final

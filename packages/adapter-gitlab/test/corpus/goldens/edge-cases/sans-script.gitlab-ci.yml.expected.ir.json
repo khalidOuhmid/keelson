@@ -1,0 +1,91 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 12,
+        "end": 17
+      }
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 22,
+        "end": 28
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "muet",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [],
+      "range": {
+        "start": 30,
+        "end": 51
+      }
+    },
+    {
+      "id": "declencheur",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "trigger",
+          "range": {
+            "start": 83,
+            "end": 117
+          }
+        }
+      ],
+      "range": {
+        "start": 52,
+        "end": 117
+      }
+    },
+    {
+      "id": "avec-run",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "run",
+          "range": {
+            "start": 145,
+            "end": 191
+          }
+        }
+      ],
+      "range": {
+        "start": 118,
+        "end": 191
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

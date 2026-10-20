@@ -1,13 +1,15 @@
 import packageJson from "../package.json" with { type: "json" };
+import type { CliResult } from "./result.ts";
+import { validateCommand } from "./validate.ts";
 
 export const COMMANDS = ["start", "validate", "coverage", "export"] as const;
 
 export type Command = (typeof COMMANDS)[number];
 
-export type CliResult = {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
+export type { CliResult } from "./result.ts";
+
+export type RunOptions = {
+  cwd?: string;
 };
 
 const DESCRIPTIONS: Record<Command, string> = {
@@ -38,7 +40,7 @@ function isCommand(value: string): value is Command {
   return (COMMANDS as readonly string[]).includes(value);
 }
 
-export function run(argv: readonly string[]): CliResult {
+export function run(argv: readonly string[], options: RunOptions = {}): CliResult {
   const [first] = argv;
 
   if (first === undefined) {
@@ -53,9 +55,12 @@ export function run(argv: readonly string[]): CliResult {
     return { stdout: helpText(), stderr: "", exitCode: 0 };
   }
 
+  if (first === "validate") {
+    return validateCommand(argv.slice(1), options.cwd ?? process.cwd());
+  }
+
   if (isCommand(first)) {
     // DETTE(2026-10-20): commande `start` non implémentée — livrée au lot L2 avec l'UI.
-    // DETTE(2026-10-20): commande `validate` non implémentée — livrée au lot L1 avec core.
     // DETTE(2026-10-20): commande `coverage` non implémentée — livrée au lot L3 avec taxonomy.
     // DETTE(2026-10-20): commande `export` non implémentée — livrée au lot L5.
     return {
