@@ -1,0 +1,14 @@
+{
+  "name": "@keelson/adapter-gitlab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./types/src/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --target=node --format=esm --outdir ./dist"
+  }
+}
