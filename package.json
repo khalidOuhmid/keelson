@@ -17,7 +17,8 @@
     "test": "bun test",
     "build": "bun run --filter '*' build",
     "e2e": "playwright test",
-    "check": "bun run lint && bun run typecheck && bun run test && bun run build"
+    "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "corpus:update": "bun run scripts/update-corpus-goldens.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

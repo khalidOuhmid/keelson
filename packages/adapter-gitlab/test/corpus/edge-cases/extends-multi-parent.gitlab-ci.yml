@@ -1,0 +1,21 @@
+.premier:
+  stage: build
+  environment:
+    name: premier
+    url: https://premier.example.org
+
+.second:
+  stage: test
+  environment:
+    name: second
+
+stages:
+  - build
+  - test
+
+gagnant:
+  extends:
+    - .premier
+    - .second
+  script:
+    - echo gagnant

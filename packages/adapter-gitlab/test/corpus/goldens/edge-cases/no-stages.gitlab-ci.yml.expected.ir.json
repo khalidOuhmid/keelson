@@ -1,0 +1,108 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "sans-stage",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "default"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 14,
+            "end": 43
+          }
+        }
+      ],
+      "range": {
+        "start": 0,
+        "end": 43
+      }
+    },
+    {
+      "id": "avant",
+      "stage": {
+        "value": ".pre",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 67,
+            "end": 92
+          }
+        }
+      ],
+      "range": {
+        "start": 44,
+        "end": 92
+      }
+    },
+    {
+      "id": "apres",
+      "stage": {
+        "value": ".post",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 117,
+            "end": 142
+          }
+        }
+      ],
+      "range": {
+        "start": 93,
+        "end": 142
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

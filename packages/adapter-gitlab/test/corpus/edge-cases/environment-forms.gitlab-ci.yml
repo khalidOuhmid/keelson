@@ -1,0 +1,25 @@
+stages:
+  - deploy
+
+chaine:
+  stage: deploy
+  environment: production
+  script:
+    - ./deploy.sh production
+
+objet:
+  stage: deploy
+  environment:
+    name: staging
+    url: https://staging.example.org
+    action: start
+  script:
+    - ./deploy.sh staging
+
+arret:
+  stage: deploy
+  environment:
+    name: staging
+    action: stop
+  script:
+    - ./teardown.sh

@@ -1,0 +1,17 @@
+stages:
+  - build
+  - deploy
+
+muet:
+  stage: build
+
+declencheur:
+  stage: deploy
+  trigger:
+    project: groupe/aval
+
+avec-run:
+  stage: build
+  run:
+    - name: etape
+      script: echo run

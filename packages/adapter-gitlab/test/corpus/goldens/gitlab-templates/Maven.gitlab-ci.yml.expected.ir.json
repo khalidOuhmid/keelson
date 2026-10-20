@@ -1,0 +1,113 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "verify:jdk8",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "extends",
+          "template": ".verify"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [".verify"],
+      "opaque": [],
+      "range": {
+        "start": 2695,
+        "end": 2733
+      }
+    },
+    {
+      "id": "deploy:jdk8",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 3167,
+            "end": 3492
+          }
+        },
+        {
+          "key": "only",
+          "range": {
+            "start": 3494,
+            "end": 3563
+          }
+        }
+      ],
+      "range": {
+        "start": 3136,
+        "end": 3563
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": ".verify",
+      "range": {
+        "start": 2518,
+        "end": 2659
+      }
+    }
+  ],
+  "opaque": [
+    {
+      "key": "variables",
+      "range": {
+        "start": 749,
+        "end": 1662
+      }
+    },
+    {
+      "key": "image",
+      "range": {
+        "start": 1944,
+        "end": 1969
+      }
+    },
+    {
+      "key": "cache",
+      "range": {
+        "start": 2334,
+        "end": 2371
+      }
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 116,
+        "end": 121
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 126,
+        "end": 130
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 158,
+            "end": 221
+          }
+        }
+      ],
+      "range": {
+        "start": 132,
+        "end": 221
+      }
+    },
+    {
+      "id": "unit",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "compile",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "reference",
+          "path": [".needs", "common"]
+        }
+      },
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 281,
+            "end": 377
+          }
+        }
+      ],
+      "range": {
+        "start": 222,
+        "end": 377
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": ".scripts",
+      "range": {
+        "start": 0,
+        "end": 70
+      }
+    },
+    {
+      "id": ".needs",
+      "range": {
+        "start": 71,
+        "end": 103
+      }
+    }
+  ],
+  "opaque": []
+}

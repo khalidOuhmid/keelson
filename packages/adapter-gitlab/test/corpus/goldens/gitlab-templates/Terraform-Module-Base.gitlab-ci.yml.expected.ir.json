@@ -1,0 +1,48 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [],
+  "templates": [
+    {
+      "id": ".terraform-module:deploy",
+      "range": {
+        "start": 1126,
+        "end": 2178
+      }
+    }
+  ],
+  "opaque": [
+    {
+      "key": "variables",
+      "range": {
+        "start": 591,
+        "end": 1125
+      }
+    }
+  ]
+}

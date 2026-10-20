@@ -1,0 +1,182 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 2952,
+        "end": 2957
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 2962,
+        "end": 2966
+      }
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 2971,
+        "end": 2977
+      }
+    },
+    {
+      "name": "review",
+      "implicit": false,
+      "range": {
+        "start": 3031,
+        "end": 3037
+      }
+    },
+    {
+      "name": "dast",
+      "implicit": false,
+      "range": {
+        "start": 3042,
+        "end": 3046
+      }
+    },
+    {
+      "name": "staging",
+      "implicit": false,
+      "range": {
+        "start": 3051,
+        "end": 3058
+      }
+    },
+    {
+      "name": "canary",
+      "implicit": false,
+      "range": {
+        "start": 3063,
+        "end": 3069
+      }
+    },
+    {
+      "name": "production",
+      "implicit": false,
+      "range": {
+        "start": 3074,
+        "end": 3084
+      }
+    },
+    {
+      "name": "incremental rollout 10%",
+      "implicit": false,
+      "range": {
+        "start": 3089,
+        "end": 3112
+      }
+    },
+    {
+      "name": "incremental rollout 25%",
+      "implicit": false,
+      "range": {
+        "start": 3117,
+        "end": 3140
+      }
+    },
+    {
+      "name": "incremental rollout 50%",
+      "implicit": false,
+      "range": {
+        "start": 3145,
+        "end": 3168
+      }
+    },
+    {
+      "name": "incremental rollout 100%",
+      "implicit": false,
+      "range": {
+        "start": 3173,
+        "end": 3197
+      }
+    },
+    {
+      "name": "performance",
+      "implicit": false,
+      "range": {
+        "start": 3202,
+        "end": 3213
+      }
+    },
+    {
+      "name": "cleanup",
+      "implicit": false,
+      "range": {
+        "start": 3218,
+        "end": 3225
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "dast_environment_deploy",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "default"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "dependencies",
+          "range": {
+            "start": 8097,
+            "end": 8119
+          }
+        }
+      ],
+      "range": {
+        "start": 8070,
+        "end": 8119
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": ".auto-deploy",
+      "range": {
+        "start": 8032,
+        "end": 8070
+      }
+    }
+  ],
+  "opaque": [
+    {
+      "key": "image",
+      "range": {
+        "start": 2300,
+        "end": 2321
+      }
+    },
+    {
+      "key": "variables",
+      "range": {
+        "start": 2322,
+        "end": 2939
+      }
+    },
+    {
+      "key": "workflow",
+      "range": {
+        "start": 3227,
+        "end": 5075
+      }
+    },
+    {
+      "key": "include",
+      "range": {
+        "start": 5456,
+        "end": 7797
+      }
+    }
+  ]
+}

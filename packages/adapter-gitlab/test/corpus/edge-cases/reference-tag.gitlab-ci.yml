@@ -1,0 +1,27 @@
+.scripts:
+  setup:
+    - npm ci
+  teardown:
+    - rm -rf node_modules
+
+.needs:
+  common:
+    - compile
+
+stages:
+  - build
+  - test
+
+compile:
+  stage: build
+  script:
+    - !reference [.scripts, setup]
+    - npm run build
+
+unit:
+  stage: test
+  needs: !reference [.needs, common]
+  script:
+    - !reference [.scripts, setup]
+    - npm test
+    - !reference [.scripts, teardown]

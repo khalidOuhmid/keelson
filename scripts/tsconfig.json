@@ -3,5 +3,13 @@
   "compilerOptions": {
     "types": ["bun", "node"]
   },
-  "include": ["."]
+  "include": ["."],
+  "references": [
+    {
+      "path": "../packages/adapter-gitlab"
+    },
+    {
+      "path": "../packages/core"
+    }
+  ]
 }

@@ -1,0 +1,139 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 1022,
+        "end": 1027
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 1032,
+        "end": 1036
+      }
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 1041,
+        "end": 1047
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "build-job",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 1137,
+            "end": 1211
+          }
+        }
+      ],
+      "range": {
+        "start": 1049,
+        "end": 1211
+      }
+    },
+    {
+      "id": "unit-test-job",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 1356,
+            "end": 1481
+          }
+        }
+      ],
+      "range": {
+        "start": 1212,
+        "end": 1481
+      }
+    },
+    {
+      "id": "lint-test-job",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 1620,
+            "end": 1740
+          }
+        }
+      ],
+      "range": {
+        "start": 1482,
+        "end": 1740
+      }
+    },
+    {
+      "id": "deploy-job",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "production"
+        },
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 1913,
+            "end": 2007
+          }
+        }
+      ],
+      "range": {
+        "start": 1741,
+        "end": 2007
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

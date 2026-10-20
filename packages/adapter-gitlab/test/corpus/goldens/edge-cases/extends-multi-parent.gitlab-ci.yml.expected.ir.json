@@ -1,0 +1,74 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 164,
+        "end": 169
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 174,
+        "end": 178
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "gagnant",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "extends",
+          "template": ".second"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "second",
+          "url": "https://premier.example.org"
+        },
+        "origin": {
+          "kind": "extends",
+          "template": ".second"
+        }
+      },
+      "extends": [".premier", ".second"],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 231,
+            "end": 258
+          }
+        }
+      ],
+      "range": {
+        "start": 180,
+        "end": 258
+      }
+    }
+  ],
+  "templates": [
+    {
+      "id": ".premier",
+      "range": {
+        "start": 0,
+        "end": 95
+      }
+    },
+    {
+      "id": ".second",
+      "range": {
+        "start": 96,
+        "end": 151
+      }
+    }
+  ],
+  "opaque": []
+}

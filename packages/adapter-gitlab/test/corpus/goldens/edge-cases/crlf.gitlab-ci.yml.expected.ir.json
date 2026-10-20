@@ -1,0 +1,85 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 13,
+        "end": 18
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 24,
+        "end": 28
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 60,
+            "end": 81
+          }
+        }
+      ],
+      "range": {
+        "start": 32,
+        "end": 81
+      }
+    },
+    {
+      "id": "unit",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "compile",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 132,
+            "end": 159
+          }
+        }
+      ],
+      "range": {
+        "start": 83,
+        "end": 159
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

@@ -1,0 +1,24 @@
+.defaults: &defaults
+  image: node:22
+  stage: build
+
+.extra: &extra
+  tags:
+    - docker
+
+stages:
+  - build
+  - test
+
+compile:
+  <<: *defaults
+  script:
+    - npm run build
+
+unit:
+  <<: [*defaults, *extra]
+  stage: test
+  needs:
+    - compile
+  script:
+    - npm test

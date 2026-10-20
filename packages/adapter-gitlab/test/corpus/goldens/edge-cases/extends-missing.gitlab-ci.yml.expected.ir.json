@@ -1,0 +1,41 @@
+{
+  "stages": [
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 12,
+        "end": 16
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "orphelin",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [".absent"],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 63,
+            "end": 91
+          }
+        }
+      ],
+      "range": {
+        "start": 18,
+        "end": 91
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}

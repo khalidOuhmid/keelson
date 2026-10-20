@@ -1,0 +1,19 @@
+# Pipeline de démonstration des commentaires.
+# Deuxième ligne d'en-tête.
+
+stages:
+  - build # commentaire en ligne sur un stage
+  - test
+
+compile:
+  stage: build
+  script:
+    - make all # commentaire en ligne dans un script
+
+# Commentaire entre deux jobs, rattaché à « unit ».
+unit:
+  stage: test
+  needs:
+    - compile
+  script:
+    - make check

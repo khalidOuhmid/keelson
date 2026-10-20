@@ -1,0 +1,101 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null
+    }
+  ],
+  "jobs": [
+    {
+      "id": "dast",
+      "stage": {
+        "value": "dast",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "image",
+          "range": {
+            "start": 1132,
+            "end": 1213
+          }
+        },
+        {
+          "key": "allow_failure",
+          "range": {
+            "start": 1215,
+            "end": 1235
+          }
+        },
+        {
+          "key": "script",
+          "range": {
+            "start": 1237,
+            "end": 1390
+          }
+        },
+        {
+          "key": "artifacts",
+          "range": {
+            "start": 1392,
+            "end": 1520
+          }
+        },
+        {
+          "key": "rules",
+          "range": {
+            "start": 1522,
+            "end": 3739
+          }
+        },
+        {
+          "key": "after_script",
+          "range": {
+            "start": 3741,
+            "end": 3920
+          }
+        }
+      ],
+      "range": {
+        "start": 1110,
+        "end": 3920
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "variables",
+      "range": {
+        "start": 884,
+        "end": 1109
+      }
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 12,
+        "end": 17
+      }
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 22,
+        "end": 26
+      }
+    }
+  ],
+  "jobs": [
+    {
+      "id": "a",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 48,
+            "end": 65
+          }
+        }
+      ],
+      "range": {
+        "start": 28,
+        "end": 65
+      }
+    },
+    {
+      "id": "b",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 86,
+            "end": 103
+          }
+        }
+      ],
+      "range": {
+        "start": 66,
+        "end": 103
+      }
+    },
+    {
+      "id": "c",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "a",
+            "optional": false,
+            "artifacts": true
+          },
+          {
+            "job": "b",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 139,
+            "end": 156
+          }
+        }
+      ],
+      "range": {
+        "start": 104,
+        "end": 156
+      }
+    }
+  ],
+  "templates": [],
+  "opaque": []
+}
