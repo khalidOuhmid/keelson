@@ -1,0 +1,77 @@
+import { expect } from "bun:test";
+import { hashText, type Operation, type OperationErrorCode } from "@keelson/core";
+import { apply } from "../../src/apply.ts";
+import { parse } from "../../src/parse.ts";
+import type { ApplyError, ApplyOk } from "../../src/result.ts";
+
+type WithoutEnvelope<T> = T extends unknown ? Omit<T, "v" | "baseHash"> : never;
+
+export type Draft = WithoutEnvelope<Operation>;
+
+export const BASE = [
+  "stages:",
+  "  - build",
+  "  - test",
+  "  - deploy",
+  "",
+  "compile:",
+  "  stage: build",
+  "  script:",
+  "    - make",
+  "",
+  "unit:",
+  "  stage: test",
+  "  needs:",
+  "    - compile",
+  "  script:",
+  "    - make check",
+  "",
+].join("\n");
+
+export function operation(text: string, draft: Draft): Operation {
+  return { v: 1, baseHash: hashText(text), ...draft } as Operation;
+}
+
+export function run(text: string, draft: Draft) {
+  return apply(parse(text).document, operation(text, draft));
+}
+
+export function expectOk(text: string, draft: Draft): ApplyOk {
+  const result = run(text, draft);
+  if (!result.ok) {
+    throw new Error(`opération refusée : ${result.error.code} — ${result.error.message}`);
+  }
+  return result.value;
+}
+
+export function expectError(text: string, draft: Draft, code: OperationErrorCode): ApplyError {
+  const result = run(text, draft);
+  if (result.ok) {
+    throw new Error(`opération acceptée alors qu'on attendait ${code}`);
+  }
+  expect(result.error.code).toBe(code);
+  return result.error;
+}
+
+export function expectUnchanged(text: string, draft: Draft, code: OperationErrorCode): ApplyError {
+  const error = expectError(text, draft, code);
+  expect(parse(text).document.text).toBe(text);
+  return error;
+}
+
+export function roundTrip(text: string, draft: Draft): void {
+  const applied = expectOk(text, draft);
+  const back = apply(applied.document, applied.inverse);
+  if (!back.ok) {
+    throw new Error(`inverse refusé : ${back.error.code} — ${back.error.message}`);
+  }
+  expect(back.value.text).toBe(text);
+}
+
+export function jobOf(text: string, id: string) {
+  const found = parse(text).pipeline.jobs.find((candidate) => candidate.id === id);
+  if (found === undefined) {
+    throw new Error(`job « ${id} » absent`);
+  }
+  return found;
+}
