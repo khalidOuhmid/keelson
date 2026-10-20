@@ -37,6 +37,10 @@
       "bin": {
         "keelson": "./dist/keelson.js",
       },
+      "dependencies": {
+        "@keelson/adapter-gitlab": "workspace:*",
+        "@keelson/core": "workspace:*",
+      },
     },
     "packages/core": {
       "name": "@keelson/core",

@@ -33,7 +33,7 @@ describe("commandes", () => {
     expect(COMMANDS).toEqual(["start", "validate", "coverage", "export"]);
   });
 
-  for (const command of ["start", "validate", "coverage", "export"]) {
+  for (const command of ["start", "coverage", "export"]) {
     test(`${command} répond « pas encore implémentée » et sort en 2`, () => {
       const result = run([command]);
       expect(result.exitCode).toBe(2);
@@ -42,6 +42,17 @@ describe("commandes", () => {
       expect(result.stdout).toBe("");
     });
   }
+});
+
+describe("validate", () => {
+  test("n'est plus annoncée comme non implémentée", () => {
+    const result = run(["validate", "fichier-absent.yml"]);
+    expect(result.stderr).not.toContain("pas encore implémentée");
+  });
+
+  test("sort en 2 quand le fichier est introuvable", () => {
+    expect(run(["validate", "fichier-absent.yml"]).exitCode).toBe(2);
+  });
 });
 
 describe("usage invalide", () => {
