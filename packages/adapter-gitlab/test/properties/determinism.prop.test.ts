@@ -1,0 +1,52 @@
+import { describe, expect, test } from "bun:test";
+import { hashText, type Operation } from "@keelson/core";
+import fc from "fast-check";
+import { apply } from "../../src/apply.ts";
+import { parse } from "../../src/parse.ts";
+import { assertOptions, corpusTexts, operationArb } from "./support/arbitraries.ts";
+
+const texts = corpusTexts();
+
+describe("propriété : deux applications identiques donnent des sorties identiques", () => {
+  test("même texte, même hash, mêmes plages touchées", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .constantFrom(...texts)
+          .chain((text) => operationArb(text).map((draft) => ({ text, draft }))),
+        ({ text, draft }) => {
+          const operation = { v: 1, baseHash: hashText(text), ...draft } as Operation;
+          const first = apply(parse(text).document, operation);
+          const second = apply(parse(text).document, operation);
+
+          expect(first.ok).toBe(second.ok);
+          if (first.ok && second.ok) {
+            expect(second.value.text).toBe(first.value.text);
+            expect(second.value.hash).toBe(first.value.hash);
+            expect(second.value.touched).toEqual(first.value.touched);
+            expect(second.value.inverse).toEqual(first.value.inverse);
+          }
+          if (!first.ok && !second.ok) {
+            expect(second.error.code).toBe(first.error.code);
+            expect(second.error.message).toBe(first.error.message);
+          }
+        },
+      ),
+      assertOptions(),
+    );
+  });
+
+  test("le parsing est déterministe", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...texts), (text) => {
+        const first = parse(text);
+        const second = parse(text);
+        expect(JSON.parse(JSON.stringify(second.pipeline))).toEqual(
+          JSON.parse(JSON.stringify(first.pipeline)),
+        );
+        expect(second.diagnostics).toEqual(first.diagnostics);
+      }),
+      assertOptions(),
+    );
+  });
+});

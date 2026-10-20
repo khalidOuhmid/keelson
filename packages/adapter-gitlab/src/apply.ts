@@ -662,6 +662,10 @@ function planMoveStage(
   const reordered = names.filter((name) => name !== operation.name);
   reordered.splice(operation.toIndex, 0, operation.name);
 
+  if (reordered.every((name, position) => name === names[position])) {
+    return ok([]);
+  }
+
   if (declared === null) {
     return ok([materialiseStages(reordered, geometry, root)]);
   }

@@ -15,7 +15,9 @@ export function applySplices(
   text: string,
   splices: readonly Splice[],
 ): { text: string; touched: SourceRange[] } {
-  const ordered = [...splices].sort((left, right) => left.start - right.start);
+  const ordered = [...splices].sort(
+    (left, right) => left.start - right.start || left.end - right.end,
+  );
 
   for (const [index, splice] of ordered.entries()) {
     if (splice.start > splice.end) {
