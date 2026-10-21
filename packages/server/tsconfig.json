@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "package.json"],
+  "references": [{ "path": "../adapter-gitlab" }, { "path": "../core" }]
+}

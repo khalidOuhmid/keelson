@@ -8,6 +8,7 @@ export const RUNTIME_PACKAGES = [
   "catalog",
   "cli",
   "core",
+  "server",
   "taxonomy",
   "toolchain",
 ] as const;

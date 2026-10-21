@@ -49,6 +49,14 @@
         "zod": "^4.6.7",
       },
     },
+    "packages/server": {
+      "name": "@keelson/server",
+      "version": "0.0.0",
+      "dependencies": {
+        "@keelson/adapter-gitlab": "workspace:*",
+        "@keelson/core": "workspace:*",
+      },
+    },
     "packages/taxonomy": {
       "name": "@keelson/taxonomy",
       "version": "0.0.0",
@@ -119,6 +127,8 @@
     "@keelson/catalog": ["@keelson/catalog@workspace:packages/catalog"],
 
     "@keelson/core": ["@keelson/core@workspace:packages/core"],
+
+    "@keelson/server": ["@keelson/server@workspace:packages/server"],
 
     "@keelson/taxonomy": ["@keelson/taxonomy@workspace:packages/taxonomy"],
 
