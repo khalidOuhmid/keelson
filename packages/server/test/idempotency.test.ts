@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { ErrorBody } from "../src/store.ts";
 import { DocumentStore, OPID_HISTORY } from "../src/store.ts";
 import { detectWorkspace } from "../src/workspace.ts";
 
@@ -114,7 +115,7 @@ describe("idempotence par opId", () => {
 
     const rejoue = await addStage("etape-0", "op-0", original);
     expect(rejoue.status).toBe(409);
-    expect(rejoue.body.code).toBe("STALE_DOCUMENT");
+    expect((rejoue.body as ErrorBody).code).toBe("STALE_DOCUMENT");
   });
 
   test("un opId encore en mémoire est bien rejoué, pas réexécuté", async () => {

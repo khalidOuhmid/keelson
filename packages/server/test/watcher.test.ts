@@ -64,7 +64,7 @@ describe("modification externe", () => {
     expect(event.file).toBe(".gitlab-ci.yml");
     expect(event.kind).toBe("document.changed");
     if (event.kind === "document.changed") {
-      expect(event.hash).toBe(store.currentHash(".gitlab-ci.yml"));
+      expect(store.currentHash(".gitlab-ci.yml")).toBe(event.hash);
     }
   });
 

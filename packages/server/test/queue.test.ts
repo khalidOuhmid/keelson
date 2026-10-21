@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
+import type { ErrorBody } from "../src/store.ts";
 import { DocumentStore } from "../src/store.ts";
 import { detectWorkspace } from "../src/workspace.ts";
 
@@ -92,13 +93,13 @@ describe("file d'attente par document", () => {
     expect(statuses).toEqual([200, 409]);
 
     const stale = results.find((result) => result.status === 409);
-    expect(stale?.body.code).toBe("STALE_DOCUMENT");
-    expect(stale?.body.hash).toBe(store.currentHash(".gitlab-ci.yml"));
+    expect((stale?.body as ErrorBody | undefined)?.code).toBe("STALE_DOCUMENT");
+    expect((stale?.body as ErrorBody | undefined)?.hash).toBe(store.currentHash(".gitlab-ci.yml"));
 
     const onDisk = readFileSync(join(root, ".gitlab-ci.yml"), "utf8");
     const applied = results.find((result) => result.status === 200);
     expect(applied).toBeDefined();
-    expect(onDisk).toBe(store.currentText(".gitlab-ci.yml"));
+    expect(store.currentText(".gitlab-ci.yml")).toBe(onDisk);
   });
 
   test("dix opérations enchaînées aboutissent toutes", async () => {
@@ -147,7 +148,7 @@ describe("file d'attente par document", () => {
       "op-ko",
     );
     expect(result.status).toBe(422);
-    expect(result.body.code).toBe("JOB_NOT_FOUND");
+    expect((result.body as ErrorBody).code).toBe("JOB_NOT_FOUND");
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(before);
     expect(store.currentHash(".gitlab-ci.yml")).toBe(loaded?.hash);
   });
@@ -161,7 +162,7 @@ describe("file d'attente par document", () => {
       "op-bad",
     );
     expect(result.status).toBe(400);
-    expect(result.body.code).toBe("INVALID_OPERATION");
+    expect((result.body as ErrorBody).code).toBe("INVALID_OPERATION");
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(before);
   });
 
