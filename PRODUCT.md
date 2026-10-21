@@ -138,6 +138,17 @@ trancher au L2**, non décidé ici.
   connue.
 - **Voix** (déduite des specs, non encore confirmée pour l'UI) : factuelle, précise, sans
   marketing ; chaque proposition est justifiée et sourcée.
+- **Monde visuel : le standard de la catégorie, joué droit.** Décidé au lot L2 (2026-10-21), après
+  un tour de directions où la porte de sortie a été prise explicitement. Keelson ressemble à ce que
+  son audience ouvre déjà : colonnes de stages, cartes de jobs, arêtes de dépendances, sans-serif
+  d'interface, thème sombre par défaut. **Aucune ironie, aucune bizarrerie en contrebande** : la
+  convention est l'engagement, pas un compromis. Les directions écartées à ce tour (planche de
+  spécification normative avec barres de révision, schéma de câblage électrique, grille japonaise
+  haute densité, diagramme de transit nocturne) ne sont pas à ressortir par la fenêtre.
+- **Barre de finition : Linear, Vercel, Raycast.** C'est leur *qualité d'exécution* qui est la
+  cible, jamais leur mise en page : gris très finement étagés, bordures d'un pixel, un accent
+  unique, densité élevée sans surcharge, états de survol et de focus travaillés, clavier de premier
+  rang. Un écran de Keelson qui serait moins soigné que ces produits n'est pas fini.
 
 ## Evidence on Hand
 
