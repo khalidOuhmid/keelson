@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -53,8 +53,8 @@ describe("binaire buildé exécuté par node", () => {
     }
   });
 
-  test("start sort en 2 avec le message « pas encore implémentée »", () => {
-    const result = keelson(["start"]);
+  test("coverage sort en 2 avec le message « pas encore implémentée »", () => {
+    const result = keelson(["coverage"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("pas encore implémentée");
   });
@@ -131,4 +131,103 @@ describe("validate sous node", () => {
     const result = keelson(["validate", join(workspace, "valide.yml")]);
     expect(result.stderr).not.toContain("Cannot find module");
   });
+});
+
+describe("start sous node", () => {
+  type Running = {
+    child: ReturnType<typeof spawn>;
+    url: string;
+    exit: Promise<number | null>;
+  };
+
+  async function start(args: readonly string[], cwd: string): Promise<Running> {
+    const child = spawn("node", [binary, "start", ...args], { cwd, stdio: "pipe" });
+    let stdout = "";
+
+    const exit = new Promise<number | null>((resolve) => {
+      child.on("exit", (code) => resolve(code));
+    });
+
+    const url = await new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`pas d'URL ; stdout=${stdout}`)), 15_000);
+      child.stdout?.on("data", (chunk: Buffer) => {
+        stdout += chunk.toString("utf8");
+        const match = /(http:\/\/127\.0\.0\.1:\d+\/\?token=[0-9a-f]{64})/.exec(stdout);
+        if (match?.[1] !== undefined) {
+          clearTimeout(timer);
+          resolve(match[1]);
+        }
+      });
+      child.on("exit", () => {
+        clearTimeout(timer);
+        reject(new Error(`le processus est sorti avant d'annoncer son URL ; stdout=${stdout}`));
+      });
+    });
+
+    return { child, url, exit };
+  }
+
+  let root = "";
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "keelson-start-smoke-"));
+    writeFileSync(
+      join(root, ".gitlab-ci.yml"),
+      [
+        "stages:",
+        "  - build",
+        "",
+        "compile:",
+        "  stage: build",
+        "  script:",
+        "    - make",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("annonce son URL, répond à /api/workspace, puis sort en 0 sur SIGINT", async () => {
+    const running = await start(["--no-open", "--port", "0"], root);
+
+    const url = new URL(running.url);
+    expect(url.hostname).toBe("127.0.0.1");
+
+    const response = await fetch(`${url.origin}/api/workspace`, {
+      headers: { "x-keelson-token": url.searchParams.get("token") ?? "" },
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()) as unknown).toEqual({
+      files: [{ path: ".gitlab-ci.yml", adapter: "gitlab" }],
+    });
+
+    running.child.kill("SIGINT");
+    expect(await running.exit).toBe(0);
+  }, 30_000);
+
+  test("sert le bundle d'UI embarqué dans dist/ui", async () => {
+    const running = await start(["--no-open", "--port", "0"], root);
+    const url = new URL(running.url);
+
+    const page = await fetch(`${url.origin}/`);
+    expect(page.status).toBe(200);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(await page.text()).toContain('<div id="root">');
+
+    running.child.kill("SIGINT");
+    expect(await running.exit).toBe(0);
+  }, 30_000);
+
+  test("refuse une requête d'API sans token", async () => {
+    const running = await start(["--no-open", "--port", "0"], root);
+    const url = new URL(running.url);
+
+    expect((await fetch(`${url.origin}/api/workspace`)).status).toBe(403);
+
+    running.child.kill("SIGTERM");
+    expect(await running.exit).toBe(0);
+  }, 30_000);
 });

@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import { parse } from "@keelson/adapter-gitlab";
 import type { Diagnostic } from "@keelson/core";
 import { hasErrors, validate as validatePipeline } from "@keelson/core";
+import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
 
 export const DEFAULT_FILE = ".gitlab-ci.yml";
@@ -21,40 +22,29 @@ function usage(message: string): CliResult {
 }
 
 function parseArguments(argv: readonly string[], cwd: string): Options | CliResult {
-  let file: string | undefined;
-  let format: Format = "text";
+  const parsed = parseCommandArgs<{ format?: string }>(argv, {
+    options: { format: { type: "string" } },
+    allowPositionals: true,
+  });
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const argument = argv[index];
-    if (argument === undefined) {
-      continue;
-    }
-
-    if (argument === "--format") {
-      const value = argv[index + 1];
-      if (value === undefined) {
-        return usage("l'option --format attend une valeur (text ou json)");
-      }
-      if (!FORMATS.includes(value as Format)) {
-        return usage(`format « ${value} » inconnu, attendu text ou json`);
-      }
-      format = value as Format;
-      index += 1;
-      continue;
-    }
-
-    if (argument.startsWith("-")) {
-      return usage(`option « ${argument} » inconnue`);
-    }
-
-    if (file !== undefined) {
-      return usage(`un seul fichier attendu, « ${argument} » est en trop`);
-    }
-    file = argument;
+  if (!parsed.ok) {
+    return usage(parsed.message);
   }
 
-  const target = file ?? DEFAULT_FILE;
-  return { file: isAbsolute(target) ? target : resolve(cwd, target), format };
+  if (parsed.positionals.length > 1) {
+    return usage(`un seul fichier attendu, « ${parsed.positionals[1]} » est en trop`);
+  }
+
+  const requested = parsed.values.format;
+  if (requested !== undefined && !FORMATS.includes(requested as Format)) {
+    return usage(`format « ${requested} » inconnu, attendu text ou json`);
+  }
+
+  const target = parsed.positionals[0] ?? DEFAULT_FILE;
+  return {
+    file: isAbsolute(target) ? target : resolve(cwd, target),
+    format: (requested ?? "text") as Format,
+  };
 }
 
 function positionOf(text: string, offset: number): { line: number; column: number } {

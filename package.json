@@ -15,7 +15,7 @@
     "format": "biome check --write .",
     "typecheck": "tsc -b && tsc -p tsconfig.tests.json",
     "test": "bun test",
-    "build": "bun run --filter '*' build",
+    "build": "bun run --filter '*' build && bun run scripts/copy-ui-bundle.ts",
     "e2e": "playwright test",
     "check": "bun run lint && bun run typecheck && bun run test && bun run build",
     "corpus:update": "bun run scripts/update-corpus-goldens.ts"

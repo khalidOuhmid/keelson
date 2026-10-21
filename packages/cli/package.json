@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@keelson/adapter-gitlab": "workspace:*",
-    "@keelson/core": "workspace:*"
+    "@keelson/core": "workspace:*",
+    "@keelson/server": "workspace:*"
   }
 }
