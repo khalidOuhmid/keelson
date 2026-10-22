@@ -50,11 +50,12 @@ export function toFlowGraph(
   layout: Layout,
   pipeline: Pipeline,
   selectedJobId: string | null,
+  headerHeight = 0,
 ): FlowGraph {
   const positions = new Map(layout.nodes.map((node) => [node.id, node]));
   const jobs = new Map(pipeline.jobs.map((job) => [job.id, job]));
 
-  const columnHeight = layout.height + COLUMN_PADDING;
+  const columnHeight = layout.height + headerHeight + COLUMN_PADDING;
 
   const columnNodes = layout.columns.map((column) => ({
     id: `column:${column.name}`,
@@ -83,7 +84,7 @@ export function toFlowGraph(
       {
         id: job.id,
         type: JOB_NODE_TYPE,
-        position: { x: placed.x, y: placed.y },
+        position: { x: placed.x, y: placed.y + headerHeight },
         data: {
           id: job.id,
           stage: job.stage.value,

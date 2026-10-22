@@ -15,7 +15,7 @@ export function StageColumnNode({ data }: StageColumnNodeProps) {
       aria-label={`Stage ${data.name}`}
       className="h-full w-full rounded-lg border border-border-subtle bg-surface-1"
     >
-      <header className="flex items-baseline justify-between gap-2 border-b border-border-subtle px-2.5 py-1.5">
+      <header className="flex h-[var(--keelson-column-header-height)] items-center justify-between gap-2 border-b border-border-subtle px-2.5">
         <span className="flex items-baseline gap-1.5 overflow-hidden">
           <span
             data-testid="stage-column-name"

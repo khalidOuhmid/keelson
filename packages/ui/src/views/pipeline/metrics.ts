@@ -16,6 +16,15 @@ function length(styles: CSSStyleDeclaration, token: string): number {
   return parsed;
 }
 
+export const COLUMN_HEADER_TOKEN = "--keelson-column-header-height";
+
+export function readColumnHeaderHeight(element?: Element): number {
+  const styles = getComputedStyle(element ?? document.documentElement);
+  const raw = styles.getPropertyValue(COLUMN_HEADER_TOKEN).trim();
+  const parsed = Number.parseFloat(raw);
+  return raw === "" || Number.isNaN(parsed) ? 0 : parsed;
+}
+
 export function readLayoutMetrics(element?: Element): LayoutMetrics {
   const target = element ?? document.documentElement;
   const styles = getComputedStyle(target);

@@ -95,6 +95,25 @@ describe("nœuds de colonne", () => {
     expect(implicite?.data.implicit).toBe(true);
   });
 
+  test("les jobs sont décalés sous l'en-tête de colonne, qu'ils ne doivent pas recouvrir", () => {
+    const graph = toFlowGraph(LAYOUT, PIPELINE, null, 32);
+    const column = graph.nodes.find((node) => node.type === COLUMN_NODE_TYPE);
+    const job = graph.nodes.find((node) => node.type === JOB_NODE_TYPE);
+    expect(column?.position.y).toBe(0);
+    expect(job?.position.y).toBeGreaterThanOrEqual(32);
+  });
+
+  test("la colonne est assez haute pour contenir son en-tête et ses jobs", () => {
+    const graph = toFlowGraph(LAYOUT, PIPELINE, null, 32);
+    const column = graph.nodes.find((node) => node.type === COLUMN_NODE_TYPE);
+    expect(column?.height ?? 0).toBeGreaterThanOrEqual(LAYOUT.height + 32);
+  });
+
+  test("sans décalage demandé, les jobs gardent la position de la mise en page", () => {
+    const graph = toFlowGraph(LAYOUT, PIPELINE, null);
+    expect(graph.nodes.find((node) => node.id === "unit")?.position).toEqual({ x: 280, y: 0 });
+  });
+
   test("les colonnes sont sous les jobs", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     const column = graph.nodes.find((node) => node.type === COLUMN_NODE_TYPE);

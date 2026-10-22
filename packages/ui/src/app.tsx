@@ -195,7 +195,7 @@ export function App({ deps }: AppProps = {}) {
         )}
       </div>
 
-      <div className="h-1/4 min-h-0 shrink-0">
+      <div className="max-h-1/3 shrink-0 overflow-y-auto">
         <DiagnosticsPanel
           diagnostics={state.diagnostics}
           onSelectRange={(range) => store.getState().selectByRange(range)}

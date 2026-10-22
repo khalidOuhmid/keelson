@@ -95,6 +95,7 @@
   --keelson-edge-width: 1.5px;
   --keelson-edge-width-strong: 2.5px;
   --keelson-edge-dash: 4px;
+  --keelson-column-header-height: 32px;
 }
 
 /* Reduced motion is honoured by collapsing the duration tokens themselves: every component

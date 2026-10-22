@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { COLUMN_NODE_TYPE, type FlowGraph, JOB_NODE_TYPE, toFlowGraph } from "./graph.ts";
 import { JobNode } from "./JobNode.tsx";
 import { type Layout, layoutPipeline } from "./layout.ts";
-import { readLayoutMetrics } from "./metrics.ts";
+import { readColumnHeaderHeight, readLayoutMetrics } from "./metrics.ts";
 import { StageColumnNode } from "./StageColumnNode.tsx";
 
 const NODE_TYPES = {
@@ -36,7 +36,10 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
   }, [pipeline]);
 
   const graph = useMemo(
-    () => (layout === null ? EMPTY : toFlowGraph(layout, pipeline, selectedJobId)),
+    () =>
+      layout === null
+        ? EMPTY
+        : toFlowGraph(layout, pipeline, selectedJobId, readColumnHeaderHeight()),
     [layout, pipeline, selectedJobId],
   );
 
