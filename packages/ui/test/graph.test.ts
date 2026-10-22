@@ -45,7 +45,6 @@ const LAYOUT: Layout = {
     { name: "build", implicit: false, jobIds: ["compile"], x: 0, width: 200 },
     { name: "test", implicit: false, jobIds: ["unit", "lint"], x: 280, width: 200 },
   ],
-  width: 480,
   height: 152,
 };
 
@@ -227,7 +226,7 @@ describe("arêtes", () => {
 describe("pipeline vide", () => {
   test("aucun job ne produit aucun nœud de job", () => {
     const graph = toFlowGraph(
-      { nodes: [], edges: [], columns: [], width: 0, height: 0 },
+      { nodes: [], edges: [], columns: [], height: 0 },
       pipeline([], []),
       null,
     );
@@ -241,7 +240,6 @@ describe("pipeline vide", () => {
         nodes: [],
         edges: [],
         columns: [{ name: "build", implicit: false, jobIds: [], x: 0, width: 200 }],
-        width: 200,
         height: 0,
       },
       pipeline([{ name: "build" }], []),

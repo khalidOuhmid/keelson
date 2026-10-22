@@ -15,9 +15,7 @@ export type JobNodeData = {
   stage: string;
   stageOrigin: Origin;
   needs: NeedSummary[];
-  needsOrigin: Origin | null;
   environment: string | null;
-  environmentOrigin: Origin | null;
   extendsFrom: string[];
   selected: boolean;
 };
@@ -44,18 +42,18 @@ export type FlowGraph = {
 
 const COLUMN_Z = 0;
 const JOB_Z = 1;
-const COLUMN_PADDING = 1;
 
 export function toFlowGraph(
   layout: Layout,
   pipeline: Pipeline,
   selectedJobId: string | null,
   headerHeight = 0,
+  columnPadding = 0,
 ): FlowGraph {
   const positions = new Map(layout.nodes.map((node) => [node.id, node]));
   const jobs = new Map(pipeline.jobs.map((job) => [job.id, job]));
 
-  const columnHeight = layout.height + headerHeight + COLUMN_PADDING;
+  const columnHeight = layout.height + headerHeight + columnPadding;
 
   const columnNodes = layout.columns.map((column) => ({
     id: `column:${column.name}`,
@@ -93,9 +91,7 @@ export function toFlowGraph(
             job: need.job,
             optional: need.optional,
           })),
-          needsOrigin: job.needs?.origin ?? null,
           environment: job.environment?.value.name ?? null,
-          environmentOrigin: job.environment?.origin ?? null,
           extendsFrom: job.extends,
           selected: job.id === selectedJobId,
         } satisfies JobNodeData,

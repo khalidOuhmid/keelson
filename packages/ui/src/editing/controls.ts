@@ -13,4 +13,4 @@ export const GROUP = "flex flex-col gap-1.5";
 
 /** Titre de section. Distinct de `LABEL`, qui étiquette un champ : une section et un champ ne
  *  peuvent pas parler de la même voix, sinon il n'y a plus de hiérarchie du tout. */
-export const SECTION_HEADING = "text-xs font-semibold text-text-secondary";
+export const SECTION_HEADING = "text-sm font-semibold text-text-secondary";

@@ -120,6 +120,17 @@ export function App({ deps }: AppProps = {}) {
     return () => subscription.close();
   }, [resolved, store]);
 
+  // Quand le panneau de détail disparaît — Échap, bouton de fermeture ou suppression confirmée —
+  // le focus revient au graphe plutôt que de retomber sur <body>.
+  const hadSelection = useRef(false);
+  useEffect(() => {
+    const open = state.selectedJobId !== null;
+    if (hadSelection.current && !open) {
+      document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]')?.focus();
+    }
+    hadSelection.current = open;
+  }, [state.selectedJobId]);
+
   // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
   // désigne au canevas mais se referme depuis n'importe où, panneau compris.
   useEffect(() => {

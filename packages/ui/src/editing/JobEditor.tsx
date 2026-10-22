@@ -1,5 +1,5 @@
 import type { Job, Pipeline } from "@keelson/core";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Draft } from "../state/store.ts";
 import { BUTTON, DANGER_BUTTON, FIELD, GROUP, LABEL } from "./controls.ts";
 import {
@@ -35,6 +35,22 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
 
   const [stage, setStage] = useState(job.stage.value);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const deleteTrigger = useRef<HTMLButtonElement>(null);
+  const confirmButton = useRef<HTMLButtonElement>(null);
+
+  // Le focus entre dans le dialogue a l'ouverture et revient au declencheur a la fermeture : sans
+  // cela, la question posee n'est jamais atteinte par un lecteur d'ecran, et le focus retombe sur
+  // <body> au moment le plus destructeur du produit.
+  useEffect(() => {
+    if (confirmingDelete) {
+      confirmButton.current?.focus();
+    }
+  }, [confirmingDelete]);
+
+  const cancelDelete = (): void => {
+    setConfirmingDelete(false);
+    deleteTrigger.current?.focus();
+  };
   const [environmentName, setEnvironmentName] = useState(job.environment?.value.name ?? "");
   const [environmentUrl, setEnvironmentUrl] = useState(job.environment?.value.url ?? "");
 
@@ -211,6 +227,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
       </div>
 
       <button
+        ref={deleteTrigger}
         type="button"
         className={DANGER_BUTTON}
         disabled={disabled}
@@ -222,7 +239,16 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
       {confirmingDelete ? (
         <div
           role="alertdialog"
+          aria-modal="true"
           aria-label={`Delete ${job.id}`}
+          // Echap annule le dialogue, pas le panneau : sans `stopPropagation`, l'ecouteur de
+          // document d'app.tsx refermerait tout le panneau de detail au lieu de repondre.
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              cancelDelete();
+            }
+          }}
           className={`${GROUP} rounded-md border border-border-default bg-surface-2 p-2.5`}
         >
           <p className="text-xs text-text-secondary">
@@ -233,6 +259,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           </p>
           <div className="flex gap-1.5">
             <button
+              ref={confirmButton}
               type="button"
               className={DANGER_BUTTON}
               disabled={disabled}
@@ -243,7 +270,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
             >
               Delete {job.id}
             </button>
-            <button type="button" className={BUTTON} onClick={() => setConfirmingDelete(false)}>
+            <button type="button" className={BUTTON} onClick={cancelDelete}>
               Cancel
             </button>
           </div>

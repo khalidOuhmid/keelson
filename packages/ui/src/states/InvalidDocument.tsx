@@ -1,11 +1,14 @@
 import type { Diagnostic } from "@keelson/core";
+import { blocksEditing } from "../state/store.ts";
 
 export type InvalidDocumentProps = {
   diagnostics: readonly Diagnostic[];
 };
 
 export function InvalidDocument({ diagnostics }: InvalidDocumentProps) {
-  const blocking = diagnostics.filter((diagnostic) => diagnostic.severity === "error");
+  // ADR 0001 : la sévérité décrit la gravité, jamais l'effet sur l'outil. Lister ce qui bloque
+  // réellement l'édition, pas ce qui est marqué « error ».
+  const blocking = diagnostics.filter(blocksEditing);
 
   return (
     <div className="flex h-full items-center justify-center bg-surface-0 p-6">

@@ -35,7 +35,6 @@ export type Layout = {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
   columns: LayoutColumn[];
-  width: number;
   height: number;
 };
 
@@ -105,7 +104,6 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
         x: index * (metrics.nodeWidth + metrics.columnGap),
         width: metrics.nodeWidth,
       })),
-      width: columns.length * (metrics.nodeWidth + metrics.columnGap),
       height: 0,
     };
   }
@@ -185,10 +183,6 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
     nodes,
     edges: [...edges].sort((left, right) => left.id.localeCompare(right.id)),
     columns: laidColumns,
-    width: Math.max(
-      0,
-      laidColumns.length * (metrics.nodeWidth + metrics.columnGap) - metrics.columnGap,
-    ),
     height: nodes.reduce((tallest, node) => Math.max(tallest, node.y + node.height), 0),
   };
 }

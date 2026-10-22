@@ -14,6 +14,10 @@
   /* Borders. Default carries structure, subtle separates, strong marks focus boundaries.
      Default et strong tiennent 3:1 jusqu'a surface-3 (WCAG 1.4.11) : ils bordent des composants
      d'interface, pas de la decoration. `subtle` reste decoratif et n'est pas soumis au seuil. */
+  /* Tailwind lit ce token pour la classe `border` : la regle « un pixel » redevient adossee au
+     fichier de tokens au lieu de dependre du defaut du framework. */
+  --default-border-width: 1px;
+
   --color-border-subtle: oklch(0.29 0.008 265);
   --color-border-default: oklch(0.56 0.01 265);
   --color-border-strong: oklch(0.66 0.012 265);
@@ -65,13 +69,9 @@
   --radius-md: 5px;
   --radius-lg: 8px;
 
-  /* Elevation. */
-
   /* Motion. */
   --duration-fast: 140ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Hairline. Every border in the product is this wide. */
 }
 
 /* Pipeline layout metrics. Read at runtime by views/pipeline/metrics.ts and handed to elkjs,
@@ -91,6 +91,8 @@
   --keelson-edge-width: 1.5px;
   --keelson-edge-width-strong: 2.5px;
   --keelson-edge-dash: 4px;
+  /* Marge basse d'une colonne sous son dernier noeud. */
+  --keelson-column-padding: 1px;
   --keelson-column-header-height: 32px;
 }
 

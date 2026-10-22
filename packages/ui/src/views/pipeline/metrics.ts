@@ -17,12 +17,24 @@ function length(styles: CSSStyleDeclaration, token: string): number {
 }
 
 export const COLUMN_HEADER_TOKEN = "--keelson-column-header-height";
+export const COLUMN_PADDING_TOKEN = "--keelson-column-padding";
 
-export function readColumnHeaderHeight(element?: Element): number {
-  const styles = getComputedStyle(element ?? document.documentElement);
-  const raw = styles.getPropertyValue(COLUMN_HEADER_TOKEN).trim();
+/** Lit un token de longueur en rendant 0 s'il est absent : contrairement aux métriques passées à
+ *  elkjs, une marge manquante dégrade le rendu sans le rendre faux. */
+function optionalLength(token: string, element?: Element): number {
+  const raw = getComputedStyle(element ?? document.documentElement)
+    .getPropertyValue(token)
+    .trim();
   const parsed = Number.parseFloat(raw);
   return raw === "" || Number.isNaN(parsed) ? 0 : parsed;
+}
+
+export function readColumnPadding(element?: Element): number {
+  return optionalLength(COLUMN_PADDING_TOKEN, element);
+}
+
+export function readColumnHeaderHeight(element?: Element): number {
+  return optionalLength(COLUMN_HEADER_TOKEN, element);
 }
 
 export function readLayoutMetrics(element?: Element): LayoutMetrics {

@@ -85,7 +85,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       });
     };
 
-    const reload = async (file: string, notice: Notice | null): Promise<void> => {
+    const reload = async (file: string, notice: Notice): Promise<void> => {
       const result = await dependencies.document(file);
       clearHistory();
 
@@ -103,7 +103,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         status: "ready",
         selectedJobId: stillThere ? get().selectedJobId : null,
         error: null,
-        ...(notice === null ? {} : { notice }),
+        notice,
       });
     };
 

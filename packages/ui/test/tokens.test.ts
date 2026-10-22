@@ -19,6 +19,9 @@ const FORBIDDEN: { reason: string; pattern: RegExp }[] = [
   { reason: "rgb(", pattern: /\brgba?\s*\(/ },
   { reason: "hsl(", pattern: /\bhsla?\s*\(/ },
   { reason: "valeur en px", pattern: /\b\d+(?:\.\d+)?px\b/ },
+  // La revue du 2026-10-22 a montre que le garde ne voyait pas une valeur numerique nue : un
+  // `width="10"` en JSX ou une constante de geometrie passaient sans bruit.
+  { reason: "taille rendue nue en attribut JSX", pattern: /\s(?:width|height)="\d/ },
 ];
 
 function sourceFiles(directory: string): string[] {
@@ -191,7 +194,16 @@ describe("aucun token promis sans consommateur", () => {
 
   /** Tailwind consomme `--color-surface-1` sous la forme `bg-surface-1`, et `--text-sm` sous la
    *  forme `text-sm` : on cherche la racine du token autant que son nom complet. */
+  /** Tokens que Tailwind lit lui-même, sans qu'aucune classe ne les nomme. Les lister ici plutôt
+   *  que d'affaiblir le garde : chaque entrée doit dire par quelle utilitaire elle est consommée. */
+  const IMPLICIT: Record<string, string> = {
+    "--default-border-width": "lu par Tailwind pour la classe `border`",
+  };
+
   function isConsumed(token: string): boolean {
+    if (token in IMPLICIT) {
+      return true;
+    }
     if (consumers.includes(token)) {
       return true;
     }
@@ -210,6 +222,12 @@ describe("aucun token promis sans consommateur", () => {
 
   test("la liste des tokens est lue", () => {
     expect(declared.length).toBeGreaterThan(20);
+  });
+
+  test("chaque exception implicite correspond à un token déclaré", () => {
+    for (const token of Object.keys(IMPLICIT)) {
+      expect({ token, declared: declared.includes(token) }).toEqual({ token, declared: true });
+    }
   });
 
   for (const token of declared.filter((name) => !name.includes("--line-height"))) {

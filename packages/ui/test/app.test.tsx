@@ -542,3 +542,19 @@ describe("la barre latérale est groupée", () => {
     expect(heading.className).not.toBe(label.className);
   });
 });
+
+describe("le focus ne tombe jamais sur le corps du document", () => {
+  /** Revue indépendante : après Échap comme après une suppression confirmée, `document.activeElement`
+   *  était `<body>`. Quand le panneau de détail disparaît, le focus revient au graphe. */
+  test("fermer le panneau rend le focus au graphe", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    await screen.findByRole("region", { name: /job detail/i });
+
+    await userEvent.click(screen.getByRole("button", { name: "Close job detail" }));
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("region", { name: "Pipeline graph" })),
+    );
+  });
+});

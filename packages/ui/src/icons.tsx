@@ -28,20 +28,27 @@ export function ErrorIcon(props: IconProps) {
   );
 }
 
+/** Un triangle, et non un trait surmonte d'un point : la version precedente etait une quasi-jumelle
+ *  d'`InfoIcon` et les deux etaient indiscernables au plus petit
+ *  degre de la rampe. */
 export function WarningIcon(props: IconProps) {
   return (
     <Glyph {...props}>
-      <path d="M8 3.5v5.5" />
-      <path d="M8 12.2v.3" />
+      <path d="M8 2.2L14.4 13.4H1.6z" />
+      <path d="M8 6.4v3" />
+      <path d="M8 11.2v.3" />
     </Glyph>
   );
 }
 
+/** Un disque, pour que la marque se distingue du triangle d'avertissement par sa silhouette et non
+ *  par un detail interieur. */
 export function InfoIcon(props: IconProps) {
   return (
     <Glyph {...props}>
-      <path d="M8 7.2v5.3" />
-      <path d="M8 3.5v.3" />
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 7.4v3.8" />
+      <path d="M8 5v.3" />
     </Glyph>
   );
 }
@@ -60,6 +67,16 @@ export function ArrowRightIcon(props: IconProps) {
     <Glyph {...props}>
       <path d="M4 8h8" />
       <path d="M9 5l3 3-3 3" />
+    </Glyph>
+  );
+}
+
+/** Marque d'héritage, en place du caractère `↳`. */
+export function InheritedIcon(props: IconProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M4.5 3v5a2 2 0 0 0 2 2H12" />
+      <path d="M9.5 7.5l2.5 2.5-2.5 2.5" />
     </Glyph>
   );
 }

@@ -447,3 +447,43 @@ describe("JobEditor — aucune écriture sans geste explicite", () => {
     expect(drafts).toEqual([{ kind: "removeJob", id: "unit" }]);
   });
 });
+
+describe("JobEditor — la confirmation est utilisable au clavier", () => {
+  /** Revue indépendante du 2026-10-22 : à l'ouverture le focus restait sur le déclencheur et
+   *  n'entrait jamais dans le dialogue ; `aria-modal` était absent ; Échap refermait tout le
+   *  panneau de détail au lieu d'annuler le dialogue ; et le focus retombait sur `<body>` au
+   *  moment le plus destructeur du produit. */
+  test("le focus entre dans le dialogue à l'ouverture", async () => {
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete unit" }));
+  });
+
+  test("le dialogue est annoncé comme modal", async () => {
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+
+    expect(screen.getByRole("alertdialog").getAttribute("aria-modal")).toBe("true");
+  });
+
+  test("Échap annule le dialogue et rend le focus au déclencheur", async () => {
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(drafts).toEqual([]);
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete job" }));
+  });
+
+  test("Annuler rend aussi le focus au déclencheur", async () => {
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete job" }));
+  });
+});

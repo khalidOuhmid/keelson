@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { COLUMN_NODE_TYPE, type FlowGraph, JOB_NODE_TYPE, toFlowGraph } from "./graph.ts";
 import { JobNode } from "./JobNode.tsx";
 import { type Layout, layoutPipeline } from "./layout.ts";
-import { readColumnHeaderHeight, readLayoutMetrics } from "./metrics.ts";
+import { readColumnHeaderHeight, readColumnPadding, readLayoutMetrics } from "./metrics.ts";
 import { StageColumnNode } from "./StageColumnNode.tsx";
 
 const NODE_TYPES = {
@@ -68,7 +68,13 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
     () =>
       layout === null
         ? EMPTY
-        : toFlowGraph(layout, pipeline, selectedJobId, readColumnHeaderHeight()),
+        : toFlowGraph(
+            layout,
+            pipeline,
+            selectedJobId,
+            readColumnHeaderHeight(),
+            readColumnPadding(),
+          ),
     [layout, pipeline, selectedJobId],
   );
 
@@ -77,6 +83,8 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
   return (
     <section
       aria-label="Pipeline graph"
+      // Cible de repli du focus quand le panneau de detail se ferme.
+      tabIndex={-1}
       className="relative h-full w-full bg-surface-0"
       onClickCapture={(event) => {
         const target = event.target as HTMLElement;
