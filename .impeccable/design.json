@@ -1,0 +1,644 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-22T00:00:00.000Z",
+  "title": "Design System: Keelson",
+  "extensions": {
+    "colorMeta": {
+      "surface-0": {
+        "role": "neutral",
+        "displayName": "Floor",
+        "canonical": "oklch(0.17 0.006 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.006 265)",
+          "oklch(0.26 0.006 265)",
+          "oklch(0.37 0.006 265)",
+          "oklch(0.48 0.006 265)",
+          "oklch(0.59 0.006 265)",
+          "oklch(0.70 0.006 265)",
+          "oklch(0.83 0.006 265)",
+          "oklch(0.95 0.006 265)"
+        ]
+      },
+      "surface-1": {
+        "role": "neutral",
+        "displayName": "Plane",
+        "canonical": "oklch(0.21 0.007 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.007 265)",
+          "oklch(0.26 0.007 265)",
+          "oklch(0.37 0.007 265)",
+          "oklch(0.48 0.007 265)",
+          "oklch(0.59 0.007 265)",
+          "oklch(0.70 0.007 265)",
+          "oklch(0.83 0.007 265)",
+          "oklch(0.95 0.007 265)"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Card",
+        "canonical": "oklch(0.25 0.008 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.008 265)",
+          "oklch(0.26 0.008 265)",
+          "oklch(0.37 0.008 265)",
+          "oklch(0.48 0.008 265)",
+          "oklch(0.59 0.008 265)",
+          "oklch(0.70 0.008 265)",
+          "oklch(0.83 0.008 265)",
+          "oklch(0.95 0.008 265)"
+        ]
+      },
+      "surface-3": {
+        "role": "neutral",
+        "displayName": "Card Raised",
+        "canonical": "oklch(0.29 0.009 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.009 265)",
+          "oklch(0.26 0.009 265)",
+          "oklch(0.37 0.009 265)",
+          "oklch(0.48 0.009 265)",
+          "oklch(0.59 0.009 265)",
+          "oklch(0.70 0.009 265)",
+          "oklch(0.83 0.009 265)",
+          "oklch(0.95 0.009 265)"
+        ]
+      },
+      "surface-inset": {
+        "role": "neutral",
+        "displayName": "Well",
+        "canonical": "oklch(0.14 0.006 265)",
+        "tonalRamp": [
+          "oklch(0.14 0.006 265)",
+          "oklch(0.25 0.006 265)",
+          "oklch(0.36 0.006 265)",
+          "oklch(0.47 0.006 265)",
+          "oklch(0.58 0.006 265)",
+          "oklch(0.70 0.006 265)",
+          "oklch(0.83 0.006 265)",
+          "oklch(0.95 0.006 265)"
+        ]
+      },
+      "border-subtle": {
+        "role": "neutral",
+        "displayName": "Rule Faint",
+        "canonical": "oklch(0.29 0.008 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.008 265)",
+          "oklch(0.26 0.008 265)",
+          "oklch(0.37 0.008 265)",
+          "oklch(0.48 0.008 265)",
+          "oklch(0.59 0.008 265)",
+          "oklch(0.70 0.008 265)",
+          "oklch(0.83 0.008 265)",
+          "oklch(0.95 0.008 265)"
+        ]
+      },
+      "border-default": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(0.36 0.01 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.01 265)",
+          "oklch(0.26 0.01 265)",
+          "oklch(0.37 0.01 265)",
+          "oklch(0.48 0.01 265)",
+          "oklch(0.59 0.01 265)",
+          "oklch(0.70 0.01 265)",
+          "oklch(0.83 0.01 265)",
+          "oklch(0.95 0.01 265)"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Rule Strong",
+        "canonical": "oklch(0.48 0.012 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.012 265)",
+          "oklch(0.26 0.012 265)",
+          "oklch(0.37 0.012 265)",
+          "oklch(0.48 0.012 265)",
+          "oklch(0.59 0.012 265)",
+          "oklch(0.70 0.012 265)",
+          "oklch(0.83 0.012 265)",
+          "oklch(0.95 0.012 265)"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(0.96 0.003 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.003 265)",
+          "oklch(0.26 0.003 265)",
+          "oklch(0.37 0.003 265)",
+          "oklch(0.48 0.003 265)",
+          "oklch(0.59 0.003 265)",
+          "oklch(0.70 0.003 265)",
+          "oklch(0.83 0.003 265)",
+          "oklch(0.96 0.003 265)"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Paper Dim",
+        "canonical": "oklch(0.78 0.006 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.006 265)",
+          "oklch(0.26 0.006 265)",
+          "oklch(0.37 0.006 265)",
+          "oklch(0.48 0.006 265)",
+          "oklch(0.59 0.006 265)",
+          "oklch(0.70 0.006 265)",
+          "oklch(0.83 0.006 265)",
+          "oklch(0.95 0.006 265)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Paper Faint",
+        "canonical": "oklch(0.63 0.008 265)",
+        "tonalRamp": [
+          "oklch(0.15 0.008 265)",
+          "oklch(0.26 0.008 265)",
+          "oklch(0.37 0.008 265)",
+          "oklch(0.48 0.008 265)",
+          "oklch(0.59 0.008 265)",
+          "oklch(0.70 0.008 265)",
+          "oklch(0.83 0.008 265)",
+          "oklch(0.95 0.008 265)"
+        ]
+      },
+      "text-on-accent": {
+        "role": "neutral",
+        "displayName": "Ink On Accent",
+        "canonical": "oklch(0.17 0.006 265)",
+        "unused": true,
+        "tonalRamp": [
+          "oklch(0.15 0.006 265)",
+          "oklch(0.26 0.006 265)",
+          "oklch(0.37 0.006 265)",
+          "oklch(0.48 0.006 265)",
+          "oklch(0.59 0.006 265)",
+          "oklch(0.70 0.006 265)",
+          "oklch(0.83 0.006 265)",
+          "oklch(0.95 0.006 265)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "oklch(0.68 0.16 258)",
+        "tonalRamp": [
+          "oklch(0.20 0.16 258)",
+          "oklch(0.31 0.16 258)",
+          "oklch(0.42 0.16 258)",
+          "oklch(0.53 0.16 258)",
+          "oklch(0.64 0.16 258)",
+          "oklch(0.75 0.16 258)",
+          "oklch(0.86 0.10 258)",
+          "oklch(0.95 0.04 258)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Signal Blue Bright",
+        "canonical": "oklch(0.74 0.16 258)",
+        "unused": true,
+        "tonalRamp": [
+          "oklch(0.20 0.16 258)",
+          "oklch(0.31 0.16 258)",
+          "oklch(0.42 0.16 258)",
+          "oklch(0.53 0.16 258)",
+          "oklch(0.64 0.16 258)",
+          "oklch(0.75 0.16 258)",
+          "oklch(0.86 0.10 258)",
+          "oklch(0.95 0.04 258)"
+        ]
+      },
+      "accent-muted": {
+        "role": "primary",
+        "displayName": "Signal Blue Deep",
+        "canonical": "oklch(0.35 0.07 258)",
+        "unused": true,
+        "tonalRamp": [
+          "oklch(0.18 0.07 258)",
+          "oklch(0.29 0.07 258)",
+          "oklch(0.40 0.07 258)",
+          "oklch(0.51 0.07 258)",
+          "oklch(0.62 0.07 258)",
+          "oklch(0.73 0.07 258)",
+          "oklch(0.84 0.07 258)",
+          "oklch(0.95 0.04 258)"
+        ]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Alert Red",
+        "canonical": "oklch(0.65 0.19 25)",
+        "tonalRamp": [
+          "oklch(0.20 0.19 25)",
+          "oklch(0.31 0.19 25)",
+          "oklch(0.42 0.19 25)",
+          "oklch(0.53 0.19 25)",
+          "oklch(0.64 0.19 25)",
+          "oklch(0.75 0.15 25)",
+          "oklch(0.86 0.10 25)",
+          "oklch(0.95 0.04 25)"
+        ]
+      },
+      "danger-muted": {
+        "role": "secondary",
+        "displayName": "Alert Red Deep",
+        "canonical": "oklch(0.32 0.09 25)",
+        "tonalRamp": [
+          "oklch(0.18 0.09 25)",
+          "oklch(0.29 0.09 25)",
+          "oklch(0.40 0.09 25)",
+          "oklch(0.51 0.09 25)",
+          "oklch(0.62 0.09 25)",
+          "oklch(0.73 0.09 25)",
+          "oklch(0.84 0.09 25)",
+          "oklch(0.95 0.04 25)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Caution Amber",
+        "canonical": "oklch(0.78 0.14 75)",
+        "tonalRamp": [
+          "oklch(0.20 0.14 75)",
+          "oklch(0.31 0.14 75)",
+          "oklch(0.42 0.14 75)",
+          "oklch(0.53 0.14 75)",
+          "oklch(0.64 0.14 75)",
+          "oklch(0.75 0.14 75)",
+          "oklch(0.86 0.12 75)",
+          "oklch(0.95 0.06 75)"
+        ]
+      },
+      "warning-muted": {
+        "role": "secondary",
+        "displayName": "Caution Amber Deep",
+        "canonical": "oklch(0.34 0.07 75)",
+        "tonalRamp": [
+          "oklch(0.18 0.07 75)",
+          "oklch(0.29 0.07 75)",
+          "oklch(0.40 0.07 75)",
+          "oklch(0.51 0.07 75)",
+          "oklch(0.62 0.07 75)",
+          "oklch(0.73 0.07 75)",
+          "oklch(0.84 0.07 75)",
+          "oklch(0.95 0.04 75)"
+        ]
+      },
+      "info": {
+        "role": "secondary",
+        "displayName": "Notice Blue",
+        "canonical": "oklch(0.72 0.09 230)",
+        "tonalRamp": [
+          "oklch(0.20 0.09 230)",
+          "oklch(0.31 0.09 230)",
+          "oklch(0.42 0.09 230)",
+          "oklch(0.53 0.09 230)",
+          "oklch(0.64 0.09 230)",
+          "oklch(0.75 0.09 230)",
+          "oklch(0.86 0.07 230)",
+          "oklch(0.95 0.03 230)"
+        ]
+      },
+      "info-muted": {
+        "role": "secondary",
+        "displayName": "Notice Blue Deep",
+        "canonical": "oklch(0.32 0.04 230)",
+        "tonalRamp": [
+          "oklch(0.18 0.04 230)",
+          "oklch(0.29 0.04 230)",
+          "oklch(0.40 0.04 230)",
+          "oklch(0.51 0.04 230)",
+          "oklch(0.62 0.04 230)",
+          "oklch(0.73 0.04 230)",
+          "oklch(0.84 0.04 230)",
+          "oklch(0.95 0.03 230)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "xl": {
+        "displayName": "XL",
+        "purpose": "Top of the ramp (19px/26px). Defined in tokens.css but rendered nowhere in the shipped UI."
+      },
+      "lg": {
+        "displayName": "LG",
+        "purpose": "The de facto largest type: job detail panel title and state-screen headings (15px semibold)."
+      },
+      "base": {
+        "displayName": "Base",
+        "purpose": "Document default set on body (13px/20px); the job node's job id uses it at semibold."
+      },
+      "sm": {
+        "displayName": "SM",
+        "purpose": "Panel and state prose, diagnostic messages, stage column name (12px/18px)."
+      },
+      "xs": {
+        "displayName": "XS",
+        "purpose": "The working size: inputs, buttons, monospace values, file path (11px/16px)."
+      },
+      "2xs": {
+        "displayName": "2XS Label",
+        "purpose": "The label voice: 10px semibold uppercase at 0.06em tracking in text-muted. Field labels, section labels, origin badges, tags, notice chips, severity words, counts."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-raised",
+        "value": "0 1px 2px oklch(0 0 0 / 0.3)",
+        "purpose": "Defined for a resting lift. UNUSED: no component in the shipped UI renders a box-shadow."
+      },
+      {
+        "name": "shadow-overlay",
+        "value": "0 8px 24px oklch(0 0 0 / 0.45)",
+        "purpose": "Defined for a true overlay (popover, dialog). UNUSED: the product has no overlay surfaces yet."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-instant",
+        "value": "80ms",
+        "purpose": "Defined for an immediate state flip. Currently unused by any component."
+      },
+      {
+        "name": "duration-fast",
+        "value": "140ms",
+        "purpose": "The only duration in use. Every hover and focus colour transition in the product."
+      },
+      {
+        "name": "duration-base",
+        "value": "220ms",
+        "purpose": "Defined for a longer transition. Currently unused by any component."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The single easing curve, applied to colour transitions only."
+      },
+      {
+        "name": "prefers-reduced-motion",
+        "value": "--duration-instant / --duration-fast / --duration-base all collapse to 0ms",
+        "purpose": "Reduced motion is honoured at the token layer, so no component needs an !important override."
+      }
+    ],
+    "metrics": [
+      {
+        "name": "keelson-node-width",
+        "value": "232px",
+        "purpose": "Job node width; read at runtime and handed to the layout engine."
+      },
+      {
+        "name": "keelson-node-height",
+        "value": "64px",
+        "purpose": "Job node height; read at runtime and handed to the layout engine."
+      },
+      {
+        "name": "keelson-column-gap",
+        "value": "72px",
+        "purpose": "Horizontal distance between stage columns."
+      },
+      {
+        "name": "keelson-row-gap",
+        "value": "20px",
+        "purpose": "Vertical distance between job nodes inside a column."
+      },
+      {
+        "name": "keelson-column-header-height",
+        "value": "32px",
+        "purpose": "Stage column header band; offsets every job node downward."
+      },
+      {
+        "name": "keelson-panel-width",
+        "value": "352px",
+        "purpose": "Both side columns: left control sidebar and right detail column."
+      },
+      {
+        "name": "keelson-header-height",
+        "value": "44px",
+        "purpose": "The application header band."
+      },
+      {
+        "name": "keelson-focus-ring-width",
+        "value": "2px",
+        "purpose": "Global :focus-visible outline width; the only 2px stroke in the product."
+      },
+      {
+        "name": "keelson-focus-ring-offset",
+        "value": "2px",
+        "purpose": "Global :focus-visible outline offset."
+      },
+      {
+        "name": "keelson-edge-dash",
+        "value": "4px",
+        "purpose": "Dash length and gap for an optional dependency edge."
+      },
+      {
+        "name": "keelson-edge-width",
+        "value": "1.5px",
+        "purpose": "Defined for a dependency edge stroke. UNUSED: edges render at the graph library's default width."
+      },
+      {
+        "name": "keelson-edge-width-strong",
+        "value": "2.5px",
+        "purpose": "Defined for a highlighted dependency edge. UNUSED: the highlighted flag is computed but never styled."
+      },
+      {
+        "name": "border-width-hairline",
+        "value": "1px",
+        "purpose": "The width of every border in the product."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The only button geometry in the product. Transparent until hovered.",
+      "html": "<button class=\"ds-btn\">Add stage</button>",
+      "css": ".ds-btn { cursor: pointer; background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 4px 8px; font-family: var(--font-sans); font-size: var(--text-xs); line-height: var(--text-xs--line-height); transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); } .ds-btn:hover { background: var(--color-surface-3); } .ds-btn:focus-visible { outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-btn:disabled { cursor: not-allowed; color: var(--color-text-muted); background: transparent; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "danger-button",
+      "description": "Destructive actions only (Delete job). Same ghost geometry, severity-red outline.",
+      "html": "<button class=\"ds-btn-danger\">Delete job</button>",
+      "css": ".ds-btn-danger { cursor: pointer; background: transparent; color: var(--color-danger); border: 1px solid var(--color-danger-muted); border-radius: var(--radius-sm); padding: 4px 8px; font-family: var(--font-sans); font-size: var(--text-xs); line-height: var(--text-xs--line-height); transition: background-color var(--duration-fast) var(--ease-out); } .ds-btn-danger:hover { background: color-mix(in oklch, var(--color-danger-muted) 30%, transparent); } .ds-btn-danger:focus-visible { outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-btn-danger:disabled { cursor: not-allowed; color: var(--color-text-muted); background: transparent; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "The one input style: inputs and selects are indistinguishable in weight. Recessed below the floor.",
+      "html": "<label class=\"ds-field-group\"><span class=\"ds-label\">New stage name</span><input class=\"ds-field\" value=\"build\" /></label>",
+      "css": ".ds-field-group { display: flex; flex-direction: column; gap: 6px; } .ds-label { font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-text-muted); } .ds-field { width: 100%; background: var(--color-surface-inset); color: var(--color-text-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 4px 6px; font-family: var(--font-mono); font-size: var(--text-xs); line-height: var(--text-xs--line-height); transition: border-color var(--duration-fast) var(--ease-out); } .ds-field:focus-visible { border-color: var(--color-accent); outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-field:disabled { cursor: not-allowed; color: var(--color-text-muted); }"
+    },
+    {
+      "name": "Job Node",
+      "kind": "card",
+      "refersTo": "job-node",
+      "description": "The pipeline's unit card: job id, stage name, and the stage's origin badge. Selected state swaps the border to the accent.",
+      "html": "<button class=\"ds-job-node\" aria-pressed=\"false\"><span class=\"ds-job-node__id\">build:image</span><span class=\"ds-job-node__meta\"><span class=\"ds-job-node__stage\">build</span><span class=\"ds-origin-badge\">inherited from .base</span></span></button>",
+      "css": ".ds-job-node { display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 232px; height: 64px; cursor: pointer; text-align: left; background: var(--color-surface-2); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); padding: 8px 10px; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); } .ds-job-node:hover { background: var(--color-surface-3); } .ds-job-node[aria-pressed=\"true\"] { background: var(--color-surface-3); border-color: var(--color-accent); } .ds-job-node:focus-visible { outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-job-node__id { font-family: var(--font-sans); font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-job-node__meta { display: flex; align-items: center; gap: 4px; overflow: hidden; } .ds-job-node__stage { font-family: var(--font-mono); font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-origin-badge { display: inline-flex; align-items: center; max-width: 100%; background: var(--color-surface-3); color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-label); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }"
+    },
+    {
+      "name": "Stage Column",
+      "kind": "card",
+      "refersTo": "stage-column",
+      "description": "The container behind a stage's job nodes. A role=\"group\" with an accessible name, never a landmark.",
+      "html": "<div role=\"group\" aria-label=\"Stage build\" class=\"ds-stage-column\"><header class=\"ds-stage-column__header\"><span class=\"ds-stage-column__title\"><span class=\"ds-stage-column__name\">build</span><span class=\"ds-tag\">implicit</span></span><span class=\"ds-stage-column__count\">3 jobs</span></header></div>",
+      "css": ".ds-stage-column { width: 300px; height: 220px; background: var(--color-surface-1); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); } .ds-stage-column__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: var(--keelson-column-header-height); border-bottom: 1px solid var(--color-border-subtle); padding: 0 10px; } .ds-stage-column__title { display: flex; align-items: baseline; gap: 6px; overflow: hidden; } .ds-stage-column__name { font-family: var(--font-mono); font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); } .ds-stage-column__count { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); color: var(--color-text-muted); font-variant-numeric: tabular-nums; } .ds-tag { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; }"
+    },
+    {
+      "name": "Origin Badge",
+      "kind": "chip",
+      "refersTo": "origin-badge",
+      "description": "The signature component. Follows any inherited value and states its source; its tooltip promises that editing writes an explicit override in this job and never touches the template.",
+      "html": "<span class=\"ds-origin-badge-standalone\" title=\"Changing this value writes an explicit override in this job. The template is never modified.\">from anchor &amp;defaults</span>",
+      "css": ".ds-origin-badge-standalone { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; background: var(--color-surface-3); color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-label); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }"
+    },
+    {
+      "name": "Tag",
+      "kind": "chip",
+      "refersTo": "tag",
+      "description": "A qualifier on a value: optional, no artifacts, read-only, implicit. Hueless by design.",
+      "html": "<span class=\"ds-tag-chip\">optional</span>",
+      "css": ".ds-tag-chip { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; }"
+    },
+    {
+      "name": "Diagnostic Row",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "One diagnostic in the bottom strip: severity mark, severity word, code, message. A row with a source range is a button; a row without one is inert.",
+      "html": "<button class=\"ds-diagnostic-row\"><span class=\"ds-diagnostic-row__severity\"><span class=\"ds-diagnostic-row__mark ds-diagnostic-row__mark--error\" aria-hidden=\"true\"><svg width=\"8\" height=\"8\" viewBox=\"0 0 8 8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M1 1 L7 7 M7 1 L1 7\"/></svg></span><span class=\"ds-diagnostic-row__word\">error</span></span><span class=\"ds-diagnostic-row__body\"><span class=\"ds-diagnostic-row__code\">GITLAB_UNKNOWN_STAGE</span><span class=\"ds-diagnostic-row__message\">Job build:image refers to a stage that is not declared.</span></span></button>",
+      "css": ".ds-diagnostic-row { display: flex; align-items: flex-start; gap: 8px; width: 100%; cursor: pointer; text-align: left; background: var(--color-surface-1); border: 0; border-bottom: 1px solid var(--color-border-subtle); padding: 8px 12px; transition: background-color var(--duration-fast) var(--ease-out); } .ds-diagnostic-row:hover { background: var(--color-surface-2); } .ds-diagnostic-row:focus-visible { outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-diagnostic-row__severity { display: flex; flex-shrink: 0; align-items: center; gap: 6px; } .ds-diagnostic-row__mark { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1px solid currentColor; border-radius: var(--radius-sm); } .ds-diagnostic-row__mark--error { border-color: var(--color-danger-muted); color: var(--color-danger); } .ds-diagnostic-row__word { font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-text-muted); } .ds-diagnostic-row__body { display: flex; min-width: 0; flex-direction: column; gap: 2px; } .ds-diagnostic-row__code { font-family: var(--font-mono); font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--color-text-secondary); } .ds-diagnostic-row__message { font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--color-text-primary); }"
+    },
+    {
+      "name": "Notice Bar",
+      "kind": "custom",
+      "refersTo": "app-header",
+      "description": "A full-bleed severity band above the header. The word chip makes the colour redundant.",
+      "html": "<div role=\"alert\" class=\"ds-notice ds-notice--stale\"><span class=\"ds-notice__kind\">Not applied</span><p class=\"ds-notice__message\">The file changed on disk; your edit was not applied.</p><button type=\"button\" class=\"ds-notice__dismiss\">Dismiss</button></div>",
+      "css": ".ds-notice { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid currentColor; padding: 6px 12px; } .ds-notice--stale { border-bottom-color: var(--color-warning-muted); background: color-mix(in oklch, var(--color-warning-muted) 20%, transparent); color: var(--color-warning); } .ds-notice__kind { flex-shrink: 0; border: 1px solid currentColor; border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-label); text-transform: uppercase; } .ds-notice__message { min-width: 0; flex: 1; margin: 0; font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--color-text-primary); } .ds-notice__dismiss { flex-shrink: 0; cursor: pointer; background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 6px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; transition: background-color var(--duration-fast) var(--ease-out); } .ds-notice__dismiss:hover { background: var(--color-surface-3); }"
+    },
+    {
+      "name": "State Card",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The empty, missing-file, removed and invalid-document screens: one bordered card on the bare floor.",
+      "html": "<div class=\"ds-state\"><div class=\"ds-state__card\"><h2 class=\"ds-state__heading\">No CI file detected</h2><p class=\"ds-state__body\">Keelson looked for <code class=\"ds-state__code\">.gitlab-ci.yml</code> and found none.</p></div></div>",
+      "css": ".ds-state { display: flex; align-items: center; justify-content: center; background: var(--color-surface-0); padding: 24px; } .ds-state__card { display: flex; flex-direction: column; gap: 8px; max-width: 65ch; background: var(--color-surface-1); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg); padding: 16px; } .ds-state__heading { margin: 0; font-family: var(--font-sans); font-size: var(--text-lg); line-height: var(--text-lg--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); } .ds-state__body { margin: 0; font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--color-text-secondary); } .ds-state__code { font-family: var(--font-mono); color: var(--color-text-primary); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Panel",
+    "overview": "Keelson looks like the tool its reader already has open in the next window: a dark, dense, hairline-ruled instrument panel for a CI pipeline. The whole system is one continuous dark field (surface-0) onto which lighter planes are stacked a few percent of lightness at a time, divided by one-pixel rules rather than by shadows or gaps. Nothing floats, nothing glows, nothing is decorative. The reader's eye is meant to go to the pipeline, not to the chrome around it.\n\nThe world is the category standard played straight — stage columns, job cards, dependency edges, interface sans-serif, dark by default — executed at the finish level of Linear, Vercel and Raycast without borrowing their layout. Density is the aesthetic: the body size is 13px, labels run at 10px, and the ramp tops out at 19px. There is exactly one accent, a cool blue at 258 degrees, and it is reserved for two jobs: marking the selected object and marking focus. Everything that is not selection, focus or a diagnostic severity is grey.\n\nColour never carries meaning alone. Diagnostic severities pair a hue with the severity word spelled out and a distinct mark, so an error is legible as an error in monochrome. Motion is a single 140ms colour fade on hover and focus; there is no entrance animation, no layout animation, and no easing curve applied to anything but colour. Reduced motion is honoured by collapsing the duration tokens to 0ms at the token layer, so no component carries an override.",
+    "keyCharacteristics": [
+      "Dark-only, five finely stepped surface planes in OKLCH at a near-neutral 265 degree hue.",
+      "One-pixel borders everywhere; no shadow is rendered anywhere in the shipped UI.",
+      "A single cool-blue accent, used only for selection and focus.",
+      "A compressed 10 / 11 / 12 / 13 / 15px interface ramp on a 4px spacing base.",
+      "Monospace for every value read from the YAML file; sans-serif for every label about it.",
+      "Every inherited value carries an origin badge stating where it came from."
+    ],
+    "rules": [
+      {
+        "name": "The Two-Job Accent Rule",
+        "body": "The accent means exactly two things: this is selected and this has focus. Any other use — an accent-filled button, an accent heading, an accent-tinted panel — is outside the system.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never-Hue-Alone Rule",
+        "body": "A state is never carried by colour alone. Every severity colour ships with the severity word spelled out and a distinct mark beside it; every notice bar carries a word label (\"Not applied\", \"Reloaded\", \"Deleted\") in a bordered chip.",
+        "section": "colors"
+      },
+      {
+        "name": "The Grey Default Rule",
+        "body": "A new surface starts entirely in the neutral ramp. A hue has to be justified by selection, focus, or a diagnostic severity; \"this feels important\" is not a justification.",
+        "section": "colors"
+      },
+      {
+        "name": "The Monospace-Means-File Rule",
+        "body": "Monospace is reserved for text that exists in the user's YAML: job ids as values, stage names, need targets, environment keys and values, diagnostic codes, file paths, opaque blocks. Prose Keelson wrote is always sans-serif.",
+        "section": "typography"
+      },
+      {
+        "name": "The Small-Caps Label Rule",
+        "body": "Every label naming a field or a section is 10px semibold uppercase at 0.06em tracking in text-muted. Uppercase appears nowhere else — never on a heading, never on a button that reads as a sentence, never as a standalone line of marketing copy above a title.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fifteen-Pixel Ceiling Rule",
+        "body": "No shipped surface sets type above 15px. Hierarchy comes from weight and colour, not from size jumps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rule-Not-Gap Rule",
+        "body": "Regions are separated by a one-pixel border, never by whitespace alone and never by a shadow. If two areas need distinguishing, draw the hairline.",
+        "section": "layout"
+      },
+      {
+        "name": "The Tokenised Geometry Rule",
+        "body": "Graph metrics live in tokens.css and are read at runtime. No node size, column gap or row gap is ever written in TypeScript.",
+        "section": "layout"
+      },
+      {
+        "name": "The Conditional Column Rule",
+        "body": "Side columns are present or absent, never collapsed to a sliver. The sidebar appears only when a pipeline is loaded and editable; the detail column appears only when a job is selected.",
+        "section": "layout"
+      },
+      {
+        "name": "The Tonal-Depth Rule",
+        "body": "Depth is a surface step plus a hairline. Reach for the next surface-* token before reaching for a shadow, and never use both to express the same boundary.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Overlay-Only Shadow Rule",
+        "body": "The two shadow tokens exist for elements that leave the document plane. Panels, cards, nodes, banners and buttons are part of the plane and stay flat.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Three-Radius Rule",
+        "body": "3px for controls, 5px for job nodes, 8px for containers. Full-bleed bands get none. A fourth radius has to displace one of these, not join them.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One-Pixel Rule",
+        "body": "Borders are one pixel. Weight is expressed by moving along the border-subtle → border-default → border-strong ramp, never by thickening the line.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do take every colour, size, radius, duration and graph metric from packages/ui/src/tokens.css. A test enforces that no component hard-codes a value.",
+      "Do keep the accent to selection and focus only (The Two-Job Accent Rule).",
+      "Do separate regions with a one-pixel border from the border-subtle → border-default → border-strong ramp (The Rule-Not-Gap Rule, The One-Pixel Rule).",
+      "Do express depth by stepping a surface token, not by adding a shadow (The Tonal-Depth Rule).",
+      "Do set every value that came out of the user's YAML in monospace, and everything Keelson wrote in the interface sans (The Monospace-Means-File Rule).",
+      "Do pair every severity colour with the severity word and a distinct mark (The Never-Hue-Alone Rule).",
+      "Do animate only colour, only on hover and focus, only through var(--duration-*) with --ease-out, so the reduced-motion collapse at the token layer keeps working without !important.",
+      "Do give every container-like grouping role=\"group\" with an aria-label rather than a <section aria-label>, so stage columns and opaque blocks stay out of the landmark list.",
+      "Do keep a 352px side column and a 44px header; read them from --keelson-panel-width and --keelson-header-height."
+    ],
+    "donts": [
+      "Don't render a box-shadow on a panel, card, node, banner or button. The shipped UI has none, and the two shadow tokens are reserved for surfaces that leave the document plane.",
+      "Don't introduce a filled accent button or an accent-tinted panel; there is no filled-accent surface in the system and text-on-accent has no consumer.",
+      "Don't set type above 15px on a shipped surface, and don't add a size between the existing steps (The Fifteen-Pixel Ceiling Rule).",
+      "Don't use uppercase for anything but the 10px label voice — no uppercase headings, no uppercase standalone line above a title, no uppercase sentence buttons (The Small-Caps Label Rule).",
+      "Don't add a radius outside 3 / 5 / 8px, and don't give a full-bleed band a radius at all.",
+      "Don't thicken a border to signal importance; move along the border ramp instead. The only 2px stroke in the product is the focus ring.",
+      "Don't introduce a light theme or a second accent hue; color-scheme: dark is a commitment, and the severity hues are the only other colours.",
+      "Don't write a node size, column gap or row gap in TypeScript; it belongs in tokens.css and is read at runtime (The Tokenised Geometry Rule).",
+      "Don't smuggle in the rejected worlds: no revision bars or specification-sheet margins, no wiring-schematic ornament, no high-density Japanese grid, no transit-diagram line styling.",
+      "Don't express a state with hue alone, and don't rely on a mark whose meaning is only visual — the word has to be in the DOM."
+    ]
+  }
+}

@@ -1,19 +1,20 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : L2 — étape 9 : passes Impeccable restantes
+Lot courant : L2 — étape 9 : `critique`, `audit` et `polish` restants
 Prochaine action : finir l'étape 9 du lot L2, dans cet ordre.
 
 1. Lancer `/impeccable critique packages/ui/src` puis `/impeccable audit packages/ui/src`, en
-   passant les captures déjà produites dans `packages/ui/.impeccable/review/desktop.png` et
-   `mobile.png` (régénérables par `bunx playwright test packages/ui/e2e/shots.e2e.ts`). Corriger ce
-   qui en ressort, ou le consigner en écart avec justification.
-2. Traiter les deux écarts du 2026-10-22 déjà identifiés par lecture de la capture : le graphe qui
-   ne se recadre pas à l'ouverture du panneau de détail, et la barre latérale gauche sans
-   regroupement visuel. Ce sont les deux points qui tiennent `polish`.
-3. `/impeccable polish packages/ui/src`.
-4. `/impeccable document` : écrit `DESIGN.md` à la racine depuis le monde construit. Il doit
-   correspondre exactement à `packages/ui/src/tokens.css`, qui est la source unique.
+   passant les captures de `packages/ui/.impeccable/review/desktop.png` et `mobile.png`
+   (régénérables par `bunx playwright test packages/ui/e2e/shots.e2e.ts`). Corriger ce qui en
+   ressort, ou le consigner en écart avec justification.
+2. `/impeccable polish packages/ui/src`, qui doit traiter les **cinq** écarts ouverts du
+   2026-10-22 : le graphe qui ne se recadre pas à l'ouverture du panneau de détail ; la barre
+   latérale gauche sans regroupement visuel ; les onze tokens définis et jamais consommés ;
+   `EdgeData.highlighted` calculé et testé mais sans aucun effet visuel ; les icônes en caractères
+   texte (`✕ ! i`, `↳`, `← →`) que `DESIGN.md` refuse de canoniser.
+3. Re-lancer `/impeccable document` après `polish` pour que `DESIGN.md` décrive le monde corrigé :
+   il a été écrit avant ces corrections et devra être mis à jour.
 
 Puis, pour clore le lot : revue indépendante par sous-agent du diff complet de la branche contre
 `specs/lots/l2.md`, vérification finale (`bun install --frozen-lockfile && bun run check &&

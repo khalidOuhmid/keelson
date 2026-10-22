@@ -1,12 +1,11 @@
+import { BUTTON } from "./controls.ts";
+
 export type HistoryControlsProps = {
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
 };
-
-const BUTTON =
-  "cursor-pointer rounded-sm border border-border-default px-2 py-0.5 text-xs text-text-secondary transition-colors duration-fast ease-out hover:bg-surface-3 disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent";
 
 export function HistoryControls({ canUndo, canRedo, onUndo, onRedo }: HistoryControlsProps) {
   return (
