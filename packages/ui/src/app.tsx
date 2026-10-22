@@ -201,9 +201,9 @@ export function App({ deps }: AppProps = {}) {
             <span
               data-testid="pending-indicator"
               role="status"
-              className="flex items-center gap-1.5 font-mono text-2xs tracking-label text-text-muted uppercase"
+              className="flex items-center gap-1.5 text-2xs tracking-label text-text-muted uppercase"
             >
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-accent" />
+              <span aria-hidden="true" className="size-1.5 rounded-sm bg-accent" />
               Writing
             </span>
           ) : null}

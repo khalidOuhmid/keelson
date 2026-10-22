@@ -8,15 +8,12 @@ colors:
   surface-3: "oklch(0.29 0.009 265)"
   surface-inset: "oklch(0.14 0.006 265)"
   border-subtle: "oklch(0.29 0.008 265)"
-  border-default: "oklch(0.36 0.01 265)"
-  border-strong: "oklch(0.48 0.012 265)"
+  border-default: "oklch(0.56 0.01 265)"
+  border-strong: "oklch(0.66 0.012 265)"
   text-primary: "oklch(0.96 0.003 265)"
   text-secondary: "oklch(0.78 0.006 265)"
-  text-muted: "oklch(0.63 0.008 265)"
-  text-on-accent: "oklch(0.17 0.006 265)"
+  text-muted: "oklch(0.67 0.008 265)"
   accent: "oklch(0.68 0.16 258)"
-  accent-hover: "oklch(0.74 0.16 258)"
-  accent-muted: "oklch(0.35 0.07 258)"
   danger: "oklch(0.65 0.19 25)"
   danger-muted: "oklch(0.32 0.09 25)"
   warning: "oklch(0.78 0.14 75)"
@@ -24,42 +21,36 @@ colors:
   info: "oklch(0.72 0.09 230)"
   info-muted: "oklch(0.32 0.04 230)"
 typography:
-  xl:
+  lg:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "19px"
     lineHeight: "26px"
     fontWeight: 600
-  lg:
+  base:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "15px"
     lineHeight: "22px"
-    fontWeight: 600
-  base:
+    fontWeight: 400
+  sm:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
     fontSize: "13px"
     lineHeight: "20px"
     fontWeight: 400
-  sm:
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
+  xs:
+    fontFamily: "ui-monospace, \"SF Mono\", \"JetBrains Mono\", Menlo, Consolas, monospace"
     fontSize: "12px"
     lineHeight: "18px"
     fontWeight: 400
-  xs:
-    fontFamily: "ui-monospace, \"SF Mono\", \"JetBrains Mono\", Menlo, Consolas, monospace"
-    fontSize: "11px"
-    lineHeight: "16px"
-    fontWeight: 400
   2xs:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
-    fontSize: "10px"
-    lineHeight: "14px"
+    fontSize: "11px"
+    lineHeight: "16px"
     fontWeight: 600
     letterSpacing: "0.06em"
 rounded:
   sm: "3px"
   md: "5px"
   lg: "8px"
-  pill: "999px"
 spacing:
   base: "4px"
   0.5: "2px"
@@ -95,11 +86,9 @@ components:
     padding: "0 10px"
     height: "32px"
   origin-badge:
-    backgroundColor: "{colors.surface-3}"
-    textColor: "{colors.text-secondary}"
+    backgroundColor: "transparent"
+    textColor: "{colors.text-muted}"
     typography: "{typography.2xs}"
-    rounded: "{rounded.sm}"
-    padding: "0 4px"
   field:
     backgroundColor: "{colors.surface-inset}"
     textColor: "{colors.text-primary}"
@@ -128,12 +117,32 @@ components:
   label:
     textColor: "{colors.text-muted}"
     typography: "{typography.2xs}"
+  section-heading:
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.sm}"
   tag:
     backgroundColor: "transparent"
     textColor: "{colors.text-muted}"
     typography: "{typography.2xs}"
     rounded: "{rounded.sm}"
     padding: "0 4px"
+  notice-chip:
+    backgroundColor: "transparent"
+    typography: "{typography.2xs}"
+    rounded: "{rounded.sm}"
+    padding: "0 4px"
+  confirm-dialog:
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.xs}"
+    rounded: "{rounded.md}"
+    padding: "10px"
+  opaque-block:
+    backgroundColor: "{colors.surface-inset}"
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.xs}"
+    rounded: "{rounded.sm}"
+    padding: "4px"
   panel:
     backgroundColor: "{colors.surface-1}"
     textColor: "{colors.text-secondary}"
@@ -155,97 +164,107 @@ components:
 **Creative North Star: "The Instrument Panel"**
 
 Keelson looks like the tool its reader already has open in the next window: a dark, dense,
-hairline-ruled instrument panel for a CI pipeline. The whole system is one continuous dark field
-(`surface-0`) onto which lighter planes are stacked a few percent of lightness at a time, divided
-by one-pixel rules rather than by shadows or gaps. Nothing floats, nothing glows, nothing is
+hairline-ruled instrument panel for a CI pipeline. The whole product is one continuous dark field
+(`surface-0`) onto which lighter planes are stacked a few percent of lightness at a time, divided by
+one-pixel rules rather than by shadows or gaps. Nothing floats, nothing glows, nothing is
 decorative. The reader's eye is meant to go to the pipeline, not to the chrome around it.
 
 The world is the category standard played straight — stage columns, job cards, dependency edges,
 interface sans-serif, dark by default — executed at the finish level of Linear, Vercel and Raycast
-without borrowing their layout. Density is the aesthetic: the body size is 13px, labels run at
-10px, and the ramp tops out at 19px. There is exactly one accent, a cool blue at 258°, and it is
-reserved for two jobs: marking the selected object and marking focus. Everything that is not
-selection, focus or a diagnostic severity is grey.
+without borrowing their layout. Density is the aesthetic, but it is bounded: the ramp floors at 11px
+and the greys that carry structure are pushed up until they clear WCAG 2.1 AA rather than left
+where they looked quietest. The borders are deliberately brighter than a dark-theme instinct would
+put them, because a border around a field is an interface component and owes 3:1, not a decoration.
 
-Colour never carries meaning alone. Diagnostic severities pair a hue with the severity word spelled
-out and a distinct mark, so an error is legible as an error in monochrome. Motion is a single
-140ms colour fade on hover and focus; there is no entrance animation, no layout animation, and no
-easing curve applied to anything but colour. Reduced motion is honoured by collapsing the duration
-tokens to `0ms` at the token layer, so no component carries an override.
+Everything the product renders comes out of one file, `packages/ui/src/tokens.css`. There is no
+colour, size, radius, spacing, duration or graph metric anywhere else, and a test fails if a
+component hard-codes one — or if a token is declared and never consumed. The system is therefore
+small on purpose: what is not in that file does not exist, and nothing in that file is dead.
 
 **Key Characteristics:**
 
 - Dark-only, five finely stepped surface planes in OKLCH at a near-neutral 265° hue.
-- One-pixel borders everywhere; no shadow is rendered anywhere in the shipped UI.
-- A single cool-blue accent, used only for selection and focus.
-- A compressed 10 / 11 / 12 / 13 / 15px interface ramp on a 4px spacing base.
-- Monospace for every value read from the YAML file; sans-serif for every label about it.
-- Every inherited value carries an origin badge stating where it came from.
+- One-pixel borders everywhere; there is not a single shadow token and not a single `box-shadow`.
+- A single cool-blue accent, reserved for the object being acted on and for focus.
+- An 11 / 12 / 13 / 15 / 19px interface ramp, floored at 11px by test, on a 4px spacing base.
+- Monospace for every string that came out of the user's YAML; sans-serif for everything Keelson
+  wrote about it.
+- Icons are inline SVG inheriting `currentColor` at `1em`; no text character is ever used as a mark.
+- Every inherited value carries an origin badge naming where it came from.
 
 ## Colors
 
-A near-neutral blue-grey field (hue 265°, chroma under 0.012) with one cool-blue accent and three
-severity hues that appear only inside diagnostics and banners.
+A near-neutral blue-grey field (hue 265°, chroma at or under 0.012) with one cool-blue accent and
+three severity hues that appear only inside diagnostics, banners and the destructive path.
 
 ### Primary
 
-- **Signal Blue** (`accent`): the only accent in the product. It marks the selected job node's
-  border, the focused field's border, and the 2px focus ring drawn globally on `:focus-visible`. It
-  is never used as a fill behind text.
-- **Signal Blue Bright** (`accent-hover`): the lifted step of the accent, reserved for an accent
-  hover state. *No component consumes it today.*
-- **Signal Blue Deep** (`accent-muted`): the recessed accent, reserved for accent-tinted fills and
-  borders in the manner of the severity-muted tokens. *No component consumes it today.*
+- **Signal Blue** (`accent`): the only accent in the product and the only non-severity hue. It marks
+  the selected job node's border, the dependency edges touching the selection, the global focus ring
+  on `:focus-visible`, the field border under focus, the in-flight write indicator, and the property
+  names in the read-only YAML viewer. It is never a fill behind text. It clears 3:1 against
+  `surface-3`, tested, because a selected node is a hovered node.
 
 ### Secondary
 
-The severity family. These are the only hues besides the accent, and each is paired with a word and
-a mark, never used alone.
+The severity family. These are the only other hues, and each is paired with a word and a distinct
+SVG mark, never used alone.
 
 - **Alert Red** (`danger`) and **Alert Red Deep** (`danger-muted`): error diagnostics, the error
   banner (muted at 20% as a fill, solid as a border), the destructive button's text and border, and
-  the invalid-document state's container border.
+  the unparseable-document container.
 - **Caution Amber** (`warning`) and **Caution Amber Deep** (`warning-muted`): warning diagnostics,
-  the stale-write notice bar, and the alert tone of the empty-state container border.
-- **Notice Blue** (`info`) and **Notice Blue Deep** (`info-muted`): informational diagnostics and
-  the reloaded notice bar. Distinct from the accent in chroma and hue (230° vs 258°) so an info
-  diagnostic never reads as a selection.
+  the stale-write notice bar, and the alert tone of the state container.
+- **Notice Blue** (`info`) and **Notice Blue Deep** (`info-muted`): informational diagnostics and the
+  reloaded notice bar. Held at 230° against the accent's 258° so an info row never reads as a
+  selection.
 
 ### Neutral
 
 - **Floor** (`surface-0`): the application background, the canvas behind the graph, and every
   full-bleed state screen.
-- **Plane** (`surface-1`): every chrome panel — left sidebar, job detail panel, diagnostics strip,
-  stage column body, state containers. One step up from the floor.
-- **Card** (`surface-2`): the job node at rest, and the diagnostics row on hover.
-- **Card Raised** (`surface-3`): the job node on hover and when selected, the origin badge's fill,
-  and the hover fill of every ghost button.
-- **Well** (`surface-inset`): below the floor. Only input fields and the read-only YAML viewer use
-  it; it is how the system says "editable or verbatim text goes here".
-- **Rule Faint** (`border-subtle`): the structural dividers — header underline, panel edges,
-  diagnostics row separators, stage column outline.
-- **Rule** (`border-default`): the border of interactive objects — fields, buttons, tags, origin
-  badges, unselected job nodes.
-- **Rule Strong** (`border-strong`): the graph's connection handles.
+- **Plane** (`surface-1`): every chrome panel — left sidebar, job detail panel, job editor,
+  diagnostics strip, stage column body, state containers. One step up from the floor.
+- **Card** (`surface-2`): the job node at rest, the delete-confirmation dialog, the
+  content-unavailable notice, and the diagnostics row on hover.
+- **Card Raised** (`surface-3`): the job node on hover *and* when selected, and the hover fill of
+  every ghost button. Because it is both hover and selection, every text and border token that can
+  land on it is contrast-tested against it.
+- **Well** (`surface-inset`): below the floor. Only input fields, the read-only YAML viewer and the
+  blocking-diagnostic rows use it; it is how the system says "verbatim or editable text goes here".
+- **Rule Faint** (`border-subtle`): structural dividers only — header underline, panel edges,
+  section separators, diagnostics row separators, stage column outline. Decorative under WCAG 1.4.11
+  and deliberately exempt from the 3:1 floor.
+- **Rule** (`border-default`): the border of every interface component — fields, selects, buttons,
+  tags, the confirmation dialog, unselected job nodes. Lifted to L 0.56 so it clears 3:1 on
+  `surface-0` through `surface-3`.
+- **Rule Strong** (`border-strong`): the graph's connection handles and every dependency edge that
+  is not highlighted.
 - **Paper White** (`text-primary`): headings, job ids, diagnostic messages, field values.
-- **Paper Dim** (`text-secondary`): body prose, button text, monospace values inside panels.
-- **Paper Faint** (`text-muted`): uppercase labels, counts, stage names under a job id, disabled
-  text, and every "empty" sentence ("No dependencies.", "No diagnostics.").
-- **Ink On Accent** (`text-on-accent`): the dark text intended for a filled-accent surface.
-  *No filled-accent surface exists today, so nothing consumes it.*
+- **Paper Dim** (`text-secondary`): body prose, button text, section headings, monospace values
+  inside panels.
+- **Paper Faint** (`text-muted`): the label voice, counts, the stage name under a job id, disabled
+  text, and every "empty" sentence. At L 0.67 it clears 4.5:1 on all four surfaces.
 
 ### Named Rules
 
-**The Two-Job Accent Rule.** The accent means exactly two things: *this is selected* and *this has
-focus*. Any other use — an accent-filled button, an accent heading, an accent-tinted panel — is
-outside the system.
+**The Attention Accent Rule.** The accent marks what is being acted on and nothing else: the
+selection and its edges, the focused control, the write in flight, and the key side of YAML in the
+viewer. It is never a fill behind text, never a button background, never a panel tint. There is no
+`text-on-accent` token, and that absence is the enforcement.
 
-**The Never-Hue-Alone Rule.** A state is never carried by colour alone. Every severity colour ships
-with the severity word spelled out and a distinct mark beside it; every notice bar carries a word
-label ("Not applied", "Reloaded", "Deleted") in a bordered chip.
+**The Tested-Contrast Rule.** Every text-on-surface and component-border-on-surface pair the product
+can produce is recomputed by `packages/ui/test/tokens.test.ts` and fails below 4.5:1 (text) or 3:1
+(component boundary), with `surface-3` included because it is the hover *and* selected fill. A grey
+is never darkened back down because it "looked quieter".
 
-**The Grey Default Rule.** A new surface starts entirely in the neutral ramp. A hue has to be
-justified by selection, focus, or a diagnostic severity; "this feels important" is not a
+**The Never-Hue-Alone Rule.** A state is never carried by colour alone. Every severity ships with
+the severity word spelled out and a distinct SVG silhouette — cross, triangle, disc — and every
+notice bar carries a word chip ("Not applied", "Reloaded", "Deleted") that makes its colour
+redundant.
+
+**The Grey Default Rule.** A new surface starts entirely in the neutral ramp. A hue has to be earned
+by selection, focus, a write in flight, or a diagnostic severity; "this feels important" is not a
 justification.
 
 ## Typography
@@ -258,124 +277,149 @@ Consolas, monospace`)
 **Character:** there is no display face and no brand face. Keelson uses the reader's own system UI
 font so the tool disappears into the desktop, and the system monospace for every string that came
 out of the YAML file. The pairing is functional, not expressive: sans-serif means "Keelson is
-telling you something", monospace means "this is the file".
+telling you something", monospace means "this is your file".
 
 ### Hierarchy
 
-The ramp is compressed — six steps across 10px to 19px — because the product's job is to show a
-whole pipeline at once. Three weights exist (400, 500, 600) and only two are in general use.
+Five steps across 11px to 19px. The floor is 11px and a test enforces it: below that, functional
+text stops being legible at expert density. The steps were spread apart deliberately — a former
+10/11/12/13 ramp gave a 1.3:1 range the eye could not read as a hierarchy. Three weights exist
+(400, 500, 600); 500 is used once.
 
-- **xl** (semibold, 19px/26px): the top of the ramp. *Unused in the shipped UI;* the largest text
-  rendered is the panel title at 15px.
-- **lg** (semibold, 15px/22px): the job detail panel's job id and every state-screen heading. This
-  is the de facto largest type in the product.
-- **base** (regular 400, 13px/20px): the document default set on `body`, and the job node's job id
-  at semibold.
-- **sm** (regular, 12px/18px): prose inside panels and states, diagnostic messages, and the stage
-  column name (semibold, monospace).
-- **xs** (regular, 11px/16px): the working size for values and controls — every input, every button
-  label, every monospace value in a panel, the file path in the header.
-- **2xs** (semibold, 10px/14px, tracking 0.06em, uppercase): the label voice. Field labels, section
-  labels, origin badges, tags, notice chips, severity words, counts.
+- **lg** (semibold, 19px/26px): the top of the ramp and the only heading size — the job detail
+  panel's job id and every state-screen heading.
+- **base** (regular 400, 15px/22px): the document default set on `body`, and the job node's job id
+  at semibold. This is the largest type inside the graph.
+- **sm** (regular, 13px/20px): the product name in the header, sidebar section headings (semibold),
+  diagnostic messages, stage column names (semibold monospace), panel field values, and all prose in
+  states and notices.
+- **xs** (regular, 12px/18px): the working size for controls and file strings — every input and
+  select, every button label, diagnostic codes, the open file path, opaque block keys, the
+  confirmation question.
+- **2xs** (semibold, 11px/16px, tracking 0.06em, uppercase): the label voice. Field labels, section
+  labels inside the editor, tags, notice chips, severity words, counts, and the Keelson-side half of
+  the origin badge (at weight 500).
 
 ### Named Rules
 
-**The Monospace-Means-File Rule.** Monospace is reserved for text that exists in the user's YAML:
+**The Eleven-Pixel Floor Rule.** No functional text is set below 11px. There is no step under
+`--text-2xs`, and `packages/ui/test/tokens.test.ts` fails if one is added.
+
+**The Monospace-Means-File Rule.** Monospace is reserved for text that exists in the user's YAML —
 job ids as values, stage names, need targets, environment keys and values, diagnostic codes, file
-paths, opaque blocks. Prose Keelson wrote is always sans-serif.
+paths, template names, opaque blocks — plus tabular counts, where it buys numeral alignment. Prose
+Keelson wrote is set in the interface sans.
 
-**The Small-Caps Label Rule.** Every label naming a field or a section is 10px semibold uppercase
-at 0.06em tracking in `text-muted`. Uppercase appears nowhere else — never on a heading, never on a
-button that reads as a sentence, never as a standalone line of marketing copy above a title.
+**The Small-Caps Label Rule.** A label naming a field, a section, a severity or a tag is 11px
+semibold uppercase at 0.06em tracking. Uppercase appears nowhere else: not on a heading, not on a
+sentence-shaped button, and never as a standalone line of copy above a title.
 
-**The Fifteen-Pixel Ceiling Rule.** No shipped surface sets type above 15px. Hierarchy comes from
-weight and colour, not from size jumps.
+**The Two-Register Rule.** When Keelson's own wording and a string from the file sit in the same
+element, they take different registers: Keelson's half goes small-caps sans, the file's half goes
+monospace with `normal-case`. A case-sensitive YAML key is never rewritten on screen — `.deploy-base`
+displayed as `.DEPLOY-BASE` is corrupted data, not styling.
+
+**The Nineteen-Pixel Ceiling Rule.** The ramp stops at 19px and only headings use it. Hierarchy
+below that comes from weight and colour, not from new sizes.
 
 ## Layout
 
-The shell is a fixed full-height frame, never a scrolling page. Top to bottom: the notice/error
-banners (each a single 12px-padded row, present only when there is something to say), a 44px header
-(`--keelson-header-height`) carrying the product name and the open file path on the left and the
-undo/redo pair on the right, then the working row, then the diagnostics strip capped at one third
-of the viewport height and scrolling internally.
+The shell is a fixed full-height frame, never a scrolling page. Top to bottom: the notice and error
+banners (each a single row at 12px horizontal, 6px vertical padding, present only when there is
+something to say), a 44px header (`--keelson-header-height`) carrying the product name and the open
+file path on the left and the write indicator plus the undo/redo pair on the right, then the working
+row, then the diagnostics strip capped at one third of the viewport and scrolling internally.
 
-The working row is three columns, each of which only exists when it has content: a 352px left
-sidebar (`--keelson-panel-width`) holding the stage and job creation controls, the elastic graph
-canvas in the middle, and a 352px right column holding the job detail panel above the job editor.
-Both side columns scroll independently; the canvas never scrolls, it pans and zooms (0.3× to 1.6×).
-Every column boundary is a one-pixel `border-subtle` rule, not a gap.
+The working row is three columns, each present only when it has content: a 352px left sidebar
+(`--keelson-panel-width`) of titled control sections, the elastic graph canvas, and a 352px right
+column holding the job detail panel above the job editor. Side columns scroll independently; the
+canvas never scrolls, it pans and zooms (0.3× to 1.6×) and refits whenever its available width
+changes, so opening the detail panel never pushes a column under it. Every column boundary is a
+one-pixel `border-subtle` rule, not a gap.
+
+There are no breakpoints. The layout is one desktop composition: below the point where the three
+columns fit, the working row scrolls horizontally rather than reflowing, and the canvas is floored at
+320px (`--keelson-canvas-min-width`) so two 352px panels can never crush the graph to zero — which is
+also what keeps 400% zoom on a 1280px laptop legible (WCAG 1.4.10). The mobile capture shows exactly
+this: the same frame, scrolled sideways.
 
 Spacing is a strict 4px base (`--spacing`). The steps in use are 2, 4, 6, 8, 10, 12, 16 and 24px:
 2–6px inside a control, 8–12px between controls and as panel padding, 16px between groups within a
-panel, 24px as the only generous value in the system (the state-screen gutter). Panel padding is
-always 12px; state containers are 16px and cap their prose at `max-w-prose`.
+panel and inside a state card, 24px as the only generous value in the system (the state-screen
+gutter). Panel padding is always 12px; prose in a state card is capped at `max-w-prose`.
 
-The graph's geometry is itself tokenised and read from CSS at runtime, so layout and style share
-one source: job nodes are 232px × 64px (`--keelson-node-width`, `--keelson-node-height`), columns
-are separated by 72px (`--keelson-column-gap`), rows inside a column by 20px (`--keelson-row-gap`),
-and the stage column header is 32px tall (`--keelson-column-header-height`). These four metrics are
-handed to the layout engine; changing the CSS value changes the graph.
+The graph's geometry is tokenised and read from CSS at runtime, so layout and style share one
+source: job nodes are 232 × 64px, columns are separated by 72px, rows inside a column by 20px, the
+column header is 32px tall, and a column carries 1px of padding below its last node. Those values
+are handed to elkjs; changing the CSS changes the graph.
 
 ### Named Rules
 
-**The Rule-Not-Gap Rule.** Regions are separated by a one-pixel border, never by whitespace alone
-and never by a shadow. If two areas need distinguishing, draw the hairline.
+**The Rule-Not-Gap Rule.** Regions are separated by a one-pixel border, never by whitespace alone and
+never by a shadow. If two areas need distinguishing, draw the hairline.
 
-**The Tokenised Geometry Rule.** Graph metrics live in `tokens.css` and are read at runtime. No
-node size, column gap or row gap is ever written in TypeScript.
+**The Tokenised Geometry Rule.** Graph metrics live in `tokens.css` and are read through
+`views/pipeline/metrics.ts`. No node size, column gap, row gap or header height is ever written in
+TypeScript; a metric that fails to parse throws rather than falling back to a literal.
 
-**The Conditional Column Rule.** Side columns are present or absent, never collapsed to a sliver.
-The sidebar appears only when a pipeline is loaded and editable; the detail column appears only
-when a job is selected.
+**The Conditional Column Rule.** Side columns are present or absent, never collapsed to a sliver. The
+sidebar appears only when a pipeline is loaded and editable; the detail column appears only when a
+job is selected, and closing it returns focus to the graph.
 
 ## Elevation & Depth
 
-Keelson is flat. Two shadow tokens are defined (`--shadow-raised`, `--shadow-overlay`) and **no
-component in the shipped UI renders either one** — there is not a single `box-shadow` outside the
-token file. Depth is entirely tonal: `surface-inset` reads as below the floor, `surface-0` is the
-floor, and `surface-1` → `surface-2` → `surface-3` step upward about four percent of lightness at a
-time. A one-pixel border does the rest of the work a shadow would do.
+Keelson is flat, and flatness here is structural rather than stylistic: **there are no shadow tokens
+and no `box-shadow` anywhere in the shipped UI.** Depth is entirely tonal. `surface-inset` reads as
+below the floor, `surface-0` is the floor, and `surface-1` → `surface-2` → `surface-3` step upward
+about four percent of lightness at a time. A one-pixel border does the rest of the work a shadow
+would do. Even the destructive confirmation — the one place a design system usually reaches for an
+overlay — is a `surface-2` block with a `border-default` hairline, inline in the editor's flow.
 
 The only non-tonal depth cue is stacking inside the graph, where stage columns sit at z-index 0 and
 job nodes at z-index 1 so a card reads as lying on its column.
 
-### Shadow Vocabulary
-
-- **`--shadow-raised`** (`0 1px 2px oklch(0 0 0 / 0.3)`): defined for a resting lift. Currently
-  unused; if adopted it belongs on an element that is genuinely detached from its plane.
-- **`--shadow-overlay`** (`0 8px 24px oklch(0 0 0 / 0.45)`): defined for a true overlay — a popover
-  or dialog floating above the shell. Currently unused; the product has no overlay surfaces yet.
-
 ### Named Rules
 
-**The Tonal-Depth Rule.** Depth is a surface step plus a hairline. Reach for the next `surface-*`
-token before reaching for a shadow, and never use both to express the same boundary.
+**The No-Shadow Rule.** The system has no elevation vocabulary to reach for. Depth is a surface step
+plus a hairline; if a new surface seems to need lifting, it needs the next `surface-*` token, not a
+shadow token invented for it.
 
-**The Overlay-Only Shadow Rule.** The two shadow tokens exist for elements that leave the document
-plane. Panels, cards, nodes, banners and buttons are part of the plane and stay flat.
+**The Inline-Modal Rule.** A dialog is a bordered block in the flow that owns focus, not a floating
+plane. It carries `role="alertdialog"` and `aria-modal`, focus moves into it on open, Escape cancels
+it without disturbing the panel behind it, and focus returns to the control that opened it.
 
 ## Shapes
 
-Everything is a rectangle with a small, considered radius. The scale is tight and semantic rather
-than decorative: 3px (`rounded.sm`) for small controls — inputs, buttons, tags, origin badges,
-severity marks, the YAML viewer; 5px (`rounded.md`) for the job node, which is the only object at
-that step and is therefore immediately distinguishable from both the controls below it and the
-column behind it; 8px (`rounded.lg`) for the two large containers — the stage column and the
-state-screen card. A pill radius (`rounded.pill`, 999px) is defined but nothing uses it.
+Everything is a rectangle with a small, considered radius, and the scale is semantic rather than
+decorative: 3px (`rounded.sm`) for small controls — inputs, buttons, tags, notice chips, severity
+marks, the YAML viewer; 5px (`rounded.md`) for the job node and the confirmation dialog, the two
+objects that read as discrete things rather than controls; 8px (`rounded.lg`) for the two large
+containers, the stage column and the state card. Banners, headers, panels and the diagnostics strip
+have no radius at all: they are full-bleed bands bounded by their hairline.
 
-Banners, headers, panels and the diagnostics strip have no radius at all: they are full-bleed bands
-bounded by their hairline. Every border in the product is one pixel
-(`--border-width-hairline: 1px`); there is no 2px border anywhere, and the only 2px stroke is the
-focus ring. Dependency edges are drawn as curves between left/right handles, with optional needs
-rendered as a 4px dash (`--keelson-edge-dash`).
+Every border is one pixel, including the one Tailwind draws for the bare `border` class, which reads
+`--default-border-width` from the token file rather than the framework default. There is no 2px
+border; the only 2px stroke is the focus ring, at 2px offset. Dependency edges are curves between
+left/right handles and are the one place stroke weight carries meaning: 1.5px
+(`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
+`accent` when the edge touches the selection, dashed at 4px when the dependency is optional.
+
+Icons are inline SVG on a 16-unit viewBox, 1.75 stroke, sized `1em` and coloured `currentColor`, so
+a mark always matches the size and colour of the text beside it. Severity marks are distinguished by
+silhouette — cross, triangle, disc — not by an interior detail that vanishes at 11px.
 
 ### Named Rules
 
-**The Three-Radius Rule.** 3px for controls, 5px for job nodes, 8px for containers. Full-bleed
-bands get none. A fourth radius has to displace one of these, not join them.
+**The Three-Radius Rule.** 3px for controls, 5px for nodes and dialogs, 8px for containers.
+Full-bleed bands get none. A fourth radius has to displace one of these, not join them.
 
 **The One-Pixel Rule.** Borders are one pixel. Weight is expressed by moving along the
-`border-subtle` → `border-default` → `border-strong` ramp, never by thickening the line.
+`border-subtle` → `border-default` → `border-strong` ramp, never by thickening the line. The
+dependency edge is the single exception, and it is in-system: both its weights are tokens.
+
+**The Drawn-Mark Rule.** Every mark is drawn as SVG. A text character is never used as an icon:
+`✕ ! i ↳ ← →` rendered at the mercy of the reader's font stack, and the system does not accept a
+glyph whose shape it cannot guarantee.
 
 ## Components
 
@@ -383,122 +427,172 @@ bands get none. A fourth radius has to displace one of these, not join them.
 
 Ghost by default. There is no filled button anywhere in the product.
 
-- **Shape:** tightly rounded corners (3px).
-- **Default:** transparent fill, one-pixel `border-default`, `text-secondary` label at 11px,
-  padding 4px 8px (2px vertical in the header's history pair).
-- **Hover / Focus:** fill fades to `surface-3` over 140ms with the `ease-out` curve; focus draws the
-  global 2px accent ring at 2px offset.
-- **Disabled:** label drops to `text-muted`, the cursor becomes `not-allowed`, and the hover fill is
+- **Shape:** tightly rounded corners (3px), one-pixel `border-default`.
+- **Default:** transparent fill, `text-secondary` label at 12px, padding 4px 8px.
+- **Hover / Focus:** fill fades to `surface-3` over 140ms on `--ease-out`; focus draws the global 2px
+  accent ring at 2px offset.
+- **Disabled:** label drops to `text-muted`, cursor becomes `not-allowed`, and the hover fill is
   suppressed so the control cannot look responsive.
 - **Danger:** same ghost geometry with a `danger-muted` border and `danger` label; hover fills with
-  `danger-muted` at 30%. Used for destructive actions only (Delete job).
+  `danger-muted` at 30%. Used only for destroying something (Delete job, and the confirmation's own
+  confirm button).
+- **Icon button:** the stage reorder pair is the same button with an SVG arrow in place of the label
+  and an `aria-label`; it never shrinks below the standard padding.
 
 ### Chips
 
-Two kinds, both built from the label voice (10px uppercase, 0.06em tracking, 3px radius, one-pixel
-border, 4px horizontal padding) and both borderless of fill except where a tone demands it.
+Two kinds, both built from the label voice (11px uppercase, 0.06em tracking, 3px radius, one-pixel
+border, 4px horizontal padding, transparent fill).
 
-- **Tag:** transparent with a `border-default` outline and `text-muted` text. Marks a qualifier on a
-  value — `optional`, `no artifacts`, `read-only`, `implicit`.
-- **Notice chip:** `border-current` so it inherits the banner's severity colour, semibold. Carries
+- **Tag:** `border-default` outline, `text-muted` text. Marks a qualifier on a value — `optional`,
+  `no artifacts`, `read-only`, `implicit`.
+- **Notice chip:** `border-current`, so it inherits the banner's severity colour, semibold. Carries
   the word that makes the banner's colour redundant.
 
 ### Cards / Containers
 
-- **Job node:** 232px × 64px, 5px radius, `surface-2` fill, one-pixel border that is
-  `border-default` at rest and `accent` when selected; `surface-3` fill on hover and when selected.
-  Padding 8px 10px. Two lines: the job id at 13px semibold `text-primary`, then the stage name in
-  11px monospace `text-muted` followed by its origin badge.
+- **Job node:** 232 × 64px, 5px radius, `surface-2` fill, one-pixel border that is `border-default`
+  at rest and `accent` when selected; `surface-3` fill on hover and when selected. Padding 8px 10px.
+  Two lines: the job id at 15px semibold `text-primary`, then the stage name in 12px monospace
+  `text-muted` followed by its origin badge. It is a `button` with `aria-pressed` and an off-screen
+  description naming its stage, dependencies, environment and templates.
 - **Stage column:** 8px radius, `surface-1` fill, `border-subtle` outline, with a 32px header
-  underlined by another hairline. The header carries the stage name (12px semibold monospace), an
+  underlined by another hairline. The header carries the stage name (13px semibold monospace), an
   `implicit` tag when the stage is not declared in the file, and a right-aligned tabular job count.
   It is a `role="group"` with an accessible name, never a landmark.
-- **Panel:** `surface-1`, no radius, 12px padding, bounded by a hairline on the edge that faces the
+- **Panel:** `surface-1`, no radius, 12px padding, bounded by a hairline on the edge facing the
   canvas, 16px between its sections.
+- **Titled sidebar section:** a `role="group"` labelled by a 13px semibold `text-secondary` heading
+  (`SECTION_HEADING`), 8px to its content, separated from the next section by a `border-subtle` rule
+  and 16px of padding — suppressed on the last one. The section heading is deliberately a different
+  voice from the 11px label that names a field: a section and a field cannot speak in the same voice
+  or there is no hierarchy left.
 - **State card:** 8px radius, `surface-1` on the bare floor, 16px padding, prose capped at
-  `max-w-prose`, heading at 15px semibold. The alert tone swaps the `border-subtle` outline for
-  `warning-muted` (or `danger-muted` for an invalid document) and adds `role="alert"`.
+  `max-w-prose`, heading at 19px semibold. The alert tone swaps the `border-subtle` outline for
+  `warning-muted` (or `danger-muted` for an unparseable document) and adds `role="alert"`.
 
 ### Inputs / Fields
 
-- **Style:** full-width, 3px radius, one-pixel `border-default`, `surface-inset` fill (recessed
-  below the floor), 11px monospace `text-primary`, padding 4px 6px. Inputs and selects share one
-  class so a dropdown and a text field are indistinguishable in weight.
+- **Style:** full-width, 3px radius, one-pixel `border-default`, `surface-inset` fill, 12px monospace
+  `text-primary`, padding 4px 6px. Inputs, textareas and selects share one class, so a dropdown and a
+  text field are indistinguishable in weight.
 - **Focus:** the border becomes `accent` over 140ms, under the global 2px accent focus ring.
-- **Disabled:** text drops to `text-muted` with a `not-allowed` cursor; the recessed fill stays, so
-  a disabled field still reads as a field.
-- **Label:** always the 10px uppercase label voice above the control, in a 6px-gap vertical group.
+- **Disabled:** text drops to `text-muted` with a `not-allowed` cursor; the recessed fill stays, so a
+  disabled field still reads as a field. Every control in the editor is disabled while a write is in
+  flight.
+- **Label:** always the 11px uppercase label voice above the control, in a 6px-gap vertical group.
 
 ### Navigation
 
 Keelson has no navigation in the site sense. The 44px header is an identity-and-state bar: the
-product name at 12px semibold, the open file path beside it in 11px monospace `text-muted`
-truncating from the end, and the undo/redo ghost pair on the right with their keyboard shortcuts in
-the title attribute. It is underlined by a hairline and sits on the floor colour.
+product name at 13px semibold, the open file path beside it in 12px monospace `text-muted`
+truncating from the end, and on the right the write indicator and the undo/redo ghost pair with
+their shortcuts in the `title` attribute. It is underlined by a hairline and sits on the floor
+colour.
 
 ### Diagnostics Strip
 
-A `surface-1` band along the bottom, capped at one third of the viewport, underlined from the
-working row by a hairline. Its header pairs the 10px uppercase word "Diagnostics" with a tabular
-count. Rows are separated by hairlines (the last one suppressed), sorted error → warning → info,
-and each row is a three-part read: a 16px square severity mark in a 3px-radius box tinted by the
-severity's `*-muted` border and `*` text colour, the severity word in the label voice, then the
-diagnostic code in 11px monospace `text-secondary` above the message in 12px `text-primary`. A row
-with a source range is a button and fills `surface-2` on hover; a row without one is a plain div
-that does not pretend to be clickable.
+A `surface-1` band along the bottom, capped at one third of the viewport, separated from the working
+row by a hairline. Its header pairs the 11px uppercase word "Diagnostics" with a tabular count. Rows
+are separated by hairlines (the last suppressed), sorted error → warning → info, and each row reads
+in three parts: a 16px square severity mark in a 3px-radius box tinted by the severity's `*-muted`
+border and `*` text colour, the severity word in the label voice, then the diagnostic code in 12px
+monospace `text-secondary` above the message in 13px `text-primary`. A row with a source range is a
+button and fills `surface-2` on hover; a row without one is a plain div that does not pretend to be
+clickable.
+
+### Pending Indicator
+
+While a write is in flight, the header shows a `role="status"` group: a 6px accent square at the
+small 3px radius, then the word "Writing" in the label voice — 11px semibold uppercase at 0.06em
+tracking in the interface sans, like every other thing Keelson says about the file rather than out
+of it. It is the only moving part of the system in the sense that it appears and disappears; it does
+not animate, and every control it affects is simultaneously disabled.
+
+### Read-Only YAML Viewer
+
+Opaque blocks — the parts of the file Keelson preserves but does not model — render in a CodeMirror
+instance that is fully themed from the palette: the container owns the font, size, `surface-inset`
+fill, 3px radius and `border-subtle` outline, and the editor theme neutralises everything CodeMirror
+would otherwise impose. Its highlight style maps every tag to a token: keys in `accent`, keywords in
+`text-primary`, strings, numbers and booleans in `text-secondary`, comments and meta in `text-muted`
+and italic. Lines wrap, gutters are hidden, and the view is read-only with no focus outline of its
+own. When the range cannot be read back from the file, the block is replaced by an explicit
+"Content unavailable" notice on `surface-2` stating that the block is still on disk and untouched.
 
 ### The Origin Badge (signature component)
 
-The product's signature. Any value a job inherited rather than declared carries a small badge
-immediately after it: 3px radius, `surface-3` fill, one-pixel `border-default`, 10px uppercase
-`text-secondary` at 0.06em tracking, a leading decorative mark, and the inherited source as its
-text ("inherited from .base", "default", "from anchor &defaults", "from !reference [...]"). It
-truncates rather than wrapping. Its `title` states that editing the value writes an explicit
-override in this job and never touches the template.
+The product's signature. Any value a job inherited rather than declared carries a badge immediately
+after it: an inline SVG inheritance mark, then Keelson's own wording in the 11px small-caps label
+voice at weight 500 in `text-muted` ("inherited from", "from anchor", "from reference", "default"),
+then — where there is one — the source string from the file in monospace `normal-case`
+`text-secondary`. It truncates rather than wrapping, and its `title` states that editing the value
+writes an explicit override in this job and never touches the template.
 
-The badge is deliberately quiet — it uses no hue at all — because it appears many times per screen.
-It renders on the job node beside the stage name and in the detail panel beside each field label,
-and the two instances are the same component at the same size.
+The badge carries no fill, no border and no radius: it is pure type, because it appears many times
+per screen and must not accumulate into visual noise. It renders on the job node beside the stage
+name and in the detail panel beside each field label, and the two instances are the same component
+at the same size.
 
 ## Do's and Don'ts
 
 ### Do:
 
 - **Do** take every colour, size, radius, duration and graph metric from `packages/ui/src/tokens.css`.
-  A test enforces that no component hard-codes a value.
-- **Do** keep the accent to selection and focus only (The Two-Job Accent Rule).
+  Tests fail both on a hard-coded value in a component and on a token declared without a consumer.
+- **Do** keep the accent on the object being acted on and on focus (The Attention Accent Rule).
+- **Do** re-run the contrast test when touching a grey: every documented pair is recomputed against
+  `surface-0` through `surface-3`, and `surface-3` is included because it is the selected-and-hovered
+  node fill (The Tested-Contrast Rule).
 - **Do** separate regions with a one-pixel border from the `border-subtle` → `border-default` →
   `border-strong` ramp (The Rule-Not-Gap Rule, The One-Pixel Rule).
-- **Do** express depth by stepping a surface token, not by adding a shadow (The Tonal-Depth Rule).
+- **Do** express depth by stepping a surface token (The No-Shadow Rule).
 - **Do** set every value that came out of the user's YAML in monospace, and everything Keelson wrote
   in the interface sans (The Monospace-Means-File Rule).
-- **Do** pair every severity colour with the severity word and a distinct mark (The Never-Hue-Alone
+- **Do** keep Keelson's wording and the file's wording in different registers inside the same element,
+  and leave file strings in their original case (The Two-Register Rule).
+- **Do** draw every mark as inline SVG that inherits `currentColor` and sizes in `em` (The Drawn-Mark
   Rule).
-- **Do** animate only colour, only on hover and focus, only through `var(--duration-*)` with
+- **Do** pair every severity colour with the severity word and a distinct silhouette (The
+  Never-Hue-Alone Rule).
+- **Do** give a destructive action a confirmation that owns focus: `role="alertdialog"`,
+  `aria-modal`, focus into the confirm button, Escape cancels without closing the panel behind it,
+  focus back to the trigger (The Inline-Modal Rule).
+- **Do** announce an in-flight write with `role="status"` and disable the controls it affects.
+- **Do** give an unreadable or missing region an explicit, worded state rather than an empty box.
+- **Do** animate only colour, only on hover and focus, only through `var(--duration-fast)` with
   `--ease-out`, so the reduced-motion collapse at the token layer keeps working without `!important`.
-- **Do** give every container-like grouping `role="group"` with an `aria-label` rather than a
-  `<section aria-label>`, so stage columns and opaque blocks stay out of the landmark list.
-- **Do** keep a 352px side column and a 44px header; read them from `--keelson-panel-width` and
-  `--keelson-header-height`.
+- **Do** give a container-like grouping `role="group"` with an `aria-label` rather than a `<section>`,
+  so stage columns, opaque blocks and sidebar sections stay out of the landmark list.
 
 ### Don't:
 
-- **Don't** render a `box-shadow` on a panel, card, node, banner or button. The shipped UI has none,
-  and the two shadow tokens are reserved for surfaces that leave the document plane.
-- **Don't** introduce a filled accent button or an accent-tinted panel; there is no filled-accent
-  surface in the system and `text-on-accent` has no consumer.
-- **Don't** set type above 15px on a shipped surface, and don't add a size between the existing
-  steps (The Fifteen-Pixel Ceiling Rule).
-- **Don't** use uppercase for anything but the 10px label voice — no uppercase headings, no
-  uppercase standalone line above a title, no uppercase sentence buttons (The Small-Caps Label Rule).
+- **Don't** render a `box-shadow`, and don't introduce a shadow or elevation token. The system has no
+  elevation vocabulary and the flatness is load-bearing.
+- **Don't** put text on the accent or fill a button, panel or banner with it. There is no
+  `text-on-accent` token to make that legible.
+- **Don't** set functional text below 11px, and don't add a size between the existing steps or above
+  19px (The Eleven-Pixel Floor Rule, The Nineteen-Pixel Ceiling Rule).
+- **Don't** darken `border-default`, `border-strong` or `text-muted` back toward a quieter dark-theme
+  grey; those three values are where they are because the contrast test put them there.
+- **Don't** use `border-subtle` on `surface-3`: it is the same lightness as that plane and will
+  disappear. It is a divider for `surface-0`/`surface-1`, and it is exempt from 3:1 precisely because
+  it is never a component boundary.
+- **Don't** use uppercase outside the 11px label voice — no uppercase headings, no uppercase sentence
+  buttons, and no uppercase standalone line of copy above a title (The Small-Caps Label Rule).
+- **Don't** upper-case, truncate-in-the-middle or otherwise restyle a string that came from the user's
+  file. It is data on screen.
+- **Don't** use a text character as an icon (The Drawn-Mark Rule).
 - **Don't** add a radius outside 3 / 5 / 8px, and don't give a full-bleed band a radius at all.
 - **Don't** thicken a border to signal importance; move along the border ramp instead. The only 2px
-  stroke in the product is the focus ring.
-- **Don't** introduce a light theme or a second accent hue; `color-scheme: dark` is a commitment,
-  and the severity hues are the only other colours.
-- **Don't** write a node size, column gap or row gap in TypeScript; it belongs in `tokens.css` and
-  is read at runtime (The Tokenised Geometry Rule).
+  stroke is the focus ring, and the only weighted stroke is the dependency edge, whose two weights
+  are tokens.
+- **Don't** introduce a light theme or a second accent hue; `color-scheme: dark` is a commitment and
+  the severity hues are the only other colours.
+- **Don't** write a node size, column gap or row gap in TypeScript; it belongs in `tokens.css` and is
+  read at runtime (The Tokenised Geometry Rule).
+- **Don't** add breakpoint-specific styling to make the shell reflow on a narrow viewport. The frame
+  scrolls horizontally by design and the canvas is floored at 320px; a reflow would be a new layout
+  decision, not a fix.
 - **Don't** smuggle in the rejected worlds: no revision bars or specification-sheet margins, no
   wiring-schematic ornament, no high-density Japanese grid, no transit-diagram line styling.
-- **Don't** express a state with hue alone, and don't rely on a mark whose meaning is only visual —
-  the word has to be in the DOM.
