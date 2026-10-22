@@ -1,30 +1,22 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : L2 — étape 9 : `critique` faite, correctifs P0 puis `audit` et `polish`
-Prochaine action : corriger ce que `critique` a remonté, **test d'abord**, dans cet ordre. L'ADR
+Lot courant : L2 — étape 9 : `critique` faite, A1 et A2 corrigés ; reprendre à **A3**
+Prochaine action : reprendre à **l'item A3** ci-dessous (bouton `Dismiss` mort), puis dérouler A4 à
+A10, puis B, C, D et E. Les items A1 et A2 sont faits et commités ; `bun run check` est vert à
+`904 pass / 0 fail` et l'arbre est propre. Corriger **test d'abord**, un commit par défaut. L'ADR
 0003 fixe ce qui rouvre le lot et ce qui part en écart : une revue peut rouvrir une promesse, jamais
 en ajouter une. Rapport complet et vérifiable dans
 `packages/ui/.impeccable/critique/2026-10-22T10-21-57Z__packages-ui-src.md` — score 20/40.
 
 **A. Défauts de correction — `fix:` sous TDD, un commit par défaut.**
 
-1. **Colonnes de stage qui ne contiennent pas leurs jobs** (P0, le plus grave). Sur
-   `review/desktop.png`, la colonne `build` affiche « 1 job » et contient `build-image` **et**
-   `lint`, dont le sous-titre dit `test` ; la colonne `test` affiche « 2 jobs » avec sa moitié haute
-   vide. Cause dans `views/pipeline/layout.ts` : le `x` d'une colonne est déduit du `x` du premier de
-   ses nœuds placé par elkjs, avec un repli `index * (nodeWidth + columnGap)` ; rien ne lie la
-   géométrie de la boîte à celle de la partition, donc un nœud sans arête comme `lint` fait atterrir
-   une boîte sur les nœuds d'une autre colonne. Écrire d'abord le **test d'invariant** exigé par
-   l'ADR 0003 : le centre de tout nœud de job tombe dans la boîte de la colonne de **son** stage, sur
-   l'ensemble des fixtures. Corriger ensuite en dérivant `x` et `width` de la partition elle-même.
-2. **`JobEditor` monté sans `key`** (P0, classe corruption de fichier). `app.tsx` rend
-   `<JobEditor job={selected} …>` sans `key`, donc `useState(job.id)`, `needTarget`, `optional`,
-   `artifacts`, `environmentName` et `environmentUrl` ne s'initialisent qu'au premier montage :
-   sélectionner `build-image` puis `unit-tests` laisse « Job id » à `build-image`, et `Rename`
-   soumet `renameJob("unit-tests", "build-image")`. Test : monter l'éditeur, changer de job,
-   vérifier que tous les champs reflètent le nouveau. Corriger par `key={selected.id}`, et rendre
-   les champs d'environnement contrôlés depuis le job plutôt que depuis un état local vide.
+1. ~~Colonnes de stage qui ne contiennent pas leurs jobs~~ — **fait**, `df96b19`. La partition est
+   devenue autoritaire : elkjs ne décide plus que l'ordre vertical. Deux invariants ajoutés ; le
+   second a trouvé un défaut que le correctif du premier introduisait (deux nœuds ramenés dans la
+   même colonne au même `y`). Vérifié aussi à l'œil sur `review/desktop.png`, régénérée.
+2. ~~`JobEditor` monté sans `key`~~ — **fait**, `51b43f5`. Plus les champs d'environnement, qui
+   s'initialisaient à vide même quand le job en portait un. Quatre tests.
 3. **Bouton `Dismiss` mort sur `ErrorBanner`.** `app.tsx` câble son `onDismiss` sur
    `dismissNotice()`, qui ne fait que `set({ notice: null })` et ne touche jamais `error` : la
    bannière d'erreur ne peut pas être fermée. Ajouter `dismissError()` au store.
@@ -241,3 +233,30 @@ Le constat le plus dérangeant de la passe n'est pas visuel. `EdgeData.highlight
 tous deux modélisés, testés unitairement, et invisibles à l'écran. La frontière des tests s'arrête au
 store et ne franchit jamais le rendu — ce qui est exactement comment une colonne peut dessiner le
 mauvais job sans qu'un test rougisse.
+
+### 2026-10-22 — L2 — étape 9 : correctifs A1 et A2
+
+**A1 — `df96b19`.** Le test d'invariant exigé par l'ADR 0003 a échoué du premier coup sur `lint`, le
+job sans arête, exactement comme la capture le montrait ; les trois autres scénarios passaient. La
+partition devient autoritaire : `x` vient de l'index de la colonne, elkjs ne décide plus que `y`.
+
+Ce correctif en créait un autre, et c'est le second invariant qui l'a attrapé : forcer le `x` ramène
+dans une même colonne des nœuds qu'elkjs avait séparés en couches, donc au même `y`, et deux jobs
+isolés se recouvraient. Résolu en conservant l'ordre d'elkjs et en décalant vers le bas. La hauteur
+du graphe est recalculée depuis les nœuds, que ce décalage peut faire descendre sous celle d'elkjs.
+Capture régénérée et relue : `lint` est dans `test`, qui annonce « 2 jobs » et en contient deux.
+
+**A2 — `51b43f5`.** Le test a rendu `Expected: "unit", Received: "compile"` — le défaut exact.
+Corrigé par `key={selected.id}`. Deux pièges rencontrés en écrivant le test, tous deux dans le test
+et non dans le code : `getByRole` synchrone juste après le rendu, là où les tests existants
+attendent le nœud par `findByRole` ; et le sélecteur `/job id/i`, qui attrape aussi « New job id »
+de la barre de gauche et rendait « Found multiple elements ». Nom exact depuis.
+
+Ajouté dans la foulée, même famille : les champs d'environnement s'initialisaient à vide même quand
+le job en portait un, de sorte que le panneau affichait `name: production` au-dessus de deux champs
+vides.
+
+`bun run check` → lint 0, typecheck 0, **904 pass / 0 fail**, build complet. Arbre propre.
+**ADR** : aucun nouveau. **Dettes datées** : aucune. **Écarts** : aucun nouveau.
+
+SESSION TERMINÉE — reprendre avec le même prompt
