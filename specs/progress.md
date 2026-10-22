@@ -4,7 +4,7 @@ Statut : EN COURS
 Lot courant : L2 — étape 9 : `critique` faite, A1 et A2 corrigés ; reprendre à **A3**
 Prochaine action : reprendre à **l'item A3** ci-dessous (bouton `Dismiss` mort), puis dérouler A4 à
 A10, puis B, C, D et E. Les items A1 et A2 sont faits et commités ; `bun run check` est vert à
-`904 pass / 0 fail` et l'arbre est propre. Corriger **test d'abord**, un commit par défaut. L'ADR
+`906 pass / 0 fail` et l'arbre est propre. Corriger **test d'abord**, un commit par défaut. L'ADR
 0003 fixe ce qui rouvre le lot et ce qui part en écart : une revue peut rouvrir une promesse, jamais
 en ajouter une. Rapport complet et vérifiable dans
 `packages/ui/.impeccable/critique/2026-10-22T10-21-57Z__packages-ui-src.md` — score 20/40.
