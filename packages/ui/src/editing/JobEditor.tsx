@@ -29,8 +29,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");
   const [optional, setOptional] = useState(false);
   const [artifacts, setArtifacts] = useState(true);
-  const [environmentName, setEnvironmentName] = useState("");
-  const [environmentUrl, setEnvironmentUrl] = useState("");
+  const [environmentName, setEnvironmentName] = useState(job.environment?.value.name ?? "");
+  const [environmentUrl, setEnvironmentUrl] = useState(job.environment?.value.url ?? "");
 
   const guard = (draft: Draft): void => {
     if (!disabled) {

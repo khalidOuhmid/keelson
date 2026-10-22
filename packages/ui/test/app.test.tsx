@@ -299,3 +299,39 @@ describe("YAML invalide", () => {
     expect(screen.queryByRole("textbox", { name: /new stage name/i })).toBeNull();
   });
 });
+
+describe("l'éditeur suit le job sélectionné", () => {
+  /** Trouvé par /impeccable critique le 2026-10-22 : `JobEditor` était monté sans `key`, donc son
+   *  état local survivait au changement de sélection et `Rename` soumettait un nom que
+   *  l'utilisateur n'avait jamais tapé. Classe corruption de fichier. */
+  test("les champs reflètent le nouveau job, pas le précédent", async () => {
+    await renderApp(harness());
+
+    await userEvent.click(await screen.findByRole("button", { name: /compile/ }));
+    expect(
+      ((await screen.findByRole("textbox", { name: "Job id" })) as HTMLInputElement).value,
+    ).toBe("compile");
+
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    expect(
+      ((await screen.findByRole("textbox", { name: "Job id" })) as HTMLInputElement).value,
+    ).toBe("unit");
+  });
+
+  test("renommer après un changement de sélection soumet le job affiché", async () => {
+    const h = harness();
+    await renderApp(h);
+
+    await userEvent.click(await screen.findByRole("button", { name: /compile/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+
+    const field = await screen.findByRole("textbox", { name: "Job id" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "unit-tests");
+    await userEvent.click(screen.getByRole("button", { name: /rename/i }));
+
+    expect(h.submitted.map((entry) => entry.op)).toEqual([
+      { v: 1, baseHash: HASH, kind: "renameJob", from: "unit", to: "unit-tests" },
+    ]);
+  });
+});

@@ -185,6 +185,7 @@ export function App({ deps }: AppProps = {}) {
             <JobDetailPanel job={selected} text={state.text} />
             <div className="border-l border-border-subtle bg-surface-1 p-3">
               <JobEditor
+                key={selected.id}
                 job={selected}
                 pipeline={state.pipeline}
                 onSubmit={(draft) => void store.getState().submit(draft)}

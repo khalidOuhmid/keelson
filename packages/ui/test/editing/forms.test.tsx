@@ -357,3 +357,33 @@ describe("StageControls", () => {
     }
   });
 });
+
+describe("JobEditor — l'environnement affiché est celui du job", () => {
+  /** Trouvé par /impeccable critique le 2026-10-22 : le panneau de détail affichait
+   *  `name: production` pendant que l'éditeur en dessous montrait deux champs vides. */
+  const withEnvironment = job({
+    environment: {
+      value: { name: "production", url: "https://app.example.org" },
+      origin: { kind: "local" },
+    },
+  });
+
+  test("les champs sont pré-remplis depuis le job", () => {
+    render(<JobEditor job={withEnvironment} pipeline={PIPELINE} onSubmit={() => undefined} />);
+
+    expect(
+      (screen.getByRole("textbox", { name: "Environment name" }) as HTMLInputElement).value,
+    ).toBe("production");
+    expect(
+      (screen.getByRole("textbox", { name: "Environment url" }) as HTMLInputElement).value,
+    ).toBe("https://app.example.org");
+  });
+
+  test("les champs restent vides quand le job n'a pas d'environnement", () => {
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
+
+    expect(
+      (screen.getByRole("textbox", { name: "Environment name" }) as HTMLInputElement).value,
+    ).toBe("");
+  });
+});
