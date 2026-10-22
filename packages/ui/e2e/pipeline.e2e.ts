@@ -132,6 +132,7 @@ test("supprimer un job référencé liste les jobs qui le référencent", async 
 
   await page.getByRole("button", { name: /build-image/ }).click();
   await page.getByRole("button", { name: "Delete job" }).click();
+  await page.getByRole("button", { name: "Delete build-image" }).click();
 
   await expect(page.getByText("JOB_REFERENCED")).toBeVisible();
   const banner = page.getByRole("alert");
@@ -238,4 +239,54 @@ test("invariants de mise en page : chaque job est dans la colonne du stage qu'il
       }).toEqual({ pair: `${job.id}/${next?.id ?? "—"}`, overlaps: false });
     }
   }
+});
+
+test("aucune arête n'est un arrêt de tabulation", async ({ page }) => {
+  await open(page);
+  await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
+
+  const focusable = await page.evaluate(
+    () =>
+      [...document.querySelectorAll(".react-flow__edge")].filter(
+        (edge) => edge.getAttribute("tabindex") !== null,
+      ).length,
+  );
+
+  const edges = await page.evaluate(() => document.querySelectorAll(".react-flow__edge").length);
+  expect(edges).toBeGreaterThan(0);
+  expect(focusable).toBe(0);
+});
+
+test("le panneau de détail se referme au clavier", async ({ page }) => {
+  await open(page);
+
+  await page.getByRole("button", { name: /^lint/ }).click();
+  await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("region", { name: "Job detail" })).toBeHidden();
+
+  await page.getByRole("button", { name: /^lint/ }).click();
+  await page.getByRole("button", { name: "Close job detail" }).click();
+  await expect(page.getByRole("region", { name: "Job detail" })).toBeHidden();
+});
+
+test("supprimer un job demande confirmation avant d'écrire sur disque", async ({ page }) => {
+  await open(page);
+  const original = keelson.read();
+
+  await page.getByRole("button", { name: /^lint/ }).click();
+  await page.getByRole("button", { name: "Delete job" }).click();
+
+  await expect(page.getByRole("alertdialog", { name: "Delete lint" })).toBeVisible();
+  expect(keelson.read()).toBe(original);
+
+  await page.getByRole("button", { name: "Cancel" }).click();
+  expect(keelson.read()).toBe(original);
+
+  await page.getByRole("button", { name: "Delete job" }).click();
+  await page.getByRole("button", { name: "Delete lint" }).click();
+
+  await expect(page.getByRole("button", { name: /^lint/ })).toBeHidden();
+  expect(keelson.read()).not.toContain("\nlint:");
 });

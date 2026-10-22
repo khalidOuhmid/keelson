@@ -497,3 +497,25 @@ describe("bannières et opération en vol, sur le rendu", () => {
     );
   });
 });
+
+describe("fermeture du panneau de détail au clavier", () => {
+  /** Trouvé par /impeccable critique le 2026-10-22 : `onSelectJob(null)` n'était atteignable que
+   *  par un clic souris sur le fond du canevas. Aucun utilisateur au clavier ne pouvait refermer le
+   *  panneau, et quinze contrôles restaient définitivement dans son cycle de tabulation. */
+  test("Échap referme le panneau", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    expect(await screen.findByRole("region", { name: /job detail/i })).toBeDefined();
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("region", { name: /job detail/i })).toBeNull());
+  });
+
+  test("le panneau porte un bouton de fermeture", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Close job detail" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: /job detail/i })).toBeNull());
+  });
+});

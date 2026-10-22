@@ -103,6 +103,18 @@ export function App({ deps }: AppProps = {}) {
     return () => subscription.close();
   }, [resolved, store]);
 
+  // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
+  // désigne au canevas mais se referme depuis n'importe où, panneau compris.
+  useEffect(() => {
+    const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        store.getState().selectJob(null);
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, [store]);
+
   // Une opération en vol désactive l'édition : sans cela chaque contrôle reste actif et une
   // seconde soumission part sur un hash déjà périmé.
   const editable = state.canEdit() && !state.pending;
@@ -196,7 +208,11 @@ export function App({ deps }: AppProps = {}) {
 
         {selected === null || state.pipeline === null ? null : (
           <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto">
-            <JobDetailPanel job={selected} text={state.text} />
+            <JobDetailPanel
+              job={selected}
+              text={state.text}
+              onClose={() => store.getState().selectJob(null)}
+            />
             <div className="border-l border-border-subtle bg-surface-1 p-3">
               <JobEditor
                 key={selected.id}

@@ -71,10 +71,11 @@ describe("JobEditor — renommer", () => {
 });
 
 describe("JobEditor — stage", () => {
-  test("change le stage par le sélecteur", async () => {
+  test("change le stage par le sélecteur puis le bouton dédié", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: /stage/i }), "deploy");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Stage" }), "deploy");
+    await userEvent.click(screen.getByRole("button", { name: "Move to stage" }));
     expect(drafts).toEqual([{ kind: "setJobStage", id: "unit", stage: "deploy" }]);
   });
 
@@ -218,10 +219,11 @@ describe("JobEditor — environnement", () => {
 });
 
 describe("JobEditor — suppression", () => {
-  test("supprime le job", async () => {
+  test("supprime le job, une fois la suppression confirmée", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
-    await userEvent.click(screen.getByRole("button", { name: /delete job/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete unit" }));
     expect(drafts).toEqual([{ kind: "removeJob", id: "unit" }]);
   });
 });
@@ -385,5 +387,63 @@ describe("JobEditor — l'environnement affiché est celui du job", () => {
     expect(
       (screen.getByRole("textbox", { name: "Environment name" }) as HTMLInputElement).value,
     ).toBe("");
+  });
+});
+
+describe("JobEditor — aucune écriture sans geste explicite", () => {
+  /** ADR 0004. Trouvé par /impeccable critique le 2026-10-22 : le select de stage soumettait sur
+   *  `onChange`, or sous Windows et Linux les flèches dans un select fermé émettent `change` à
+   *  chaque appui — un utilisateur au clavier qui parcourt les options réécrivait son YAML une fois
+   *  par touche. La suppression, elle, réécrivait le fichier sur un seul clic. */
+  test("choisir un stage ne soumet rien", async () => {
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Stage" }), "deploy");
+
+    expect(drafts).toEqual([]);
+  });
+
+  test("le stage n'est soumis que par le bouton dédié", async () => {
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Stage" }), "deploy");
+    await userEvent.click(screen.getByRole("button", { name: "Move to stage" }));
+
+    expect(drafts).toEqual([{ kind: "setJobStage", id: "unit", stage: "deploy" }]);
+  });
+
+  test("le bouton de stage est inerte quand le stage affiché est déjà celui du job", async () => {
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Move to stage" }));
+
+    expect(drafts).toEqual([]);
+  });
+
+  test("supprimer un job demande confirmation avant d'écrire", async () => {
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+
+    expect(drafts).toEqual([]);
+    expect(screen.getByRole("alertdialog", { name: /delete/i }).textContent).toContain("unit");
+  });
+
+  test("la confirmation écrit, l'annulation ne fait rien", async () => {
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(drafts).toEqual([]);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete unit" }));
+    expect(drafts).toEqual([{ kind: "removeJob", id: "unit" }]);
   });
 });

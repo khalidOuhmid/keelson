@@ -6,6 +6,7 @@ import { sliceOpaque } from "./opaque.ts";
 export type JobDetailPanelProps = {
   job: Job;
   text: string;
+  onClose: () => void;
 };
 
 function Field({
@@ -30,7 +31,7 @@ function Field({
   );
 }
 
-export function JobDetailPanel({ job, text }: JobDetailPanelProps) {
+export function JobDetailPanel({ job, text, onClose }: JobDetailPanelProps) {
   const needs = job.needs?.value ?? [];
   const environment = job.environment?.value ?? null;
 
@@ -39,8 +40,16 @@ export function JobDetailPanel({ job, text }: JobDetailPanelProps) {
       aria-label="Job detail"
       className="flex h-full flex-col gap-4 overflow-y-auto border-l border-border-subtle bg-surface-1 p-3"
     >
-      <header>
+      <header className="flex items-start justify-between gap-2">
         <h2 className="truncate text-lg font-semibold text-text-primary">{job.id}</h2>
+        <button
+          type="button"
+          aria-label="Close job detail"
+          className="shrink-0 cursor-pointer rounded-sm border border-border-default px-2 py-1 text-xs text-text-secondary transition-colors duration-fast ease-out hover:bg-surface-3"
+          onClick={onClose}
+        >
+          Close
+        </button>
       </header>
 
       <Field label="Stage" testId="job-stage" origin={job.stage.origin}>

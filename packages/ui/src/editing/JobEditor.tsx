@@ -29,6 +29,12 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");
   const [optional, setOptional] = useState(false);
   const [artifacts, setArtifacts] = useState(true);
+  const referencedBy = pipeline.jobs
+    .filter((candidate) => (candidate.needs?.value ?? []).some((need) => need.job === job.id))
+    .map((candidate) => candidate.id);
+
+  const [stage, setStage] = useState(job.stage.value);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [environmentName, setEnvironmentName] = useState(job.environment?.value.name ?? "");
   const [environmentUrl, setEnvironmentUrl] = useState(job.environment?.value.url ?? "");
 
@@ -63,25 +69,35 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         </button>
       </form>
 
-      <label className={GROUP}>
-        <span className={LABEL}>Stage</span>
-        <select
-          className={FIELD}
-          value={job.stage.value}
-          disabled={disabled}
-          onChange={(event) => {
-            if (event.target.value !== job.stage.value) {
-              guard(setJobStage(job.id, event.target.value));
+      <div className={GROUP}>
+        <label className={GROUP}>
+          <span className={LABEL}>Stage</span>
+          <select
+            className={FIELD}
+            value={stage}
+            disabled={disabled}
+            onChange={(event) => setStage(event.target.value)}
+          >
+            {pipeline.stages.map((candidate) => (
+              <option key={candidate.name} value={candidate.name}>
+                {candidate.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className={BUTTON}
+          disabled={disabled || stage === job.stage.value}
+          onClick={() => {
+            if (stage !== job.stage.value) {
+              guard(setJobStage(job.id, stage));
             }
           }}
         >
-          {pipeline.stages.map((stage) => (
-            <option key={stage.name} value={stage.name}>
-              {stage.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          Move to stage
+        </button>
+      </div>
 
       <div className={GROUP}>
         <span className={LABEL}>Needs</span>
@@ -198,10 +214,41 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         type="button"
         className={DANGER_BUTTON}
         disabled={disabled}
-        onClick={() => guard(removeJob(job.id))}
+        onClick={() => setConfirmingDelete(true)}
       >
         Delete job
       </button>
+
+      {confirmingDelete ? (
+        <div
+          role="alertdialog"
+          aria-label={`Delete ${job.id}`}
+          className={`${GROUP} rounded-md border border-border-default bg-surface-2 p-2.5`}
+        >
+          <p className="text-xs text-text-secondary">
+            Delete <span className="font-mono text-text-primary">{job.id}</span> from the file?
+            {referencedBy.length === 0
+              ? " Nothing depends on it."
+              : ` ${referencedBy.join(", ")} depend${referencedBy.length === 1 ? "s" : ""} on it.`}
+          </p>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              className={DANGER_BUTTON}
+              disabled={disabled}
+              onClick={() => {
+                setConfirmingDelete(false);
+                guard(removeJob(job.id));
+              }}
+            >
+              Delete {job.id}
+            </button>
+            <button type="button" className={BUTTON} onClick={() => setConfirmingDelete(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

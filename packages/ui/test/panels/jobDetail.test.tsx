@@ -40,7 +40,7 @@ function job(overrides: Partial<Job> = {}): Job {
 }
 
 function renderPanel(value: Job, text = TEXT) {
-  return render(<JobDetailPanel job={value} text={text} />);
+  return render(<JobDetailPanel job={value} text={text} onClose={() => undefined} />);
 }
 
 describe("sliceOpaque", () => {

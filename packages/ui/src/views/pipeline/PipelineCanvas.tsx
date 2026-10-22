@@ -73,7 +73,7 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
           nodeTypes={NODE_TYPES}
           nodesDraggable={false}
           nodesFocusable={false}
-          edgesFocusable
+          edgesFocusable={false}
           panOnScroll
           proOptions={{ hideAttribution: true }}
           fitView

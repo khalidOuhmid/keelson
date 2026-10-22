@@ -89,6 +89,12 @@ test("changer le stage d'un job se fait au clavier", async ({ page }) => {
   await stage.focus();
   await stage.selectOption("scan");
 
+  // ADR 0004 : parcourir le sélecteur n'écrit rien. Le fichier ne bouge qu'au geste explicite.
+  expect(jobBlock(keelson.read(), "lint")).toContain("stage: test");
+
+  await page.getByRole("button", { name: "Move to stage" }).focus();
+  await page.keyboard.press("Enter");
+
   await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
   await expect.poll(() => jobBlock(keelson.read(), "lint")).toContain("stage: scan");
 });
@@ -202,6 +208,13 @@ test("supprimer un job se fait au clavier", async ({ page }) => {
   await page.keyboard.press("Enter");
 
   await page.getByRole("button", { name: "Delete job" }).focus();
+  await page.keyboard.press("Enter");
+
+  // ADR 0004 : la confirmation est atteignable et franchissable au clavier, comme le reste.
+  await expect(page.getByRole("alertdialog", { name: "Delete lint" })).toBeVisible();
+  expect(keelson.read()).toContain("\nlint:");
+
+  await page.getByRole("button", { name: "Delete lint" }).focus();
   await page.keyboard.press("Enter");
 
   await expect(page.getByRole("button", { name: /^lint/ })).toBeHidden();

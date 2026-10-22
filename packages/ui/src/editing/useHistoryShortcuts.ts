@@ -12,7 +12,12 @@ function inTextEntry(target: EventTarget | null): boolean {
     return false;
   }
   const tag = element.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || element.isContentEditable === true;
+  if (tag === "INPUT" || tag === "TEXTAREA" || element.isContentEditable === true) {
+    return true;
+  }
+  // Le `.cm-content` de CodeMirror en lecture seule est un `div` en `contenteditable="false"` :
+  // `isContentEditable` y vaut `false`, donc le garde au-dessus le laisse passer.
+  return element.closest?.(".cm-editor") !== null && element.closest?.(".cm-editor") !== undefined;
 }
 
 export function useHistoryShortcuts({ enabled, onUndo, onRedo }: HistoryShortcuts): void {

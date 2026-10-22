@@ -24,6 +24,9 @@ function Harness({ calls, enabled = true }: { calls: Calls; enabled?: boolean })
     <div>
       <input aria-label="champ" />
       <textarea aria-label="zone" />
+      <div className="cm-editor">
+        <div className="cm-content" contentEditable={false} data-testid="cm-content" />
+      </div>
     </div>
   );
 }
@@ -211,5 +214,24 @@ describe("ErrorBanner", () => {
     screen.getByRole("button", { name: /dismiss/i }).focus();
     await userEvent.keyboard("{Enter}");
     expect(dismissed).toBe(1);
+  });
+});
+
+describe("useHistoryShortcuts — le visualiseur de bloc opaque", () => {
+  /** Trouvé par /impeccable critique le 2026-10-22 : le garde ne reconnaissait que INPUT,
+   *  TEXTAREA et `isContentEditable`. Le `.cm-content` de CodeMirror en lecture seule est un `div`
+   *  en `contenteditable="false"`, donc `isContentEditable` y vaut `false` : Ctrl+Z dans le
+   *  visualiseur déclenchait une opération serveur au lieu de ne rien faire. */
+  test("Ctrl+Z dans un éditeur CodeMirror ne déclenche pas d'annulation", async () => {
+    const calls = harness();
+    screen.getByTestId("cm-content").focus();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    expect(calls).toEqual({ undo: 0, redo: 0 });
+  });
+
+  test("Ctrl+Z hors de l'éditeur annule toujours", async () => {
+    const calls = harness();
+    await userEvent.keyboard("{Control>}z{/Control}");
+    expect(calls.undo).toBe(1);
   });
 });
