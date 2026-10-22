@@ -17,7 +17,7 @@
     "test": "bun test",
     "build": "bun run --filter '*' build && bun run scripts/copy-ui-bundle.ts",
     "e2e": "bun run build && playwright test",
-    "check": "bun run lint && bun run typecheck && bun run test && bun run build",
+    "check": "bun run lint && bun run typecheck && bun run build && bun run test",
     "corpus:update": "bun run scripts/update-corpus-goldens.ts",
     "dev": "bun run scripts/dev.ts & bun run --cwd packages/ui dev"
   },
