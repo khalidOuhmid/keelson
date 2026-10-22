@@ -1,25 +1,82 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : L2 — étape 9 : `critique`, `audit` et `polish` restants
-Prochaine action : finir l'étape 9 du lot L2, dans cet ordre.
+Lot courant : L2 — étape 9 : `critique` faite, correctifs P0 puis `audit` et `polish`
+Prochaine action : corriger ce que `critique` a remonté, **test d'abord**, dans cet ordre. L'ADR
+0003 fixe ce qui rouvre le lot et ce qui part en écart : une revue peut rouvrir une promesse, jamais
+en ajouter une. Rapport complet et vérifiable dans
+`packages/ui/.impeccable/critique/2026-10-22T10-21-57Z__packages-ui-src.md` — score 20/40.
 
-1. Lancer `/impeccable critique packages/ui/src` puis `/impeccable audit packages/ui/src`, en
-   passant les captures de `packages/ui/.impeccable/review/desktop.png` et `mobile.png`
-   (régénérables par `bunx playwright test packages/ui/e2e/shots.e2e.ts`). Corriger ce qui en
-   ressort, ou le consigner en écart avec justification.
-2. `/impeccable polish packages/ui/src`, qui doit traiter les **cinq** écarts ouverts du
-   2026-10-22 : le graphe qui ne se recadre pas à l'ouverture du panneau de détail ; la barre
-   latérale gauche sans regroupement visuel ; les onze tokens définis et jamais consommés ;
-   `EdgeData.highlighted` calculé et testé mais sans aucun effet visuel ; les icônes en caractères
-   texte (`✕ ! i`, `↳`, `← →`) que `DESIGN.md` refuse de canoniser.
-3. Re-lancer `/impeccable document` après `polish` pour que `DESIGN.md` décrive le monde corrigé :
-   il a été écrit avant ces corrections et devra être mis à jour.
+**A. Défauts de correction — `fix:` sous TDD, un commit par défaut.**
 
-Puis, pour clore le lot : revue indépendante par sous-agent du diff complet de la branche contre
-`specs/lots/l2.md`, vérification finale (`bun install --frozen-lockfile && bun run check &&
-bun run e2e` plus le smoke test Node), merge `--no-ff` dans `main`, `bun run check` sur `main`,
-mise à jour de ce fichier, puis **lot L2c** (ADR 0002), puis L2b.
+1. **Colonnes de stage qui ne contiennent pas leurs jobs** (P0, le plus grave). Sur
+   `review/desktop.png`, la colonne `build` affiche « 1 job » et contient `build-image` **et**
+   `lint`, dont le sous-titre dit `test` ; la colonne `test` affiche « 2 jobs » avec sa moitié haute
+   vide. Cause dans `views/pipeline/layout.ts` : le `x` d'une colonne est déduit du `x` du premier de
+   ses nœuds placé par elkjs, avec un repli `index * (nodeWidth + columnGap)` ; rien ne lie la
+   géométrie de la boîte à celle de la partition, donc un nœud sans arête comme `lint` fait atterrir
+   une boîte sur les nœuds d'une autre colonne. Écrire d'abord le **test d'invariant** exigé par
+   l'ADR 0003 : le centre de tout nœud de job tombe dans la boîte de la colonne de **son** stage, sur
+   l'ensemble des fixtures. Corriger ensuite en dérivant `x` et `width` de la partition elle-même.
+2. **`JobEditor` monté sans `key`** (P0, classe corruption de fichier). `app.tsx` rend
+   `<JobEditor job={selected} …>` sans `key`, donc `useState(job.id)`, `needTarget`, `optional`,
+   `artifacts`, `environmentName` et `environmentUrl` ne s'initialisent qu'au premier montage :
+   sélectionner `build-image` puis `unit-tests` laisse « Job id » à `build-image`, et `Rename`
+   soumet `renameJob("unit-tests", "build-image")`. Test : monter l'éditeur, changer de job,
+   vérifier que tous les champs reflètent le nouveau. Corriger par `key={selected.id}`, et rendre
+   les champs d'environnement contrôlés depuis le job plutôt que depuis un état local vide.
+3. **Bouton `Dismiss` mort sur `ErrorBanner`.** `app.tsx` câble son `onDismiss` sur
+   `dismissNotice()`, qui ne fait que `set({ notice: null })` et ne touche jamais `error` : la
+   bannière d'erreur ne peut pas être fermée. Ajouter `dismissError()` au store.
+4. **`pending` rendu nulle part.** Le store le maintient, aucun composant ne le lit, alors que le
+   surface brief le déclare load-bearing. Désactiver les éditeurs et montrer un état de progression
+   pendant qu'une opération est en vol ; cela supprime aussi les doubles soumissions.
+5. **Le `<select>` de stage écrit à chaque `onChange`.** Sous Windows et Linux, les flèches dans un
+   select fermé émettent `change` à chaque appui : un utilisateur au clavier qui parcourt les
+   options réécrit le YAML une fois par touche. Soumettre sur validation explicite.
+6. **Le 409 jette l'erreur du serveur.** `send()` pose `error` puis appelle `reload()`, qui remet
+   `error: null` : seul l'avis générique de péremption survit, alors que le brief exige « operation
+   rejected (server message shown verbatim) ».
+7. **`useHistoryShortcuts` tire dans CodeMirror.** Le garde laisse passer `.cm-content`, un `div`
+   en `contenteditable="false"` : Ctrl+Z dans le visualiseur de bloc opaque déclenche une opération
+   serveur.
+8. **Suppression de job sans confirmation** : un clic réécrit le fichier. Confirmer en nommant le
+   job et ce qui en dépend — la machinerie `referencedBy` existe déjà.
+9. **Panneau de détail infermable au clavier** : ajouter Échap et un bouton de fermeture, et retirer
+   `edgesFocusable`, qui crée des arrêts de tabulation invisibles. Le modèle clavier complet du
+   graphe, lui, est en écart (surface nouvelle, exige `shape`).
+10. **Reflow WCAG 1.4.10** : à 320 px — soit un zoom 400 % sur un portable de 1280 px — les deux
+    colonnes `shrink-0 w-[352px]` écrasent `<main className="min-w-0 flex-1">` à zéro et le graphe
+    n'est plus rendu du tout. C'est exactement `review/mobile.png`. Échec de bureau, pas note de bas
+    de page mobile.
+
+**B. `/impeccable audit packages/ui/src`**, qui possède le contraste. Deux manquements à
+l'engagement WCAG 2.1 AA de `PRODUCT.md`, recalculés et confirmés depuis les `oklch` de
+`tokens.css` : `border-default` sur `surface-1` donne **1,63:1** là où 1.4.11 exige 3:1, et il borde
+chaque champ, select, bouton, tag et nœud non sélectionné ; `text-muted` sur `surface-3` donne
+**4,03:1** là où 1.4.3 exige 4,5:1, et `surface-3` est précisément le fond qu'un nœud prend au
+survol **et à la sélection** — interagir avec un nœud rend donc son texte moins lisible. Étendre
+`test/tokens.test.ts` d'une assertion de contraste sur chaque paire documentée dans `DESIGN.md`,
+pour que la rampe ne puisse plus régresser.
+
+**C. `/impeccable polish packages/ui/src`** sur les cinq écarts du 2026-10-22, dont la critique
+reclasse deux points : parmi les onze tokens inutilisés, `--keelson-edge-width` et
+`--keelson-edge-width-strong` ne sont pas de l'hygiène — leur absence est la raison pour laquelle
+chaque arête rend au gris d'origine de React Flow, hors système ; et `EdgeData.highlighted` n'est
+pas du code mort mais le retour visuel de la sélection. S'y ajoutent `--text-2xs: 10px`
+(`tokens.css:42`), sous le plancher de 11 px du détecteur, qui explique à lui seul 12 des 14
+constats navigateur ; et `OriginBadge`, qui majuscule `.deploy-base` en `.DEPLOY-BASE` — une clé
+YAML sensible à la casse, écrite par l'utilisateur — déborde de 28 px malgré `truncate`, et cache
+dans un `title` la phrase qui fait tout son intérêt.
+
+**D.** État « content unavailable » explicite et testé quand `sliceOpaque` reçoit une plage hors
+bornes ou inversée.
+
+**E.** `/impeccable document` pour réécrire `DESIGN.md` sur le monde corrigé, puis revue
+indépendante par sous-agent du diff complet de la branche contre `specs/lots/l2.md`, vérification
+finale (`bun install --frozen-lockfile && bun run check && bun run e2e` plus le smoke test Node),
+merge `--no-ff` dans `main`, `bun run check` sur `main`, mise à jour de ce fichier. Puis **L2c**
+(ADR 0002), puis L2b.
 Blocage : aucun
 
 | Lot | Statut | Merge |
