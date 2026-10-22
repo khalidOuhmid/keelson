@@ -15,6 +15,11 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
+function descriptionOf(element: HTMLElement): string {
+  const id = element.getAttribute("aria-describedby");
+  return id === null ? "" : (document.getElementById(id)?.textContent ?? "");
+}
+
 function need(job: string, optional = false): Need {
   return { job, optional, artifacts: true };
 }
@@ -145,21 +150,42 @@ describe("nœuds de jobs", () => {
     expect(node.textContent).toContain("build");
   });
 
-  test("le nœud décrit ses dépendances pour un lecteur d'écran", async () => {
+  test("le nœud décrit ses dépendances via aria-describedby", async () => {
     await renderCanvas(SAMPLE);
-    const node = await screen.findByRole("button", { name: /ship/ });
-    const description = node.getAttribute("aria-description") ?? "";
+    const description = descriptionOf(await screen.findByRole("button", { name: /ship/ }));
     expect(description).toContain("unit");
     expect(description).toContain("lint");
     expect(description.toLowerCase()).toContain("optional");
   });
 
+  test("aucun nœud n'utilise aria-description, insuffisamment supporté", async () => {
+    await renderCanvas(SAMPLE);
+    const node = await screen.findByRole("button", { name: /ship/ });
+    expect(node.getAttribute("aria-description")).toBeNull();
+    expect(node.getAttribute("aria-describedby")).not.toBeNull();
+  });
+
+  test("l'élément décrivant le nœud est visuellement masqué mais présent dans le DOM", async () => {
+    await renderCanvas(SAMPLE);
+    const node = await screen.findByRole("button", { name: /ship/ });
+    const target = document.getElementById(node.getAttribute("aria-describedby") ?? "");
+    expect(target).not.toBeNull();
+    expect(target?.className).toContain("sr-only");
+  });
+
+  test("chaque nœud pointe vers son propre élément de description", async () => {
+    await renderCanvas(SAMPLE);
+    const ship = await screen.findByRole("button", { name: /ship/ });
+    const compile = await screen.findByRole("button", { name: /compile/ });
+    expect(ship.getAttribute("aria-describedby")).not.toBe(
+      compile.getAttribute("aria-describedby"),
+    );
+  });
+
   test("un job sans dépendance le dit", async () => {
     await renderCanvas(SAMPLE);
     const node = await screen.findByRole("button", { name: /compile/ });
-    expect((node.getAttribute("aria-description") ?? "").toLowerCase()).toContain(
-      "no dependencies",
-    );
+    expect(descriptionOf(node).toLowerCase()).toContain("no dependencies");
   });
 
   test("le job sélectionné est marqué", async () => {

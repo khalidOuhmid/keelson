@@ -17,6 +17,7 @@ export type JobNodeProps = NodeProps & {
 };
 
 export function JobNode({ data }: JobNodeProps) {
+  const descriptionId = `job-${data.id}-description`;
   const description = [
     `Stage ${data.stage}.`,
     describeNeeds(data.needs),
@@ -32,7 +33,7 @@ export function JobNode({ data }: JobNodeProps) {
       <button
         type="button"
         aria-pressed={data.selected}
-        aria-description={description}
+        aria-describedby={descriptionId}
         data-job-id={data.id}
         data-selected={data.selected}
         className="group flex h-full w-full cursor-pointer flex-col justify-center gap-0.5 rounded-md border bg-surface-2 px-2.5 py-2 text-left transition-colors duration-fast ease-out hover:bg-surface-3 data-[selected=false]:border-border-default data-[selected=true]:border-accent data-[selected=true]:bg-surface-3"
@@ -43,6 +44,9 @@ export function JobNode({ data }: JobNodeProps) {
           <OriginBadge origin={data.stageOrigin} />
         </span>
       </button>
+      <span id={descriptionId} className="sr-only">
+        {description}
+      </span>
       <Handle type="source" position={Position.Right} className="!bg-border-strong" />
     </>
   );
