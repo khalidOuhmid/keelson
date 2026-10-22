@@ -273,7 +273,7 @@ directe au constat de fin de passe `critique` :
   en E2E, pas uniquement sur les coordonnées calculées.
 
 Elles rendaient **insuffisants les deux invariants écrits plus tôt dans la journée**, qui ne
-vérifiaient que des coordonnées. Ajoutés donc, commit `1f09ab2` :
+vérifiaient que des coordonnées. Ajoutés donc, commit `de19d2e` :
 
 - deux tests sur le DOM rendu dans `app.test.tsx` — chaque job tombe dans la colonne du stage qu'il
   **annonce**, et le compte de l'en-tête égale le nombre de jobs rendus dans la colonne ;
