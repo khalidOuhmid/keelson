@@ -233,3 +233,161 @@ describe("déterminisme", () => {
     expect(byId.get("ship")).toBe(referenceById.get("ship"));
   });
 });
+
+describe("invariant : un job est dessiné dans la colonne de son stage", () => {
+  /** L'ADR 0003 exige cet invariant : la passe critique du 2026-10-22 a trouvé `lint`, un job de
+   *  stage `test`, dessiné dans la colonne `build` dont l'en-tête annonçait « 1 job ». Les tests
+   *  existants vérifiaient que la mise en page est calculée, jamais qu'elle est vraie. */
+  function assertContained(layout: Awaited<ReturnType<typeof layoutPipeline>>): void {
+    const columnOf = new Map<string, (typeof layout.columns)[number]>();
+    for (const column of layout.columns) {
+      for (const id of column.jobIds) {
+        columnOf.set(id, column);
+      }
+    }
+
+    for (const node of layout.nodes) {
+      const column = columnOf.get(node.id);
+      expect(column).toBeDefined();
+      if (column === undefined) {
+        continue;
+      }
+      const centre = node.x + node.width / 2;
+      expect({
+        job: node.id,
+        stage: column.name,
+        inside: centre >= column.x && centre <= column.x + column.width,
+      }).toEqual({ job: node.id, stage: column.name, inside: true });
+    }
+  }
+
+  test("sur un pipeline dont un job n'a aucune arête", async () => {
+    assertContained(
+      await layoutPipeline(
+        pipeline(
+          ["build", "test", "scan", "deploy"],
+          [
+            { id: "build-image", stage: "build" },
+            { id: "unit-tests", stage: "test", needs: [need("build-image")] },
+            { id: "lint", stage: "test" },
+            { id: "secret-detection", stage: "scan" },
+            { id: "container-scan", stage: "scan", needs: [need("build-image")] },
+            {
+              id: "deploy-production",
+              stage: "deploy",
+              needs: [need("unit-tests"), need("secret-detection"), need("container-scan")],
+            },
+          ],
+        ),
+        METRICS,
+      ),
+    );
+  });
+
+  test("sur un pipeline entièrement sans arête", async () => {
+    assertContained(
+      await layoutPipeline(
+        pipeline(
+          ["build", "test", "deploy"],
+          [
+            { id: "a", stage: "build" },
+            { id: "b", stage: "test" },
+            { id: "c", stage: "deploy" },
+          ],
+        ),
+        METRICS,
+      ),
+    );
+  });
+
+  test("quand un stage déclaré ne porte aucun job", async () => {
+    assertContained(
+      await layoutPipeline(
+        pipeline(
+          ["build", "vide", "deploy"],
+          [
+            { id: "a", stage: "build" },
+            { id: "b", stage: "deploy", needs: [need("a")] },
+          ],
+        ),
+        METRICS,
+      ),
+    );
+  });
+
+  test("quand un job référence un stage non déclaré", async () => {
+    assertContained(
+      await layoutPipeline(
+        pipeline(
+          ["build"],
+          [
+            { id: "a", stage: "build" },
+            { id: "b", stage: "surprise", needs: [need("a")] },
+          ],
+        ),
+        METRICS,
+      ),
+    );
+  });
+});
+
+describe("invariant : deux jobs d'une même colonne ne se recouvrent pas", () => {
+  async function overlapsIn(
+    stages: string[],
+    jobs: { id: string; stage: string; needs?: Need[] }[],
+  ): Promise<string[]> {
+    const layout = await layoutPipeline(pipeline(stages, jobs), METRICS);
+    const byId = new Map(layout.nodes.map((node) => [node.id, node]));
+    const found: string[] = [];
+
+    for (const column of layout.columns) {
+      const placed = column.jobIds
+        .map((id) => byId.get(id))
+        .filter((node): node is NonNullable<typeof node> => node !== undefined)
+        .sort((left, right) => left.y - right.y);
+
+      for (const [index, node] of placed.entries()) {
+        const next = placed[index + 1];
+        if (next !== undefined && next.y < node.y + node.height) {
+          found.push(`${node.id} recouvre ${next.id} dans ${column.name}`);
+        }
+      }
+    }
+
+    return found;
+  }
+
+  test("sur le pipeline de la fixture de dev", async () => {
+    expect(
+      await overlapsIn(
+        ["build", "test", "scan", "deploy"],
+        [
+          { id: "build-image", stage: "build" },
+          { id: "unit-tests", stage: "test", needs: [need("build-image")] },
+          { id: "lint", stage: "test" },
+          { id: "secret-detection", stage: "scan" },
+          { id: "container-scan", stage: "scan", needs: [need("build-image")] },
+          {
+            id: "deploy-production",
+            stage: "deploy",
+            needs: [need("unit-tests"), need("secret-detection"), need("container-scan")],
+          },
+        ],
+      ),
+    ).toEqual([]);
+  });
+
+  test("quand une colonne mêle des jobs liés et des jobs isolés", async () => {
+    expect(
+      await overlapsIn(
+        ["build", "test"],
+        [
+          { id: "compile", stage: "build" },
+          { id: "lié", stage: "test", needs: [need("compile")] },
+          { id: "isolé-a", stage: "test" },
+          { id: "isolé-b", stage: "test" },
+        ],
+      ),
+    ).toEqual([]);
+  });
+});

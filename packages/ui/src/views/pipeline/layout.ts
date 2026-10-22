@@ -141,32 +141,54 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
 
   const laid = await new ELK().layout(graph);
 
-  const nodes: LayoutNode[] = (laid.children ?? [])
-    .map((child) => ({
-      id: child.id,
-      x: child.x ?? 0,
-      y: child.y ?? 0,
-      width: child.width ?? metrics.nodeWidth,
-      height: child.height ?? metrics.nodeHeight,
-    }))
-    .sort((left, right) => left.id.localeCompare(right.id));
+  const laidColumns: LayoutColumn[] = columns.map((column, index) => ({
+    ...column,
+    x: index * (metrics.nodeWidth + metrics.columnGap),
+    width: metrics.nodeWidth,
+  }));
 
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const placed = new Map<string, LayoutNode>(
+    (laid.children ?? []).map((child) => [
+      child.id,
+      {
+        id: child.id,
+        x: laidColumns[columnOf.get(child.id) ?? 0]?.x ?? 0,
+        y: child.y ?? 0,
+        width: metrics.nodeWidth,
+        height: child.height ?? metrics.nodeHeight,
+      },
+    ]),
+  );
+
+  // elkjs ne décide plus que l'ordre vertical : forcer le x sur la partition peut ramener dans une
+  // même colonne deux nœuds qu'il avait séparés en couches, donc au même y. On les décale.
+  for (const column of laidColumns) {
+    const members = column.jobIds
+      .map((id) => placed.get(id))
+      .filter((node): node is LayoutNode => node !== undefined)
+      .sort((left, right) =>
+        left.y !== right.y ? left.y - right.y : left.id.localeCompare(right.id),
+      );
+
+    let floor = Number.NEGATIVE_INFINITY;
+    for (const node of members) {
+      node.y = Math.max(node.y, floor);
+      floor = node.y + node.height + metrics.rowGap;
+    }
+  }
+
+  const nodes: LayoutNode[] = [...placed.values()].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
 
   return {
     nodes,
     edges: [...edges].sort((left, right) => left.id.localeCompare(right.id)),
-    columns: columns.map((column, index) => {
-      const first = column.jobIds
-        .map((id) => nodeById.get(id)?.x)
-        .find((value): value is number => value !== undefined);
-      return {
-        ...column,
-        x: first ?? index * (metrics.nodeWidth + metrics.columnGap),
-        width: metrics.nodeWidth,
-      };
-    }),
-    width: laid.width ?? 0,
-    height: laid.height ?? 0,
+    columns: laidColumns,
+    width: Math.max(
+      0,
+      laidColumns.length * (metrics.nodeWidth + metrics.columnGap) - metrics.columnGap,
+    ),
+    height: nodes.reduce((tallest, node) => Math.max(tallest, node.y + node.height), 0),
   };
 }
