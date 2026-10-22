@@ -50,8 +50,10 @@ function pipeline(): Pipeline {
   };
 }
 
+const DOCUMENT_TEXT = "stages:\n  - build\n  - test\n";
+
 const DOCUMENT: DocumentPayload = {
-  text: "stages:\n  - build\n  - test\n",
+  text: DOCUMENT_TEXT,
   pipeline: pipeline(),
   diagnostics: [],
   hash: HASH,
@@ -77,6 +79,7 @@ function harness(
   const state = { subscriptions: 0, closed: 0 };
 
   const ok: OperationPayload = {
+    text: DOCUMENT_TEXT,
     pipeline: pipeline(),
     diagnostics: [],
     hash: NEXT,

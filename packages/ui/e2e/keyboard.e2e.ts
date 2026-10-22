@@ -89,13 +89,22 @@ test("changer le stage d'un job se fait au clavier", async ({ page }) => {
   await stage.focus();
   await stage.selectOption("scan");
 
-  // ADR 0004 : parcourir le sélecteur n'écrit rien. Le fichier ne bouge qu'au geste explicite.
+  // ADR 0004 : parcourir le selecteur n'ecrit rien. La revue du 2026-10-22 a montre que lire le
+  // disque juste apres `selectOption` gagnait la course contre l'ecriture fautive, et que
+  // l'assertion finale etait ensuite satisfaite par cette meme ecriture. On attend donc deux
+  // barrieres positives — le bouton redevenu actif, puis l'absence durable d'operation — avant
+  // d'affirmer que rien n'a ete ecrit.
+  const move = page.getByRole("button", { name: "Move to stage" });
+  await expect(move).toBeEnabled();
+  await expect(page.getByTestId("pending-indicator")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
   expect(jobBlock(keelson.read(), "lint")).toContain("stage: test");
 
-  await page.getByRole("button", { name: "Move to stage" }).focus();
+  await move.focus();
   await page.keyboard.press("Enter");
 
   await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
   await expect.poll(() => jobBlock(keelson.read(), "lint")).toContain("stage: scan");
 });
 
@@ -241,15 +250,29 @@ test("annuler et rétablir se font au raccourci clavier", async ({ page }) => {
 test("le raccourci d'annulation ne vole pas l'annulation d'un champ de saisie", async ({
   page,
 }) => {
+  // La revue independante du 2026-10-22 a prouve que la version precedente ne pouvait pas echouer :
+  // aucune operation n'etait soumise avant le Ctrl+Z, donc la pile d'annulation etait vide et
+  // `undo()` sortait immediatement, que le garde `inTextEntry` fonctionne ou non. Il faut d'abord
+  // une operation reussie, pour qu'un Ctrl+Z vole effectivement quelque chose s'il passe.
   await open(page);
-  const original = keelson.read();
+
+  await page.getByRole("textbox", { name: "New stage name" }).fill("verify");
+  await page.getByRole("button", { name: "Add stage" }).click();
+  await expect(page.getByTestId("stage-column-name").filter({ hasText: "verify" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
+
+  const afterOperation = keelson.read();
+  expect(afterOperation).toContain("verify");
 
   const field = page.getByRole("textbox", { name: "New stage name" });
   await field.focus();
-  await page.keyboard.type("verify");
+  await page.keyboard.type("publish");
   await page.keyboard.press("Control+z");
 
-  expect(keelson.read()).toBe(original);
+  // Le Ctrl+Z appartient au champ : l'annulation du document ne doit pas partir, donc le stage
+  // ajoute reste sur disque et Undo reste disponible.
+  await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
+  expect(keelson.read()).toBe(afterOperation);
 });
 
 test("un diagnostic se sélectionne au clavier", async ({ page }) => {

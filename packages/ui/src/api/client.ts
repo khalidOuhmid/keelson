@@ -15,6 +15,7 @@ export type DocumentPayload = {
 };
 
 export type OperationPayload = {
+  text: string;
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;

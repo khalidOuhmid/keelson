@@ -375,3 +375,33 @@ test("le graphe se recadre quand le panneau de détail s'ouvre", async ({ page }
   // au canevas sans le recadrer, et la dernière colonne passait sous le panneau.
   await expect.poll(rightmostColumn).toBeLessThanOrEqual(panelLeft + 1);
 });
+
+test("un bloc opaque montre encore ses propres octets après une édition", async ({ page }) => {
+  // Trouvé par la revue indépendante : `applyPayload` ne rafraîchissait pas `text`, alors que les
+  // plages des blocs opaques viennent du nouveau pipeline. Après une opération décalant des
+  // offsets, le bloc affichait un fragment chevauchant la clé d'un autre job — sur la seule
+  // surface dont la garantie écrite est « ceci est intact ».
+  await open(page);
+
+  const blockText = async () => {
+    await page.getByRole("button", { name: /container-scan/ }).click();
+    await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
+    return (await page.getByRole("group", { name: "Opaque block script" }).textContent()) ?? "";
+  };
+
+  const before = await blockText();
+  expect(before).toContain("trivy");
+
+  // Un renommage nettement plus long décale tous les offsets situés après lui.
+  await page.getByRole("button", { name: /^lint/ }).click();
+  await page
+    .getByRole("textbox", { name: "Job id", exact: true })
+    .fill("lint-with-a-much-longer-name");
+  await page.getByRole("button", { name: "Rename" }).click();
+  await expect(page.getByRole("button", { name: /lint-with-a-much-longer-name/ })).toBeVisible();
+
+  const after = await blockText();
+  expect(after).toContain("trivy");
+  expect(after).not.toContain("deploy-production");
+  expect(after).toBe(before);
+});

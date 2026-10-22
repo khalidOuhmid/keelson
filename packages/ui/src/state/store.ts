@@ -75,6 +75,9 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
     const applyPayload = (payload: OperationPayload): void => {
       set({
+        // `text` doit suivre : les plages des blocs opaques viennent du nouveau pipeline, et le
+        // watcher tait les ecritures propres du serveur, donc aucun rechargement ne le reparerait.
+        text: payload.text,
         pipeline: payload.pipeline,
         diagnostics: payload.diagnostics,
         hash: payload.hash,

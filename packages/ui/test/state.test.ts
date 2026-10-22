@@ -30,6 +30,7 @@ function documentPayload(hash = HASH_A): DocumentPayload {
 
 function operationPayload(hash: string, inverseHash: string): OperationPayload {
   return {
+    text: "stages:\n  - build\n",
     pipeline: pipeline(["compile", "unit"]),
     diagnostics: [],
     hash,
@@ -449,5 +450,42 @@ describe("409 : l'erreur du serveur survit au rechargement", () => {
     });
     expect(state().notice?.kind).toBe("stale");
     expect(state().hash).toBe(HASH_C);
+  });
+});
+
+describe("le texte suit les opérations", () => {
+  /** Trouvé par la revue indépendante du 2026-10-22 : `applyPayload` rafraîchissait `pipeline`,
+   *  `diagnostics` et `hash`, jamais `text`. Les plages des blocs opaques viennent du nouveau
+   *  pipeline, le texte restait celui du dernier chargement complet, et toute opération décalant des
+   *  offsets désalignait les deux. Le watcher supprimant `document.changed` pour les écritures
+   *  propres du serveur, aucun rechargement ne réparait jamais `text`. */
+  test("une opération réussie remplace le texte du document", async () => {
+    expect(state().text).toBe("stages:\n  - build\n");
+
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_B, HASH_B), text: "stages:\n  - build\n  - verify\n" },
+    });
+    await addStage("verify");
+
+    expect(state().text).toBe("stages:\n  - build\n  - verify\n");
+    expect(state().hash).toBe(HASH_B);
+  });
+
+  test("une annulation remet le texte d'avant", async () => {
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_B, HASH_B), text: "après" },
+    });
+    await addStage("verify");
+    expect(state().text).toBe("après");
+
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_C, HASH_C), text: "stages:\n  - build\n" },
+    });
+    await state().undo();
+
+    expect(state().text).toBe("stages:\n  - build\n");
   });
 });

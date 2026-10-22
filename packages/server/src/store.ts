@@ -19,6 +19,11 @@ export type DocumentBody = {
 };
 
 export type OperationBody = {
+  /** Le texte apres l'operation. Sans lui, le client garde celui du dernier chargement complet,
+   *  alors que les plages des blocs opaques viennent du nouveau pipeline : les deux se desalignent
+   *  des qu'une operation decale des offsets, et le watcher tait les ecritures propres du serveur,
+   *  donc aucun rechargement ne les reconcilie. */
+  text: string;
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
@@ -206,6 +211,7 @@ export class DocumentStore {
     return {
       status: 200,
       body: {
+        text: result.value.text,
         pipeline: result.value.pipeline,
         diagnostics,
         hash: result.value.hash,
