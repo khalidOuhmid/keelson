@@ -405,3 +405,22 @@ test("un bloc opaque montre encore ses propres octets après une édition", asyn
   expect(after).not.toContain("deploy-production");
   expect(after).toBe(before);
 });
+
+test("chaque arête expose sa dépendance en texte accessible", async ({ page }) => {
+  // Seconde revue : `ariaLabel` n'était testé que comme valeur d'objet, alors que c'est la seule
+  // description accessible du graphe. Une montée de version de xyflow qui cesserait de poser
+  // `role` et `aria-label` sur les arêtes non focalisables passerait inaperçue.
+  await open(page);
+  await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
+
+  const labels = await page.evaluate(() =>
+    [...document.querySelectorAll(".react-flow__edge")].map((edge) => ({
+      role: edge.getAttribute("role"),
+      label: edge.getAttribute("aria-label"),
+    })),
+  );
+
+  expect(labels.length).toBeGreaterThan(0);
+  expect(labels.every((edge) => edge.role === "img")).toBe(true);
+  expect(labels.map((edge) => edge.label)).toContain("unit-tests needs build-image");
+});

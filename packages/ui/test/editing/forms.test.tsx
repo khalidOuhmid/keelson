@@ -487,3 +487,50 @@ describe("JobEditor — la confirmation est utilisable au clavier", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete job" }));
   });
 });
+
+describe("JobEditor — le sélecteur de need et le bouton désignent le même job", () => {
+  /** Seconde revue indépendante du 2026-10-22 : `needTarget` ne s'initialisait qu'au premier
+   *  montage, et `JobEditor` n'est reclé que sur `job.id`. Après un ajout, la cible disparaissait
+   *  de la liste d'options ; le navigateur affichait l'option 0 pendant que React gardait
+   *  l'ancienne valeur, et `Add need` soumettait celle-là. Même classe que le montage sans `key` :
+   *  l'édition écrit une valeur que l'utilisateur n'a pas saisie. */
+  function withNeeds(needs: string[]) {
+    return job({
+      id: "unit",
+      needs:
+        needs.length === 0
+          ? null
+          : {
+              value: needs.map((target) => ({ job: target, optional: false, artifacts: true })),
+              origin: { kind: "local" as const },
+            },
+    });
+  }
+
+  test("la cible soumise est celle que le sélecteur affiche", async () => {
+    const { drafts, submit } = collector();
+    const view = render(<JobEditor job={withNeeds([])} pipeline={PIPELINE} onSubmit={submit} />);
+
+    // `compile` devient requis : il quitte la liste des candidats sans remonter le composant.
+    view.rerender(<JobEditor job={withNeeds(["compile"])} pipeline={PIPELINE} onSubmit={submit} />);
+
+    const select = screen.getByRole("combobox", { name: /add a need/i }) as HTMLSelectElement;
+    await userEvent.click(screen.getByRole("button", { name: /add need/i }));
+
+    expect(drafts).toEqual([{ kind: "addNeed", id: "unit", need: { job: select.value } }]);
+  });
+
+  test("le bouton est inerte quand il ne reste aucun candidat", () => {
+    render(
+      <JobEditor
+        job={withNeeds(["compile", "lint"])}
+        pipeline={PIPELINE}
+        onSubmit={() => undefined}
+      />,
+    );
+
+    expect((screen.getByRole("button", { name: /add need/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+});

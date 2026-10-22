@@ -27,6 +27,10 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
 
   const [name, setName] = useState(job.id);
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");
+  // `candidates` se recalcule a chaque rendu, mais le composant n'est recle que sur `job.id` :
+  // apres un ajout, la cible choisie quitte la liste et le navigateur affiche l'option 0 pendant
+  // que l'etat garde l'ancienne. On soumet donc ce que le selecteur montre, jamais autre chose.
+  const effectiveNeed = candidates.includes(needTarget) ? needTarget : (candidates[0] ?? "");
   const [optional, setOptional] = useState(false);
   const [artifacts, setArtifacts] = useState(true);
   const referencedBy = pipeline.jobs
@@ -140,7 +144,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <span className={LABEL}>Add a need</span>
           <select
             className={FIELD}
-            value={needTarget}
+            value={effectiveNeed}
             disabled={disabled || candidates.length === 0}
             onChange={(event) => setNeedTarget(event.target.value)}
           >
@@ -175,8 +179,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         <button
           type="button"
           className={BUTTON}
-          disabled={disabled || needTarget === ""}
-          onClick={() => guard(addNeed(job.id, needTarget, { optional, artifacts }))}
+          disabled={disabled || effectiveNeed === ""}
+          onClick={() => guard(addNeed(job.id, effectiveNeed, { optional, artifacts }))}
         >
           Add need
         </button>

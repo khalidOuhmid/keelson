@@ -74,6 +74,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
     };
 
     const applyPayload = (payload: OperationPayload): void => {
+      // La selection doit tomber si le job vient d'etre supprime — `reload` le fait deja. Sans
+      // cela l'id reste pendant, le panneau se rouvrirait sur un job recree du meme nom, et
+      // l'effet de refocalisation d'app.tsx ne tire pas quand le panneau disparait.
+      const stillThere = payload.pipeline.jobs.some((job) => job.id === get().selectedJobId);
       set({
         // `text` doit suivre : les plages des blocs opaques viennent du nouveau pipeline, et le
         // watcher tait les ecritures propres du serveur, donc aucun rechargement ne le reparerait.
@@ -81,6 +85,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         pipeline: payload.pipeline,
         diagnostics: payload.diagnostics,
         hash: payload.hash,
+        selectedJobId: stillThere ? get().selectedJobId : null,
         error: null,
       });
     };

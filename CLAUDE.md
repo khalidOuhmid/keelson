@@ -101,7 +101,7 @@ tant que les commandes restent simples et évite une dépendance dans le bundle 
 | `bun run test`       | `bun test` sur tous les packages                        |
 | `bun run build`      | build de tous les packages, CLI ciblée Node             |
 | `bun run e2e`        | Playwright                                              |
-| `bun run check`      | lint + typecheck + test + build — ce que lance la CI    |
+| `bun run check`      | lint + typecheck + build + test — ce que lance la CI    |
 | `bun run corpus:update` | régénère les goldens IR du corpus (diff à relire)   |
 | `bun run dev`        | serveur local sur la fixture de dev + Vite sur 5283     |
 

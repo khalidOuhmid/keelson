@@ -558,3 +558,57 @@ describe("le focus ne tombe jamais sur le corps du document", () => {
     );
   });
 });
+
+describe("suppression confirmée : focus et sélection", () => {
+  /** Seconde revue : l'effet de refocalisation se déclenchait sur `selectedJobId`, que
+   *  `applyPayload` ne remet jamais à `null`. Après une suppression confirmée, le panneau
+   *  disparaissait mais l'effet ne tirait pas, et le focus retombait sur `<body>` — au moment où
+   *  le produit vient de réécrire le fichier. Le commentaire du code affirmait l'inverse. */
+  function withoutUnit() {
+    const base = pipeline();
+    return { ...base, jobs: base.jobs.filter((candidate) => candidate.id !== "compile") };
+  }
+
+  test("le focus revient au graphe et la sélection est libérée", async () => {
+    const h = harness();
+    h.queueSubmit({
+      ok: true,
+      value: {
+        text: DOCUMENT_TEXT,
+        pipeline: withoutUnit(),
+        diagnostics: [],
+        hash: NEXT,
+        inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
+        touched: [],
+      },
+    });
+    await renderApp(h);
+
+    await userEvent.click(await screen.findByRole("button", { name: /compile/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete compile" }));
+
+    await waitFor(() => expect(screen.queryByRole("region", { name: /job detail/i })).toBeNull());
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("region", { name: "Pipeline graph" })),
+    );
+  });
+});
+
+describe("Échap dans la confirmation n'atteint pas le panneau", () => {
+  /** Seconde revue : le `stopPropagation` du dialogue n'était couvert que par un test qui monte
+   *  `JobEditor` seul, donc sans l'écouteur de document d'`app.tsx`. Le retirer ne faisait rougir
+   *  aucun test. Celui-ci monte l'application entière. */
+  test("Échap ferme le dialogue et laisse le panneau ouvert", async () => {
+    await renderApp(harness());
+
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    expect(screen.getByRole("alertdialog")).toBeDefined();
+
+    await userEvent.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(screen.getByRole("region", { name: /job detail/i })).toBeDefined();
+  });
+});
