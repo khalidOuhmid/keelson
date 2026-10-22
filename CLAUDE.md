@@ -72,17 +72,13 @@ de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 | --------------- | ------------------------------- | -------------------------------------------- |
 | `yaml` (eemeli) | `adapter-gitlab`                | parsing, ranges des nœuds, anchors, merge     |
 | `zod` v4        | `core`, `adapter-gitlab`        | schémas des opérations                        |
+| `@xyflow/react` | `ui`                            | rendu du graphe pipeline                      |
+| `elkjs`         | `ui`                            | mise en page en couches, déterministe         |
+| `zustand`       | `ui`                            | état de l'UI, undo/redo                       |
+| CodeMirror 6    | `ui`                            | blocs YAML opaques en lecture seule           |
 | `fast-check`    | devDependency racine            | tests de propriétés                           |
 
-### Dépendances prévues pour les lots suivants
-
-À ne pas installer avant le lot qui les utilise :
-
-| Dépendance        | Usage                                                  | Lot    |
-| ----------------- | ------------------------------------------------------ | ------ |
-| `@xyflow/react`   | rendu des graphes pipeline et toolchain                | L2     |
-| CodeMirror 6      | édition des blocs YAML opaques                         | L2     |
-| Zustand           | état de l'UI                                           | L2     |
+Aucune dépendance n'est aujourd'hui en attente d'un lot futur.
 
 `commander` n'a finalement pas été installé : la CLI parse ses arguments à la main, ce qui suffit
 tant que les commandes restent simples et évite une dépendance dans le bundle `npx keelson`.
@@ -99,6 +95,24 @@ tant que les commandes restent simples et évite une dépendance dans le bundle 
 | `bun run e2e`        | Playwright                                              |
 | `bun run check`      | lint + typecheck + test + build — ce que lance la CI    |
 | `bun run corpus:update` | régénère les goldens IR du corpus (diff à relire)   |
+| `bun run dev`        | serveur local sur la fixture de dev + Vite sur 5283     |
+
+## Développement du front
+
+`bun run dev` démarre deux processus :
+
+1. `scripts/dev.ts` lance le serveur **par programme** (pas via la CLI) sur
+   `packages/ui/dev-fixture/`, port 5284, avec un token fixe de développement ;
+2. Vite sert l'UI sur **5283** et proxifie `/api` vers le serveur en ajoutant l'en-tête du token,
+   de sorte que l'UI de dev n'a pas besoin de token dans son URL.
+
+`changeOrigin` est indispensable dans ce proxy : il réécrit l'en-tête `Host` vers `127.0.0.1:5284`,
+que le contrôle de `Host` du serveur exige. Un test
+(`packages/ui/test/devProxy.test.ts`) garde la cohérence du token, du port et de cette option entre
+le script et la configuration Vite.
+
+La fixture de dev est un pipeline volontairement riche : quatre stages, needs en forme objet et
+optionnels, `extends`, environnement. Les tests E2E en prennent une copie temporaire.
 
 ## Tests de propriétés
 

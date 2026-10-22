@@ -101,6 +101,63 @@ masse via `keelson apply ops.json` (hors périmètre de L1, où aucune commande 
 exposée). Les codes d'erreur étant des contrats publics documentés dans
 [diagnostics.md](diagnostics.md), un client distant peut interpréter un refus sans lire le code.
 
+## 7 ter. Serveur local et modèle de sécurité
+
+`npx keelson start` démarre un serveur `node:http` qui **fait autorité sur le disque**. L'UI n'écrit
+jamais de fichier et n'exécute pas l'adaptateur : elle envoie des opérations, le serveur les applique
+et écrit.
+
+### API
+
+| Méthode | Route | Réponses |
+|---|---|---|
+| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }` |
+| GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash }` · 404 |
+| POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ pipeline, diagnostics, hash, inverse, touched }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, message, details }` |
+| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, heartbeat toutes les 15 s |
+| GET | `/*` | bundle de l'UI, repli SPA sur `index.html` |
+
+Les `diagnostics` de ces réponses combinent ceux de `parse` **et** ceux de `validate`, comme le fait
+`keelson validate` : l'API et la CLI disent la même chose du même fichier. Toute erreur a la forme
+`{ code, message, details? }`, avec les codes documentés dans [diagnostics.md](diagnostics.md).
+
+### Garanties d'écriture
+
+- **Atomique** : fichier temporaire dans le même dossier, `fsync`, `rename`, mode du fichier
+  d'origine conservé. En cas d'échec le temporaire est supprimé et l'original reste intact.
+- **Sérialisée par document** : une file d'attente par fichier, jamais deux `apply` en parallèle sur
+  le même document.
+- **Idempotente** : chaque requête porte un `opId` ; les 100 derniers par document sont mémorisés
+  avec leur réponse, et un `opId` rejoué rend la même réponse sans réécrire.
+- **Modifications externes** : le serveur surveille le **dossier** et filtre sur le nom du fichier,
+  parce qu'un éditeur remplace souvent le fichier par un `rename` — surveiller le fichier seul
+  manquerait l'événement. Après un changement il relit : si le hash est celui qu'il connaît, c'est sa
+  propre écriture et il se taît ; sinon il re-parse et émet `document.changed`. Fichier disparu →
+  `document.removed`.
+
+### Modèle de sécurité
+
+Le serveur tourne sur la machine de l'utilisateur, aux côtés d'autres pages web ouvertes dans le même
+navigateur. Il doit donc se défendre contre elles.
+
+- **Écoute sur `127.0.0.1` uniquement**, sans option pour changer d'interface. Rien n'est exposé au
+  réseau local.
+- **En-tête `Host` vérifié avant tout traitement** : seuls `127.0.0.1:<port>` et `localhost:<port>`
+  sont acceptés, tout le reste rend 403. C'est la défense contre le *DNS rebinding*, par lequel un
+  nom contrôlé par un tiers résout vers `127.0.0.1`.
+- **Token de session de 32 octets** (`node:crypto`), différent à chaque démarrage. Il est transmis
+  une seule fois, dans l'URL ouverte (`?token=`), puis l'UI le retire de la barre d'adresse par
+  `history.replaceState` et l'envoie dans l'en-tête `X-Keelson-Token` sur chaque appel. `/api/events`
+  le prend en paramètre de requête, `EventSource` ne pouvant pas poser d'en-tête.
+- **Comparaison en temps constant** sur des digests SHA-256, donc indépendante de la longueur du
+  token présenté.
+- **Fichiers bornés à la liste du workspace** : `:file` est résolu par recherche dans cette liste, et
+  non par concaténation de chemin. Un chemin contenant `..`, ou un fichier réel mais non détecté,
+  rend 404.
+- **Corps limité à 1 Mo**, 413 au-delà.
+- Le bundle de l'UI est servi sans token : il ne contient aucune donnée de l'utilisateur, et le
+  contrôle de `Host` s'applique quand même.
+
 ## 8. CLI
 
 | Commande                        | Effet                                                        |
