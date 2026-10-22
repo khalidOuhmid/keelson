@@ -58,6 +58,7 @@ export type KeelsonState = {
   redo(): Promise<void>;
   serverEvent(event: ServerEvent): Promise<void>;
   dismissNotice(): void;
+  dismissError(): void;
 };
 
 export type KeelsonStore = StoreApi<KeelsonState>;
@@ -127,15 +128,14 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       }
 
       if (result.error.status === 409) {
-        set({
-          error: result.error,
-          notice: {
-            kind: "stale",
-            message:
-              "The file changed on disk. Your change was not applied; the document has been reloaded.",
-          },
+        // `reload` remet `error` à null : poser l'erreur après lui, sinon le message du serveur est
+        // perdu et seul l'avis générique survit.
+        await reload(file, {
+          kind: "stale",
+          message:
+            "The file changed on disk. Your change was not applied; the document has been reloaded.",
         });
-        await reload(file, null);
+        set({ error: result.error });
         return;
       }
 
@@ -270,6 +270,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       dismissNotice() {
         set({ notice: null });
+      },
+
+      dismissError() {
+        set({ error: null });
       },
     };
   });

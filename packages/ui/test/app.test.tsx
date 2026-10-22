@@ -434,3 +434,66 @@ describe("invariants de mise en page, sur le rendu", () => {
     }
   });
 });
+
+describe("bannières et opération en vol, sur le rendu", () => {
+  function deferredHarness() {
+    const h = harness();
+    let release: (() => void) | null = null;
+    const original = h.deps.client.submit;
+
+    h.deps.client.submit = async (file, op, opId) => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return original(file, op, opId);
+    };
+
+    return { h, release: () => release?.() };
+  }
+
+  async function addStage(name: string): Promise<void> {
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), name);
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+  }
+
+  test("le bouton Dismiss ferme réellement la bannière d'erreur", async () => {
+    const h = harness();
+    h.queueSubmit({
+      ok: false,
+      error: { status: 422, code: "STAGE_EXISTS", message: "stage already exists" },
+    });
+    await renderApp(h);
+
+    await addStage("build");
+    expect(await screen.findByText("STAGE_EXISTS")).toBeDefined();
+
+    await userEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    await waitFor(() => expect(screen.queryByText("STAGE_EXISTS")).toBeNull());
+  });
+
+  test("une opération en vol désactive les contrôles d'édition et est annoncée", async () => {
+    const { h, release } = deferredHarness();
+    await renderApp(h);
+
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+
+    // Le clic n'est pas attendu tout de suite : `act` attendrait la soumission, qu'on retient
+    // justement en vol. Il est attendu après la libération, pour ne pas fuir d'un test à l'autre.
+    const clicked = userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+
+    expect(await screen.findByTestId("pending-indicator")).toBeDefined();
+    expect((screen.getByRole("button", { name: /add stage/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    release();
+    await clicked;
+
+    await waitFor(() => expect(screen.queryByTestId("pending-indicator")).toBeNull());
+    await waitFor(() =>
+      expect(
+        (screen.getByRole("button", { name: /add stage/i }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+  });
+});

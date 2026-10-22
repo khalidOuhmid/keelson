@@ -396,3 +396,58 @@ describe("édition désactivée", () => {
     expect(api.calls).toEqual([]);
   });
 });
+
+describe("fermeture des bannières", () => {
+  /** Trouvé par /impeccable critique le 2026-10-22 : le bouton Dismiss de la bannière d'erreur
+   *  était câblé sur dismissNotice(), qui ne touche jamais `error`. La bannière était infermable. */
+  test("dismissError efface l'erreur sans toucher à l'avis", async () => {
+    api.queue({
+      ok: false,
+      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+    });
+    await addStage("verify");
+
+    expect(state().error).not.toBeNull();
+    expect(state().notice).not.toBeNull();
+
+    state().dismissError();
+
+    expect(state().error).toBeNull();
+    expect(state().notice).not.toBeNull();
+  });
+
+  test("dismissNotice efface l'avis sans toucher à l'erreur", async () => {
+    api.queue({
+      ok: false,
+      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+    });
+    await addStage("verify");
+
+    state().dismissNotice();
+
+    expect(state().notice).toBeNull();
+    expect(state().error).not.toBeNull();
+  });
+});
+
+describe("409 : l'erreur du serveur survit au rechargement", () => {
+  /** Le brief déclare « operation rejected (server message shown verbatim) » load-bearing. `send`
+   *  posait `error` puis appelait `reload`, qui le remettait à `null` : seul l'avis générique
+   *  survivait et le message du serveur était perdu. */
+  test("le code et le message du serveur restent affichables après le 409", async () => {
+    api.queue({
+      ok: false,
+      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+    });
+    await addStage("verify");
+
+    expect(state().error).toEqual({
+      status: 409,
+      code: "STALE_DOCUMENT",
+      message: "périmé",
+      hash: HASH_C,
+    });
+    expect(state().notice?.kind).toBe("stale");
+    expect(state().hash).toBe(HASH_C);
+  });
+});

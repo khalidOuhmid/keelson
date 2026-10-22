@@ -103,7 +103,9 @@ export function App({ deps }: AppProps = {}) {
     return () => subscription.close();
   }, [resolved, store]);
 
-  const editable = state.canEdit();
+  // Une opération en vol désactive l'édition : sans cela chaque contrôle reste actif et une
+  // seconde soumission part sur un hash déjà périmé.
+  const editable = state.canEdit() && !state.pending;
 
   useHistoryShortcuts({
     enabled: editable,
@@ -145,7 +147,7 @@ export function App({ deps }: AppProps = {}) {
   return (
     <div className="flex h-full flex-col bg-surface-0">
       <NoticeBar notice={state.notice} onDismiss={() => store.getState().dismissNotice()} />
-      <ErrorBanner error={state.error} onDismiss={() => store.getState().dismissNotice()} />
+      <ErrorBanner error={state.error} onDismiss={() => store.getState().dismissError()} />
 
       <header className="flex h-[var(--keelson-header-height)] shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-3">
         <span className="flex items-baseline gap-2 overflow-hidden">
@@ -154,12 +156,24 @@ export function App({ deps }: AppProps = {}) {
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
           )}
         </span>
-        <HistoryControls
-          canUndo={state.canUndo()}
-          canRedo={state.canRedo()}
-          onUndo={() => void store.getState().undo()}
-          onRedo={() => void store.getState().redo()}
-        />
+        <span className="flex shrink-0 items-center gap-3">
+          {state.pending ? (
+            <span
+              data-testid="pending-indicator"
+              role="status"
+              className="flex items-center gap-1.5 font-mono text-2xs tracking-label text-text-muted uppercase"
+            >
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-accent" />
+              Writing
+            </span>
+          ) : null}
+          <HistoryControls
+            canUndo={state.canUndo()}
+            canRedo={state.canRedo()}
+            onUndo={() => void store.getState().undo()}
+            onRedo={() => void store.getState().redo()}
+          />
+        </span>
       </header>
 
       <div className="flex min-h-0 flex-1">
