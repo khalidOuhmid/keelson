@@ -9,7 +9,9 @@ export function StageColumnNode({ data }: StageColumnNodeProps) {
   const jobs = `${data.jobCount} ${data.jobCount === 1 ? "job" : "jobs"}`;
 
   return (
-    <section
+    // biome-ignore lint/a11y/useSemanticElements: une colonne par stage ne doit pas devenir un landmark ; fieldset est réservé aux contrôles de formulaire
+    <div
+      role="group"
       aria-label={`Stage ${data.name}`}
       className="h-full w-full rounded-lg border border-border-subtle bg-surface-1"
     >
@@ -32,6 +34,6 @@ export function StageColumnNode({ data }: StageColumnNodeProps) {
         </span>
         <span className="shrink-0 font-mono text-2xs text-text-muted tabular-nums">{jobs}</span>
       </header>
-    </section>
+    </div>
   );
 }

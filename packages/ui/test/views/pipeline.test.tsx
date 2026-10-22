@@ -119,7 +119,7 @@ describe("colonnes de stages", () => {
 
   test("chaque colonne annonce son nombre de jobs", async () => {
     await renderCanvas(SAMPLE);
-    const column = await screen.findByRole("region", { name: /stage test/i });
+    const column = await screen.findByRole("group", { name: /stage test/i });
     expect(column.textContent).toContain("2");
   });
 
