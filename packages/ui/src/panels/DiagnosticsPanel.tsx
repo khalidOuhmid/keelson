@@ -1,8 +1,13 @@
 import type { Diagnostic, Severity, SourceRange } from "@keelson/core";
+import { ErrorIcon, InfoIcon, WarningIcon } from "../icons.tsx";
 
 const ORDER: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
 
-const GLYPH: Record<Severity, string> = { error: "✕", warning: "!", info: "i" };
+const GLYPH: Record<Severity, React.ComponentType> = {
+  error: ErrorIcon,
+  warning: WarningIcon,
+  info: InfoIcon,
+};
 
 const TONE: Record<Severity, string> = {
   error: "border-danger-muted text-danger",
@@ -59,7 +64,10 @@ function Body({ diagnostic }: { diagnostic: Diagnostic }) {
           aria-hidden="true"
           className={`flex size-4 items-center justify-center rounded-sm border font-mono text-2xs ${TONE[diagnostic.severity]}`}
         >
-          {GLYPH[diagnostic.severity]}
+          {(() => {
+            const Icon = GLYPH[diagnostic.severity];
+            return <Icon />;
+          })()}
         </span>
         <span className="text-2xs tracking-label text-text-muted uppercase">
           {diagnostic.severity}

@@ -22,7 +22,9 @@ export function OriginBadge({ origin }: OriginBadgeProps) {
       {described.source === null ? null : (
         <>
           {" "}
-          <span className="truncate font-mono text-text-secondary">{described.source}</span>
+          <span className="truncate font-mono normal-case text-text-secondary">
+            {described.source}
+          </span>
         </>
       )}
     </span>

@@ -8,6 +8,7 @@ import {
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
+import { SECTION_HEADING } from "./editing/controls.ts";
 import { ErrorBanner } from "./editing/ErrorBanner.tsx";
 import { HistoryControls } from "./editing/HistoryControls.tsx";
 import { JobEditor } from "./editing/JobEditor.tsx";
@@ -49,6 +50,22 @@ function browserDeps(): AppDeps {
 export type AppProps = {
   deps?: AppDeps;
 };
+
+/** Une section titrée, séparée de la suivante par un filet. `role="group"` plutôt que `<section>` :
+ *  la barre latérale ne doit pas ajouter un repère de navigation par bloc de contrôles. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: un groupe de contrôles ne doit pas devenir un landmark ; fieldset est réservé aux formulaires
+    <div
+      role="group"
+      aria-label={title}
+      className="flex flex-col gap-2 border-b border-border-subtle pb-4 last:border-b-0 last:pb-0"
+    >
+      <h2 className={SECTION_HEADING}>{title}</h2>
+      {children}
+    </div>
+  );
+}
 
 export function App({ deps }: AppProps = {}) {
   const resolved = useMemo(() => deps ?? browserDeps(), [deps]);
@@ -191,16 +208,20 @@ export function App({ deps }: AppProps = {}) {
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null ? (
           <aside className="flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3">
-            <StageControls
-              pipeline={state.pipeline}
-              onSubmit={(draft) => void store.getState().submit(draft)}
-              disabled={!editable}
-            />
-            <NewJobForm
-              pipeline={state.pipeline}
-              onSubmit={(draft) => void store.getState().submit(draft)}
-              disabled={!editable}
-            />
+            <Section title="Stages">
+              <StageControls
+                pipeline={state.pipeline}
+                onSubmit={(draft) => void store.getState().submit(draft)}
+                disabled={!editable}
+              />
+            </Section>
+            <Section title="New job">
+              <NewJobForm
+                pipeline={state.pipeline}
+                onSubmit={(draft) => void store.getState().submit(draft)}
+                disabled={!editable}
+              />
+            </Section>
           </aside>
         ) : null}
 

@@ -68,8 +68,10 @@ describe("contenu d'un diagnostic", () => {
       diagnostic({ severity: "warning", code: "A" }),
       diagnostic({ severity: "info", code: "B" }),
     ]);
-    const glyphs = screen.getAllByTestId("severity-glyph").map((node) => node.textContent);
+    // Les marques sont des SVG : c'est leur tracé qui les distingue, plus leur texte.
+    const glyphs = screen.getAllByTestId("severity-glyph").map((node) => node.innerHTML);
     expect(new Set(glyphs).size).toBe(3);
+    expect(glyphs.every((glyph) => glyph.includes("<svg"))).toBe(true);
   });
 
   test("les diagnostics sont triés par sévérité, erreurs d'abord", () => {

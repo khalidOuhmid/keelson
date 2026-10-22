@@ -1,5 +1,6 @@
 import type { Pipeline } from "@keelson/core";
 import { useState } from "react";
+import { ArrowLeftIcon, ArrowRightIcon } from "../icons.tsx";
 import type { Draft } from "../state/store.ts";
 import { BUTTON, FIELD, GROUP, LABEL } from "./controls.ts";
 import { addStage, moveStage } from "./drafts.ts";
@@ -85,7 +86,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
                   aria-label={`Move ${stage.name} earlier`}
                   onClick={() => guard(moveStage(stage.name, index - 1))}
                 >
-                  ←
+                  <ArrowLeftIcon />
                 </button>
                 <button
                   type="button"
@@ -94,7 +95,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
                   aria-label={`Move ${stage.name} later`}
                   onClick={() => guard(moveStage(stage.name, index + 1))}
                 >
-                  →
+                  <ArrowRightIcon />
                 </button>
               </span>
             </li>

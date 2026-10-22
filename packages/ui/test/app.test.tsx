@@ -519,3 +519,23 @@ describe("fermeture du panneau de détail au clavier", () => {
     await waitFor(() => expect(screen.queryByRole("region", { name: /job detail/i })).toBeNull());
   });
 });
+
+describe("la barre latérale est groupée", () => {
+  /** La critique du 2026-10-22 : douze contrôles de deux tâches sans rapport se suivaient sur une
+   *  surface indifférenciée, et `LABEL` servait indistinctement de titre de section et d'étiquette
+   *  de champ — une seule voix, donc aucune hiérarchie. */
+  test("deux sections nommées, l'une pour les stages, l'autre pour la création de job", async () => {
+    await renderApp(harness());
+
+    expect(screen.getByRole("group", { name: "Stages" })).toBeDefined();
+    expect(screen.getByRole("group", { name: "New job" })).toBeDefined();
+  });
+
+  test("le titre de section ne se confond pas avec une étiquette de champ", async () => {
+    await renderApp(harness());
+
+    const heading = screen.getByText("Stages");
+    const label = screen.getByText("New stage name");
+    expect(heading.className).not.toBe(label.className);
+  });
+});

@@ -327,7 +327,12 @@ test("le badge d'origine n'altère pas la casse de l'identifiant du fichier", as
   await open(page);
   await page.getByRole("button", { name: /deploy-production/ }).click();
 
-  const badge = page.getByTestId("origin-badge").first();
+  // Le badge du panneau, pas celui du canevas : c'est lui qui est imbriqué dans un titre en
+  // petites capitales, donc le seul qui puisse hériter d'un `text-transform`.
+  const badge = page
+    .getByRole("region", { name: "Job detail" })
+    .getByTestId("origin-badge")
+    .first();
   await expect(badge).toBeVisible();
 
   const rendered = await badge.evaluate((element) => {
