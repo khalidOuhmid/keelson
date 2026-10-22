@@ -1,1 +1,29 @@
 @import "tailwindcss";
+@import "./tokens.css";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-surface-0);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: var(--keelson-focus-ring-width) solid var(--color-accent);
+    outline-offset: var(--keelson-focus-ring-offset);
+  }
+}
