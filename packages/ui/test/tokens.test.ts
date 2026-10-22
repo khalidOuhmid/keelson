@@ -85,3 +85,92 @@ describe("aucune valeur de design en dur hors du fichier de tokens", () => {
     expect(sourceFiles(sourceRoot).length).toBeGreaterThan(3);
   });
 });
+
+describe("contraste WCAG 2.1 AA", () => {
+  /** `PRODUCT.md` engage WCAG 2.1 AA sans réserve, et le surface brief le répète. La passe
+   *  /impeccable audit du 2026-10-22 a trouvé deux manquements : `border-default` bordait chaque
+   *  champ, select, bouton, tag et nœud non sélectionné à 1,63:1 sur `surface-1` quand 1.4.11 exige
+   *  3:1 ; et `text-muted` sur `surface-3` donnait 4,03:1 quand 1.4.3 exige 4,5:1 — or `surface-3`
+   *  est précisément le fond qu'un nœud prend au survol et à la sélection, de sorte qu'interagir
+   *  avec un nœud rendait son texte moins lisible. Ce test est le garde de non-régression. */
+  const TOKENS = new Map(
+    [
+      ...readFileSync(join(sourceRoot, TOKENS_FILE), "utf8").matchAll(/(--[\w-]+):\s*([^;]+);/g),
+    ].map((match) => [match[1] as string, (match[2] as string).trim()]),
+  );
+
+  /** Oklch achromatique : la luminance relative suit L³ d'assez près pour un garde de rampe. */
+  function luminance(token: string): number {
+    const value = TOKENS.get(token);
+    if (value === undefined) {
+      throw new Error(`token absent de tokens.css : ${token}`);
+    }
+    const lightness = /oklch\(\s*([\d.]+)/.exec(value)?.[1];
+    if (lightness === undefined) {
+      throw new Error(`${token} n'est pas une couleur oklch : ${value}`);
+    }
+    return Number(lightness) ** 3;
+  }
+
+  function contrast(foreground: string, background: string): number {
+    const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+    return (Number(light) + 0.05) / (Number(dark) + 0.05);
+  }
+
+  const SURFACES = ["--color-surface-0", "--color-surface-1", "--color-surface-2"];
+
+  describe("1.4.11 — limites des composants d'interface, 3:1", () => {
+    for (const surface of [...SURFACES, "--color-surface-3"]) {
+      test(`border-default sur ${surface.replace("--color-", "")}`, () => {
+        expect({
+          pair: surface,
+          ratio: Math.round(contrast("--color-border-default", surface) * 100) / 100,
+          meets: contrast("--color-border-default", surface) >= 3,
+        }).toMatchObject({ pair: surface, meets: true });
+      });
+    }
+
+    test("accent, qui porte la bordure d'un nœud sélectionné", () => {
+      expect(contrast("--color-accent", "--color-surface-3")).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe("1.4.3 — texte, 4,5:1", () => {
+    // `surface-3` est inclus : c'est le fond d'un nœud survolé ou sélectionné, où `text-muted`
+    // porte le nom du stage.
+    for (const surface of [...SURFACES, "--color-surface-3"]) {
+      for (const text of ["--color-text-primary", "--color-text-secondary", "--color-text-muted"]) {
+        test(`${text.replace("--color-text-", "")} sur ${surface.replace("--color-", "")}`, () => {
+          expect({
+            pair: `${text} / ${surface}`,
+            ratio: Math.round(contrast(text, surface) * 100) / 100,
+            meets: contrast(text, surface) >= 4.5,
+          }).toMatchObject({ pair: `${text} / ${surface}`, meets: true });
+        });
+      }
+    }
+  });
+});
+
+describe("plancher de taille de texte", () => {
+  /** Le détecteur Impeccable refuse le texte fonctionnel sous 11px. `--text-2xs: 10px` expliquait
+   *  à lui seul 12 des 14 constats relevés en page le 2026-10-22, par ses 16 points d'appel. */
+  const sizes = [
+    ...readFileSync(join(sourceRoot, TOKENS_FILE), "utf8").matchAll(/(--text-[\w-]+):\s*(\d+)px;/g),
+  ]
+    .filter(([, name]) => name !== undefined && !name.includes("line-height"))
+    .map(([, name, value]) => ({ name: name as string, px: Number(value) }));
+
+  test("la rampe est déclarée", () => {
+    expect(sizes.length).toBeGreaterThan(0);
+  });
+
+  for (const size of sizes) {
+    test(`${size.name} est au moins à 11px`, () => {
+      expect({ token: size.name, px: size.px, meets: size.px >= 11 }).toMatchObject({
+        token: size.name,
+        meets: true,
+      });
+    });
+  }
+});
