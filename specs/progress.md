@@ -22,7 +22,9 @@ en ajouter une. Rapport complet et vérifiable dans
    bannière d'erreur ne peut pas être fermée. Ajouter `dismissError()` au store.
 4. **`pending` rendu nulle part.** Le store le maintient, aucun composant ne le lit, alors que le
    surface brief le déclare load-bearing. Désactiver les éditeurs et montrer un état de progression
-   pendant qu'une opération est en vol ; cela supprime aussi les doubles soumissions.
+   pendant qu'une opération est en vol ; cela supprime aussi les doubles soumissions. **La règle de
+   frontière de test du rendu rend ce point obligatoire et non plus souhaitable** : branché avec un
+   test sur le DOM, ou supprimé.
 5. **Le `<select>` de stage écrit à chaque `onChange`.** Sous Windows et Linux, les flèches dans un
    select fermé émettent `change` à chaque appui : un utilisateur au clavier qui parcourt les
    options réécrit le YAML une fois par touche. Soumettre sur validation explicite.
@@ -258,5 +260,41 @@ vides.
 
 `bun run check` → lint 0, typecheck 0, **904 pass / 0 fail**, build complet. Arbre propre.
 **ADR** : aucun nouveau. **Dettes datées** : aucune. **Écarts** : aucun nouveau.
+
+### 2026-10-22 — L2 — deux règles de test ajoutées par Khalid
+
+Deux règles non négociables inscrites dans `CLAUDE.md` et dans le prompt de pilotage, en réponse
+directe au constat de fin de passe `critique` :
+
+- **frontière de test du rendu** : tout état ou donnée calculée pour l'UI doit avoir au moins un
+  test de son effet dans le DOM rendu ou en E2E, pas seulement de sa valeur ; un champ calculé sans
+  consommateur à l'écran est soit branché, soit supprimé ;
+- **invariants de mise en page** : la cohérence entre l'IR et l'affichage se teste sur le rendu et
+  en E2E, pas uniquement sur les coordonnées calculées.
+
+Elles rendaient **insuffisants les deux invariants écrits plus tôt dans la journée**, qui ne
+vérifiaient que des coordonnées. Ajoutés donc, commit `1f09ab2` :
+
+- deux tests sur le DOM rendu dans `app.test.tsx` — chaque job tombe dans la colonne du stage qu'il
+  **annonce**, et le compte de l'en-tête égale le nombre de jobs rendus dans la colonne ;
+- un test E2E sur le binaire réel et la fixture de dev, qui ajoute la non-superposition verticale.
+
+Deux pièges méritent d'être consignés, parce qu'ils auraient produit des tests verts sans valeur.
+**Premier** : le pipeline du harnais est entièrement fait d'arêtes et ne reproduit donc pas la forme
+du défaut — un job *sans* arête dans un stage tardif. Les tests passaient par construction. Un job
+orphelin a été ajouté à la fixture de test. **Second** : la première version du test de confinement
+vérifiait « dans exactement une colonne » et non « dans **sa** colonne » ; elle restait verte avec
+le défaut d'origine remis, puisqu'un job mal placé est quand même dans *une* colonne.
+
+Les deux versions ont été **vérifiées rouges** en remettant temporairement le placement d'origine
+dans `layout.ts`, puis le fichier a été restauré à l'identique du commit (`git diff` vide). Le stage
+est lu dans la description accessible du nœud, pas dans l'IR : l'invariant compare l'affichage à
+lui-même, et non le calcul à lui-même.
+
+`bun run check` → **906 pass / 0 fail**. `bunx playwright test pipeline.e2e.ts` → 12 passed.
+
+Conséquence sur la suite : l'item A4 (`pending`) et le reclassement d'`EdgeData.highlighted` en
+item C ne sont plus optionnels. Les deux champs sont calculés, testés et invisibles ; la règle
+impose de les brancher avec un test sur le DOM, ou de les supprimer.
 
 SESSION TERMINÉE — reprendre avec le même prompt

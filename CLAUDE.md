@@ -19,6 +19,14 @@ Plan détaillé et découpage en lots : [specs/01-plan.md](specs/01-plan.md). Vi
 - **Toute dette est datée dans le code** : `// DETTE(AAAA-MM-JJ): <quoi> — <pourquoi>`.
 - **Tout ce qui est hors périmètre du lot en cours va dans [specs/ecarts.md](specs/ecarts.md)**
   (date, constat, impact, proposition). Jamais dans le lot courant.
+- **Frontière de test du rendu.** Tout état ou toute donnée calculée pour l'UI — le store, une
+  couche pure comme `graph.ts` ou `layout.ts` — doit avoir au moins un test qui vérifie son **effet
+  dans le DOM rendu ou en E2E**, pas seulement sa valeur. Un champ calculé sans consommateur à
+  l'écran est soit branché, soit supprimé. Un test qui s'arrête au store couvre un calcul, pas un
+  comportement.
+- **Invariants de mise en page.** La cohérence entre l'IR et l'affichage — un job dans la colonne de
+  son stage, le compte de l'en-tête égal au nombre de nœuds de la colonne, aucun chevauchement de
+  nœuds — est testée **sur le rendu et en E2E**, pas uniquement sur les coordonnées calculées.
 - Pas de commentaires explicatifs superflus dans le code.
 - Ne pas installer de dépendance non utilisée par le lot en cours.
 - **Commits conventionnels** (`chore:`, `build:`, `test:`, `docs:`, `ci:`, `feat:`, `fix:`) sur une

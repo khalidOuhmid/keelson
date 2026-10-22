@@ -335,3 +335,102 @@ describe("l'éditeur suit le job sélectionné", () => {
     ]);
   });
 });
+
+describe("invariants de mise en page, sur le rendu", () => {
+  /** Règle « invariants de mise en page » : la cohérence entre l'IR et l'affichage se teste sur le
+   *  rendu, pas seulement sur les coordonnées. Les tests de `layout.test.ts` n'auraient pas vu une
+   *  régression du rendu lui-même — c'est une capture qui avait trouvé `lint` dans `build`. */
+  const NODE_WIDTH = 200;
+
+  function placed(): Map<string, number> {
+    const boxes = new Map<string, number>();
+    for (const element of document.querySelectorAll<HTMLElement>(".react-flow__node")) {
+      const id = element.getAttribute("data-id");
+      const match = /translate\(\s*(-?[\d.]+)px/.exec(element.style.transform);
+      if (id !== null && match?.[1] !== undefined) {
+        boxes.set(id, Number(match[1]));
+      }
+    }
+    return boxes;
+  }
+
+  /** `lint` est sans arête, dans un stage tardif : c'est la forme exacte qui faisait atterrir un
+   *  job dans la colonne du stage précédent. Le pipeline du harnais, tout en arêtes, ne la
+   *  reproduit pas et laisserait ces tests verts par construction. */
+  const WITH_ORPHAN: DocumentPayload = (() => {
+    const base = pipeline();
+    const [compile] = base.jobs;
+    return {
+      ...DOCUMENT,
+      pipeline: {
+        ...base,
+        jobs: [
+          ...base.jobs,
+          {
+            ...(compile as NonNullable<typeof compile>),
+            id: "lint",
+            stage: { value: "test", origin: { kind: "local" } },
+            needs: null,
+            range: { start: 60, end: 80 },
+          },
+        ],
+      },
+    };
+  })();
+
+  async function rendered() {
+    await renderApp(harness({ document: WITH_ORPHAN }));
+    await screen.findByRole("button", { name: /lint/ });
+
+    const boxes = placed();
+    const columns = [...boxes.entries()]
+      .filter(([id]) => id.startsWith("column:"))
+      .map(([id, x]) => ({ name: id.slice("column:".length), x }));
+    const jobs = [...boxes.entries()]
+      .filter(([id]) => !id.startsWith("column:"))
+      .map(([id, x]) => ({ id, x }));
+
+    return { columns, jobs };
+  }
+
+  /** Le stage est lu dans la description accessible du nœud, pas dans l'IR : c'est ce que le lecteur
+   *  d'écran annonce et ce que l'utilisateur lit sous le titre. L'invariant compare donc l'affichage
+   *  à lui-même, et non le calcul à lui-même. */
+  function announcedStage(id: string): string {
+    const description = document.getElementById(`job-${id}-description`)?.textContent ?? "";
+    return /Stage ([^.]+)\./.exec(description)?.[1] ?? "";
+  }
+
+  test("chaque job rendu tombe dans la colonne du stage qu'il annonce", async () => {
+    const { columns, jobs } = await rendered();
+    expect(jobs.length).toBe(3);
+
+    for (const job of jobs) {
+      const centre = job.x + NODE_WIDTH / 2;
+      const containing = columns.filter(
+        (column) => centre >= column.x && centre <= column.x + NODE_WIDTH,
+      );
+      expect({ job: job.id, stages: containing.map((column) => column.name) }).toEqual({
+        job: job.id,
+        stages: [announcedStage(job.id)],
+      });
+    }
+  });
+
+  test("le compte de l'en-tête égale le nombre de jobs rendus dans la colonne", async () => {
+    const { columns, jobs } = await rendered();
+
+    for (const column of columns) {
+      const inside = jobs.filter((job) => {
+        const centre = job.x + NODE_WIDTH / 2;
+        return centre >= column.x && centre <= column.x + NODE_WIDTH;
+      }).length;
+
+      const header = screen.getByRole("group", { name: `Stage ${column.name}` });
+      expect({ stage: column.name, header: header.textContent }).toEqual({
+        stage: column.name,
+        header: `${column.name}${inside} ${inside === 1 ? "job" : "jobs"}`,
+      });
+    }
+  });
+});

@@ -166,3 +166,76 @@ test("cliquer un diagnostic sélectionne le job concerné", async ({ page }) => 
   await page.getByRole("button", { name: /UNKNOWN_NEED/ }).click();
   await expect(page.getByRole("region", { name: "Job detail" })).toContainText("unit");
 });
+
+test("invariants de mise en page : chaque job est dans la colonne du stage qu'il annonce", async ({
+  page,
+}) => {
+  await open(page);
+  await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
+
+  const boxes = await page.evaluate(() => {
+    const read = (element: Element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        x: rect.x,
+        width: rect.width,
+        centre: rect.x + rect.width / 2,
+        top: rect.y,
+        bottom: rect.bottom,
+      };
+    };
+
+    const columns: { name: string; x: number; width: number }[] = [];
+    const jobs: { id: string; stage: string; centre: number; top: number; bottom: number }[] = [];
+
+    for (const node of document.querySelectorAll(".react-flow__node")) {
+      const id = node.getAttribute("data-id");
+      if (id === null) {
+        continue;
+      }
+      const geometry = read(node);
+      if (id.startsWith("column:")) {
+        columns.push({ name: id.slice("column:".length), x: geometry.x, width: geometry.width });
+        continue;
+      }
+      const description = document.getElementById(`job-${id}-description`)?.textContent ?? "";
+      jobs.push({
+        id,
+        stage: /Stage ([^.]+)\./.exec(description)?.[1] ?? "",
+        centre: geometry.centre,
+        top: geometry.top,
+        bottom: geometry.bottom,
+      });
+    }
+
+    return { columns, jobs };
+  });
+
+  expect(boxes.jobs.length).toBeGreaterThan(0);
+
+  // La fixture de dev porte `lint`, un job sans arête dans un stage tardif : c'est la forme qui
+  // faisait atterrir un job dans la colonne du stage précédent.
+  expect(boxes.jobs.map((job) => job.id)).toContain("lint");
+
+  for (const job of boxes.jobs) {
+    const containing = boxes.columns
+      .filter((column) => job.centre >= column.x && job.centre <= column.x + column.width)
+      .map((column) => column.name);
+    expect({ job: job.id, stages: containing }).toEqual({ job: job.id, stages: [job.stage] });
+  }
+
+  for (const column of boxes.columns) {
+    const inside = boxes.jobs.filter((job) => job.stage === column.name);
+    const header = page.getByRole("group", { name: `Stage ${column.name}` });
+    await expect(header).toContainText(`${inside.length} ${inside.length === 1 ? "job" : "jobs"}`);
+
+    const stacked = [...inside].sort((left, right) => left.top - right.top);
+    for (const [index, job] of stacked.entries()) {
+      const next = stacked[index + 1];
+      expect({
+        pair: `${job.id}/${next?.id ?? "—"}`,
+        overlaps: next !== undefined && next.top < job.bottom,
+      }).toEqual({ pair: `${job.id}/${next?.id ?? "—"}`, overlaps: false });
+    }
+  }
+});
