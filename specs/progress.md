@@ -27,7 +27,7 @@ Blocage : aucun
 | L0 — socle du monorepo | TERMINÉ | `main` (branche `lot/l0-socle`, créée comme `main`) |
 | L1 — `core` + `adapter-gitlab` | TERMINÉ | `2a48b5a` (`--no-ff`) |
 | L2 — serveur, vue Pipeline, `keelson start` | EN COURS — étapes 0 à 8 et 10 faites | — |
-| L2c — messages : `code` + `params`, anglais unique | À FAIRE — **avant L3** (ADR 0002) | — |
+| L2c — messages : `code` + `params`, anglais unique, `details` fusionné | À FAIRE — **avant L3** (ADR 0002) | — |
 | L2b — résolution des `include` locaux | À FAIRE | — |
 | L3 — taxonomie, catalogue, overlay OWASP | À FAIRE | — |
 | L4 — toolchain | À FAIRE | — |

@@ -41,6 +41,9 @@ Option 3.
 - **Un test échoue** si un code de `specs/diagnostics.md` n'a pas de message, ou si un message n'a
   pas de code. Il étend le test de contrat existant, qui ne vérifiait jusqu'ici que la présence du
   code dans la documentation.
+- `details` est supprimé et fusionné dans `params` : un diagnostic ou une erreur porte uniquement
+  `code`, `severity` (pour les diagnostics), `range` (si applicable) et `params`. `JOB_REFERENCED`
+  expose `params.referencedBy`.
 - **Pas d'infrastructure de traduction** tant qu'aucun besoin réel n'est exprimé.
 
 ## Conséquences
@@ -53,7 +56,11 @@ Option 3.
   une rupture de compatibilité, au même titre que renommer un code. `specs/diagnostics.md` devra
   documenter les `params` de chaque code, pas seulement sa signification.
 - L'UI continue de n'appliquer **aucun traitement par code** : elle affiche ce que le module de
-  messages rend. La seule exception existante reste `JOB_REFERENCED`, dont elle lit
-  `details.referencedBy` pour lister les jobs référents.
+  messages rend. La seule exception reste `JOB_REFERENCED`, dont elle lit désormais
+  `params.referencedBy` pour lister les jobs référents.
+- La suppression de `details` est une **rupture de compatibilité**, assumée : aucune version n'est
+  publiée, c'est donc le moment où elle ne coûte rien. Elle touche `OperationError` dans
+  `packages/core/src/operations.ts`, la forme d'erreur de l'API du serveur, `ApiFailure` dans
+  `packages/ui/src/api/client.ts`, et `referencedBy()` dans `packages/ui/src/editing/drafts.ts`.
 - Bénéfice collatéral pour le lot L8 : un client distant qui reçoit `code` et `params` peut
   formuler son propre message sans analyser une chaîne.
