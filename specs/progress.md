@@ -173,3 +173,71 @@ Commandes : `bun run check` → lint 218 fichiers 0 erreur, typecheck 0 erreur, 
 **ADR** : `specs/adr/0001-ce-qui-interdit-l-edition.md`. **Dettes datées** : aucune ajoutée.
 **Écarts** : trois ajoutés le 2026-10-22 (recadrage du graphe, barre latérale sans regroupement,
 passes `critique` et `audit` non exécutées).
+
+### 2026-10-22 — L2 — étape 9 : passe `critique`
+
+Vérification de reprise d'abord : arbre propre, branche `lot/l2-pipeline-ui` à `10b85d8`,
+`bun run check` vert (lint 0, typecheck 0, **894 pass / 0 fail**, build complet). Aucune divergence
+entre `progress.md` et le dépôt. Captures régénérées par
+`bunx playwright test packages/ui/e2e/shots.e2e.ts` — à taille d'octets identique, donc le front
+n'avait pas bougé.
+
+`/impeccable critique packages/ui/src` exécutée **en mode double sous-agent**, comme l'exige son
+invariant : A, revue de design non ancrée, et B, détecteur et preuve navigateur, isolées l'une de
+l'autre. Pas de bannière de dégradation. Rapport persisté dans
+`packages/ui/.impeccable/critique/2026-10-22T10-21-57Z__packages-ui-src.md`. **Score 20/40**,
+3 P0 et 2 P1. Première exécution pour cette cible, donc pas de tendance.
+
+**L'entretien de fin de `critique` n'a pas été lancé**, et c'est une substitution déclarée au titre
+de la directive `AUTONOMY_DIRECTIVE_CHECK` d'Impeccable : les trois réponses qu'il demande —
+priorité, intention tonale, périmètre — sont déjà écrites et ne se rouvrent pas. Le périmètre vient
+de ce fichier, l'intention tonale du surface brief, la priorité de l'ordre des lots.
+
+**Ce que le détecteur dit, et ce qu'il ne dit pas.** `detect.mjs --json packages/ui/src` rend 0 sur
+41 fichiers. B a refusé de prendre ce zéro pour argent comptant et l'a étayé : extensions bien dans
+le périmètre, aucune règle ignorée, et un fichier témoin de synthèse qui fait bien sortir le
+détecteur en 2. Le moteur statique ne couvre que ~5 des 59 règles sur du source ; les 54 autres sont
+des règles navigateur. **C'est là qu'était tout le signal : 14 constats en page, aux deux
+viewports**, dont 12 remontent à un seul `--text-2xs: 10px` sous le plancher de 11 px. Deux faux
+positifs écartés avec leur raison : `overused-font: roboto` est un artefact de cette machine Linux
+sans police antérieure dans la pile système, et `clipped-overflow-container` appartient à la feuille
+de style de `@xyflow/react`, qui doit rogner son viewport pour fonctionner.
+
+**Trois défauts P0, tous vérifiés sur pièces avant d'être acceptés** — un sous-agent peut se
+tromper, et ces constats commandent la fin du lot :
+
+1. **La vue Pipeline affiche un job dans la mauvaise colonne.** Lu directement sur
+   `review/desktop.png` : en-tête `build` « 1 job », deux cartes dedans, dont `lint` sous-titré
+   `test`. C'est la seule chose que cette vue existe pour dire, et elle la dit faux, sur la fixture
+   de dev du projet, avec `layout.test.ts` et `graph.test.ts` verts. Ces tests vérifient que la mise
+   en page est *calculée*, jamais qu'elle est *vraie*.
+2. **`JobEditor` sans `key`** : vérifié dans `app.tsx` et `JobEditor.tsx`. L'état local survit au
+   changement de sélection, donc `Rename` peut écrire dans le YAML un nom que l'utilisateur n'a
+   jamais tapé.
+3. **Boucle d'écriture muette** : `dismissNotice()` ne remet que `notice` à `null` — le bouton
+   `Dismiss` de la bannière d'erreur est mort, vérifié ligne à ligne ; `grep pending src/ --include=*.tsx`
+   ne rend **aucune** ligne, alors que le store le maintient ; `touched` arrive dans `client.ts` et
+   n'est lu nulle part.
+
+L'arithmétique de contraste de A a été refaite indépendamment en reconvertissant les `oklch` en
+luminance relative : `border-default` sur `surface-1` à **1,63:1** et `text-muted` sur `surface-3` à
+**4,03:1**, au centième près des chiffres annoncés. Les deux manquent à l'engagement WCAG 2.1 AA de
+`PRODUCT.md`.
+
+**ADR créé : `0003-ce-qu-une-revue-rouvre-dans-un-lot.md`.** La règle « hors périmètre → écart »,
+prise à la lettre, aurait permis de fusionner L2 en sachant sa vue principale fausse. L'ADR tranche
+par nature de défaut et non par date de découverte : rouvre le lot ce qui fait qu'une étape livrée
+ne tient pas ce qu'elle annonçait ; part en écart toute surface d'interaction nouvelle, qui exige
+une passe `shape`. En une phrase : *une revue peut rouvrir une promesse, jamais en ajouter une.*
+
+**Écarts** : sept ajoutés, tous de la catégorie « surface nouvelle » ou « hors L2 » — modèle clavier
+du graphe, diff après écriture, recherche et palette, posture de lecture pour l'architecte sécurité,
+indicateur de pipeline partiel (rattaché à L2b), template en colonne fantôme, et la non-reproductibilité
+binaire des captures de revue, qui salit l'arbre à chaque passe et arrêterait la boucle de pilotage.
+
+**Dettes datées** : aucune ajoutée. **Divergence** : aucune.
+
+Le constat le plus dérangeant de la passe n'est pas visuel. `EdgeData.highlighted` et `pending` sont
+tous deux modélisés, testés unitairement, et invisibles à l'écran. La frontière des tests s'arrête au
+store et ne franchit jamais le rendu — ce qui est exactement comment une colonne peut dessiner le
+mauvais job sans qu'un test rougisse.
