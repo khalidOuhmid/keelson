@@ -171,7 +171,12 @@ navigateur. Il doit donc se défendre contre elles.
 
 ## 9. Logos et licences
 
-**Simple Icons** (CC0) en priorité. Un logo d'éditeur n'est embarqué que si sa charte de marque
+**Simple Icons** (CC0) en priorité, apportés par le **paquet npm `simple-icons` en
+devDependency** : les SVG arrivent avec leur licence, à une version figée par `bun.lock`, sans
+téléchargement à la volée au build ni à l'exécution. Décidé le 2026-10-22 ; `curl` n'est pas
+autorisé pour les logos dans `.claude/settings.json`.
+
+Un logo d'éditeur n'est embarqué que si sa charte de marque
 l'autorise explicitement ; sinon, icône générique de la couche. La licence de chaque outil est
 affichée dans le catalogue.
 
