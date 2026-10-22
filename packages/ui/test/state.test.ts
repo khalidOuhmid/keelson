@@ -344,6 +344,37 @@ describe("édition désactivée", () => {
     expect(state().canEdit()).toBe(false);
   });
 
+  test("une erreur de validation ne désactive pas l'édition : il faut pouvoir la corriger", () => {
+    state().documentLoaded(".gitlab-ci.yml", {
+      ...documentPayload(),
+      diagnostics: [
+        {
+          code: "UNKNOWN_NEED",
+          severity: "error",
+          message: "need vers un job inexistant",
+          range: { start: 0, end: 5 },
+        },
+      ],
+    });
+    expect(state().canEdit()).toBe(true);
+  });
+
+  test("seul un YAML illisible désactive l'édition", () => {
+    state().documentLoaded(".gitlab-ci.yml", {
+      ...documentPayload(),
+      diagnostics: [
+        { code: "INVALID_YAML", severity: "error", message: "cassé", range: null },
+        {
+          code: "UNKNOWN_NEED",
+          severity: "error",
+          message: "need absent",
+          range: { start: 0, end: 5 },
+        },
+      ],
+    });
+    expect(state().canEdit()).toBe(false);
+  });
+
   test("un avertissement ne désactive pas l'édition", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),

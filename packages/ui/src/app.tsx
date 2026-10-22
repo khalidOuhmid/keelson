@@ -16,7 +16,7 @@ import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
-import { createStore, type KeelsonStore } from "./state/store.ts";
+import { blocksEditing, createStore, type KeelsonStore } from "./state/store.ts";
 import { DocumentRemoved } from "./states/DocumentRemoved.tsx";
 import { InvalidDocument } from "./states/InvalidDocument.tsx";
 import { Loading } from "./states/Loading.tsx";
@@ -116,7 +116,7 @@ export function App({ deps }: AppProps = {}) {
       ? null
       : (state.pipeline?.jobs.find((job) => job.id === state.selectedJobId) ?? null);
 
-  const blocking = state.diagnostics.some((diagnostic) => diagnostic.severity === "error");
+  const blocking = state.diagnostics.some(blocksEditing);
 
   const body = (() => {
     if (state.status === "loading") {

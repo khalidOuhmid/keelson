@@ -1,11 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { apply, parse } from "@keelson/adapter-gitlab";
 import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
-import { hashText, parseOperation } from "@keelson/core";
+import { hashText, parseOperation, validate } from "@keelson/core";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
 export const OPID_HISTORY = 100;
+
+function allDiagnostics(parsing: readonly Diagnostic[], pipeline: Pipeline): Diagnostic[] {
+  return [...parsing, ...validate(pipeline)];
+}
 
 export type DocumentBody = {
   text: string;
@@ -79,20 +83,16 @@ export class DocumentStore {
     }
 
     const parsed = parse(text);
+    const diagnostics = allDiagnostics(parsed.diagnostics, parsed.pipeline);
     this.loaded.set(file, {
       absolute,
       text,
       pipeline: parsed.pipeline,
-      diagnostics: parsed.diagnostics,
+      diagnostics,
       hash: parsed.hash,
     });
 
-    return {
-      text,
-      pipeline: parsed.pipeline,
-      diagnostics: parsed.diagnostics,
-      hash: parsed.hash,
-    };
+    return { text, pipeline: parsed.pipeline, diagnostics, hash: parsed.hash };
   }
 
   currentHash(file: string): string | undefined {
@@ -193,11 +193,13 @@ export class DocumentStore {
 
     await writeAtomic(current.absolute, result.value.text);
 
+    const diagnostics = allDiagnostics(result.value.diagnostics, result.value.pipeline);
+
     this.loaded.set(file, {
       absolute: current.absolute,
       text: result.value.text,
       pipeline: result.value.pipeline,
-      diagnostics: result.value.diagnostics,
+      diagnostics,
       hash: hashText(result.value.text),
     });
 
@@ -205,7 +207,7 @@ export class DocumentStore {
       status: 200,
       body: {
         pipeline: result.value.pipeline,
-        diagnostics: result.value.diagnostics,
+        diagnostics,
         hash: result.value.hash,
         inverse: result.value.inverse,
         touched: result.value.touched,

@@ -16,7 +16,7 @@
     "typecheck": "tsc -b && tsc -p tsconfig.tests.json",
     "test": "bun test",
     "build": "bun run --filter '*' build && bun run scripts/copy-ui-bundle.ts",
-    "e2e": "playwright test",
+    "e2e": "bun run build && playwright test",
     "check": "bun run lint && bun run typecheck && bun run test && bun run build",
     "corpus:update": "bun run scripts/update-corpus-goldens.ts",
     "dev": "bun run scripts/dev.ts & bun run --cwd packages/ui dev"

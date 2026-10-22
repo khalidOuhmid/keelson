@@ -1,4 +1,5 @@
 import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
+import { INVALID_YAML } from "@keelson/core";
 import { createStore as createZustandStore, type StoreApi } from "zustand/vanilla";
 import type { ApiFailure, ApiResult, DocumentPayload, OperationPayload } from "../api/client.ts";
 import type { ServerEvent } from "../api/events.ts";
@@ -15,6 +16,12 @@ export type Notice =
   | { kind: "removed"; message: string };
 
 export type Status = "loading" | "ready" | "removed" | "empty";
+
+/** Seul un document que l'IR ne peut pas modéliser interdit l'édition : une erreur de validation
+ *  comme UNKNOWN_NEED se corrige justement en éditant. */
+export function blocksEditing(diagnostic: Diagnostic): boolean {
+  return diagnostic.code === INVALID_YAML;
+}
 
 type HistoryEntry = {
   redo: Draft;
@@ -184,9 +191,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       canEdit() {
         const { status, diagnostics } = get();
-        return (
-          status === "ready" && !diagnostics.some((diagnostic) => diagnostic.severity === "error")
-        );
+        return status === "ready" && !diagnostics.some(blocksEditing);
       },
 
       canUndo() {
