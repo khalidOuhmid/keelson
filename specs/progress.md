@@ -19,7 +19,7 @@ Prochaine action : finir l'étape 9 du lot L2, dans cet ordre.
 Puis, pour clore le lot : revue indépendante par sous-agent du diff complet de la branche contre
 `specs/lots/l2.md`, vérification finale (`bun install --frozen-lockfile && bun run check &&
 bun run e2e` plus le smoke test Node), merge `--no-ff` dans `main`, `bun run check` sur `main`,
-mise à jour de ce fichier, puis lot L2b.
+mise à jour de ce fichier, puis **lot L2c** (ADR 0002), puis L2b.
 Blocage : aucun
 
 | Lot | Statut | Merge |
@@ -27,6 +27,7 @@ Blocage : aucun
 | L0 — socle du monorepo | TERMINÉ | `main` (branche `lot/l0-socle`, créée comme `main`) |
 | L1 — `core` + `adapter-gitlab` | TERMINÉ | `2a48b5a` (`--no-ff`) |
 | L2 — serveur, vue Pipeline, `keelson start` | EN COURS — étapes 0 à 8 et 10 faites | — |
+| L2c — messages : `code` + `params`, anglais unique | À FAIRE — **avant L3** (ADR 0002) | — |
 | L2b — résolution des `include` locaux | À FAIRE | — |
 | L3 — taxonomie, catalogue, overlay OWASP | À FAIRE | — |
 | L4 — toolchain | À FAIRE | — |

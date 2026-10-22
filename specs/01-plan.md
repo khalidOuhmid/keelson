@@ -187,9 +187,11 @@ depuis plus de six mois.
 | L0  | Socle : monorepo, outillage, CI, specs, conventions                            |
 | L1  | `core` + `adapter-gitlab`, aller-retour validé sur un corpus réel              |
 | L2  | UI vue Pipeline : lecture puis édition                                         |
+| L2c | Messages : `core` rend `code` + `params`, anglais unique (ADR 0002)            |
+| L2b | Résolution des `include` locaux                                                |
 | L3  | `taxonomy` + `catalog` + overlay OWASP                                         |
 | L4  | `toolchain` : fichier, inférence des intégrations, vue                          |
 | L5  | Propositions d'outils et insertion de jobs                                     |
 | L6  | `adapter-github`                                                               |
-| L7  | Packaging open source : documentation, CONTRIBUTING, publication npm            |
+| L7  | Packaging open source : documentation, CONTRIBUTING, publication npm. La langue n'y est plus traitée : voir l'ADR 0002 et le lot L2c |
 | L8  | Flotte : `keelson apply ops.json`, édition de N dépôts depuis un seul endroit    |
