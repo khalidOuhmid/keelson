@@ -26,6 +26,20 @@
       "Bash(rm:*)",
       "Bash(wc:*)",
       "Bash(sha256sum:*)",
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(find:*)",
+      "Bash(diff:*)",
+      "Bash(printf:*)",
+      "Bash(chmod:*)",
+      "Bash(timeout:*)",
+      "Bash(curl -sSfL https://raw.githubusercontent.com/:*)",
+      "Bash(curl -sSfL https://gitlab.com/:*)",
       "WebFetch",
       "WebSearch",
       "Skill",
@@ -38,9 +52,7 @@
       "Bash(git filter-branch:*)",
       "Bash(npm publish:*)",
       "Bash(bun publish:*)",
-      "Bash(gh:*)",
-      "Bash(rm -rf /:*)",
-      "Bash(rm -rf ~:*)"
+      "Bash(gh:*)"
     ]
   }
 }
