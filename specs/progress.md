@@ -1,101 +1,26 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : L2 — étape 9 : A, B, C et D faits ; **revue indépendante rendue, merge bloqué**
-Prochaine action : corriger les constats de la revue indépendante du 2026-10-22, **test d'abord**,
-dans l'ordre ci-dessous, puis refaire `/impeccable document`, puis une **seconde** revue
-indépendante, puis la vérification et le merge. Le rapport complet est dans le journal de ce
-fichier. La revue classe chaque constat selon l'ADR 0003 ; tous ceux listés ici rouvrent le lot.
-
-**R1 — le visualiseur de bloc opaque affiche les mauvais octets après toute édition.** Le plus
-grave, et à lui seul disqualifiant. `applyPayload` (`state/store.ts`) rafraîchit `pipeline`,
-`diagnostics`, `hash` et `error`, **jamais `text`** : `OperationPayload` (`api/client.ts`) ne porte
-pas le texte. Les plages des blocs opaques viennent du nouveau pipeline, le texte reste celui du
-dernier chargement complet, et toute opération qui décale des offsets désaligne les deux.
-Aggravant : le watcher supprime délibérément `document.changed` pour les écritures propres du
-serveur, donc **aucun rechargement ne répare jamais `text`**. Constaté en navigateur : après un
-renommage, le bloc `script` de `container-scan` affiche un fragment décalé qui chevauche la clé d'un
-autre job, alors que le fichier sur disque est correct. C'est la seule surface dont la garantie
-écrite est « ceci est intact ». Correctif : faire porter `text` par la réponse d'opération, côté
-serveur et côté client. Test d'abord, et un E2E qui enchaîne une opération puis la lecture d'un bloc
-opaque — ce chemin n'a aujourd'hui aucune couverture, ni en unitaire ni en E2E.
-
-**R2 — `bun run check` échoue sur un clone neuf.** `check` enchaîne `lint && typecheck && test &&
-build`, et `packages/cli/test/node-smoke.test.ts` exige `packages/cli/dist/ui`, que seule l'étape
-racine `build` produit. Le test tourne avant. Il ne passe ici que parce que `dist/ui` survit d'un
-build antérieur dans l'arbre de travail : **la CI est rouge sur un checkout propre**. Vérifié en
-déplaçant `dist/ui` de côté. Correctif : ordonner `build` avant `test` dans `check`, ou faire
-dépendre le smoke test du build racine.
-
-**R3 — la confirmation de suppression est inaccessible au clavier.** À l'ouverture, le focus reste
-sur le déclencheur et n'entre jamais dans le dialogue ; `aria-modal` est absent ; **Échap referme
-tout le panneau de détail au lieu d'annuler le dialogue** ; et après Échap comme après confirmation,
-le focus retombe sur `<body>` — au moment le plus destructeur du produit. `grep` sur
-`packages/ui/src` : aucune gestion de focus nulle part ; sur `test/` et `e2e/` : aucun test
-n'observe jamais le focus. C'est la promesse propre de l'ADR 0004, à moitié tenue. **Rouvre le lot**
-pour ces trois points précis ; une politique générale de piège à focus pour toute l'application est
-une surface nouvelle et **part en écart**.
-
-**R4 — deux tests E2E ne peuvent pas échouer.** Tous deux vérifiés en réintroduisant le défaut :
-- `changer le stage d'un job se fait au clavier` : la lecture du disque suit immédiatement
-  `selectOption`, sans barrière contre l'écriture asynchrone, et gagne la course ; si l'écriture
-  fautive atterrit quand même, l'assertion finale est satisfaite **par l'écriture même que le test
-  devait interdire**. C'est le test que l'ADR 0004 énonce comme sa propre conséquence.
-- `le raccourci d'annulation ne vole pas l'annulation d'un champ de saisie` : aucune opération n'est
-  soumise avant le Ctrl+Z, donc la pile est vide et `undo()` sort immédiatement, que le garde
-  fonctionne ou non. L'assertion est vraie par construction.
-Correctif : attendre une barrière positive avant de lire le disque, et affirmer l'état **avant** le
-geste explicite. Les deux comportements sont, eux, correctement couverts en unitaire.
-
-**R5 — trois champs calculés sans consommateur à l'écran**, ce que la règle de frontière de test du
-rendu interdit explicitement : `JobNodeData.needsOrigin` et `JobNodeData.environmentOrigin`
-(`views/pipeline/graph.ts`) ne sont lus par personne — `JobNode` ne consomme que `stageOrigin` — et
-`Layout.width` (`views/pipeline/layout.ts`) n'est consommé ni asserté nulle part, et ses deux
-branches le calculent même différemment. C'est la classe de défaut que ce lot vient de fermer sur
-`EdgeData.highlighted`, laissée ouverte deux lignes plus haut. Brancher avec un test de rendu, ou
-supprimer.
-
-**R6 — valeurs de design en dur que le garde ne voit pas.** `COLUMN_PADDING = 1` dans `graph.ts` et
-`width="10" height="10"` sur la marque d'héritage d'`OriginBadge`, alors qu'`icons.tsx` pose que
-toutes les icônes se dimensionnent en `em`. Cause : le garde de `tokens.test.ts` ne cherche que
-`…px`, `#…`, `rgb(`, `hsl(` — **une valeur numérique nue passe**. Le garde est plus faible que la
-règle qu'il prétend tenir, et il a ses propres tests d'auto-vérification, ce qui donne une fausse
-assurance. Déplacer aussi la marque d'héritage dans `icons.tsx`, dont elle est un quasi-doublon.
-
-**R7 — l'ADR 0001 est reconfondu dans `InvalidDocument`** : il filtre sur `severity === "error"` et
-nomme le résultat `blocking`, alors que l'état est atteint sur `blocksEditing`. L'ADR dit mot pour
-mot que la sévérité décrit la gravité, jamais l'effet sur l'outil. Latent aujourd'hui — sur
-`INVALID_YAML` le pipeline est vide, donc les deux ensembles coïncident — mais écrit contre l'ADR du
-lot. Un test porte par ailleurs le nom de la règle que l'ADR a rejetée. Correctif d'une ligne plus un
-renommage.
-
-**R8 — code mort et commentaires faux.** `reload(file, notice)` : les deux sites d'appel passent un
-avis non nul, la branche `null` est inatteignable, et telle qu'écrite elle **n'effacerait pas** un
-avis précédent — un piège posé et jamais testé. `tokens.css` garde deux titres de section sans aucun
-token dessous, dont un qui affirme une règle que le fichier ne porte plus.
-
-**R9 — `specs/lots/l2.md` n'a jamais reçu le point que l'ADR 0003 annonce comme sa conséquence** :
-« aucun défaut ouvert de catégorie promesse non tenue ». La liste en compte toujours six.
-
-**Constats du documenter, à traiter dans la même passe :** `SECTION_HEADING` est à 12px alors que le
-texte de panneau qu'il introduit est à 13px — un titre plus petit que son contenu ; `WarningIcon` et
-`InfoIcon` ont une géométrie quasi identique et ne sont pas distinguables à 11px ; la règle « un
-pixel » n'est plus adossée à un token depuis le retrait de `--border-width-hairline`, donc une valeur
-de design vit hors de `tokens.css` ; `OpaqueBlockView` monte CodeMirror avec son thème par défaut,
-donc les couleurs de ce bloc viennent du paquet et non de la palette.
-
-**Puis :** refaire `/impeccable document` — **la réécriture de `DESIGN.md` a été perdue**, le
-relecteur l'ayant restaurée depuis `HEAD` en nettoyant son propre passage ; le fichier porte encore
-`border-default: oklch(0.36 …)`, soit la rampe non conforme que l'audit a corrigée. Puis une seconde
-revue indépendante, la vérification complète, le merge `--no-ff` et `bun run check` sur `main`.
+Lot courant : **L2c — messages** (ADR 0002), à cadrer depuis `main`
+Prochaine action : créer la branche `lot/l2c-messages` depuis `main`, puis écrire
+`specs/lots/l2c.md` avant de coder. Périmètre, fixé par l'ADR 0002 et complété par un écart du
+2026-10-22 : `core`, les adaptateurs **et `@keelson/server`** ne produisent plus que `code` et
+`params` structurés et typés ; un module unique `@keelson/core/messages` en rend le texte anglais,
+utilisé par la CLI et par l'UI ; `details` est supprimé et fusionné dans `params`, `JOB_REFERENCED`
+exposant `params.referencedBy`. Touche `OperationError` (`packages/core/src/operations.ts`), la
+forme d'erreur de l'API du serveur, `ApiFailure` (`packages/ui/src/api/client.ts`) et
+`referencedBy()` (`packages/ui/src/editing/drafts.ts`). `specs/diagnostics.md` documente la forme
+des `params` de chaque code, et un test échoue si un code n'a pas de message ou un message pas de
+code. L'écart du 2026-10-22 sur le double calcul de hash dans `packages/server/src/store.ts` se
+traite dans le même lot, qui touche déjà la forme des réponses du serveur.
 Blocage : aucun
 
 | Lot | Statut | Merge |
 |-----|--------|-------|
 | L0 — socle du monorepo | TERMINÉ | `main` (branche `lot/l0-socle`, créée comme `main`) |
 | L1 — `core` + `adapter-gitlab` | TERMINÉ | `2a48b5a` (`--no-ff`) |
-| L2 — serveur, vue Pipeline, `keelson start` | EN COURS — étapes 0 à 8 et 10 faites | — |
-| L2c — messages : `code` + `params`, anglais unique, `details` fusionné | À FAIRE — **avant L3** (ADR 0002) | — |
+| L2 — serveur, vue Pipeline, `keelson start` | TERMINÉ | `894464c` (`--no-ff`) |
+| L2c — messages : `code` + `params`, anglais unique, `details` fusionné | **LOT COURANT** — avant L3 (ADR 0002) | — |
 | L2b — résolution des `include` locaux | À FAIRE | — |
 | L3 — taxonomie, catalogue, overlay OWASP | À FAIRE | — |
 | L4 — toolchain | À FAIRE | — |
@@ -315,3 +240,36 @@ item C ne sont plus optionnels. Les deux champs sont calculés, testés et invis
 impose de les brancher avec un test sur le DOM, ou de les supprimer.
 
 SESSION TERMINÉE — reprendre avec le même prompt
+
+### 2026-10-22 — L2 — clôture du lot
+
+Deux revues indépendantes successives, par des sous-agents n'ayant pas vu l'implémentation.
+
+**La première** a rendu un constat disqualifiant : `applyPayload` ne rafraîchissait jamais `text`,
+alors que les plages des blocs opaques viennent du nouveau pipeline. Après toute édition décalant
+des offsets, le visualiseur affichait un fragment chevauchant la clé d'un autre job — sur la seule
+surface dont la garantie écrite est « ceci est intact ». Le watcher taisant les écritures propres du
+serveur, aucun rechargement ne le réparait jamais. Elle a aussi prouvé que **deux tests E2E ne
+pouvaient pas échouer**, et que `bun run check` était rouge sur un clone neuf, l'ordre `test` avant
+`build` ne passant ici que grâce à un `dist/ui` rémanent.
+
+**La seconde**, strictement en lecture seule dans un worktree isolé, a trouvé que `JobEditor`
+pouvait encore soumettre un job que l'utilisateur n'avait pas choisi — même classe que le montage
+sans `key`, le sélecteur de need affichant une cible pendant que l'état en gardait une autre — et
+que deux correctifs de la première n'avaient aucun test capable d'échouer. Le dépôt est ressorti
+intact : même `HEAD`, même nombre de commits, arbre propre, aucun worktree résiduel.
+
+**Quatre ADR** sur le lot : 0001 (ce qui interdit l'édition), 0002 (langue et messages), 0003 (ce
+qu'une revue rouvre dans un lot), 0004 (aucune écriture sans geste explicite).
+
+**La leçon la plus coûteuse** : sur l'ensemble du lot, **sept tests se sont révélés incapables
+d'échouer** — trois trouvés par moi, deux par la première revue, deux par la seconde. Tous étaient
+verts, tous paraissaient couvrir leur sujet. Les causes se répètent : une fixture qui ne reproduit
+pas la *forme* du défaut, une assertion contrainte par autre chose que ce qu'elle prétend mesurer,
+et une lecture qui gagne la course contre l'écriture qu'elle devait interdire. D'où la pratique
+retenue pour la suite : **tout correctif se vérifie rouge en réintroduisant le défaut réel**, sans
+`git stash`, le fichier restauré par réécriture et le `git diff` vérifié vide.
+
+Vérification finale depuis un arbre sans aucun `dist/` : `bun install --frozen-lockfile` puis
+`bun run check` → **1011 pass / 0 fail** ; `bun run e2e` → **35 verts** ; binaire buildé exécuté
+sous `node`. Merge `--no-ff` dans `main` (`894464c`), `bun run check` vert sur `main`.
