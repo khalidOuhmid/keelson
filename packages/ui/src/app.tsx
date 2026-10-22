@@ -188,7 +188,7 @@ export function App({ deps }: AppProps = {}) {
         </span>
       </header>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null ? (
           <aside className="flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3">
             <StageControls
@@ -204,7 +204,7 @@ export function App({ deps }: AppProps = {}) {
           </aside>
         ) : null}
 
-        <main className="min-w-0 flex-1">{body}</main>
+        <main className="min-w-[var(--keelson-canvas-min-width)] flex-1">{body}</main>
 
         {selected === null || state.pipeline === null ? null : (
           <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto">

@@ -49,15 +49,15 @@ describe("sliceOpaque", () => {
   });
 
   test("retire le retour à la ligne final pour l'affichage", () => {
-    expect(sliceOpaque(TEXT, ARTIFACTS_BLOCK).endsWith("\n")).toBe(false);
+    expect(sliceOpaque(TEXT, ARTIFACTS_BLOCK)?.endsWith("\n")).toBe(false);
   });
 
   test("une plage hors bornes rend une chaîne vide plutôt que de lever", () => {
-    expect(sliceOpaque(TEXT, { key: "x", range: { start: 9000, end: 9100 } })).toBe("");
+    expect(sliceOpaque(TEXT, { key: "x", range: { start: 9000, end: 9100 } })).toBeNull();
   });
 
   test("une plage inversée rend une chaîne vide", () => {
-    expect(sliceOpaque(TEXT, { key: "x", range: { start: 50, end: 10 } })).toBe("");
+    expect(sliceOpaque(TEXT, { key: "x", range: { start: 50, end: 10 } })).toBeNull();
   });
 });
 
@@ -229,5 +229,25 @@ describe("origines combinées", () => {
     );
     expect(screen.getByText("inherited from .base")).toBeDefined();
     expect(screen.getByText("from anchor &defaults")).toBeDefined();
+  });
+});
+
+describe("bloc opaque dont la plage ne peut pas être lue", () => {
+  /** `sliceOpaque` rendait `""` sur une plage hors bornes ou inversée, ce qu'un bloc vide rend
+   *  aussi : la seule surface dont la promesse est « ceci est verbatim » ne savait pas dire
+   *  qu'elle ne savait pas. Le principe 3 de PRODUCT.md impose de montrer l'incertitude. */
+  const BROKEN = { key: "script", range: { start: 9000, end: 9100 } };
+
+  test("sliceOpaque distingue l'illisible du vide", () => {
+    expect(sliceOpaque("", { key: "script", range: { start: 0, end: 0 } })).toBeNull();
+    expect(sliceOpaque(TEXT, BROKEN)).toBeNull();
+  });
+
+  test("le panneau le dit explicitement au lieu d'afficher un cadre vide", () => {
+    renderPanel(job({ opaque: [BROKEN] }));
+
+    const block = screen.getByRole("group", { name: "Opaque block script" });
+    expect(block.textContent).toContain("Content unavailable");
+    expect(block.textContent).toContain("still on disk");
   });
 });

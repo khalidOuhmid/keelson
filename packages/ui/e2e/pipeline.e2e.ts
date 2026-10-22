@@ -290,3 +290,17 @@ test("supprimer un job demande confirmation avant d'écrire sur disque", async (
   await expect(page.getByRole("button", { name: /^lint/ })).toBeHidden();
   expect(keelson.read()).not.toContain("\nlint:");
 });
+
+test("à 320 px le graphe reste rendu et mesurable", async ({ page }) => {
+  // WCAG 1.4.10 : 320 px, c'est un zoom 400 % sur un portable de 1280 px. Avant correctif, les
+  // deux colonnes `shrink-0` écrasaient `<main>` à zéro et le canevas n'était pas rendu du tout.
+  await page.setViewportSize({ width: 320, height: 800 });
+  await open(page);
+  await expect(page.getByRole("button", { name: /^lint/ })).toBeVisible();
+
+  const width = await page
+    .getByRole("region", { name: "Pipeline graph" })
+    .evaluate((element) => element.getBoundingClientRect().width);
+
+  expect(width).toBeGreaterThan(0);
+});

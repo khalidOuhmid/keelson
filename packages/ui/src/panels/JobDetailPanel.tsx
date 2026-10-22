@@ -31,6 +31,18 @@ function Field({
   );
 }
 
+function OpaqueContent({ blockKey, source }: { blockKey: string; source: string | null }) {
+  if (source === null) {
+    return (
+      <p className="rounded-md border border-border-default bg-surface-2 p-2.5 text-xs text-text-secondary">
+        Content unavailable — Keelson cannot read this range of the file. The block is still on disk
+        and untouched; reopening the file usually resolves it.
+      </p>
+    );
+  }
+  return <OpaqueBlockView blockKey={blockKey} source={source} />;
+}
+
 export function JobDetailPanel({ job, text, onClose }: JobDetailPanelProps) {
   const needs = job.needs?.value ?? [];
   const environment = job.environment?.value ?? null;
@@ -117,7 +129,7 @@ export function JobDetailPanel({ job, text, onClose }: JobDetailPanelProps) {
                 <span className="font-mono text-xs text-text-secondary">{block.key}</span>
                 <span className="text-2xs tracking-label text-text-muted uppercase">read-only</span>
               </header>
-              <OpaqueBlockView blockKey={block.key} source={sliceOpaque(text, block)} />
+              <OpaqueContent blockKey={block.key} source={sliceOpaque(text, block)} />
             </div>
           ))
         )}

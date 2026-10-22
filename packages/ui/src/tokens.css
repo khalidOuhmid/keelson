@@ -91,6 +91,9 @@
   --keelson-focus-ring-width: 2px;
   --keelson-focus-ring-offset: 2px;
   --keelson-panel-width: 352px;
+  /* Plancher du canevas. Sans lui, deux panneaux de 352px ecrasent la vue du graphe a zero sous
+     704px de large — soit un zoom 400% sur un portable de 1280px (WCAG 1.4.10). */
+  --keelson-canvas-min-width: 320px;
   --keelson-header-height: 44px;
   --keelson-edge-width: 1.5px;
   --keelson-edge-width-strong: 2.5px;
