@@ -5,3 +5,7 @@ types/
 .DS_Store
 playwright-report/
 test-results/
+
+# Journaux de session Impeccable (seul config.json est de la config projet)
+packages/ui/.impeccable/live/*
+!packages/ui/.impeccable/live/config.json

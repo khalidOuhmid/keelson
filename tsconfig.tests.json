@@ -8,19 +8,21 @@
     "noEmit": true
   },
   "include": [
-    "packages/adapter-github/test",
-    "packages/adapter-gitlab/test",
-    "packages/catalog/test",
-    "packages/cli/test",
-    "packages/core/test",
-    "packages/taxonomy/test",
-    "packages/toolchain/test",
     "packages/adapter-github/package.json",
+    "packages/adapter-github/test",
     "packages/adapter-gitlab/package.json",
+    "packages/adapter-gitlab/test",
     "packages/catalog/package.json",
+    "packages/catalog/test",
     "packages/cli/package.json",
+    "packages/cli/test",
     "packages/core/package.json",
+    "packages/core/test",
+    "packages/server/package.json",
+    "packages/server/test",
     "packages/taxonomy/package.json",
-    "packages/toolchain/package.json"
+    "packages/taxonomy/test",
+    "packages/toolchain/package.json",
+    "packages/toolchain/test"
   ]
 }

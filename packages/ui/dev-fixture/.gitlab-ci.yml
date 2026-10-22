@@ -1,0 +1,67 @@
+# Keelson dev fixture — a deliberately rich pipeline.
+
+stages:
+  - build
+  - test
+  - scan
+  - deploy
+
+.docker:
+  image: docker:27
+  services:
+    - docker:27-dind
+
+.deploy-base:
+  stage: deploy
+  environment:
+    name: production
+    url: https://app.example.org
+
+variables:
+  REGISTRY: registry.example.org
+
+build-image:
+  extends: .docker
+  stage: build
+  script:
+    - docker build -t "$REGISTRY/app:$CI_COMMIT_SHA" .
+    - docker push "$REGISTRY/app:$CI_COMMIT_SHA"
+
+unit-tests:
+  stage: test
+  needs:
+    - build-image
+  script:
+    - npm ci
+    - npm test
+
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+secret-detection:
+  stage: scan
+  needs:
+    - job: build-image
+      artifacts: false
+  script:
+    - gitleaks detect --source . --no-git
+
+container-scan:
+  stage: scan
+  needs:
+    - build-image
+    - job: unit-tests
+      optional: true
+  script:
+    - trivy image "$REGISTRY/app:$CI_COMMIT_SHA"
+
+deploy-production:
+  extends: .deploy-base
+  needs:
+    - unit-tests
+    - secret-detection
+    - container-scan
+  script:
+    - ./deploy.sh production

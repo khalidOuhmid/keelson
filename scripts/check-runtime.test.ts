@@ -43,13 +43,14 @@ describe("scanSource", () => {
 });
 
 describe("checkRuntime", () => {
-  test("couvre les sept packages exécutés chez l'utilisateur", () => {
+  test("couvre les huit packages exécutés chez l'utilisateur", () => {
     expect([...RUNTIME_PACKAGES].sort()).toEqual([
       "adapter-github",
       "adapter-gitlab",
       "catalog",
       "cli",
       "core",
+      "server",
       "taxonomy",
       "toolchain",
     ]);

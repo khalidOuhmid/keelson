@@ -1,0 +1,105 @@
+/* Keelson design tokens — the single source of every colour, size, radius and duration.
+   Direction: the category standard played straight, at the finish level of Linear, Vercel, Raycast.
+   Dark by default, finely stepped greys, one-pixel borders, a single accent, expert density.
+   No component may hard-code a value; a test enforces it. */
+
+@theme {
+  /* Surfaces, from the app floor upward. */
+  --color-surface-0: oklch(0.17 0.006 265);
+  --color-surface-1: oklch(0.21 0.007 265);
+  --color-surface-2: oklch(0.25 0.008 265);
+  --color-surface-3: oklch(0.29 0.009 265);
+  --color-surface-inset: oklch(0.14 0.006 265);
+
+  /* Borders. Default carries structure, subtle separates, strong marks focus boundaries.
+     Default et strong tiennent 3:1 jusqu'a surface-3 (WCAG 1.4.11) : ils bordent des composants
+     d'interface, pas de la decoration. `subtle` reste decoratif et n'est pas soumis au seuil. */
+  /* Tailwind lit ce token pour la classe `border` : la regle « un pixel » redevient adossee au
+     fichier de tokens au lieu de dependre du defaut du framework. */
+  --default-border-width: 1px;
+
+  --color-border-subtle: oklch(0.29 0.008 265);
+  --color-border-default: oklch(0.56 0.01 265);
+  --color-border-strong: oklch(0.66 0.012 265);
+
+  /* Text. */
+  --color-text-primary: oklch(0.96 0.003 265);
+  --color-text-secondary: oklch(0.78 0.006 265);
+  --color-text-muted: oklch(0.67 0.008 265);
+
+  /* The single accent. */
+  --color-accent: oklch(0.68 0.16 258);
+
+  /* Diagnostic severities. Never the only carrier of meaning: each is paired with a glyph. */
+  --color-danger: oklch(0.65 0.19 25);
+  --color-danger-muted: oklch(0.32 0.09 25);
+  --color-warning: oklch(0.78 0.14 75);
+  --color-warning-muted: oklch(0.34 0.07 75);
+  --color-info: oklch(0.72 0.09 230);
+  --color-info-muted: oklch(0.32 0.04 230);
+
+  /* Typography. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Rampe. Plancher a 11px : en dessous, le texte fonctionnel n'est plus lisible a densite
+     d'expert. Les degres etaient tasses sur 10/11/12/13, soit un rapport de 1,3:1 sur la page
+     rendue — une hierarchie que l'oeil ne lit pas. Ils sont ecartes. */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 16px;
+  --text-xs: 12px;
+  --text-xs--line-height: 18px;
+  --text-sm: 13px;
+  --text-sm--line-height: 20px;
+  --text-base: 15px;
+  --text-base--line-height: 22px;
+  --text-lg: 19px;
+  --text-lg--line-height: 26px;
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --tracking-label: 0.06em;
+
+  /* Spacing, a four-pixel base. */
+  --spacing: 4px;
+
+  /* Radii. */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+
+  /* Motion. */
+  --duration-fast: 140ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Pipeline layout metrics. Read at runtime by views/pipeline/metrics.ts and handed to elkjs,
+   so the graph geometry lives here with every other size rather than in TypeScript. */
+:root {
+  --keelson-node-width: 232px;
+  --keelson-node-height: 64px;
+  --keelson-column-gap: 72px;
+  --keelson-row-gap: 20px;
+  --keelson-focus-ring-width: 2px;
+  --keelson-focus-ring-offset: 2px;
+  --keelson-panel-width: 352px;
+  /* Plancher du canevas. Sans lui, deux panneaux de 352px ecrasent la vue du graphe a zero sous
+     704px de large — soit un zoom 400% sur un portable de 1280px (WCAG 1.4.10). */
+  --keelson-canvas-min-width: 320px;
+  --keelson-header-height: 44px;
+  --keelson-edge-width: 1.5px;
+  --keelson-edge-width-strong: 2.5px;
+  --keelson-edge-dash: 4px;
+  /* Marge basse d'une colonne sous son dernier noeud. */
+  --keelson-column-padding: 1px;
+  --keelson-column-header-height: 32px;
+}
+
+/* Reduced motion is honoured by collapsing the duration tokens themselves: every component
+   animates through var(--duration-*), so nothing needs an !important override. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+  }
+}
