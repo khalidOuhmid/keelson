@@ -6,8 +6,8 @@ export type OriginBadgeProps = {
 };
 
 export function OriginBadge({ origin }: OriginBadgeProps) {
-  const label = describeOrigin(origin);
-  if (label === null) {
+  const described = describeOrigin(origin);
+  if (described === null) {
     return null;
   }
 
@@ -15,10 +15,38 @@ export function OriginBadge({ origin }: OriginBadgeProps) {
     <span
       data-testid="origin-badge"
       title={ORIGIN_HINT}
-      className="inline-flex max-w-full items-center gap-1 truncate rounded-sm border border-border-default bg-surface-3 px-1 text-2xs font-medium tracking-label whitespace-nowrap text-text-secondary uppercase"
+      className="inline-flex min-w-0 max-w-full items-center gap-1 text-2xs font-medium text-text-muted"
     >
-      <span aria-hidden="true">↳</span>
-      {label}
+      <InheritedMark />
+      <span className="shrink-0 tracking-label uppercase">{described.label}</span>
+      {described.source === null ? null : (
+        <>
+          {" "}
+          <span className="truncate font-mono text-text-secondary">{described.source}</span>
+        </>
+      )}
     </span>
+  );
+}
+
+/** Marque d'héritage. Un SVG en ligne plutôt que le caractère `↳`, dont le rendu dépend de la
+ *  police du système et que DESIGN.md refuse de canoniser. */
+function InheritedMark() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 12 12"
+      width="10"
+      height="10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <path d="M3 2v4.5a1.5 1.5 0 0 0 1.5 1.5H9" />
+      <path d="M7 6l2 2-2 2" />
+    </svg>
   );
 }

@@ -174,3 +174,47 @@ describe("plancher de taille de texte", () => {
     });
   }
 });
+
+describe("aucun token promis sans consommateur", () => {
+  /** `/impeccable document` relevait onze tokens définis et jamais consommés : le fichier promettait
+   *  un système plus riche que ce que le front rend. Deux d'entre eux — les épaisseurs d'arête —
+   *  n'étaient pas de l'hygiène mais la raison pour laquelle chaque arête rendait hors système.
+   *  Ce garde empêche la promesse de se reformer. */
+  const declared = [
+    ...readFileSync(join(sourceRoot, TOKENS_FILE), "utf8").matchAll(/^\s*(--[\w-]+):/gm),
+  ].map(([, name]) => name as string);
+
+  const consumers = sourceFiles(sourceRoot)
+    .filter((file) => !file.endsWith(TOKENS_FILE))
+    .map((file) => readFileSync(file, "utf8"))
+    .join("\n");
+
+  /** Tailwind consomme `--color-surface-1` sous la forme `bg-surface-1`, et `--text-sm` sous la
+   *  forme `text-sm` : on cherche la racine du token autant que son nom complet. */
+  function isConsumed(token: string): boolean {
+    if (consumers.includes(token)) {
+      return true;
+    }
+    // `--font-weight-semibold` se consomme en `font-semibold`, `--border-width-hairline` en
+    // `border-hairline` : la famille du token disparaît de la classe utilitaire.
+    const stems = [
+      token.replace(/^--(color|text|font|radius|duration|shadow|tracking|ease|spacing)-?/, ""),
+      token.replace(/^--(font-weight|border-width|line-height)-/, ""),
+      token.replace(/^--/, ""),
+    ].filter((stem) => stem !== "");
+
+    return stems.some((stem) =>
+      new RegExp(`\\b[\\w-]*${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(consumers),
+    );
+  }
+
+  test("la liste des tokens est lue", () => {
+    expect(declared.length).toBeGreaterThan(20);
+  });
+
+  for (const token of declared.filter((name) => !name.includes("--line-height"))) {
+    test(`${token} est consommé`, () => {
+      expect({ token, consumed: isConsumed(token) }).toEqual({ token, consumed: true });
+    });
+  }
+});

@@ -124,9 +124,18 @@ export function toFlowGraph(
         ariaLabel: edge.optional
           ? `${edge.target} optionally needs ${edge.source}`
           : `${edge.target} needs ${edge.source}`,
-        style: edge.optional
-          ? { strokeDasharray: "var(--keelson-edge-dash) var(--keelson-edge-dash)" }
-          : {},
+        style: {
+          // L'arete mise en avant consomme la graisse forte et l'accent ; les autres restent en
+          // retrait. Sans cela la selection n'a aucun effet visible sur le graphe, et les deux
+          // tokens d'epaisseur ne sont consommes nulle part.
+          stroke: highlighted ? "var(--color-accent)" : "var(--color-border-strong)",
+          strokeWidth: highlighted
+            ? "var(--keelson-edge-width-strong)"
+            : "var(--keelson-edge-width)",
+          ...(edge.optional
+            ? { strokeDasharray: "var(--keelson-edge-dash) var(--keelson-edge-dash)" }
+            : {}),
+        },
       },
     ];
   });

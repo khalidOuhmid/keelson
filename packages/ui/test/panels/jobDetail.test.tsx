@@ -81,7 +81,9 @@ describe("stage", () => {
 
   test("un stage hérité porte son badge d'origine", () => {
     renderPanel(job({ stage: { value: "build", origin: { kind: "extends", template: ".base" } } }));
-    expect(screen.getByText("inherited from .base")).toBeDefined();
+    expect(screen.getAllByTestId("origin-badge").map((badge) => badge.textContent)).toContain(
+      "inherited from .base",
+    );
   });
 
   test("un stage local ne porte pas de badge", () => {
@@ -146,7 +148,9 @@ describe("needs", () => {
         },
       }),
     );
-    expect(screen.getByText("inherited from .base")).toBeDefined();
+    expect(screen.getAllByTestId("origin-badge").map((badge) => badge.textContent)).toContain(
+      "inherited from .base",
+    );
   });
 });
 
@@ -227,8 +231,12 @@ describe("origines combinées", () => {
         },
       }),
     );
-    expect(screen.getByText("inherited from .base")).toBeDefined();
-    expect(screen.getByText("from anchor &defaults")).toBeDefined();
+    expect(screen.getAllByTestId("origin-badge").map((badge) => badge.textContent)).toContain(
+      "inherited from .base",
+    );
+    expect(screen.getAllByTestId("origin-badge").map((badge) => badge.textContent)).toContain(
+      "from anchor &defaults",
+    );
   });
 });
 

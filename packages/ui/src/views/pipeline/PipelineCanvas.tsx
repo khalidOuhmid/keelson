@@ -1,6 +1,6 @@
 import type { Pipeline } from "@keelson/core";
-import { Background, ReactFlow, ReactFlowProvider } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { Background, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { COLUMN_NODE_TYPE, type FlowGraph, JOB_NODE_TYPE, toFlowGraph } from "./graph.ts";
 import { JobNode } from "./JobNode.tsx";
 import { type Layout, layoutPipeline } from "./layout.ts";
@@ -19,6 +19,35 @@ export type PipelineCanvasProps = {
   selectedJobId: string | null;
   onSelectJob: (id: string | null) => void;
 };
+
+/** `fitView` de xyflow ne s'applique qu'au montage. Ouvrir le panneau de détail retire au canevas
+ *  la largeur du panneau sans le recadrer, donc les colonnes de droite passent sous le panneau et sont
+ *  tronquées. On réajuste quand la largeur disponible change. */
+function RefitOnResize() {
+  const flow = useReactFlow();
+  const lastWidth = useRef<number | null>(null);
+
+  useEffect(() => {
+    const viewport = document.querySelector(".react-flow");
+    if (viewport === null || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width === undefined || width === lastWidth.current) {
+        return;
+      }
+      lastWidth.current = width;
+      flow.fitView();
+    });
+
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [flow]);
+
+  return null;
+}
 
 export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: PipelineCanvasProps) {
   const [layout, setLayout] = useState<Layout | null>(null);
@@ -81,6 +110,7 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
           maxZoom={1.6}
         >
           <Background />
+          <RefitOnResize />
         </ReactFlow>
       </ReactFlowProvider>
 

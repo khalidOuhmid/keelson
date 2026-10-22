@@ -91,22 +91,29 @@ describe("describeOrigin", () => {
     expect(describeOrigin({ kind: "local" })).toBeNull();
   });
 
-  test("un extends nomme son template", () => {
-    expect(describeOrigin({ kind: "extends", template: ".base" })).toBe("inherited from .base");
+  test("un extends nomme son template, séparé de la voix de Keelson", () => {
+    expect(describeOrigin({ kind: "extends", template: ".base" })).toEqual({
+      label: "inherited from",
+      source: ".base",
+    });
   });
 
-  test("un défaut est annoncé comme tel", () => {
-    expect(describeOrigin({ kind: "default" })).toBe("default");
+  test("un défaut est annoncé comme tel et ne cite aucune source", () => {
+    expect(describeOrigin({ kind: "default" })).toEqual({ label: "default", source: null });
   });
 
   test("un anchor nomme son ancre", () => {
-    expect(describeOrigin({ kind: "anchor", name: "defaults" })).toBe("from anchor &defaults");
+    expect(describeOrigin({ kind: "anchor", name: "defaults" })).toEqual({
+      label: "from anchor",
+      source: "&defaults",
+    });
   });
 
   test("un !reference nomme son chemin", () => {
-    expect(describeOrigin({ kind: "reference", path: [".needs", "common"] })).toBe(
-      "from !reference [.needs, common]",
-    );
+    expect(describeOrigin({ kind: "reference", path: [".needs", "common"] })).toEqual({
+      label: "from reference",
+      source: "[.needs, common]",
+    });
   });
 });
 
@@ -205,7 +212,9 @@ describe("badges d'origine", () => {
         [{ id: "a", stage: "build", stageOrigin: { kind: "extends", template: ".base" } }],
       ),
     );
-    expect(await screen.findByText("inherited from .base")).toBeDefined();
+    expect(
+      (await screen.findAllByTestId("origin-badge")).map((badge) => badge.textContent),
+    ).toContain("inherited from .base");
   });
 
   test("un stage venu du défaut porte le badge default", async () => {

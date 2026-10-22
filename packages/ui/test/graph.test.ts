@@ -251,3 +251,23 @@ describe("pipeline vide", () => {
     expect(graph.nodes[0]?.data.jobCount).toBe(0);
   });
 });
+
+describe("l'arête mise en avant se voit", () => {
+  /** `EdgeData.highlighted` était calculé et testé, et consommé par aucun composant : les arêtes
+   *  rendaient au trait par défaut de la lib et la sélection n'avait aucun effet visuel sur elles.
+   *  La règle de frontière de test du rendu l'interdit — branché ou supprimé. */
+  test("la sélection change le trait et la graisse, par tokens", () => {
+    const selected = toFlowGraph(LAYOUT, PIPELINE, "lint");
+    const highlighted = selected.edges.find((edge) => edge.data?.highlighted === true);
+    const plain = selected.edges.find((edge) => edge.data?.highlighted !== true);
+
+    expect(highlighted?.style).toMatchObject({
+      stroke: "var(--color-accent)",
+      strokeWidth: "var(--keelson-edge-width-strong)",
+    });
+    expect(plain?.style).toMatchObject({
+      stroke: "var(--color-border-strong)",
+      strokeWidth: "var(--keelson-edge-width)",
+    });
+  });
+});

@@ -1,17 +1,26 @@
 import type { Origin } from "@keelson/core";
 
-export function describeOrigin(origin: Origin): string | null {
+/** `label` est la voix de Keelson, `source` une chaîne venue du fichier de l'utilisateur. Les deux
+ *  sont séparées parce qu'elles ne se composent pas de la même façon : le label se met en petites
+ *  capitales, la source jamais — une clé de template GitLab est sensible à la casse, et
+ *  `.deploy-base` affiché `.DEPLOY-BASE` est une donnée réécrite à l'écran. */
+export type OriginLabel = {
+  label: string;
+  source: string | null;
+};
+
+export function describeOrigin(origin: Origin): OriginLabel | null {
   switch (origin.kind) {
     case "local":
       return null;
     case "default":
-      return "default";
+      return { label: "default", source: null };
     case "extends":
-      return `inherited from ${origin.template}`;
+      return { label: "inherited from", source: origin.template };
     case "anchor":
-      return `from anchor &${origin.name}`;
+      return { label: "from anchor", source: `&${origin.name}` };
     case "reference":
-      return `from !reference [${origin.path.join(", ")}]`;
+      return { label: "from reference", source: `[${origin.path.join(", ")}]` };
   }
 }
 

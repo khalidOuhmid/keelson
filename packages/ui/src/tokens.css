@@ -1,4 +1,4 @@
-/* Keelson design tokens — the single source of every colour, size, radius, shadow and duration.
+/* Keelson design tokens — the single source of every colour, size, radius and duration.
    Direction: the category standard played straight, at the finish level of Linear, Vercel, Raycast.
    Dark by default, finely stepped greys, one-pixel borders, a single accent, expert density.
    No component may hard-code a value; a test enforces it. */
@@ -22,12 +22,9 @@
   --color-text-primary: oklch(0.96 0.003 265);
   --color-text-secondary: oklch(0.78 0.006 265);
   --color-text-muted: oklch(0.67 0.008 265);
-  --color-text-on-accent: oklch(0.17 0.006 265);
 
   /* The single accent. */
   --color-accent: oklch(0.68 0.16 258);
-  --color-accent-hover: oklch(0.74 0.16 258);
-  --color-accent-muted: oklch(0.35 0.07 258);
 
   /* Diagnostic severities. Never the only carrier of meaning: each is paired with a glyph. */
   --color-danger: oklch(0.65 0.19 25);
@@ -55,7 +52,6 @@
   --text-lg: 19px;
   --text-lg--line-height: 26px;
 
-  --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
 
@@ -68,20 +64,14 @@
   --radius-sm: 3px;
   --radius-md: 5px;
   --radius-lg: 8px;
-  --radius-pill: 999px;
 
   /* Elevation. */
-  --shadow-raised: 0 1px 2px oklch(0 0 0 / 0.3);
-  --shadow-overlay: 0 8px 24px oklch(0 0 0 / 0.45);
 
   /* Motion. */
-  --duration-instant: 80ms;
   --duration-fast: 140ms;
-  --duration-base: 220ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Hairline. Every border in the product is this wide. */
-  --border-width-hairline: 1px;
 }
 
 /* Pipeline layout metrics. Read at runtime by views/pipeline/metrics.ts and handed to elkjs,
@@ -108,8 +98,6 @@
    animates through var(--duration-*), so nothing needs an !important override. */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --duration-instant: 0ms;
     --duration-fast: 0ms;
-    --duration-base: 0ms;
   }
 }

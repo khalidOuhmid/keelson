@@ -304,3 +304,69 @@ test("à 320 px le graphe reste rendu et mesurable", async ({ page }) => {
 
   expect(width).toBeGreaterThan(0);
 });
+
+test("sélectionner un job détache visuellement ses arêtes", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: /unit-tests/ }).click();
+  await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
+
+  const widths = await page.evaluate(() =>
+    [...document.querySelectorAll(".react-flow__edge path.react-flow__edge-path")].map(
+      (path) => getComputedStyle(path).strokeWidth,
+    ),
+  );
+
+  expect(widths.length).toBeGreaterThan(1);
+  expect(new Set(widths).size).toBeGreaterThan(1);
+});
+
+test("le badge d'origine n'altère pas la casse de l'identifiant du fichier", async ({ page }) => {
+  // `.deploy-base` est une clé de template GitLab, sensible à la casse et écrite par
+  // l'utilisateur. L'afficher `.DEPLOY-BASE` est une donnée réécrite à l'écran. Seule la voix de
+  // Keelson — « inherited from » — se met en petites capitales.
+  await open(page);
+  await page.getByRole("button", { name: /deploy-production/ }).click();
+
+  const badge = page.getByTestId("origin-badge").first();
+  await expect(badge).toBeVisible();
+
+  const rendered = await badge.evaluate((element) => {
+    const source = [...element.querySelectorAll("span")].find((span) =>
+      span.textContent?.includes(".deploy-base"),
+    );
+    return {
+      text: source?.textContent ?? "",
+      transform: source === undefined ? "" : getComputedStyle(source).textTransform,
+    };
+  });
+
+  expect(rendered.text).toContain(".deploy-base");
+  expect(rendered.transform).toBe("none");
+});
+
+test("le graphe se recadre quand le panneau de détail s'ouvre", async ({ page }) => {
+  await open(page);
+  await expect(page.getByRole("button", { name: /^lint/ })).toBeVisible();
+
+  const rightmostColumn = () =>
+    page.evaluate(() =>
+      Math.max(
+        ...[...document.querySelectorAll(".react-flow__node")]
+          .filter((node) => node.getAttribute("data-id")?.startsWith("column:") === true)
+          .map((node) => node.getBoundingClientRect().right),
+      ),
+    );
+
+  expect(await rightmostColumn()).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: /^lint/ }).click();
+  await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
+
+  const panelLeft = await page
+    .getByRole("region", { name: "Job detail" })
+    .evaluate((element) => element.getBoundingClientRect().left);
+
+  // Avant correctif, `fitView` ne tournait qu'au montage : l'ouverture du panneau retirait 352px
+  // au canevas sans le recadrer, et la dernière colonne passait sous le panneau.
+  await expect.poll(rightmostColumn).toBeLessThanOrEqual(panelLeft + 1);
+});
