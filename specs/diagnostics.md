@@ -200,6 +200,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `reason` | Autres `params` | Situation |
 | --- | --- | --- |
 | `job` | `job`, `file` | Le job visé vient d'un fichier inclus. Un job inclus puis **redéfini** dans le fichier principal appartient au fichier principal et reste éditable : c'est l'ordre de fusion de GitLab. |
+| `nameTaken` | `name`, `file` | `addJob` ou `renameJob` vers un nom déjà pris par une clé d'un fichier inclus. Keelson refuse plutôt que d'écrire une surcharge partielle : le job résultant hériterait silencieusement des clés de l'include. |
 | `stages` | `file` | La liste `stages` est déclarée dans un fichier inclus. `addStage` et `moveStage` y sont donc refusés ; ajouter un job dans un de ces stages reste permis. |
 | `referencedByInclude` | `job`, `referencedBy: { job, file }[]` | `renameJob` sur un job dont un job d'un fichier inclus a besoin : renommer sans réécrire ce fichier casserait son `needs`. |
 

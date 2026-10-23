@@ -183,6 +183,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'the stage list comes from included file "ci/jobs.yml", which Keelson never writes',
     },
     {
+      params: { reason: "nameTaken", name: "sast", file: "ci/jobs.yml" },
+      text: 'the name "sast" is already used in included file "ci/jobs.yml"',
+    },
+    {
       params: {
         reason: "referencedByInclude",
         job: "compile",

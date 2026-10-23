@@ -96,6 +96,8 @@ export const EN: Catalogue = {
       `job ${quoted(p.job)} comes from included file ${quoted(p.file)}, which Keelson never writes`,
     stages: (p) =>
       `the stage list comes from included file ${quoted(p.file)}, which Keelson never writes`,
+    nameTaken: (p) =>
+      `the name ${quoted(p.name)} is already used in included file ${quoted(p.file)}`,
     referencedByInclude: (p) =>
       `job ${quoted(p.job)} is needed by ${p.referencedBy.map((entry) => `${entry.job} in ${entry.file}`).join(", ")}, and Keelson never writes an included file`,
   },

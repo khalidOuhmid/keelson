@@ -156,6 +156,7 @@ export type MessageParams = {
   FROM_INCLUDED_FILE:
     | { reason: "job"; job: string; file: string }
     | { reason: "stages"; file: string }
+    | { reason: "nameTaken"; name: string; file: string }
     | {
         reason: "referencedByInclude";
         job: string;

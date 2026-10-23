@@ -21,6 +21,7 @@ import type {
 import {
   CYCLE,
   err,
+  FROM_INCLUDED_FILE,
   INVALID_NAME,
   INVALID_OPERATION,
   INVALID_YAML,
@@ -103,9 +104,44 @@ function topLevelMap(document: GitlabDocument): YAMLMap | null {
   return isMap(root) ? root : null;
 }
 
+/** Le fichier d'un élément, quand ce n'est **pas** le fichier principal. Keelson n'écrit jamais
+ *  ailleurs que dans le fichier principal : c'est la garantie sur laquelle repose tout le reste —
+ *  les plages, l'écriture atomique, la liste blanche du serveur. */
+function foreignFile(pipeline: Pipeline, file: string): string | null {
+  return file === pipeline.main ? null : file;
+}
+
+/** La liste `stages` vient d'un seul fichier : une liste écrase et ne fusionne pas. Un stage
+ *  implicite porte le fichier principal, donc une liste absente reste matérialisable. */
+function foreignStagesFile(pipeline: Pipeline): string | null {
+  for (const stage of pipeline.stages) {
+    const foreign = foreignFile(pipeline, stage.file);
+    if (foreign !== null) {
+      return foreign;
+    }
+  }
+  return null;
+}
+
+/** Le nom est-il déjà pris dans un fichier inclus ? `addJob` et `renameJob` ne regardaient que le
+ *  fichier principal, où le nom est libre : l'écriture aurait produit une **surcharge partielle**,
+ *  un job qui hérite silencieusement des clés de l'include. */
+function takenByInclude(pipeline: Pipeline, name: string): string | null {
+  const owner =
+    pipeline.jobs.find((job) => job.id === name) ??
+    pipeline.templates.find((template) => template.id === name);
+  return owner === undefined ? null : foreignFile(pipeline, owner.file);
+}
+
 function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target, ApplyError> {
-  if (!pipeline.jobs.some((job) => job.id === id)) {
+  const found = pipeline.jobs.find((job) => job.id === id);
+  if (found === undefined) {
     return fail(JOB_NOT_FOUND, { job: id });
+  }
+
+  const foreign = foreignFile(pipeline, found.file);
+  if (foreign !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "job", job: id, file: foreign });
   }
 
   const pair = localPair(root, id);
@@ -193,6 +229,10 @@ function planAddJob(
   }
   if (localPair(root, job.id) !== undefined) {
     return fail(NAME_CONFLICT, { name: job.id });
+  }
+  const takenAdd = takenByInclude(pipeline, job.id);
+  if (takenAdd !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "nameTaken", name: job.id, file: takenAdd });
   }
   if (!pipeline.stages.some((stage) => stage.name === job.stage)) {
     return fail(STAGE_NOT_FOUND, { stage: job.stage });
@@ -303,6 +343,29 @@ function planRenameJob(operation: RenameJobOperation, root: YAMLMap, pipeline: P
   }
   if (localPair(root, operation.to) !== undefined) {
     return fail(NAME_CONFLICT, { name: operation.to });
+  }
+  const takenRename = takenByInclude(pipeline, operation.to);
+  if (takenRename !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "nameTaken", name: operation.to, file: takenRename });
+  }
+
+  // `needReferenceSplices` ne réécrit que le fichier principal. Un job d'un fichier inclus qui a
+  // besoin de l'ancien nom garderait donc un `needs` cassé, et le renommage produirait un
+  // UNKNOWN_NEED que l'utilisateur ne pourrait pas corriger depuis Keelson.
+  const referencedByInclude = pipeline.jobs
+    .filter(
+      (job) =>
+        foreignFile(pipeline, job.file) !== null &&
+        (job.needs?.value ?? []).some((need) => need.job === operation.from),
+    )
+    .map((job) => ({ job: job.id, file: job.file }));
+
+  if (referencedByInclude.length > 0) {
+    return fail(FROM_INCLUDED_FILE, {
+      reason: "referencedByInclude",
+      job: operation.from,
+      referencedBy: referencedByInclude,
+    });
   }
 
   const keyRange = valueContent(located.value.pair.key as AnyNode);
@@ -570,6 +633,14 @@ function planAddStage(
     return fail(STAGE_EXISTS, { stage: operation.name });
   }
 
+  // Sans ce refus, `stagesSeq(root)` ne trouve rien dans le fichier principal et la suite
+  // **matérialise** une liste de stages par défaut : la liste de l'include serait écrasée par
+  // `.pre, build, test, deploy, .post` sans que rien ne le dise.
+  const foreignStagesAdd = foreignStagesFile(pipeline);
+  if (foreignStagesAdd !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "stages", file: foreignStagesAdd });
+  }
+
   const index = operation.index ?? pipeline.stages.length;
   if (index > pipeline.stages.length) {
     return fail(RANGE_OUT_OF_BOUNDS, {
@@ -640,6 +711,11 @@ function planMoveStage(
   const from = names.indexOf(operation.name);
   if (from === -1) {
     return fail(STAGE_NOT_FOUND, { stage: operation.name });
+  }
+
+  const foreignStagesMove = foreignStagesFile(pipeline);
+  if (foreignStagesMove !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "stages", file: foreignStagesMove });
   }
   if (operation.toIndex >= names.length) {
     return fail(RANGE_OUT_OF_BOUNDS, {
