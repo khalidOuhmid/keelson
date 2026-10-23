@@ -123,16 +123,16 @@ describe("POST /api/documents/:file/operations", () => {
     expect(body.hash).toBe(hashText(SAMPLE));
   });
 
-  test("rend 422 sur une erreur métier avec code, message et details", async () => {
+  test("rend 422 sur une erreur métier avec code et params", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: await currentHash(), kind: "removeJob", id: "compile" },
     });
     expect(response.status).toBe(422);
-    const body = (await response.json()) as Record<string, unknown>;
-    expect(body.code).toBe("JOB_REFERENCED");
-    expect(typeof body.message).toBe("string");
-    expect((body.details as { referencedBy: string[] }).referencedBy).toEqual(["unit"]);
+    expect(await response.json()).toEqual({
+      code: "JOB_REFERENCED",
+      params: { job: "compile", referencedBy: ["unit"] },
+    });
   });
 
   test("rend 404 pour un fichier hors du workspace", async () => {
@@ -195,23 +195,135 @@ describe("limite de taille du corps", () => {
 });
 
 describe("forme des erreurs", () => {
-  test("toute erreur porte code et message", async () => {
-    const responses = await Promise.all([
-      harness.api("/api/documents/absent.yml"),
-      harness.api("/api/inconnu"),
-      harness.api("/api/workspace", { method: "PUT" }),
-    ]);
+  /** Un chemin d'erreur par entrée, et pour chacun la forme **exacte** du corps. `toEqual` plutôt
+   *  qu'une suite de `toBe` : c'est la seule façon de faire échouer le test si une clé `message`
+   *  réapparaît, et c'est précisément ce que ce lot interdit. Le 413, le 403 Host et le 403 token
+   *  sont couverts dans leurs describe respectifs, avec leur mise en scène propre. */
+  const paths: {
+    label: string;
+    call: () => Promise<Response>;
+    status: number;
+    body: Record<string, unknown>;
+  }[] = [
+    {
+      label: "405 sur une méthode refusée",
+      call: () => harness.api("/api/workspace", { method: "PUT" }),
+      status: 405,
+      body: { code: "METHOD_NOT_ALLOWED", params: { method: "PUT" } },
+    },
+    {
+      // Le flux lit son token dans la requête, pas dans un en-tête : `raw` plus `?token=`, sinon
+      // le 403 du token arrive avant le 405 et le chemin de la méthode n'est jamais atteint.
+      label: "405 sur le flux d'événements",
+      call: () =>
+        harness.raw(`/api/events?token=${encodeURIComponent(harness.server.token)}`, {
+          method: "DELETE",
+        }),
+      status: 405,
+      body: { code: "METHOD_NOT_ALLOWED", params: { method: "DELETE" } },
+    },
+    {
+      label: "403 sans token sur une route API",
+      call: () => harness.raw("/api/workspace"),
+      status: 403,
+      body: { code: "FORBIDDEN_TOKEN", params: {} },
+    },
+    {
+      label: "403 sur un en-tête Host étranger",
+      call: () => harness.api("/api/workspace", { headers: { host: "evil.example.com" } }),
+      status: 403,
+      body: { code: "FORBIDDEN_HOST", params: {} },
+    },
+    {
+      label: "405 sur la route des opérations",
+      call: () => harness.api("/api/documents/.gitlab-ci.yml/operations"),
+      status: 405,
+      body: { code: "METHOD_NOT_ALLOWED", params: { method: "GET" } },
+    },
+    {
+      label: "404 sur un document hors du workspace",
+      call: () => harness.api("/api/documents/absent.yml"),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "absent.yml" } },
+    },
+    {
+      label: "404 sur une route API inconnue",
+      call: () => harness.api("/api/inconnu"),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unknownRoute", route: "/api/inconnu" } },
+    },
+    {
+      label: "404 sur une opération visant un fichier hors du workspace",
+      call: () =>
+        harness.api("/api/documents/autre.yml/operations", {
+          method: "POST",
+          body: JSON.stringify({
+            opId: "op-1",
+            op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "x" },
+          }),
+        }),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "autre.yml" } },
+    },
+    {
+      label: "400 sur un corps illisible",
+      call: () => post("pas du json{"),
+      status: 400,
+      body: { code: "INVALID_OPERATION", params: { reason: "unreadableBody" } },
+    },
+    {
+      label: "400 sans opId",
+      call: () => post({ op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "x" } }),
+      status: 400,
+      body: { code: "INVALID_OPERATION", params: { reason: "missingOpId" } },
+    },
+    {
+      label: "400 sans op",
+      call: () => post({ opId: "op-1" }),
+      status: 400,
+      body: { code: "INVALID_OPERATION", params: { reason: "missingOp" } },
+    },
+    {
+      label: "400 sur une version d'opération non supportée",
+      call: () => post({ opId: "op-1", op: { v: 2, baseHash: "0".repeat(64), kind: "addStage" } }),
+      status: 400,
+      body: { code: "UNSUPPORTED_VERSION", params: { received: 2, supported: 1 } },
+    },
+  ];
 
-    for (const response of responses) {
+  for (const { label, call, status, body } of paths) {
+    test(label, async () => {
+      const response = await call();
+      expect(response.status).toBe(status);
       expect(response.headers.get("content-type")).toContain("application/json");
-      const body = (await response.json()) as Record<string, unknown>;
-      expect(typeof body.code).toBe("string");
-      expect(typeof body.message).toBe("string");
-    }
+      expect(await response.json()).toEqual(body);
+    });
+  }
+
+  test("400 sur un schéma invalide : le détail de zod passe en params, sans message", async () => {
+    const response = await post({
+      opId: "op-1",
+      op: { v: 1, baseHash: await currentHash(), kind: "dropDatabase" },
+    });
+    expect(response.status).toBe(400);
+    const parsed = (await response.json()) as { code: string; params: Record<string, unknown> };
+    expect(Object.keys(parsed).sort()).toEqual(["code", "params"]);
+    expect(parsed.code).toBe("INVALID_OPERATION");
+    expect(parsed.params.reason).toBe("schema");
+    expect(typeof parsed.params.detail).toBe("string");
   });
 
-  test("une route API inconnue rend 404", async () => {
-    expect((await harness.api("/api/inconnu")).status).toBe(404);
+  test("409 porte le hash courant en plus de code et params, et rien d'autre", async () => {
+    const response = await post({
+      opId: "op-1",
+      op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "verify" },
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "STALE_DOCUMENT",
+      params: { expected: hashText(SAMPLE), received: "0".repeat(64) },
+      hash: hashText(SAMPLE),
+    });
   });
 });
 
