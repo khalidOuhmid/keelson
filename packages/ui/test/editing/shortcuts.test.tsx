@@ -180,8 +180,8 @@ describe("ErrorBanner", () => {
     expect(screen.getByRole("alert")).toBeDefined();
   });
 
-  test("sur JOB_REFERENCED, liste les jobs qui référencent la cible", () => {
-    render(
+  test("sur JOB_REFERENCED, rend la phrase anglaise et chaque référent", () => {
+    const { container } = render(
       <ErrorBanner
         error={failure({
           code: "JOB_REFERENCED",
@@ -190,8 +190,22 @@ describe("ErrorBanner", () => {
         onDismiss={() => {}}
       />,
     );
-    expect(screen.getByText("unit")).toBeDefined();
-    expect(screen.getByText("ship")).toBeDefined();
+    // La phrase vient de `render()`, les pastilles de `params.referencedBy` : deux chemins
+    // distincts dans le composant, et le test échoue si l'un des deux casse.
+    expect(screen.getByText('job "compile" is needed by unit, ship')).toBeDefined();
+    const referents = [...container.querySelectorAll("li")].map((node) => node.textContent);
+    expect(referents).toEqual(["unit", "ship"]);
+  });
+
+  test("un code sans params rend quand même sa phrase", () => {
+    render(
+      <ErrorBanner
+        error={failure({ status: 403, code: "FORBIDDEN_TOKEN", params: {} })}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(screen.getByText("the session token is missing or invalid")).toBeDefined();
+    expect(screen.getByText("FORBIDDEN_TOKEN")).toBeDefined();
   });
 
   test("n'invente pas de liste quand JOB_REFERENCED n'a pas de referencedBy", () => {
