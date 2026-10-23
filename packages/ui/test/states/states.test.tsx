@@ -11,8 +11,13 @@ import { NoticeBar } from "../../src/states/NoticeBar.tsx";
 
 afterEach(cleanup);
 
-function error(message = "cassé"): Diagnostic {
-  return { code: "INVALID_YAML", severity: "error", message, range: { start: 0, end: 4 } };
+function error(detail = "broken"): Diagnostic {
+  return {
+    code: "INVALID_YAML",
+    severity: "error",
+    params: { detail },
+    range: { start: 0, end: 4 },
+  };
 }
 
 describe("Loading", () => {
@@ -58,20 +63,20 @@ describe("InvalidDocument", () => {
   });
 
   test("affiche les diagnostics qui bloquent", () => {
-    render(<InvalidDocument diagnostics={[error("indentation incohérente")]} />);
-    expect(screen.getByText(/indentation incohérente/)).toBeDefined();
+    render(<InvalidDocument diagnostics={[error("inconsistent indentation")]} />);
+    expect(screen.getByText(/inconsistent indentation/)).toBeDefined();
   });
 
   test("n'affiche que les diagnostics d'erreur", () => {
     render(
       <InvalidDocument
         diagnostics={[
-          error("bloquant"),
-          { code: "JOB_WITHOUT_SCRIPT", severity: "warning", message: "muet", range: null },
+          error("blocking"),
+          { code: "JOB_WITHOUT_SCRIPT", severity: "warning", params: { job: "muet" }, range: null },
         ]}
       />,
     );
-    expect(screen.getByText(/bloquant/)).toBeDefined();
+    expect(screen.getByText(/blocking/)).toBeDefined();
     expect(screen.queryByText(/muet/)).toBeNull();
   });
 

@@ -1,4 +1,5 @@
 import type { Diagnostic, Severity, SourceRange } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { ErrorIcon, InfoIcon, WarningIcon } from "../icons.tsx";
 
 const ORDER: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
@@ -77,7 +78,7 @@ function Body({ diagnostic }: { diagnostic: Diagnostic }) {
         <span data-testid="diagnostic-code" className="font-mono text-xs text-text-secondary">
           {diagnostic.code}
         </span>
-        <span className="text-sm text-text-primary">{diagnostic.message}</span>
+        <span className="text-sm text-text-primary">{renderMessage(diagnostic)}</span>
       </span>
     </>
   );

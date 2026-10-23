@@ -1,4 +1,5 @@
 import type { Diagnostic } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { blocksEditing } from "../state/store.ts";
 
 export type InvalidDocumentProps = {
@@ -27,7 +28,7 @@ export function InvalidDocument({ diagnostics }: InvalidDocumentProps) {
               className="flex flex-col gap-0.5 rounded-sm border border-border-subtle bg-surface-inset p-2"
             >
               <span className="font-mono text-xs text-danger">{diagnostic.code}</span>
-              <span className="text-sm text-text-primary">{diagnostic.message}</span>
+              <span className="text-sm text-text-primary">{renderMessage(diagnostic)}</span>
             </li>
           ))}
         </ul>

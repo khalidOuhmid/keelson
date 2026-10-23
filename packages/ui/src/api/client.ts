@@ -1,4 +1,13 @@
-import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
+import type {
+  Diagnostic,
+  MessageCode,
+  Operation,
+  ParamsOf,
+  Pipeline,
+  SourceRange,
+  SpliceOperation,
+} from "@keelson/core";
+import { MESSAGE_CODES, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "@keelson/core/messages";
 
 export type AdapterName = "gitlab";
 
@@ -23,13 +32,11 @@ export type OperationPayload = {
   touched: SourceRange[];
 };
 
+/** Pas de `message` : il n'est plus sur le fil. Le texte se rend par `renderMessage(failure)`,
+ *  que cette forme rend directement possible. */
 export type ApiFailure = {
-  status: number;
-  code: string;
-  message: string;
-  details?: unknown;
-  hash?: string;
-};
+  [C in MessageCode]: { status: number; code: C; params: ParamsOf<C>; hash?: string };
+}[MessageCode];
 
 export type ApiResult<T> = { ok: true; value: T } | { ok: false; error: ApiFailure };
 
@@ -41,15 +48,26 @@ export type ClientOptions = {
 
 const TOKEN_HEADER = "X-Keelson-Token";
 
+const KNOWN_CODES = new Set<string>(MESSAGE_CODES);
+
+/** La seule frontière du produit où un `code` arrive sans type : il vient du réseau. Un code
+ *  inconnu du registre devient `UNEXPECTED_RESPONSE` plutôt que de traverser l'UI pour finir en
+ *  message vide — un `render()` sur un code absent lèverait, et le ferait au moment de l'affichage
+ *  d'une erreur, c'est-à-dire au pire moment. */
 function failure(status: number, body: unknown): ApiFailure {
   const shape = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
+  const code = typeof shape.code === "string" && KNOWN_CODES.has(shape.code) ? shape.code : null;
+
+  if (code === null) {
+    return { status, code: UNEXPECTED_RESPONSE, params: {} };
+  }
+
   return {
     status,
-    code: typeof shape.code === "string" ? shape.code : "UNKNOWN",
-    message: typeof shape.message === "string" ? shape.message : "unexpected server response",
-    ...(shape.details === undefined ? {} : { details: shape.details }),
+    code,
+    params: typeof shape.params === "object" && shape.params !== null ? shape.params : {},
     ...(typeof shape.hash === "string" ? { hash: shape.hash } : {}),
-  };
+  } as ApiFailure;
 }
 
 export class KeelsonClient {
@@ -83,8 +101,8 @@ export class KeelsonClient {
         ok: false,
         error: {
           status: 0,
-          code: "NETWORK_ERROR",
-          message: error instanceof Error ? error.message : "network error",
+          code: NETWORK_ERROR,
+          params: { detail: error instanceof Error ? error.message : "unknown cause" },
         },
       };
     }

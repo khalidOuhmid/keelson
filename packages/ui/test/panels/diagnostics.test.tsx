@@ -1,19 +1,31 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { Diagnostic } from "@keelson/core";
+import type { Diagnostic, Severity, SourceRange } from "@keelson/core";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DiagnosticsPanel } from "../../src/panels/DiagnosticsPanel.tsx";
 
 afterEach(cleanup);
 
-function diagnostic(overrides: Partial<Diagnostic> = {}): Diagnostic {
+/** Un diagnostic ne porte plus de `message` : le code et ses `params` vont ensemble, et le
+ *  compilateur le vérifie. Les fixtures nomment donc un code réel, jamais un code inventé. */
+const SAMPLES = {
+  need: { code: "UNKNOWN_NEED", params: { job: "unit", need: "absent" } },
+  cycle: { code: "NEEDS_CYCLE", params: { cycle: ["a", "b", "a"] } },
+  later: {
+    code: "NEED_LATER_STAGE",
+    params: { job: "compile", stage: "build", need: "publish", needStage: "deploy" },
+  },
+  include: { code: "INCLUDE_UNRESOLVED", params: {} },
+} as const satisfies Record<string, Pick<Diagnostic, "code" | "params">>;
+
+type Shape = { severity?: Severity; range?: SourceRange | null };
+
+function diagnostic(sample: keyof typeof SAMPLES = "need", shape: Shape = {}): Diagnostic {
   return {
-    code: "UNKNOWN_NEED",
-    severity: "error",
-    message: "le job « unit » a besoin de « absent », qui n'existe pas",
-    range: { start: 40, end: 90 },
-    ...overrides,
-  };
+    ...SAMPLES[sample],
+    severity: shape.severity ?? "error",
+    range: shape.range === undefined ? { start: 40, end: 90 } : shape.range,
+  } as Diagnostic;
 }
 
 type Picked = { start: number; end: number } | null;
@@ -34,12 +46,12 @@ describe("structure", () => {
   });
 
   test("un élément de liste par diagnostic", () => {
-    renderPanel([diagnostic(), diagnostic({ code: "NEEDS_CYCLE" })]);
+    renderPanel([diagnostic(), diagnostic("cycle")]);
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
   test("le compte des diagnostics est annoncé", () => {
-    renderPanel([diagnostic(), diagnostic({ code: "NEEDS_CYCLE" })]);
+    renderPanel([diagnostic(), diagnostic("cycle")]);
     expect(screen.getByRole("region", { name: /diagnostics/i }).textContent).toContain("2");
   });
 });
@@ -48,14 +60,14 @@ describe("contenu d'un diagnostic", () => {
   test("le code et le message sont affichés", () => {
     renderPanel([diagnostic()]);
     expect(screen.getByText("UNKNOWN_NEED")).toBeDefined();
-    expect(screen.getByText(/n'existe pas/)).toBeDefined();
+    expect(screen.getByText('job "unit" needs "absent", which does not exist')).toBeDefined();
   });
 
   test("la sévérité est affichée en texte, pas seulement par la couleur", () => {
     renderPanel([
-      diagnostic({ severity: "error" }),
-      diagnostic({ severity: "warning", code: "NEED_LATER_STAGE" }),
-      diagnostic({ severity: "info", code: "INCLUDE_UNRESOLVED" }),
+      diagnostic("need", { severity: "error" }),
+      diagnostic("later", { severity: "warning" }),
+      diagnostic("include", { severity: "info" }),
     ]);
     expect(screen.getByText("error")).toBeDefined();
     expect(screen.getByText("warning")).toBeDefined();
@@ -64,9 +76,9 @@ describe("contenu d'un diagnostic", () => {
 
   test("chaque sévérité porte un glyphe distinct", () => {
     renderPanel([
-      diagnostic({ severity: "error" }),
-      diagnostic({ severity: "warning", code: "A" }),
-      diagnostic({ severity: "info", code: "B" }),
+      diagnostic("need", { severity: "error" }),
+      diagnostic("later", { severity: "warning" }),
+      diagnostic("include", { severity: "info" }),
     ]);
     // Les marques sont des SVG : c'est leur tracé qui les distingue, plus leur texte.
     const glyphs = screen.getAllByTestId("severity-glyph").map((node) => node.innerHTML);
@@ -76,12 +88,12 @@ describe("contenu d'un diagnostic", () => {
 
   test("les diagnostics sont triés par sévérité, erreurs d'abord", () => {
     renderPanel([
-      diagnostic({ severity: "info", code: "INFO" }),
-      diagnostic({ severity: "error", code: "ERREUR" }),
-      diagnostic({ severity: "warning", code: "AVERT" }),
+      diagnostic("include", { severity: "info" }),
+      diagnostic("need", { severity: "error" }),
+      diagnostic("later", { severity: "warning" }),
     ]);
     const codes = screen.getAllByTestId("diagnostic-code").map((node) => node.textContent);
-    expect(codes).toEqual(["ERREUR", "AVERT", "INFO"]);
+    expect(codes).toEqual(["UNKNOWN_NEED", "NEED_LATER_STAGE", "INCLUDE_UNRESOLVED"]);
   });
 });
 
@@ -102,17 +114,17 @@ describe("sélection", () => {
   });
 
   test("un diagnostic sans plage n'est pas cliquable", () => {
-    renderPanel([diagnostic({ range: null })]);
+    renderPanel([diagnostic("need", { range: null })]);
     expect(screen.queryByRole("button", { name: /UNKNOWN_NEED/ })).toBeNull();
   });
 
   test("un diagnostic sans plage reste affiché", () => {
-    renderPanel([diagnostic({ range: null })]);
+    renderPanel([diagnostic("need", { range: null })]);
     expect(screen.getByText("UNKNOWN_NEED")).toBeDefined();
   });
 
   test("chaque diagnostic cliquable est atteignable au clavier", () => {
-    renderPanel([diagnostic(), diagnostic({ code: "NEEDS_CYCLE" })]);
+    renderPanel([diagnostic(), diagnostic("cycle")]);
     for (const button of screen.getAllByRole("button")) {
       expect(button.getAttribute("tabindex")).not.toBe("-1");
     }

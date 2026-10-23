@@ -5,7 +5,7 @@ import "./styles.css";
 const container = document.getElementById("root");
 
 if (container === null) {
-  throw new Error("élément #root absent de index.html");
+  throw new Error("#root element missing from index.html");
 }
 
 createRoot(container).render(<App />);
