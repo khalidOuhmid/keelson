@@ -25,7 +25,7 @@ export function InvalidDocument({ diagnostics }: InvalidDocumentProps) {
           {blocking.map((diagnostic, index) => (
             <li
               key={`${diagnostic.code}-${diagnostic.range?.start ?? index}`}
-              className="flex flex-col gap-0.5 rounded-sm border border-border-subtle bg-surface-inset p-2"
+              className="flex flex-col gap-0.5 rounded-sm border border-border-default bg-surface-inset p-2"
             >
               <span className="font-mono text-xs text-danger">{diagnostic.code}</span>
               <span className="text-sm text-text-primary">{renderMessage(diagnostic)}</span>
