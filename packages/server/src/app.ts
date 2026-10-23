@@ -179,9 +179,16 @@ export function createRequestHandler(context: AppContext) {
       }
 
       const file = decodeFile(document[1] ?? "");
-      const loaded = file === null ? null : await context.store.load(file);
+      if (file === null) {
+        // Même condition que sur la route des opérations, donc même `reason` : un nom indécodable
+        // n'est pas un fichier inconnu, et le dire autrement selon la route n'aiderait personne.
+        fail(response, 404, NOT_FOUND, { reason: "unreadableFileName" });
+        return;
+      }
+
+      const loaded = await context.store.load(file);
       if (loaded === null) {
-        fail(response, 404, NOT_FOUND, { reason: "unknownFile", file: file ?? "" });
+        fail(response, 404, NOT_FOUND, { reason: "unknownFile", file });
         return;
       }
       send(response, 200, loaded as unknown as Json);

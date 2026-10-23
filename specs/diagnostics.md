@@ -25,7 +25,7 @@ Trois familles distinctes, plus les codes forgés par le client :
 
 ## Le discriminant `reason`
 
-Deux codes d'opération et un code de transport couvrent chacun plusieurs situations distinctes.
+Trois codes d'opération et un code de transport couvrent chacun plusieurs situations distinctes.
 Plutôt que d'ajouter treize codes à un contrat public, leurs `params` portent un discriminant
 **`reason`**, et le rendu branche dessus. Le `reason` fait donc partie du contrat : les valeurs
 possibles sont listées ci-dessous, et l'exhaustivité des branches de rendu est garantie à la
@@ -165,7 +165,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `STAGE_NOT_FOUND` | `{ stage }` | Le stage visé n'est pas déclaré. Les stages implicites (`.pre`, `build`, `test`, `deploy`, `.post`) comptent comme déclarés. |
 | `STAGE_EXISTS` | `{ stage }` | `addStage` sur un stage déjà présent, implicite compris. |
 | `NEED_EXISTS` | `{ job, need }` | `addNeed` sur un need déjà présent dans la valeur effective. |
-| `NEED_NOT_FOUND` | `{ job, need }` | `removeNeed` sur un need absent de la valeur effective. |
+| `NEED_NOT_FOUND` | `{ reason: "notNeeded", job, need }` ou `{ reason: "notLocal", job, need }` | `notNeeded` : `removeNeed` sur un need absent de la valeur effective. `notLocal` : le need **est** effectif, mais la liste `needs` du job n'est pas une séquence lisible item par item — un alias d'anchor ou un `!reference` — donc le retirer demanderait de réécrire la liste partagée, ce que Keelson ne fait pas. |
 | `CYCLE` | `{ operation }` | L'opération créerait un cycle dans les `needs` qui n'existait pas avant. Évalué sur l'IR du texte résultant, pour toutes les opérations sauf `splice`. |
 | `UNSUPPORTED_VERSION` | `{ received, supported }` | L'opération porte un `v` numérique différent de `1`. |
 | `INVALID_OPERATION` | union sur `reason`, voir ci-dessous | L'opération ne respecte pas son schéma, ou l'édition demandée n'est pas supportée. |

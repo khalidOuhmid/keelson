@@ -41,7 +41,14 @@ export const EN: Catalogue = {
   STAGE_NOT_FOUND: (p) => `stage ${quoted(p.stage)} is not declared`,
   STAGE_EXISTS: (p) => `stage ${quoted(p.stage)} already exists`,
   NEED_EXISTS: (p) => `job ${quoted(p.job)} already needs ${quoted(p.need)}`,
-  NEED_NOT_FOUND: (p) => `job ${quoted(p.job)} does not need ${quoted(p.need)}`,
+  NEED_NOT_FOUND: {
+    notNeeded: (p) => `job ${quoted(p.job)} does not need ${quoted(p.need)}`,
+    // Ce chemin n'est atteint qu'après avoir établi que le need *est* dans la valeur effective,
+    // mais que la liste locale n'est pas une séquence lisible item par item — un alias d'anchor ou
+    // un `!reference`. Dire « does not need » y énoncerait l'inverse de la condition qui y mène.
+    notLocal: (p) =>
+      `job ${quoted(p.job)} needs ${quoted(p.need)} through an anchor or a !reference, so removing it would mean rewriting that shared list`,
+  },
   CYCLE: (p) => `operation ${p.operation} would create a cycle in needs`,
   UNSUPPORTED_VERSION: (p) =>
     `operation version ${p.received} is not supported, expected ${p.supported}`,

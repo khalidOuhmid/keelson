@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { chmodSync, readFileSync } from "node:fs";
 import { hashText } from "@keelson/core";
 import { codeOf, type Harness, SAMPLE, startHarness } from "./support/harness.ts";
 
@@ -197,8 +197,14 @@ describe("limite de taille du corps", () => {
 describe("forme des erreurs", () => {
   /** Un chemin d'erreur par entrée, et pour chacun la forme **exacte** du corps. `toEqual` plutôt
    *  qu'une suite de `toBe` : c'est la seule façon de faire échouer le test si une clé `message`
-   *  réapparaît, et c'est précisément ce que ce lot interdit. Le 413, le 403 Host et le 403 token
-   *  sont couverts dans leurs describe respectifs, avec leur mise en scène propre. */
+   *  réapparaît, et c'est précisément ce que ce lot interdit.
+   *
+   *  La table couvre tous les chemins sauf `INTERNAL_ERROR`, qui demande de faire lever le
+   *  gestionnaire et vit donc dans son propre describe. La revue du 2026-10-22 a relevé que la
+   *  version précédente de ce commentaire renvoyait le 413 vers « son describe », où seul le
+   *  **code** était vérifié : or le 413 est le seul corps que le serveur sérialise à la main, hors
+   *  du `fail()` qui garantit la forme. C'était donc le chemin le moins gardé, décrit comme
+   *  couvert. Il est dans la table maintenant. */
   const paths: {
     label: string;
     call: () => Promise<Response>;
@@ -245,6 +251,42 @@ describe("forme des erreurs", () => {
       call: () => harness.api("/api/documents/absent.yml"),
       status: 404,
       body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "absent.yml" } },
+    },
+    {
+      // `%` seul est un échappement invalide : `decodeURIComponent` lève.
+      label: "404 sur un nom de fichier indécodable, route du document",
+      call: () => harness.api("/api/documents/%"),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unreadableFileName" } },
+    },
+    {
+      label: "404 sur un nom de fichier indécodable, route des opérations",
+      call: () =>
+        harness.api("/api/documents/%/operations", {
+          method: "POST",
+          body: JSON.stringify({ opId: "op-1", op: {} }),
+        }),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unreadableFileName" } },
+    },
+    {
+      // Le seul corps que le serveur sérialise à la main, donc le seul qui puisse dériver de la
+      // forme sans que `fail()` l'en empêche.
+      label: "413 au-delà de la limite de corps",
+      call: () =>
+        post({
+          opId: "op-1",
+          op: {
+            v: 1,
+            baseHash: "0".repeat(64),
+            kind: "splice",
+            start: 0,
+            end: 0,
+            text: "x".repeat(1_100_000),
+          },
+        }),
+      status: 413,
+      body: { code: "PAYLOAD_TOO_LARGE", params: { limitBytes: 1_048_576 } },
     },
     {
       label: "404 sur une route API inconnue",
@@ -327,8 +369,36 @@ describe("forme des erreurs", () => {
   });
 });
 
+describe("INTERNAL_ERROR", () => {
+  /** Le sixième code de transport, et le seul que la table de formes ne peut pas atteindre : il
+   *  faut faire **lever** le gestionnaire. L'écriture atomique passe par un fichier temporaire dans
+   *  le dossier du document ; un dossier sans droit d'écriture la fait donc échouer, et l'exception
+   *  remonte jusqu'au filet de `createServer`. Relevé absent par la revue du 2026-10-22. */
+  test("un gestionnaire qui lève rend 500 avec code et params, et aucun détail", async () => {
+    const hash = await currentHash();
+    chmodSync(harness.root, 0o500);
+    try {
+      const response = await post({
+        opId: "op-1",
+        op: { v: 1, baseHash: hash, kind: "addStage", name: "verify" },
+      });
+      expect(response.status).toBe(500);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      // Aucun détail exposé : ni chemin, ni message d'exception.
+      expect(await response.json()).toEqual({ code: "INTERNAL_ERROR", params: {} });
+    } finally {
+      chmodSync(harness.root, 0o700);
+    }
+  });
+});
+
 describe("sans bundle d'UI", () => {
-  test("une route hors API rend 404", async () => {
-    expect((await harness.raw("/")).status).toBe(404);
+  test("une route hors API rend 404 avec la forme attendue", async () => {
+    const response = await harness.raw("/");
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      code: "NOT_FOUND",
+      params: { reason: "noUiBundle" },
+    });
   });
 });

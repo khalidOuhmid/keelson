@@ -109,7 +109,9 @@ export type MessageParams = {
   STAGE_NOT_FOUND: { stage: string };
   STAGE_EXISTS: { stage: string };
   NEED_EXISTS: { job: string; need: string };
-  NEED_NOT_FOUND: { job: string; need: string };
+  NEED_NOT_FOUND:
+    | { reason: "notNeeded"; job: string; need: string }
+    | { reason: "notLocal"; job: string; need: string };
   CYCLE: { operation: string };
   UNSUPPORTED_VERSION: { received: number; supported: number };
   INVALID_OPERATION:

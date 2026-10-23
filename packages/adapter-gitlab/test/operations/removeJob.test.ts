@@ -104,7 +104,7 @@ describe("removeJob", () => {
     expect(renderMessage(error)).toContain("unit");
   });
 
-  test("JOB_REFERENCED liste les jobs qui le référencent dans details", () => {
+  test("JOB_REFERENCED liste les jobs qui le référencent dans params", () => {
     const error = expectUnchanged(BASE, { kind: "removeJob", id: "compile" }, "JOB_REFERENCED");
     expect(error.code === JOB_REFERENCED ? error.params.referencedBy : null).toEqual(["unit"]);
   });

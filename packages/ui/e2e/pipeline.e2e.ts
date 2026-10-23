@@ -100,7 +100,9 @@ test("la suppression du fichier affiche l'état supprimé", async ({ page }) => 
   await expect(page.getByRole("heading", { name: /deleted/i })).toBeVisible({ timeout: 10_000 });
 });
 
-test("un 409 affiche le message, recharge et vide l'historique", async ({ page }) => {
+test("un 409 dit en anglais que rien n'a été appliqué, recharge et vide l'historique", async ({
+  page,
+}) => {
   await page.route("**/api/events*", (route) => route.abort());
   await open(page);
 
@@ -114,6 +116,15 @@ test("un 409 affiche le message, recharge et vide l'historique", async ({ page }
   await page.getByRole("button", { name: "Add stage" }).click();
 
   await expect(page.getByTestId("notice-kind")).toContainText("Not applied");
+  // Le titre de ce test promettait « le message » sans jamais l'asserter — relevé par la revue du
+  // 2026-10-22. Depuis que le serveur n'envoie plus de phrase, c'est ici le seul endroit où le
+  // rendu du 409 sur le binaire réel est vérifié.
+  // Deux `role="alert"` coexistent sur ce chemin : la bannière de notice, qui porte son texte en
+  // dur côté UI, et la bannière d'erreur, qui rend celui du serveur. C'est la seconde qu'on veut,
+  // désignée par le code qu'elle affiche — `.first()` prendrait la notice et le test passerait
+  // sans que rien ne soit rendu depuis `code` + `params`.
+  const banner = page.getByRole("alert").filter({ hasText: "STALE_DOCUMENT" });
+  await expect(banner).toContainText("the document changed since the operation was computed");
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
   expect(keelson.read()).not.toContain("publish");
 });

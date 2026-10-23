@@ -113,6 +113,68 @@ describe("removeNeed", () => {
   });
 
   test("NEED_NOT_FOUND quand le job n'a aucun need", () => {
-    expectUnchanged(deux, { kind: "removeNeed", id: "compile", job: "paquet" }, "NEED_NOT_FOUND");
+    const error = expectUnchanged(
+      deux,
+      { kind: "removeNeed", id: "compile", job: "paquet" },
+      "NEED_NOT_FOUND",
+    );
+    expect(error.code === "NEED_NOT_FOUND" ? error.params.reason : null).toBe("notNeeded");
+  });
+
+  /** Le need est bien dans la valeur effective, mais la liste locale n'est pas une séquence lisible
+   *  item par item : la retirer demanderait de réécrire la liste partagée. Ce chemin n'était couvert
+   *  par aucun test — relevé par la revue indépendante du 2026-10-22, qui a vu que la phrase rendue
+   *  y disait l'inverse de la condition qui y mène. */
+  describe("need venant d'une liste partagée", () => {
+    const partagee = (ligne: string): string =>
+      [
+        "stages:",
+        "  - build",
+        "  - test",
+        "",
+        ".base:",
+        "  needs: &shared",
+        "    - compile",
+        "    - lint",
+        "",
+        "compile:",
+        "  stage: build",
+        "  script: a",
+        "",
+        "lint:",
+        "  stage: build",
+        "  script: l",
+        "",
+        "unit:",
+        "  stage: test",
+        `  needs: ${ligne}`,
+        "  script: b",
+        "",
+      ].join("\n");
+
+    for (const [nom, ligne] of [
+      ["un alias d'anchor", "*shared"],
+      ["un !reference", "!reference [.base, needs]"],
+    ] as const) {
+      test(`${nom} rend NEED_NOT_FOUND / notLocal, fichier intact`, () => {
+        const text = partagee(ligne);
+        // Le need *est* effectif : sans cela le refus viendrait de la branche précédente.
+        expect(jobOf(text, "unit").needs?.value.map((need) => need.job)).toEqual([
+          "compile",
+          "lint",
+        ]);
+
+        const error = expectUnchanged(
+          text,
+          { kind: "removeNeed", id: "unit", job: "compile" },
+          "NEED_NOT_FOUND",
+        );
+        expect(error.code === "NEED_NOT_FOUND" ? error.params : null).toEqual({
+          reason: "notLocal",
+          job: "unit",
+          need: "compile",
+        });
+      });
+    }
   });
 });

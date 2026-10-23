@@ -435,7 +435,7 @@ function planRemoveNeed(
 
   const current = effectiveNeeds(pipeline, operation.id);
   if (!current.some((need) => need.job === operation.job)) {
-    return fail(NEED_NOT_FOUND, { job: operation.id, need: operation.job });
+    return fail(NEED_NOT_FOUND, { reason: "notNeeded", job: operation.id, need: operation.job });
   }
 
   const remaining = current.filter((need) => need.job !== operation.job);
@@ -475,7 +475,7 @@ function planRemoveNeed(
   const victim = items[index];
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
   if (victimRange === undefined) {
-    return fail(NEED_NOT_FOUND, { job: operation.id, need: operation.job });
+    return fail(NEED_NOT_FOUND, { reason: "notLocal", job: operation.id, need: operation.job });
   }
 
   if (isSeq(seq) && seq.flow === true) {

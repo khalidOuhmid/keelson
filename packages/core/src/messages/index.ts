@@ -20,21 +20,29 @@ export function renderMessage(message: Message): string {
 /** Le seul endroit du produit où un `(code, params)` devient du texte. La CLI et l'UI passent
  *  toutes deux par ici : une seule formulation par code, pour tout le produit.
  *
- *  **Ne lève jamais.** Les `params` de l'UI viennent du réseau : le type promet leur forme, le fil
- *  ne la garantit pas. Un rendu qui lève le ferait pendant l'affichage d'une *autre* erreur, donc
- *  au pire moment — l'écran deviendrait blanc au lieu d'afficher le refus du serveur. Le repli est
- *  le texte d'`UNEXPECTED_RESPONSE` ; le code d'origine, lui, reste affiché à côté par l'appelant,
- *  donc l'information n'est pas perdue. */
+ *  **Ne lève jamais, et rend toujours une phrase.** Les `params` de l'UI viennent du réseau : le
+ *  type promet leur forme, le fil ne la garantit pas. Un rendu qui lève le ferait pendant
+ *  l'affichage d'une *autre* erreur, donc au pire moment — l'écran deviendrait blanc au lieu
+ *  d'afficher le refus du serveur. Ne pas lever ne suffit pourtant pas : un renderer dont le corps
+ *  est une lecture de `params` nue, comme `INVALID_YAML`, rend `undefined` sans rien lever, ce que
+ *  la CLI passait ensuite à `.replace()`. Le repli couvre donc les deux cas, et vaut le texte
+ *  d'`UNEXPECTED_RESPONSE` ; le code d'origine reste affiché à côté par l'appelant, donc
+ *  l'information n'est pas perdue. */
 export function render<C extends MessageCode>(code: C, params: ParamsOf<C>): string {
   const renderer = EN[code] as ((params: ParamsOf<C>) => string) | Branches;
-  try {
-    if (typeof renderer === "function") {
-      return renderer(params);
+  const produced = ((): unknown => {
+    try {
+      if (typeof renderer === "function") {
+        return renderer(params);
+      }
+      const branch = renderer[(params as { reason: string }).reason];
+      return branch === undefined ? undefined : branch(params);
+    } catch {
+      return undefined;
     }
-    const reason = (params as { reason: string }).reason;
-    const branch = renderer[reason];
-    return branch === undefined ? EN.UNEXPECTED_RESPONSE({}) : branch(params);
-  } catch {
-    return EN.UNEXPECTED_RESPONSE({});
-  }
+  })();
+
+  return typeof produced === "string" && produced.trim() !== ""
+    ? produced
+    : EN.UNEXPECTED_RESPONSE({});
 }
