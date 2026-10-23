@@ -24,6 +24,7 @@ import { InvalidDocument } from "./states/InvalidDocument.tsx";
 import { Loading } from "./states/Loading.tsx";
 import { NoCiFile } from "./states/NoCiFile.tsx";
 import { NoticeBar } from "./states/NoticeBar.tsx";
+import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
 
 type ClientSurface = {
@@ -217,6 +218,13 @@ export function App({ deps }: AppProps = {}) {
         </span>
       </header>
 
+      {state.pipeline === null ? null : (
+        <PartialPipelineBar
+          pipeline={state.pipeline}
+          onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
+        />
+      )}
+
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null ? (
           <aside className="flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3">
@@ -243,7 +251,8 @@ export function App({ deps }: AppProps = {}) {
           <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto">
             <JobDetailPanel
               job={selected}
-              text={state.text}
+              textOf={(file) => state.textOf(file)}
+              main={state.pipeline.main}
               onClose={() => store.getState().selectJob(null)}
             />
             <div className="border-l border-border-subtle bg-surface-1 p-3">
@@ -253,6 +262,7 @@ export function App({ deps }: AppProps = {}) {
                 pipeline={state.pipeline}
                 onSubmit={(draft) => void store.getState().submit(draft)}
                 disabled={!editable}
+                lockedTo={selected.file === state.pipeline.main ? null : selected.file}
               />
             </div>
           </aside>
@@ -262,7 +272,8 @@ export function App({ deps }: AppProps = {}) {
       <div className="max-h-1/3 shrink-0 overflow-y-auto">
         <DiagnosticsPanel
           diagnostics={state.diagnostics}
-          onSelectRange={(range) => store.getState().selectByRange(range)}
+          main={state.pipeline?.main ?? state.file ?? ""}
+          onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
         />
       </div>
     </div>

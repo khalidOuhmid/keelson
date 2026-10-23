@@ -42,8 +42,15 @@ function job(overrides: Partial<Job> = {}): Job {
   };
 }
 
-function renderPanel(value: Job, text = TEXT) {
-  return render(<JobDetailPanel job={value} text={text} onClose={() => undefined} />);
+function renderPanel(value: Job, text = TEXT, texts: Record<string, string> = {}) {
+  return render(
+    <JobDetailPanel
+      job={value}
+      textOf={(file) => (file === MAIN ? text : (texts[file] ?? ""))}
+      main={MAIN}
+      onClose={() => undefined}
+    />,
+  );
 }
 
 describe("sliceOpaque", () => {

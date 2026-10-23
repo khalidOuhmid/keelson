@@ -64,6 +64,7 @@ const DOCUMENT: DocumentPayload = {
   pipeline: pipeline(),
   diagnostics: [],
   hash: HASH,
+  included: {},
 };
 
 type Harness = {
@@ -90,6 +91,7 @@ function harness(
     pipeline: pipeline(),
     diagnostics: [],
     hash: NEXT,
+    included: {},
     inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
     touched: [],
   };
@@ -598,6 +600,7 @@ describe("suppression confirmée : focus et sélection", () => {
         pipeline: withoutUnit(),
         diagnostics: [],
         hash: NEXT,
+        included: {},
         inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
         touched: [],
       },

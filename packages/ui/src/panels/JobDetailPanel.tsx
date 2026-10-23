@@ -1,11 +1,22 @@
 import type { Job, Origin } from "@keelson/core";
+import { ReadOnlyTag } from "../views/pipeline/JobNode.tsx";
 import { OriginBadge } from "../views/pipeline/OriginBadge.tsx";
 import { OpaqueBlockView } from "./OpaqueBlockView.tsx";
 import { sliceOpaque } from "./opaque.ts";
 
+export const INCLUDED_JOB_NOTE =
+  "This job is defined in an included file. Keelson never writes to included files, so it cannot be edited here. Open that file in your own editor to change it.";
+
+const INCLUDED_NOTE_ID = "job-included-reason";
+
 export type JobDetailPanelProps = {
   job: Job;
-  text: string;
+  /** Le texte du fichier d'un bloc opaque. Un seul `text` ne suffit plus : les plages d'un job
+   *  inclus sont des offsets dans **son** fichier, et les découper dans le fichier principal
+   *  rendrait des octets pris ailleurs. */
+  textOf: (file: string) => string;
+  /** Le fichier principal, pour savoir si ce job est éditable. */
+  main: string;
   onClose: () => void;
 };
 
@@ -43,17 +54,22 @@ function OpaqueContent({ blockKey, source }: { blockKey: string; source: string 
   return <OpaqueBlockView blockKey={blockKey} source={source} />;
 }
 
-export function JobDetailPanel({ job, text, onClose }: JobDetailPanelProps) {
+export function JobDetailPanel({ job, textOf, main, onClose }: JobDetailPanelProps) {
   const needs = job.needs?.value ?? [];
   const environment = job.environment?.value ?? null;
+  const included = job.file !== main;
 
   return (
     <section
       aria-label="Job detail"
+      {...(included ? { "aria-describedby": INCLUDED_NOTE_ID } : {})}
       className="flex h-full flex-col gap-4 overflow-y-auto border-l border-border-subtle bg-surface-1 p-3"
     >
       <header className="flex items-start justify-between gap-2">
-        <h2 className="truncate text-lg font-semibold text-text-primary">{job.id}</h2>
+        <h2 className="flex min-w-0 items-center gap-1.5 text-lg font-semibold text-text-primary">
+          <span className="truncate">{job.id}</span>
+          {included ? <ReadOnlyTag /> : null}
+        </h2>
         <button
           type="button"
           aria-label="Close job detail"
@@ -63,6 +79,16 @@ export function JobDetailPanel({ job, text, onClose }: JobDetailPanelProps) {
           Close
         </button>
       </header>
+
+      {included ? (
+        <p id={INCLUDED_NOTE_ID} className="text-sm text-text-secondary">
+          {INCLUDED_JOB_NOTE}
+        </p>
+      ) : null}
+
+      <Field label="Source file" testId="job-source-file">
+        <span className="font-mono break-all">{job.file}</span>
+      </Field>
 
       <Field label="Stage" testId="job-stage" origin={job.stage.origin}>
         <span className="font-mono">{job.stage.value}</span>
@@ -129,7 +155,7 @@ export function JobDetailPanel({ job, text, onClose }: JobDetailPanelProps) {
                 <span className="font-mono text-xs text-text-secondary">{block.key}</span>
                 <span className="text-2xs tracking-label text-text-muted uppercase">read-only</span>
               </header>
-              <OpaqueContent blockKey={block.key} source={sliceOpaque(text, block)} />
+              <OpaqueContent blockKey={block.key} source={sliceOpaque(textOf(block.file), block)} />
             </div>
           ))
         )}

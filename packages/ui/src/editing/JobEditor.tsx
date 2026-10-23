@@ -11,14 +11,29 @@ import {
   setJobStage,
 } from "./drafts.ts";
 
+export const JOB_LOCK_ID = "job-editor-locked";
+
+export function jobLockNote(file: string): string {
+  return `Editing is off for this job. It is defined in ${file}, and Keelson never writes to included files.`;
+}
+
 export type JobEditorProps = {
   job: Job;
   pipeline: Pipeline;
   onSubmit: (draft: Draft) => void;
   disabled?: boolean;
+  /** Le fichier inclus qui possède le job, ou `null` s'il vit dans le fichier principal. Non nul
+   *  ⇒ tous les contrôles sont désactivés, et la raison est portée par le groupe. */
+  lockedTo?: string | null;
 };
 
-export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEditorProps) {
+export function JobEditor({
+  job,
+  pipeline,
+  onSubmit,
+  disabled = false,
+  lockedTo = null,
+}: JobEditorProps) {
   const needs = job.needs?.value ?? [];
   const required = new Set(needs.map((need) => need.job));
   const candidates = pipeline.jobs
@@ -58,14 +73,32 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   const [environmentName, setEnvironmentName] = useState(job.environment?.value.name ?? "");
   const [environmentUrl, setEnvironmentUrl] = useState(job.environment?.value.url ?? "");
 
+  const locked = lockedTo !== null;
+  const off = disabled || locked;
+
   const guard = (draft: Draft): void => {
-    if (!disabled) {
+    if (!off) {
       onSubmit(draft);
     }
   };
 
   return (
-    <div className="flex flex-col gap-4 border-t border-border-subtle pt-3">
+    /* La raison est portée par le **groupe** et non par chaque contrôle : un contrôle `disabled`
+       n'est pas tabulable, donc un `aria-describedby` posé dessus ne serait jamais lu. On ne passe
+       pas pour autant en `aria-disabled` focusable — dix arrêts de tabulation sur des contrôles
+       morts coûtent plus qu'ils ne rapportent. */
+    // biome-ignore lint/a11y/useSemanticElements: fieldset est réservé aux contrôles d'un seul formulaire ; ce bloc en contient plusieurs
+    <div
+      role="group"
+      aria-label="Job editor"
+      {...(locked ? { "aria-describedby": JOB_LOCK_ID } : {})}
+      className="flex flex-col gap-4 border-t border-border-subtle pt-3"
+    >
+      {lockedTo === null ? null : (
+        <p id={JOB_LOCK_ID} className="text-sm text-text-secondary">
+          {jobLockNote(lockedTo)}
+        </p>
+      )}
       <form
         className={GROUP}
         onSubmit={(event) => {
@@ -80,11 +113,11 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <input
             className={FIELD}
             value={name}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setName(event.target.value)}
           />
         </label>
-        <button type="submit" className={BUTTON} disabled={disabled}>
+        <button type="submit" className={BUTTON} disabled={off}>
           Rename
         </button>
       </form>
@@ -95,7 +128,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <select
             className={FIELD}
             value={stage}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setStage(event.target.value)}
           >
             {pipeline.stages.map((candidate) => (
@@ -108,7 +141,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         <button
           type="button"
           className={BUTTON}
-          disabled={disabled || stage === job.stage.value}
+          disabled={off || stage === job.stage.value}
           onClick={() => {
             if (stage !== job.stage.value) {
               guard(setJobStage(job.id, stage));
@@ -129,7 +162,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
                 <button
                   type="button"
                   className={BUTTON}
-                  disabled={disabled}
+                  disabled={off}
                   aria-label={`Remove need ${need.job}`}
                   onClick={() => guard(removeNeed(job.id, need.job))}
                 >
@@ -145,7 +178,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <select
             className={FIELD}
             value={effectiveNeed}
-            disabled={disabled || candidates.length === 0}
+            disabled={off || candidates.length === 0}
             onChange={(event) => setNeedTarget(event.target.value)}
           >
             {candidates.map((candidate) => (
@@ -160,7 +193,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <input
             type="checkbox"
             checked={optional}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setOptional(event.target.checked)}
           />
           Optional
@@ -170,7 +203,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <input
             type="checkbox"
             checked={artifacts}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setArtifacts(event.target.checked)}
           />
           Artifacts
@@ -179,7 +212,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         <button
           type="button"
           className={BUTTON}
-          disabled={disabled || effectiveNeed === ""}
+          disabled={off || effectiveNeed === ""}
           onClick={() => guard(addNeed(job.id, effectiveNeed, { optional, artifacts }))}
         >
           Add need
@@ -193,7 +226,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <input
             className={FIELD}
             value={environmentName}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setEnvironmentName(event.target.value)}
           />
         </label>
@@ -202,14 +235,14 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <input
             className={FIELD}
             value={environmentUrl}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setEnvironmentUrl(event.target.value)}
           />
         </label>
         <button
           type="button"
           className={BUTTON}
-          disabled={disabled}
+          disabled={off}
           onClick={() => {
             if (environmentName.trim() !== "") {
               guard(setEnvironment(job.id, { name: environmentName.trim(), url: environmentUrl }));
@@ -222,7 +255,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           <button
             type="button"
             className={BUTTON}
-            disabled={disabled}
+            disabled={off}
             onClick={() => guard(setEnvironment(job.id, null))}
           >
             Remove environment
@@ -234,7 +267,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         ref={deleteTrigger}
         type="button"
         className={DANGER_BUTTON}
-        disabled={disabled}
+        disabled={off}
         onClick={() => setConfirmingDelete(true)}
       >
         Delete job
@@ -266,7 +299,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
               ref={confirmButton}
               type="button"
               className={DANGER_BUTTON}
-              disabled={disabled}
+              disabled={off}
               onClick={() => {
                 setConfirmingDelete(false);
                 guard(removeJob(job.id));

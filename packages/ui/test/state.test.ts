@@ -31,7 +31,13 @@ function pipeline(jobs: string[] = ["compile"]): Pipeline {
 }
 
 function documentPayload(hash = HASH_A): DocumentPayload {
-  return { text: "stages:\n  - build\n", pipeline: pipeline(), diagnostics: [], hash };
+  return {
+    text: "stages:\n  - build\n",
+    pipeline: pipeline(),
+    diagnostics: [],
+    hash,
+    included: {},
+  };
 }
 
 function operationPayload(hash: string, inverseHash: string): OperationPayload {
@@ -40,6 +46,7 @@ function operationPayload(hash: string, inverseHash: string): OperationPayload {
     pipeline: pipeline(["compile", "unit"]),
     diagnostics: [],
     hash,
+    included: {},
     inverse: {
       v: 1,
       baseHash: inverseHash,
@@ -341,13 +348,13 @@ describe("sélection", () => {
   });
 
   test("sélectionner depuis un diagnostic sélectionne le job de la plage", () => {
-    state().selectByRange({ start: 0, end: 10 });
+    state().selectByRange(MAIN, { start: 0, end: 10 });
     expect(state().selectedJobId).toBe("compile");
   });
 
   test("une plage hors de tout job ne sélectionne rien", () => {
     state().selectJob("compile");
-    state().selectByRange({ start: 9000, end: 9001 });
+    state().selectByRange(MAIN, { start: 9000, end: 9001 });
     expect(state().selectedJobId).toBeNull();
   });
 
@@ -550,5 +557,28 @@ describe("le texte suit les opérations", () => {
     await state().undo();
 
     expect(state().text).toBe("stages:\n  - build\n");
+  });
+});
+
+describe("sélection par plage avec plusieurs fichiers", () => {
+  /** Deux fichiers ont chacun leurs offsets à partir de zéro. Sans le fichier dans la clé, la
+   *  plage d'un diagnostic venu d'un fichier inclus tombe dans la plage d'un job du fichier
+   *  principal, et l'écran sélectionne un job qui n'a rien à voir avec le message lu. */
+  test("une plage venue d'un autre fichier ne sélectionne pas un job du fichier principal", () => {
+    state().documentLoaded(MAIN, {
+      text: "stages:\n  - build\n",
+      pipeline: pipeline(),
+      diagnostics: [],
+      hash: HASH_A,
+      included: { "ci/jobs.yml": "compile:\n" },
+    });
+
+    // `compile` occupe [0, 10[ dans le fichier principal. La même plage dans `ci/jobs.yml` ne
+    // désigne pas ce job.
+    state().selectByRange("ci/jobs.yml", { start: 0, end: 10 });
+    expect(state().selectedJobId).toBeNull();
+
+    state().selectByRange(MAIN, { start: 0, end: 10 });
+    expect(state().selectedJobId).toBe("compile");
   });
 });

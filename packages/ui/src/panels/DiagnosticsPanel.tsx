@@ -18,10 +18,12 @@ const TONE: Record<Severity, string> = {
 
 export type DiagnosticsPanelProps = {
   diagnostics: readonly Diagnostic[];
-  onSelectRange: (range: SourceRange | null) => void;
+  onSelectRange: (file: string, range: SourceRange | null) => void;
+  /** Le fichier principal : les lignes qui viennent d'ailleurs le nomment, les autres non. */
+  main: string;
 };
 
-export function DiagnosticsPanel({ diagnostics, onSelectRange }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ diagnostics, onSelectRange, main }: DiagnosticsPanelProps) {
   const sorted = [...diagnostics].sort(
     (left, right) => ORDER[left.severity] - ORDER[right.severity],
   );
@@ -47,7 +49,7 @@ export function DiagnosticsPanel({ diagnostics, onSelectRange }: DiagnosticsPane
               key={`${diagnostic.code}-${diagnostic.range?.start ?? index}`}
               className="border-b border-border-subtle last:border-b-0"
             >
-              <Row diagnostic={diagnostic} onSelectRange={onSelectRange} />
+              <Row diagnostic={diagnostic} onSelectRange={onSelectRange} main={main} />
             </li>
           ))}
         </ul>
@@ -56,7 +58,7 @@ export function DiagnosticsPanel({ diagnostics, onSelectRange }: DiagnosticsPane
   );
 }
 
-function Body({ diagnostic }: { diagnostic: Diagnostic }) {
+function Body({ diagnostic, main }: { diagnostic: Diagnostic; main: string }) {
   return (
     <>
       <span className="flex shrink-0 items-center gap-1.5">
@@ -75,8 +77,17 @@ function Body({ diagnostic }: { diagnostic: Diagnostic }) {
         </span>
       </span>
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span data-testid="diagnostic-code" className="font-mono text-xs text-text-secondary">
-          {diagnostic.code}
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span data-testid="diagnostic-code" className="font-mono text-xs text-text-secondary">
+            {diagnostic.code}
+          </span>
+          {/* Le fichier n'est nommé que quand ce n'est pas celui que l'utilisateur a sous les yeux :
+              le répéter sur chaque ligne du fichier principal ne dirait rien. */}
+          {diagnostic.file === main ? null : (
+            <span data-testid="diagnostic-file" className="font-mono text-2xs text-text-muted">
+              {diagnostic.file}
+            </span>
+          )}
         </span>
         <span className="text-sm text-text-primary">{renderMessage(diagnostic)}</span>
       </span>
@@ -87,16 +98,18 @@ function Body({ diagnostic }: { diagnostic: Diagnostic }) {
 function Row({
   diagnostic,
   onSelectRange,
+  main,
 }: {
   diagnostic: Diagnostic;
-  onSelectRange: (range: SourceRange | null) => void;
+  onSelectRange: (file: string, range: SourceRange | null) => void;
+  main: string;
 }) {
   const shared = "flex w-full items-start gap-2 px-3 py-2 text-left";
 
   if (diagnostic.range === null) {
     return (
       <div className={shared}>
-        <Body diagnostic={diagnostic} />
+        <Body diagnostic={diagnostic} main={main} />
       </div>
     );
   }
@@ -104,10 +117,10 @@ function Row({
   return (
     <button
       type="button"
-      onClick={() => onSelectRange(diagnostic.range)}
+      onClick={() => onSelectRange(diagnostic.file, diagnostic.range)}
       className={`${shared} cursor-pointer transition-colors duration-fast ease-out hover:bg-surface-2`}
     >
-      <Body diagnostic={diagnostic} />
+      <Body diagnostic={diagnostic} main={main} />
     </button>
   );
 }

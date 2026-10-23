@@ -5,6 +5,21 @@ import type { Draft } from "../state/store.ts";
 import { BUTTON, FIELD, GROUP, LABEL } from "./controls.ts";
 import { addStage, moveStage } from "./drafts.ts";
 
+export const STAGE_LOCK_ID = "stage-controls-locked";
+
+export function stageLockNote(file: string): string {
+  return `The stage list is defined in ${file}, an included file. Keelson never writes to included files, so stages cannot be added or reordered here.`;
+}
+
+/** Le fichier qui déclare la liste `stages`, ou `null` si c'est le fichier principal. Une liste
+ *  écrase et ne fusionne pas : elle vient donc d'un seul fichier, et le premier stage suffit à le
+ *  nommer. Les stages implicites portent le fichier principal, donc une liste absente reste
+ *  matérialisable. */
+export function stagesLockedTo(pipeline: Pipeline): string | null {
+  const foreign = pipeline.stages.find((stage) => stage.file !== pipeline.main);
+  return foreign?.file ?? null;
+}
+
 export type StageControlsProps = {
   pipeline: Pipeline;
   onSubmit: (draft: Draft) => void;
@@ -16,15 +31,22 @@ const END = "end";
 export function StageControls({ pipeline, onSubmit, disabled = false }: StageControlsProps) {
   const [name, setName] = useState("");
   const [position, setPosition] = useState(END);
+  const lockedTo = stagesLockedTo(pipeline);
+  const off = disabled || lockedTo !== null;
 
   const guard = (draft: Draft): void => {
-    if (!disabled) {
+    if (!off) {
       onSubmit(draft);
     }
   };
 
   return (
     <div className="flex flex-col gap-3">
+      {lockedTo === null ? null : (
+        <p id={STAGE_LOCK_ID} className="text-sm text-text-secondary">
+          {stageLockNote(lockedTo)}
+        </p>
+      )}
       <form
         className={GROUP}
         onSubmit={(event) => {
@@ -45,7 +67,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
           <input
             className={FIELD}
             value={name}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setName(event.target.value)}
           />
         </label>
@@ -55,7 +77,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
           <select
             className={FIELD}
             value={position}
-            disabled={disabled}
+            disabled={off}
             onChange={(event) => setPosition(event.target.value)}
           >
             <option value={END}>end</option>
@@ -67,7 +89,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
           </select>
         </label>
 
-        <button type="submit" className={BUTTON} disabled={disabled}>
+        <button type="submit" className={BUTTON} disabled={off}>
           Add stage
         </button>
       </form>
@@ -82,7 +104,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
                 <button
                   type="button"
                   className={BUTTON}
-                  disabled={disabled || index === 0}
+                  disabled={off || index === 0}
                   aria-label={`Move ${stage.name} earlier`}
                   onClick={() => guard(moveStage(stage.name, index - 1))}
                 >
@@ -91,7 +113,7 @@ export function StageControls({ pipeline, onSubmit, disabled = false }: StageCon
                 <button
                   type="button"
                   className={BUTTON}
-                  disabled={disabled || index === pipeline.stages.length - 1}
+                  disabled={off || index === pipeline.stages.length - 1}
                   aria-label={`Move ${stage.name} later`}
                   onClick={() => guard(moveStage(stage.name, index + 1))}
                 >

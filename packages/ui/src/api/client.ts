@@ -21,6 +21,10 @@ export type DocumentPayload = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
+  /** Le texte de chaque fichier inclus. Les plages des blocs opaques d'un job inclus sont des
+   *  offsets dedans : les découper dans le texte du fichier principal afficherait des octets pris
+   *  ailleurs, sous la seule promesse du produit qui dit « ceci est verbatim ». */
+  included: Record<string, string>;
 };
 
 export type OperationPayload = {
@@ -30,6 +34,7 @@ export type OperationPayload = {
   hash: string;
   inverse: SpliceOperation;
   touched: SourceRange[];
+  included: Record<string, string>;
 };
 
 /** Pas de `message` : il n'est plus sur le fil. Le texte se rend par `renderMessage(failure)`,
