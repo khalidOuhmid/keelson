@@ -1,13 +1,12 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L2b — résolution des `include` locaux**, à cadrer depuis `main`
-Prochaine action : créer la branche `lot/l2b-includes` depuis `main`, puis écrire
-`specs/lots/l2b.md` avant de coder. Deux points déjà fixés par des écarts du 2026-10-22 :
-l'indicateur de **pipeline partiel** dans l'UI, avec le diagnostic `INCLUDE_UNRESOLVED` remonté
-jusqu'à l'écran, et le fait que `EXTENDS_TARGET_NOT_FOUND` est aujourd'hui dégradé en avertissement
-*parce que* les `include` ne sont pas résolus — la résolution doit donc lui rendre sa sévérité
-d'erreur quand plus rien ne manque.
+Lot courant : **L3 — taxonomie, catalogue, overlay OWASP**, à cadrer depuis `main`
+Prochaine action : créer la branche `lot/l3-owasp` depuis `main`, puis écrire `specs/lots/l3.md`
+avant de coder. Quatre écarts lui sont déjà rattachés : la posture de lecture pour l'architecte
+sécurité (l'overlay apportera le contenu qui la justifie), le passage des panneaux en superposition
+sous un seuil de largeur, la `ref` de `RefitOnResize` au premier second canevas, et la redite de
+l'include non résolu sur deux surfaces, que l'overlay transformerait en trois.
 Blocage : aucun
 
 
@@ -17,8 +16,8 @@ Blocage : aucun
 | L1 — `core` + `adapter-gitlab` | TERMINÉ | `2a48b5a` (`--no-ff`) |
 | L2 — serveur, vue Pipeline, `keelson start` | TERMINÉ | `894464c` (`--no-ff`) |
 | L2c — messages : `code` + `params`, anglais unique, `details` fusionné | TERMINÉ | `82bcb79` (`--no-ff`) |
-| L2b — résolution des `include` locaux | **LOT COURANT** | — |
-| L3 — taxonomie, catalogue, overlay OWASP | À FAIRE | — |
+| L2b — résolution des `include` locaux, origine par fichier, écriture bornée | TERMINÉ | `MERGE_SHA` (`--no-ff`) |
+| L3 — taxonomie, catalogue, overlay OWASP | **LOT COURANT** | — |
 | L4 — toolchain | À FAIRE | — |
 | L5 — propositions et insertion | À FAIRE | — |
 | L6 — adaptateur GitHub Actions | À FAIRE | — |
@@ -384,3 +383,144 @@ typecheck 0 erreur, **1044 pass / 0 fail**, build complet ; `bun run e2e` → **
 binaire réel ; binaire exécuté sous `node v22.16.0` — `validate` rend l'anglais, `--format json`
 expose `params` **et** `message`, l'aide est en anglais. `grep` : **0 ligne de français hors
 commentaire** dans `packages/*/src`.
+
+### 2026-10-23 — L2b — le lot complet
+
+Vérification de reprise : arbre propre, `main` à `c1c15e4`, `bun run check` vert
+(**1044 pass / 0 fail**). Aucune divergence entre `progress.md` et le dépôt.
+
+**Étape 0 — cadrage avant toute ligne de code** (`a5dc9e5`). `specs/lots/l2b.md` recense la
+sémantique d'`include` de GitLab **vérifiée sur la documentation officielle**, citation par
+citation : chemin depuis la racine du dépôt, extensions `.yml`/`.yaml`, jokers `*` et `**`, ordre de
+fusion, précédence du dernier inclus, non-dédoublonnage, limite de 150 fichiers. Neuf décisions de
+cadrage, les dix sites qui produisent un diagnostic, et l'arborescence des tests.
+
+**Une divergence assumée de l'énoncé.** Il demande « détection de cycle et **profondeur maximale**,
+chacune avec son code ». GitLab ne documente aucune limite de profondeur de nid : il documente un
+**compte total** de 150 fichiers inclus. Inventer une profondeur rendrait Keelson plus strict que sa
+cible — exactement le défaut déjà consigné en écart pour `MAX_EXTENDS_DEPTH`. Le lot livre donc
+`INCLUDE_CYCLE`, qui borne réellement la récursion, et `INCLUDE_LIMIT_EXCEEDED` sur le compte
+documenté. Deux codes, chacun pour une borne qui existe.
+
+**Deux ADR.** **0005** : le lecteur de fichiers est synchrone, parce que rendre `parse` asynchrone
+contaminerait `apply` et toute la chaîne d'édition pour un gain nul, et parce qu'on ne peut pas
+pré-lire ce qu'on découvre en lisant. **0006** : Keelson ne fabrique **jamais** de YAML fusionné —
+la fusion est une chaîne ordonnée de définitions, celle qui résolvait déjà `extends` et les anchors.
+Un document synthétique rendrait toutes les plages fausses sur disque et l'édition en place
+impossible. C'est de là que vient le `file` porté par chaque élément de l'IR et par chaque
+diagnostic : avec plusieurs textes, une plage sans fichier ne situe plus rien.
+
+**Étapes 1 à 6** (`2d8a159`, `e2ea010`, `6e5b427`, `bc1fa39`, `a97bd8c`, `d29a10c`). L'ordre de
+fusion de GitLab tombe gratuitement de l'ADR 0006 : il suffit de ranger les définitions dans le bon
+ordre et de laisser `matches(...).at(-1)` faire le reste. `FROM_INCLUDED_FILE` refuse six opérations
+sur un job inclus, `addStage` et `moveStage` quand la liste vient d'un include, et `renameJob`
+quand un job inclus a besoin de l'ancien nom. **Deux défauts silencieux** que ces refus empêchent :
+`addStage` matérialisait une liste de stages par défaut dans le fichier principal, écrasant celle de
+l'include sans rien dire ; et `addJob` sur un nom venu d'un include aurait écrit une surcharge
+partielle héritant silencieusement de ses clés.
+
+**Un défaut trouvé par l'E2E et par lui seul** : `documentLoaded` et le rechargement posaient `text`
+sans poser `included`, donc le panneau affichait « Content unavailable » sur un bloc parfaitement
+lisible. Même classe que l'`applyPayload` du lot L2 — un champ d'état mis à jour sur un seul des
+trois chemins qui l'alimentent.
+
+**Les textes des fichiers inclus voyagent dans la charge du document**, et non derrière la route
+`GET /api/includes/:file` que le cadrage annonçait. Trois raisons, écrites dans le cadrage corrigé :
+les plages des blocs opaques sont des offsets dans ces textes et une route séparée les laisserait se
+désaligner entre deux requêtes ; une seconde surface de lecture du disque serait une seconde
+frontière à borner ; et le client ne peut pas demander un fichier hors de la résolution, puisqu'il
+ne demande rien.
+
+**Étape 7 — trois passes indépendantes**, toutes trois en lecture seule : une revue du lot par un
+sous-agent qui n'avait pas vu l'implémentation, dans un worktree isolé, et les deux sous-agents de
+`/impeccable critique` et `audit`. Dépôt vérifié intact au retour, aucun worktree résiduel. Elles
+ont rendu **dix constats rouvrants**, tous vérifiés sur pièces avant d'être acceptés.
+
+**Le pire du lot, et il est de sécurité.** Les deux contrôles de frontière du lecteur étaient
+**lexicaux**, donc aveugles aux liens symboliques : `ci/fuite.yml → /etc/passwd` passait les deux, et
+le contenu du fichier visé partait dans la charge envoyée au navigateur, sans le moindre
+diagnostic. L'extension `.yml` était par ailleurs contrôlée sur le **nom du lien**, jamais sur sa
+cible. Ouvrir Keelson sur un dépôt cloné depuis un tiers suffisait à exfiltrer n'importe quel
+fichier lisible par l'utilisateur. Et mon commentaire affirmait au même endroit que ce contrôle
+était « la dernière ligne avant un `readFileSync` […] lu par un serveur qui répond à une page web ».
+Corrigé par `realpathSync` avant le contrôle de préfixe ; un lien reste permis s'il reste sous la
+racine, parce qu'un dépôt peut légitimement en contenir et que seule la cible décide.
+
+**Le plus humiliant est un défaut que j'avais corrigé, et détruit moi-même.** Les blocs opaques d'un
+job surchargé étaient pris sur la seule définition propriétaire, donc un job défini dans un include
+et redéfini dans le fichier principal perdait à l'écran son `script` et ses `artifacts`. J'avais
+écrit le correctif, vérifié son effet, puis **l'une de mes restaurations de fichier pendant une
+vérification rouge l'a effacé sans bruit** — `git checkout-index` restaure l'index, et à ce moment
+l'index était antérieur au correctif. La régénération des goldens a ensuite **béni la régression** :
+le golden `override` figeait `"opaque": []`. La revue l'a trouvé en lisant le golden commité au lieu
+de me croire. Leçon tirée dans la pratique : après une série de mutations de vérification, relire le
+**diff des goldens** et pas seulement l'état des tests.
+
+**Un troisième constat de justesse** : un `extends` écrit dans le fichier principal battait une
+valeur écrite **directement** dans la définition de l'include, parce que les sources du template
+arrivaient après la map de l'include. GitLab ne résout `extends` qu'après la fusion, sur le job
+fusionné : les clés propres d'un job battent toujours ses templates. La vue Pipeline plaçait donc le
+job dans la mauvaise colonne — la classe de défaut exacte qui a motivé l'ADR 0003.
+
+**Le P0 de la passe `critique`, trouvé sur mon propre golden** : `isPartial()` était **faux** quand
+un include local était cassé, c'est-à-dire sur le défaut le plus courant d'un dépôt réel — une faute
+de frappe dans un chemin. La bande de pipeline partiel ne s'affichait pas, et l'écran laissait croire
+le pipeline complet alors qu'il lui manquait tout ce que ce fichier apportait. L'écart que je venais
+de clore prétendait le contraire. Un include local cassé est désormais **deux** choses : une erreur
+à corriger, et un trou dans le pipeline affiché.
+
+**Tests trouvés incapables d'échouer sur ce lot : cinq. Trois par la revue, deux par moi.**
+1. L'assertion de plage de `includes.test.ts` était un ternaire qui rendait la chaîne attendue dès
+   que la plage existait — elle ne lisait **aucun octet**, et son commentaire la présentait comme la
+   gardienne d'un offset. Cause : *une assertion contrainte par autre chose que ce qu'elle prétend
+   mesurer*.
+2 et 3. Deux tests annoncés comme « la mesure sur les **octets** du disque » appelaient `apply`, qui
+   est une fonction **pure** : relire un fichier après un appel sans effet de bord est une
+   tautologie. La revue l'a prouvé en neutralisant tous les refus `FROM_INCLUDED_FILE` sans faire
+   rougir ni l'un ni l'autre. Cause : *un commentaire qui surestime ce qui protège*. Ils mesurent
+   désormais que le résultat ne prétend rien avoir changé ailleurs, et la mesure sur les octets vit
+   dans le test serveur, où une écriture a lieu.
+4 et 5. Deux des trois tests écrits pour couvrir le défaut trouvé par l'E2E : le texte inclus était
+   identique avant et après, donc ne pas reposer `included` laissait en place la valeur du premier
+   chargement. Cause : *une fixture qui ne reproduit pas la forme du défaut*. Trouvés par moi, en
+   vérifiant rouge.
+
+Un sixième test a été corrigé sans être inerte : le test clavier du résumé ne prouvait que la
+focalisabilité, `happy-dom` n'implémentant pas le basculement natif de `<details>`. Le dépliage est
+vérifié sur le vrai navigateur, et le commentaire du test unitaire dit maintenant ce qu'il mesure.
+
+**Le garde qu'une passe a rendu nécessaire.** `DESIGN.md` énonce que `border-subtle` n'est
+**jamais** une limite de composant, et L2b venait de l'employer comme bordure d'un nœud de job —
+mesurée à 1,26:1 contre sa colonne, donc un objet qui ne se lit plus comme un objet. Le garde de
+1.4.11 ne pouvait pas l'attraper, puisqu'il ne teste que `border-default` et `accent` précisément
+parce que `DESIGN.md` jurait que le cas n'existait pas. Le garde ajouté mesure l'**usage** et non le
+contraste : `border-subtle` ne vaut qu'avec une arête nommée. Il a trouvé **trois violations
+antérieures au lot**, toutes des cartes à 1,26:1, corrigées. Une seule exception, nommée : une
+colonne de stage est un fond, pas un composant, et lui donner `border-default` ferait concurrencer
+le conteneur à son contenu.
+
+**Ce que l'`audit` a mesuré et n'a pas trouvé**, ce qui est aussi une information : zéro échec de
+contraste sur **80 textes**, tous états compris, minimum réel 4,72:1 ; zéro violation du plancher de
+11 px ; zéro défilement horizontal du `body` à 375 comme à 1280 ; zéro nom accessible vide ou
+dupliqué ; zéro piège ni arrêt fantôme au clavier. Sa conversion `oklch` → sRGB a été confrontée à
+celle de Chromium : écart nul sur les neuf tokens. Score `critique` : **28/40**, contre 20/40 au
+2026-10-22.
+
+**Écarts** : trois clos avec leur preuve — les `include` non résolus, l'indicateur de pipeline
+partiel, la sévérité d'`EXTENDS_TARGET_NOT_FOUND` —, et **douze** nouveaux, dont la redite de
+l'include non résolu sur deux surfaces, l'anneau de focus qui n'est en accent qu'à un seul endroit,
+l'approximation `L³` du garde de contraste (optimiste pour les tokens chromatiques), et la fixture
+de dev sans `include`, qui fait que `bun run dev` n'exerce aucune des trois surfaces livrées.
+
+**Dettes datées** : aucune ajoutée. **Perte d'information assumée** : la fusion profonde de GitLab
+n'est pas rendue sur les clés que l'IR ne modélise pas — deux fichiers qui définissent chacun une
+partie d'un `artifacts:` affichent le bloc du dernier. L'ADR 0006 l'assume : la fusionner demanderait
+de fabriquer le document synthétique que cette décision refuse.
+
+Vérification finale depuis un arbre **sans aucun `dist/`, `types/` ni `*.tsbuildinfo`** :
+`bun install --frozen-lockfile` (133 installs, no changes), `bun run check` → lint 247 fichiers
+0 erreur, typecheck 0 erreur, **1199 pass / 0 fail**, build complet ; `bun run e2e` → **44 passed**
+sur le binaire réel ; binaire exécuté sous `node v22.16.0` — il résout un arbre multi-fichiers et
+nomme `ci/jobs.yml:6` pour un défaut qui y vit, et il **refuse** le lien symbolique qui sort de la
+racine sans jamais en lire le contenu. `grep` : **0 ligne de français hors commentaire** dans
+`packages/*/src`.
