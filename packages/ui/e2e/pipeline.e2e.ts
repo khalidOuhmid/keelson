@@ -118,16 +118,21 @@ test("un 409 affiche le message, recharge et vide l'historique", async ({ page }
   expect(keelson.read()).not.toContain("publish");
 });
 
-test("une erreur métier affiche le message du serveur", async ({ page }) => {
+test("une erreur métier affiche le texte anglais rendu depuis le code du serveur", async ({
+  page,
+}) => {
   await open(page);
 
   await page.getByRole("textbox", { name: "New stage name" }).fill("build");
   await page.getByRole("button", { name: "Add stage" }).click();
 
   await expect(page.getByText("STAGE_EXISTS")).toBeVisible();
+  // Le serveur n'envoie plus de phrase : s'il n'y avait pas de rendu côté client, la bannière
+  // n'afficherait que le code. Le texte exact est donc ce qui prouve que `render()` a tourné.
+  await expect(page.getByRole("alert")).toContainText('stage "build" already exists');
 });
 
-test("supprimer un job référencé liste les jobs qui le référencent", async ({ page }) => {
+test("supprimer un job référencé affiche la phrase anglaise et les référents", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /build-image/ }).click();
@@ -136,7 +141,12 @@ test("supprimer un job référencé liste les jobs qui le référencent", async 
 
   await expect(page.getByText("JOB_REFERENCED")).toBeVisible();
   const banner = page.getByRole("alert");
-  await expect(banner).toContainText("unit-tests");
+  const referents = ["unit-tests", "secret-detection", "container-scan"];
+  await expect(banner).toContainText(`job "build-image" is needed by ${referents.join(", ")}`);
+  // Les pastilles sont un chemin distinct de la phrase : elles viennent de `params.referencedBy`,
+  // pas du rendu. La liste est exacte, pas un sous-ensemble — un référent manquant à l'écran est
+  // un job que l'utilisateur croira pouvoir garder.
+  await expect(banner.getByRole("listitem")).toHaveText(referents);
 });
 
 test("cliquer un diagnostic sélectionne le job concerné", async ({ page }) => {
