@@ -59,6 +59,10 @@ export type ParseResult = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
+  /** Le texte de chaque fichier inclus, tel qu'il a été lu pour **cette** analyse. C'est la seule
+   *  source qui soit garantie cohérente avec les plages de l'IR : relire les fichiers plus tard
+   *  donnerait d'autres octets si l'un d'eux a changé entre-temps. */
+  included: Record<string, string>;
 };
 
 const SCRIPT_KEYS = ["script", "run", "trigger"] as const;
@@ -190,12 +194,18 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
   const files = order.map((parsed) => parsed.file);
   const unresolved = [...resolution.unresolved];
 
+  const included: Record<string, string> = {};
+  for (const parsed of resolution.files) {
+    included[parsed.file] = parsed.text;
+  }
+
   if (!isMap(mainFile.yaml.contents)) {
     return {
       document,
       pipeline: { ...emptyPipeline(main), files, unresolved },
       diagnostics,
       hash,
+      included,
     };
   }
 
@@ -297,5 +307,5 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     unresolved,
   };
 
-  return { document, pipeline, diagnostics, hash };
+  return { document, pipeline, diagnostics, hash, included };
 }

@@ -895,5 +895,6 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     hash: after.hash,
     inverse,
     touched: spliced.touched,
+    included: after.included,
   });
 }
