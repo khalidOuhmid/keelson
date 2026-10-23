@@ -1,0 +1,12 @@
+include:
+  - ci/inner.yml
+
+stages:
+  - build
+  - deploy
+
+ship:
+  stage: deploy
+  needs: [compile]
+  script:
+    - make ship

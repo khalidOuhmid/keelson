@@ -1,0 +1,10 @@
+include:
+  - ci/a.yml
+  - local: /ci/b.yml
+  - template: Jobs/SAST.gitlab-ci.yml
+  - project: groupe/projet
+    file: /ci/distant.yml
+  - component: $CI_SERVER_FQDN/groupe/composant@1.0
+
+stages:
+  - build

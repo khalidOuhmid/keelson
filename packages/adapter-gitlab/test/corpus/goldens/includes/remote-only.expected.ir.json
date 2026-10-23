@@ -1,0 +1,66 @@
+{
+  "stages": [
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 60,
+        "end": 64
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "herite",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [".venu-du-template"],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 119,
+            "end": 138
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "range": {
+        "start": 66,
+        "end": 138
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 47
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": [
+    {
+      "form": "template",
+      "detail": "Jobs/SAST.gitlab-ci.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 13,
+        "end": 47
+      }
+    }
+  ]
+}

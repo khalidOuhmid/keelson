@@ -1,0 +1,114 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 39,
+        "end": 44
+      },
+      "file": "ci/outer.yml"
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 49,
+        "end": 55
+      },
+      "file": "ci/outer.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "include",
+          "file": "ci/inner.yml"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 26,
+            "end": 45
+          },
+          "file": "ci/inner.yml"
+        }
+      ],
+      "range": {
+        "start": 0,
+        "end": 45
+      },
+      "file": "ci/inner.yml"
+    },
+    {
+      "id": "ship",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "include",
+          "file": "ci/outer.yml"
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "compile",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "include",
+          "file": "ci/outer.yml"
+        }
+      },
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 100,
+            "end": 124
+          },
+          "file": "ci/outer.yml"
+        }
+      ],
+      "range": {
+        "start": 57,
+        "end": 124
+      },
+      "file": "ci/outer.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 26
+      },
+      "file": "ci/outer.yml"
+    },
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 26
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["ci/inner.yml", "ci/outer.yml", ".gitlab-ci.yml"],
+  "unresolved": []
+}

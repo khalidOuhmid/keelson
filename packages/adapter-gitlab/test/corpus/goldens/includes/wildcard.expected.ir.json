@@ -1,0 +1,85 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 36,
+        "end": 41
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "a",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "include",
+          "file": "configs/a.yml"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 20,
+            "end": 41
+          },
+          "file": "configs/a.yml"
+        }
+      ],
+      "range": {
+        "start": 0,
+        "end": 41
+      },
+      "file": "configs/a.yml"
+    },
+    {
+      "id": "b",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "include",
+          "file": "configs/b.yml"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 20,
+            "end": 41
+          },
+          "file": "configs/b.yml"
+        }
+      ],
+      "range": {
+        "start": 0,
+        "end": 41
+      },
+      "file": "configs/b.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 23
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["configs/a.yml", "configs/b.yml", ".gitlab-ci.yml"],
+  "unresolved": []
+}

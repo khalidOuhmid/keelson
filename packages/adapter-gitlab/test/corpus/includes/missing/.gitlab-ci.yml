@@ -1,0 +1,7 @@
+include:
+  - ci/absent.yml
+  - ci/jobs.txt
+  - /../dehors.yml
+
+stages:
+  - build

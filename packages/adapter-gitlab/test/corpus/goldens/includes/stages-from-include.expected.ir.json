@@ -1,0 +1,65 @@
+{
+  "stages": [
+    {
+      "name": "preparer",
+      "implicit": false,
+      "range": {
+        "start": 12,
+        "end": 20
+      },
+      "file": "ci/stages.yml"
+    },
+    {
+      "name": "livrer",
+      "implicit": false,
+      "range": {
+        "start": 25,
+        "end": 31
+      },
+      "file": "ci/stages.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "travail",
+      "stage": {
+        "value": "livrer",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 51,
+            "end": 70
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "range": {
+        "start": 24,
+        "end": 70
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 23
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["ci/stages.yml", ".gitlab-ci.yml"],
+  "unresolved": []
+}

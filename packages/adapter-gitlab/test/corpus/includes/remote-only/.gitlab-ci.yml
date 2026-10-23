@@ -1,0 +1,11 @@
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+
+stages:
+  - test
+
+herite:
+  extends: .venu-du-template
+  stage: test
+  script:
+    - make

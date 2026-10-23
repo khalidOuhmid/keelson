@@ -1,0 +1,4 @@
+compile:
+  stage: build
+  script:
+    - make

@@ -161,6 +161,10 @@ type State = {
   unresolved: UnresolvedInclude[];
   diagnostics: Diagnostic[];
   candidates: readonly string[] | null;
+  /** Fichiers **entrés** dans la résolution. Compté à l'entrée et non à la sortie : `walk`
+   *  descend avant d'empiler, donc un compte sur `files` resterait à zéro pendant toute la
+   *  descente et la limite ne se déclencherait jamais sur une chaîne profonde. */
+  entered: number;
   stopped: boolean;
 };
 
@@ -248,7 +252,7 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
         continue;
       }
 
-      if (state.files.length >= MAX_INCLUDED_FILES) {
+      if (state.entered >= MAX_INCLUDED_FILES) {
         state.diagnostics.push({
           code: INCLUDE_LIMIT_EXCEEDED,
           severity: "error",
@@ -266,6 +270,7 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
         continue;
       }
 
+      state.entered += 1;
       const parsed = parseIncludedFile(path, text);
       // Les includes du fichier inclus passent **avant** lui : « nested includes are resolved
       // recursively », et le dernier inclus gagne.
@@ -282,6 +287,7 @@ export function resolveIncludes(main: ParsedFile, read: IncludeReader | null): I
     unresolved: [],
     diagnostics: [],
     candidates: null,
+    entered: 0,
     stopped: false,
   };
   walk(state, main, [main.file]);
