@@ -60,21 +60,25 @@ describe("propriétés sur les arbres multi-fichiers", () => {
     expect(cases.some((entry) => entry.included.length > 0)).toBe(true);
   });
 
-  /** La clause que ce lot ajoute à la localité. Elle se mesure sur les **octets des fichiers
-   *  inclus**, relus du disque après l'opération, et non sur l'intention de l'opération : une
-   *  mesure qui se contenterait de vérifier que `touched` ne nomme pas un autre fichier croirait
-   *  sur parole le code qu'elle surveille. */
-  test("aucune opération ne modifie jamais un fichier inclus", () => {
+  /** La clause que ce lot ajoute à la localité, et **ce qu'elle peut mesurer ici**. `apply` est
+   *  une fonction pure : relire les fichiers du disque après l'appel ne dit rien, parce que rien
+   *  ne les écrit jamais — la revue indépendante du 2026-10-23 l'a prouvé en neutralisant tous les
+   *  refus `FROM_INCLUDED_FILE` sans faire rougir ce fichier.
+   *
+   *  Ce qui est mesurable sur une fonction pure est que son résultat ne prétend rien avoir changé
+   *  ailleurs : `included` revient identique pour chaque opération tirée. La garantie sur les
+   *  octets du disque est mesurée là où une écriture a lieu, dans
+   *  `packages/server/test/includes.test.ts`. */
+  test("aucune opération ne prétend avoir changé un fichier inclus", () => {
     fc.assert(
       fc.property(caseArb(), ({ entry, draft }) => {
-        run(entry, entry.main, draft);
-
-        for (const file of entry.included) {
-          expect({
-            file: file.file,
-            same: readFileSync(join(entry.root, file.file), "utf8"),
-          }).toEqual({ file: file.file, same: file.text });
+        const result = run(entry, entry.main, draft);
+        if (!result.ok) {
+          return;
         }
+
+        const before = Object.fromEntries(entry.included.map((file) => [file.file, file.text]));
+        expect(result.value.included).toEqual(before);
       }),
       assertOptions(),
     );

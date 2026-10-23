@@ -169,6 +169,33 @@ function collect(order: readonly ParsedFile[]): Collected {
   return collected;
 }
 
+/** Les blocs opaques d'un job, pris sur **toutes** ses définitions et pas seulement sur celle du
+ *  fichier qui le possède. Sans cela, un job défini dans un include et surchargé dans le fichier
+ *  principal perdait à l'écran son `script` et ses `artifacts` : ils existent chez l'utilisateur,
+ *  le job rendu par GitLab les a, et la seule surface du produit dont la promesse est « ceci est
+ *  verbatim » affichait « aucun bloc opaque ».
+ *
+ *  Une clé définie deux fois ne garde que la dernière, parce que c'est la valeur qui gagne. Chaque
+ *  bloc porte son fichier : sa plage est un offset dans ce texte-là. */
+function opaqueBlocksOf(definitions: readonly Definition[]): OpaqueBlock[] {
+  const blocks = new Map<string, OpaqueBlock>();
+
+  for (const definition of definitions) {
+    for (const pair of localPairs(definition.map)) {
+      const key = keyOf(pair);
+      if (key === null || MODELLED_JOB_KEYS.includes(key as never)) {
+        continue;
+      }
+      const range = pairRange(pair);
+      if (range !== null) {
+        blocks.set(key, { key, range, file: definition.file });
+      }
+    }
+  }
+
+  return [...blocks.values()];
+}
+
 export function parse(text: string, options: ParseOptions = {}): ParseResult {
   const main = options.file ?? GITLAB_CI_FILE;
   const mainFile = parseIncludedFile(main, text);
@@ -192,7 +219,10 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
   ];
 
   const files = order.map((parsed) => parsed.file);
-  const unresolved = [...resolution.unresolved];
+  /** Les deux familles comptent pour le même : il manque au pipeline affiché ce que cet include
+   *  apportait. Seule la première reçoit un `INCLUDE_UNRESOLVED` — la seconde a déjà son
+   *  `INCLUDE_NOT_FOUND` en erreur, et le dire deux fois ne dirait pas plus. */
+  const unresolved = [...resolution.unresolved, ...resolution.failed];
 
   const included: Record<string, string> = {};
   for (const parsed of resolution.files) {
@@ -254,17 +284,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       origin: { kind: "default" as const },
     };
 
-    const jobOpaque: OpaqueBlock[] =
-      owner === undefined
-        ? []
-        : localPairs(owner.map).flatMap((pair) => {
-            const key = keyOf(pair);
-            if (key === null || MODELLED_JOB_KEYS.includes(key as never)) {
-              return [];
-            }
-            const range = pairRange(pair);
-            return range === null ? [] : [{ key, range, file: ownerFile }];
-          });
+    const jobOpaque = opaqueBlocksOf(entry.definitions);
 
     if (!SCRIPT_KEYS.some((key) => definesKey(sources, key))) {
       diagnostics.push({
@@ -281,7 +301,9 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       stage,
       needs: resolveNeeds(sources, context),
       environment: resolveEnvironment(sources, context),
-      extends: owner === undefined ? [] : extendsOf(owner.map),
+      // L'union des `extends` de toutes les définitions, dédoublée : le fichier principal peut
+      // ajouter un template sans retirer celui de l'include, et GitLab les applique tous les deux.
+      extends: [...new Set(entry.definitions.flatMap((definition) => extendsOf(definition.map)))],
       opaque: jobOpaque,
       range: entry.range,
       file: ownerFile,

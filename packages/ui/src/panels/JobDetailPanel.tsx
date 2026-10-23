@@ -86,9 +86,16 @@ export function JobDetailPanel({ job, textOf, main, onClose }: JobDetailPanelPro
         </p>
       ) : null}
 
-      <Field label="Source file" testId="job-source-file">
-        <span className="font-mono break-all">{job.file}</span>
-      </Field>
+      {/* Seulement quand ce n'est pas le fichier principal, exactement la règle que
+          `DiagnosticsPanel` applique déjà : l'en-tête de l'application affiche le fichier
+          principal en permanence, donc le répéter en première position du panneau dépense la
+          place la plus coûteuse de l'écran pour une tautologie. Les deux composants du lot avaient
+          tranché la même question dans les deux sens. */}
+      {included ? (
+        <Field label="Source file" testId="job-source-file">
+          <span className="font-mono break-all">{job.file}</span>
+        </Field>
+      ) : null}
 
       <Field label="Stage" testId="job-stage" origin={job.stage.origin}>
         <span className="font-mono">{job.stage.value}</span>

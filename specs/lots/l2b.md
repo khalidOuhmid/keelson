@@ -197,11 +197,15 @@ export function parse(text: string, options?: ParseOptions): ParseResult;
 
 ### Serveur
 
-`GET /api/documents/:file` répond pour le **fichier principal** seulement ; sa charge gagne
-`includes: { resolved: string[]; unresolved: UnresolvedInclude[] }` via le `pipeline`. Les fichiers
-inclus sont lisibles par `GET /api/includes/:file` — nécessaire pour afficher un bloc opaque dont la
-plage vit dans un autre fichier. La liste blanche **d'écriture** reste le seul fichier principal :
-aucune route n'écrit ailleurs.
+`GET /api/documents/:file` répond pour le **fichier principal** seulement. Sa charge gagne
+`included: Record<chemin, texte>`, et le `pipeline` porte `main`, `files` et `unresolved`.
+
+**Correction du 2026-10-23 : la route `GET /api/includes/:file` annoncée ici n'a pas été écrite**, et
+ne doit pas l'être. Les textes des fichiers inclus voyagent dans la charge du document. Trois
+raisons : les plages des blocs opaques sont des offsets dans ces textes, et une route séparée les
+laisserait se désaligner entre deux requêtes ; une seconde surface de lecture du disque serait une
+seconde frontière à borner ; et le client ne peut pas demander un fichier hors de la résolution,
+puisqu'il ne demande rien. La liste blanche **d'écriture** reste le seul fichier principal.
 
 ## 7. Arborescence des tests
 

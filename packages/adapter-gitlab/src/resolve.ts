@@ -135,13 +135,23 @@ function originOf(context: ResolveContext, definition: Definition, fallback: Ori
   return definition.file === context.main ? fallback : { kind: "include", file: definition.file };
 }
 
+/** L'ordre des sources est l'ordre de précédence croissante : `matches(...).at(-1)` gagne.
+ *
+ *  Les `extends` de **toutes** les définitions passent d'abord, puis les définitions elles-mêmes.
+ *  La version précédente les entrelaçait définition par définition, et le défaut était réel : un
+ *  `extends: .base` écrit dans le fichier principal battait une valeur écrite **directement** dans
+ *  la définition de l'include, parce que les sources du template arrivaient après la map de
+ *  l'include. GitLab fusionne les includes puis le fichier principal, et ne résout `extends`
+ *  qu'ensuite, sur le job fusionné : les clés propres d'un job battent toujours ses templates.
+ *  Trouvé par la revue indépendante du 2026-10-23, qui plaçait le job dans la mauvaise colonne. */
 export function sourcesFor(
   definitions: readonly Definition[],
   selfOrigin: Origin,
   context: ResolveContext,
   trail: readonly string[] = [],
 ): Source[] {
-  const sources: Source[] = [];
+  const inherited: Source[] = [];
+  const own: Source[] = [];
 
   for (const definition of definitions) {
     const map = definition.map;
@@ -172,7 +182,7 @@ export function sourcesFor(
         continue;
       }
 
-      sources.push(
+      inherited.push(
         ...sourcesFor(target, { kind: "extends", template }, context, [...trail, template]),
       );
     }
@@ -180,7 +190,7 @@ export function sourcesFor(
     const document = documentOf(context, definition.file);
     if (document !== null) {
       for (const merge of [...anchorMerges(map, document)].reverse()) {
-        sources.push({
+        own.push({
           map: merge.map,
           origin: { kind: "anchor", name: merge.name },
           file: definition.file,
@@ -188,10 +198,10 @@ export function sourcesFor(
       }
     }
 
-    sources.push({ map, origin: originOf(context, definition, selfOrigin), file: definition.file });
+    own.push({ map, origin: originOf(context, definition, selfOrigin), file: definition.file });
   }
 
-  return sources;
+  return [...inherited, ...own];
 }
 
 /** Sérialisation à clés triées : le dédoublonnage portait sur le message, qui n'existe plus. Deux

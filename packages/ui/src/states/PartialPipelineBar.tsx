@@ -1,4 +1,4 @@
-import type { Pipeline, SourceRange, UnresolvedInclude } from "@keelson/core";
+import type { Pipeline, UnresolvedInclude } from "@keelson/core";
 import { isPartial } from "@keelson/core";
 import { ChevronRightIcon } from "../icons.tsx";
 
@@ -11,14 +11,13 @@ export function unresolvedCount(count: number): string {
 
 export type PartialPipelineBarProps = {
   pipeline: Pipeline;
-  onSelectRange: (file: string, range: SourceRange | null) => void;
 };
 
 /** Trois choses la séparent de `NoticeBar`, et toutes les trois sont intentionnelles : aucune
  *  teinte de sévérité — un include non résolu est une lacune, pas une erreur —, **aucun bouton
  *  `Dismiss``**, parce qu'un fait ne se congédie pas, et aucune région live, parce que ce n'est pas
  *  un événement mais un état du fichier. */
-export function PartialPipelineBar({ pipeline, onSelectRange }: PartialPipelineBarProps) {
+export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
   if (!isPartial(pipeline)) {
     return null;
   }
@@ -31,7 +30,8 @@ export function PartialPipelineBar({ pipeline, onSelectRange }: PartialPipelineB
       className="shrink-0 border-b border-border-subtle bg-surface-1 px-3 py-1.5"
     >
       <details className="group">
-        <summary className="flex cursor-pointer flex-wrap items-center gap-1.5 text-sm text-text-secondary">
+        {/* `py-1.5` porte la hauteur de la cible de 20 px — mesurée — à 32 px. */}
+        <summary className="flex cursor-pointer flex-wrap items-center gap-1.5 py-1.5 text-sm text-text-secondary">
           <ChevronRightIcon className="transition-transform duration-fast ease-out group-open:rotate-90" />
           <span className="text-2xs font-semibold tracking-label text-text-muted uppercase">
             Partial pipeline
@@ -41,13 +41,16 @@ export function PartialPipelineBar({ pipeline, onSelectRange }: PartialPipelineB
           </span>
           <span>{PARTIAL_HINT}</span>
         </summary>
-        <ul className="mt-1.5 flex max-h-32 flex-col gap-1 overflow-y-auto">
+        <ul className="mt-1.5 flex max-h-1/3 flex-col gap-1 overflow-y-auto">
           {/* La clé porte la plage, pas l'index : GitLab ne dédoublonne pas les includes, donc le
               même fichier peut déclarer deux fois la même valeur, et seule la position les
               distingue. */}
           {pipeline.unresolved.map((entry) => (
-            <li key={`${entry.from}:${entry.range?.start ?? "?"}:${entry.detail}`}>
-              <Entry entry={entry} onSelectRange={onSelectRange} />
+            <li
+              key={`${entry.from}:${entry.range?.start ?? "?"}:${entry.detail}`}
+              className="flex flex-wrap items-center gap-1.5"
+            >
+              <Body entry={entry} />
             </li>
           ))}
         </ul>
@@ -56,6 +59,10 @@ export function PartialPipelineBar({ pipeline, onSelectRange }: PartialPipelineB
   );
 }
 
+/** Aucune entrée n'est cliquable. La première version en faisait un bouton appelant
+ *  `selectByRange`, et c'était un **clic mort** : la plage d'un include tombe dans le bloc opaque
+ *  de la clé `include` de premier niveau, que `selectByRange` ne peut par construction jamais
+ *  apparier à un job. Un contrôle sans effet est soit branché, soit supprimé. */
 function Body({ entry }: { entry: UnresolvedInclude }) {
   return (
     <>
@@ -66,35 +73,5 @@ function Body({ entry }: { entry: UnresolvedInclude }) {
       <span className="text-2xs tracking-label text-text-muted uppercase">declared in</span>
       <span className="font-mono text-xs text-text-muted">{entry.from}</span>
     </>
-  );
-}
-
-/** Une entrée sans plage reste inerte plutôt que de feindre d'être cliquable : la règle de la
- *  bande de diagnostics, appliquée ici pour la même raison. */
-function Entry({
-  entry,
-  onSelectRange,
-}: {
-  entry: UnresolvedInclude;
-  onSelectRange: (file: string, range: SourceRange | null) => void;
-}) {
-  const shared = "flex w-full flex-wrap items-center gap-1.5 text-left";
-
-  if (entry.range === null) {
-    return (
-      <div className={shared}>
-        <Body entry={entry} />
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelectRange(entry.from, entry.range)}
-      className={`${shared} cursor-pointer rounded-sm px-1 transition-colors duration-fast ease-out hover:bg-surface-2`}
-    >
-      <Body entry={entry} />
-    </button>
   );
 }

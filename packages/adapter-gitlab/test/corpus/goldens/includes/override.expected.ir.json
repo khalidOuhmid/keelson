@@ -31,7 +31,24 @@
       "needs": null,
       "environment": null,
       "extends": [],
-      "opaque": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 26,
+            "end": 45
+          },
+          "file": "ci/jobs.yml"
+        },
+        {
+          "key": "artifacts",
+          "range": {
+            "start": 47,
+            "end": 84
+          },
+          "file": "ci/jobs.yml"
+        }
+      ],
       "range": {
         "start": 50,
         "end": 73

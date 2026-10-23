@@ -1,13 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { hashText, type Operation } from "@keelson/core";
 import { apply } from "../../src/apply.ts";
 import type { IncludeReader } from "../../src/includes.ts";
 import { GITLAB_CI_FILE, parse } from "../../src/parse.ts";
-import { createFileReader } from "../../src/reader.ts";
 import type { Draft } from "../support/apply.ts";
-import { CORPUS_ROOT } from "../support/corpus.ts";
 
 function reader(files: Record<string, string>): IncludeReader {
   return { read: (path) => files[path] ?? null, candidates: () => Object.keys(files) };
@@ -230,29 +226,42 @@ describe("liste de stages venue d'un fichier inclus", () => {
   });
 });
 
-describe("aucune écriture dans un fichier inclus", () => {
-  /** La clause ajoutée à la localité par ce lot. Elle se mesure sur les **octets** des fichiers
-   *  inclus, avant et après l'opération, et non sur l'intention de l'opération : une opération
-   *  acceptée ne doit toucher que le texte rendu, qui est celui du fichier principal. */
-  test("une opération acceptée ne change que le texte du fichier principal", () => {
-    const root = join(CORPUS_ROOT, "includes", "simple");
-    const main = readFileSync(join(root, ".gitlab-ci.yml"), "utf8");
-    const includedBefore = readFileSync(join(root, "ci/jobs.yml"), "utf8");
-
-    const parsed = parse(main, { file: GITLAB_CI_FILE, read: createFileReader(root) });
-    const result = apply(parsed.document, {
-      v: 1,
-      baseHash: hashText(main),
+describe("apply ne fait rien sortir du fichier principal", () => {
+  /** Ce que ce bloc mesure, exactement : `apply` est une fonction **pure** — elle ne touche pas au
+   *  disque — donc relire un fichier inclus après l'appel serait une tautologie. C'était la
+   *  première version de ces tests, et la revue indépendante du 2026-10-23 l'a prouvée inerte en
+   *  neutralisant tous les refus `FROM_INCLUDED_FILE` : les deux tests restaient verts.
+   *
+   *  Ce qui est mesurable ici est que le résultat ne prétend pas avoir changé un fichier inclus :
+   *  `included` doit revenir identique, et chaque plage touchée doit tomber dans le texte du
+   *  fichier principal. La garantie sur les **octets du disque** se mesure là où une écriture a
+   *  lieu, c'est-à-dire dans `packages/server/test/includes.test.ts`. */
+  test("les textes inclus reviennent identiques après une opération acceptée", () => {
+    const { parsed, result } = run(TREE, {
       kind: "addJob",
       job: { id: "neuf", stage: "test", script: ["make"] },
-    } as Operation);
-
+    });
     if (!result.ok) {
       throw new Error(`opération refusée : ${result.error.code}`);
     }
-    expect(result.value.text).not.toBe(main);
-    expect(readFileSync(join(root, "ci/jobs.yml"), "utf8")).toBe(includedBefore);
-    expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(main);
+
+    expect(result.value.included).toEqual(parsed.included);
+    expect(result.value.included["ci/jobs.yml"]).toBe(TREE["ci/jobs.yml"]);
+  });
+
+  test("chaque plage touchée tombe dans le texte du fichier principal", () => {
+    const { result } = run(TREE, {
+      kind: "addJob",
+      job: { id: "neuf", stage: "test", script: ["make"] },
+    });
+    if (!result.ok) {
+      throw new Error("opération refusée");
+    }
+
+    for (const range of result.value.touched) {
+      expect(range.start).toBeGreaterThanOrEqual(0);
+      expect(range.end).toBeLessThanOrEqual(result.value.text.length);
+    }
   });
 
   test("le pipeline rendu après l'opération garde les jobs des fichiers inclus", () => {

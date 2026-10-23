@@ -70,9 +70,11 @@ test.describe("include locaux sur le binaire réel", () => {
     }
   });
 
-  /** La garantie du produit, vérifiée sur le **disque** après un parcours complet de l'écran :
-   *  sélectionner un job inclus, tenter de l'éditer, et constater que son fichier est resté octet
-   *  pour octet celui d'avant. Une assertion sur l'écran seul ne dirait rien de ce qui est écrit. */
+  /** Ce que ce test mesure : l'écran coupe l'édition d'un job inclus, et le fichier est intact
+   *  après le parcours. La relecture du disque est un **garde-fou**, pas la mesure principale —
+   *  les contrôles étant désactivés, aucune requête ne part, donc rien n'écrirait de toute façon.
+   *  La garantie sur les octets contre une requête réellement envoyée est mesurée dans
+   *  `packages/server/test/includes.test.ts`, où le serveur écrit pour de vrai. */
   test("un job inclus ne peut pas être édité, et son fichier reste intact", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
@@ -133,6 +135,59 @@ test.describe("include locaux sur le binaire réel", () => {
     try {
       await page.goto(keelson.url);
       await expect(page.getByRole("button", { name: /^Add stage$/ })).toBeEnabled();
+    } finally {
+      await keelson.stop();
+    }
+  });
+});
+
+test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {
+  /** `happy-dom` n'implémente pas le basculement natif de `<details>` à la touche Entrée : le test
+   *  unitaire ne peut mesurer que la focalisabilité du résumé. Le dépliage, lui, ne se vérifie que
+   *  sur un navigateur réel, et c'est ici. */
+  test("le résumé se déplie et se replie à la touche Entrée", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+
+      const summary = page.locator("summary");
+      await summary.focus();
+      await expect(summary).toBeFocused();
+
+      const details = page.locator("details");
+      const opened = await details.evaluate((node) => node.hasAttribute("open"));
+
+      await page.keyboard.press("Enter");
+      await expect.poll(() => details.evaluate((node) => node.hasAttribute("open"))).toBe(!opened);
+
+      await page.keyboard.press("Enter");
+      await expect.poll(() => details.evaluate((node) => node.hasAttribute("open"))).toBe(opened);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("le nœud inclus ne porte plus de title, et sa marque reste lisible", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      const sast = page.locator('[data-job-id="sast"]');
+      // Un `title` n'apparaît nulle part dans l'arbre d'accessibilité quand un
+      // `aria-describedby` est présent : deux formulations du même fait, une seule jamais lue.
+      await expect(sast).not.toHaveAttribute("title", /./);
+      await expect(sast).toContainText("read-only");
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("l'en-tête annonce le nombre de fichiers inclus résolus", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      const tag = page.getByTestId("included-files-tag");
+      await expect(tag).toHaveText("1 included file");
+      await expect(tag).toHaveAttribute("title", `Resolved includes: ${INCLUDED_PATH}`);
     } finally {
       await keelson.stop();
     }

@@ -184,6 +184,14 @@ export function App({ deps }: AppProps = {}) {
     );
   })();
 
+  /** Les fichiers résolus autres que le principal. `files` peut contenir deux fois le même —
+   *  GitLab ne dédoublonne pas les includes — mais le compte annoncé à l'écran est un compte de
+   *  **fichiers**, pas d'entrées. */
+  const resolvedIncludes = [
+    ...new Set((state.pipeline?.files ?? []).filter((file) => file !== state.pipeline?.main)),
+  ];
+  const includedCount = resolvedIncludes.length;
+
   const showSidebar = state.status === "ready" && !blocking && state.pipeline !== null;
 
   return (
@@ -196,6 +204,19 @@ export function App({ deps }: AppProps = {}) {
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
           {state.file === null ? null : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
+          )}
+          {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
+              testé et invisible — ce que `CLAUDE.md` interdit. Il dit à l'utilisateur que ce qu'il
+              lit vient de plusieurs fichiers, ce que ni le graphe ni le chemin de l'en-tête ne
+              disent. */}
+          {includedCount === 0 ? null : (
+            <span
+              data-testid="included-files-tag"
+              title={`Resolved includes: ${resolvedIncludes.join(", ")}`}
+              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+            >
+              {includedCount === 1 ? "1 included file" : `${includedCount} included files`}
+            </span>
           )}
         </span>
         <span className="flex shrink-0 items-center gap-3">
@@ -218,12 +239,7 @@ export function App({ deps }: AppProps = {}) {
         </span>
       </header>
 
-      {state.pipeline === null ? null : (
-        <PartialPipelineBar
-          pipeline={state.pipeline}
-          onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
-        />
-      )}
+      {state.pipeline === null ? null : <PartialPipelineBar pipeline={state.pipeline} />}
 
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null ? (

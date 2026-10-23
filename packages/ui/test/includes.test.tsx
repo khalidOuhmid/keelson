@@ -11,6 +11,8 @@ import { PartialPipelineBar } from "../src/states/PartialPipelineBar.tsx";
 import { type JobNodeData, toFlowGraph } from "../src/views/pipeline/graph.ts";
 import { JobNode, type JobNodeProps } from "../src/views/pipeline/JobNode.tsx";
 import type { Layout } from "../src/views/pipeline/layout.ts";
+import { OriginBadge } from "../src/views/pipeline/OriginBadge.tsx";
+import { INCLUDE_ORIGIN_HINT, ORIGIN_HINT } from "../src/views/pipeline/origin.ts";
 
 const MAIN = ".gitlab-ci.yml";
 const INCLUDED = "ci/jobs.yml";
@@ -95,15 +97,18 @@ describe("un job inclus dans la vue Pipeline", () => {
 
   /** La promesse est que la marque **n'est pas la couleur seule** : le mot `read-only` est dans le
    *  DOM rendu, et il y est aussi quand le ton de surface change. Un test qui ne vérifierait que la
-   *  classe de fond laisserait passer un nœud teinté mais muet. */
+   *  classe de fond laisserait passer un nœud teinté mais muet.
+   *
+   *  Pas de `title` : mesuré par la passe d'audit, le texte d'un `title` n'apparaît **nulle part**
+   *  dans l'arbre d'accessibilité quand un `aria-describedby` est présent — ni en nom, ni en
+   *  description. Deux formulations du même fait coexistaient, dont une seule était jamais lue, et
+   *  celle-là n'était atteignable qu'à la souris. */
   test("le nœud rend le mot read-only et le dit à un lecteur d'écran", () => {
     renderNode("sast");
 
     expect(screen.getByText("read-only")).toBeDefined();
     const button = screen.getByRole("button", { name: /sast/ });
     expect(button.getAttribute("data-included")).toBe("true");
-    expect(button.getAttribute("title")).toContain(INCLUDED);
-
     const described = button.getAttribute("aria-describedby") ?? "";
     expect(document.getElementById(described)?.textContent).toContain(
       `From included file ${INCLUDED}. Read-only.`,
@@ -115,7 +120,6 @@ describe("un job inclus dans la vue Pipeline", () => {
     expect(screen.queryByText("read-only")).toBeNull();
     const button = screen.getByRole("button", { name: /local-job/ });
     expect(button.getAttribute("data-included")).toBe("false");
-    expect(button.getAttribute("title")).toBeNull();
   });
 });
 
@@ -284,13 +288,8 @@ describe("l'indicateur de pipeline partiel", () => {
     range: { start: 12, end: 44 },
   };
 
-  function renderBar(unresolved: UnresolvedInclude[], onSelect = (_f: string, _r: unknown) => {}) {
-    return render(
-      <PartialPipelineBar
-        pipeline={pipeline({ unresolved })}
-        onSelectRange={(file, range) => onSelect(file, range)}
-      />,
-    );
+  function renderBar(unresolved: UnresolvedInclude[]) {
+    return render(<PartialPipelineBar pipeline={pipeline({ unresolved })} />);
   }
 
   test("absent quand tous les includes sont résolus", () => {
@@ -331,23 +330,47 @@ describe("l'indicateur de pipeline partiel", () => {
     expect(screen.queryByRole("button", { name: /dismiss/i })).toBeNull();
   });
 
-  test("une entrée avec plage est un bouton qui remonte son fichier et sa plage", async () => {
-    const picked: { file: string; range: unknown }[] = [];
-    renderBar([remote], (file, range) => picked.push({ file, range }));
-
-    await userEvent.click(screen.getByRole("button", { name: /exemple\.org/ }));
-    expect(picked).toEqual([{ file: MAIN, range: { start: 12, end: 44 } }]);
-  });
-
-  test("une entrée sans plage ne feint pas d'être cliquable", () => {
-    renderBar([{ ...remote, range: null }]);
-    expect(screen.queryByRole("button", { name: /exemple\.org/ })).toBeNull();
-  });
-
-  test("le résumé est atteignable au clavier", () => {
+  /** Aucune entrée n'est cliquable. La première version en faisait un bouton appelant
+   *  `selectByRange`, et c'était un clic mort : la plage d'un include tombe dans le bloc opaque de
+   *  la clé `include` de premier niveau, que `selectByRange` ne peut jamais apparier à un job.
+   *  Le seul contrôle de la bande est le `summary`. */
+  test("aucune entrée n'est un contrôle", () => {
     renderBar([remote]);
+    expect(screen.queryByRole("button", { name: /exemple\.org/ })).toBeNull();
+    expect(screen.queryAllByRole("button")).toEqual([]);
+  });
+
+  /** Ce test mesure la **focalisabilité** du résumé, et rien de plus : `happy-dom` n'implémente pas
+   *  le basculement natif de `<details>` à la touche Entrée, donc l'asserter ici mesurerait le DOM
+   *  simulé et non le produit. Le dépliage au clavier est vérifié sur le vrai navigateur, dans
+   *  `e2e/includes.e2e.ts`. La première version de ce test appelait `.focus()` et s'arrêtait là
+   *  sans le dire. */
+  test("le résumé est focalisable au clavier", () => {
+    renderBar([remote]);
+
     const summary = document.querySelector("summary");
+    expect(summary).not.toBeNull();
     summary?.focus();
     expect(document.activeElement).toBe(summary);
+  });
+});
+
+describe("le texte d'aide du badge d'origine", () => {
+  /** `ORIGIN_HINT` promet « Changing it writes an explicit override in this job ». C'est vrai d'un
+   *  `extends` ou d'un anchor ; c'est **faux** d'une valeur venue d'un fichier inclus sur un job
+   *  qu'on ne peut pas écrire, et le dire là contredisait la garantie centrale du lot au moment
+   *  précis où l'utilisateur cherche à savoir ce qu'il peut toucher. */
+  test("une origine include ne promet pas de surcharge", () => {
+    render(<OriginBadge origin={{ kind: "include", file: INCLUDED }} />);
+    expect(screen.getByTestId("origin-badge").getAttribute("title")).toBe(INCLUDE_ORIGIN_HINT);
+  });
+
+  test("une origine extends promet toujours la surcharge, elle est vraie", () => {
+    render(<OriginBadge origin={{ kind: "extends", template: ".base" }} />);
+    expect(screen.getByTestId("origin-badge").getAttribute("title")).toBe(ORIGIN_HINT);
+  });
+
+  test("les deux phrases sont distinctes", () => {
+    expect(INCLUDE_ORIGIN_HINT).not.toBe(ORIGIN_HINT);
   });
 });

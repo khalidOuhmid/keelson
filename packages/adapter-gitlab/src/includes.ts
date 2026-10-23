@@ -151,7 +151,14 @@ export type IncludeResolution = {
    *  includes d'un fichier viennent avant lui, et le fichier principal vient en dernier — c'est
    *  pourquoi il n'est pas dans cette liste. */
   files: ParsedFile[];
+  /** Les includes qu'on ne sait pas résoudre : les formes distantes, et `local` quand l'appelant
+   *  n'a fourni aucun lecteur. Chacun donne un `INCLUDE_UNRESOLVED` en info. */
   unresolved: UnresolvedInclude[];
+  /** Les `include: local` qu'on a cherché à résoudre et qui ont **échoué** : chemin absent, hors
+   *  racine, mauvaise extension, entrée illisible. Ils sont déjà signalés par un
+   *  `INCLUDE_NOT_FOUND` en **erreur**, donc ils n'en reçoivent pas un second en info — mais le
+   *  pipeline leur manque tout autant, et c'est pourquoi ils comptent comme non résolus. */
+  failed: UnresolvedInclude[];
   diagnostics: Diagnostic[];
 };
 
@@ -159,6 +166,7 @@ type State = {
   read: IncludeReader | null;
   files: ParsedFile[];
   unresolved: UnresolvedInclude[];
+  failed: UnresolvedInclude[];
   diagnostics: Diagnostic[];
   candidates: readonly string[] | null;
   /** Fichiers **entrés** dans la résolution. Compté à l'entrée et non à la sortie : `walk`
@@ -168,13 +176,20 @@ type State = {
   stopped: boolean;
 };
 
+/** Un include local qui échoue est **deux** choses à la fois : une erreur à corriger, et un trou
+ *  dans le pipeline affiché. Le diagnostic dit la première ; `failed` dit la seconde, sans quoi
+ *  `isPartial()` resterait faux sur le défaut le plus courant d'un dépôt réel — une faute de frappe
+ *  dans un chemin — et l'écran laisserait croire le pipeline complet alors qu'il lui manque tout
+ *  ce que ce fichier apportait. */
 function notFound(
   state: State,
   from: string,
+  detail: string,
   range: SourceRange | null,
   params: Extract<Diagnostic, { code: typeof INCLUDE_NOT_FOUND }>["params"],
 ): void {
   state.diagnostics.push({ code: INCLUDE_NOT_FOUND, severity: "error", params, range, file: from });
+  state.failed.push({ form: "local", detail, from, range });
 }
 
 function expand(
@@ -185,7 +200,10 @@ function expand(
 ): string[] {
   const normalised = normaliseIncludePath(entry.value);
   if (!normalised.ok) {
-    notFound(state, from, entry.range, { reason: normalised.reason, path: normalised.path });
+    notFound(state, from, entry.value, entry.range, {
+      reason: normalised.reason,
+      path: normalised.path,
+    });
     return [];
   }
 
@@ -212,7 +230,9 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
     }
 
     if (entry.kind === "malformed") {
-      notFound(state, parent.file, entry.range, { reason: "malformed" });
+      notFound(state, parent.file, "an unreadable include entry", entry.range, {
+        reason: "malformed",
+      });
       continue;
     }
 
@@ -266,7 +286,7 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
 
       const text = read.read(path);
       if (text === null) {
-        notFound(state, parent.file, entry.range, { reason: "missing", path });
+        notFound(state, parent.file, path, entry.range, { reason: "missing", path });
         continue;
       }
 
@@ -285,11 +305,17 @@ export function resolveIncludes(main: ParsedFile, read: IncludeReader | null): I
     read,
     files: [],
     unresolved: [],
+    failed: [],
     diagnostics: [],
     candidates: null,
     entered: 0,
     stopped: false,
   };
   walk(state, main, [main.file]);
-  return { files: state.files, unresolved: state.unresolved, diagnostics: state.diagnostics };
+  return {
+    files: state.files,
+    unresolved: state.unresolved,
+    failed: state.failed,
+    diagnostics: state.diagnostics,
+  };
 }

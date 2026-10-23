@@ -434,10 +434,18 @@ describe("diagnostics attribués au bon fichier", () => {
 
     const found = parsed.diagnostics.find((entry) => entry.code === "JOB_WITHOUT_SCRIPT");
     expect(found?.file).toBe("ci/jobs.yml");
-    // La plage est un offset dans *ce* fichier : la relire dans le texte principal donnerait
-    // des octets pris ailleurs.
+
+    /* La plage est un offset dans le texte de **ce** fichier, et l'assertion le **découpe**. La
+       première version écrivait `expect(range ? "muet:" : "").toBe("muet:")` : un ternaire qui
+       rendait la chaîne littérale attendue dès que la plage existait, donc elle ne lisait aucun
+       octet et son commentaire surestimait tout ce qu'elle protégeait. Trouvée par la revue
+       indépendante du 2026-10-23, qui l'a mise en défaut avec une plage absurde. */
     const range = found?.range;
-    expect(range === null || range === undefined ? "" : "muet:").toBe("muet:");
+    if (range === null || range === undefined) {
+      throw new Error("JOB_WITHOUT_SCRIPT sans plage");
+    }
+    const included = parsed.pipeline.files.includes("ci/jobs.yml") ? "muet:\n  stage: build\n" : "";
+    expect(included.slice(range.start, range.end)).toStartWith("muet:");
   });
 
   test("un YAML invalide dans un include est signalé avec son fichier", () => {
@@ -457,5 +465,230 @@ describe("diagnostics attribués au bon fichier", () => {
         .filter((entry) => entry.code === "INVALID_YAML")
         .every((entry) => entry.file === "ci/casse.yml"),
     ).toBe(true);
+  });
+});
+
+describe("un include local cassé rend le pipeline partiel", () => {
+  /** Trouvé par la passe `critique` du 2026-10-23, sur le golden du lot lui-même : l'arbre
+   *  `missing` rendait `jobs: []` et `unresolved: []`, donc `isPartial()` était **faux** sur le
+   *  défaut le plus courant d'un dépôt réel — une faute de frappe dans un chemin d'include. La
+   *  bande de pipeline partiel ne s'affichait pas, et l'écran laissait croire le pipeline complet
+   *  alors qu'il lui manquait tout ce que ce fichier apportait. */
+  const BROKEN = {
+    [GITLAB_CI_FILE]: ["include: /ci/absent.yml", "", "stages:", "  - build", ""].join("\n"),
+  };
+
+  test("un chemin absent rend le pipeline partiel", () => {
+    const parsed = parseTree(BROKEN);
+    expect(isPartial(parsed.pipeline)).toBe(true);
+    expect(parsed.pipeline.unresolved).toEqual([
+      {
+        form: "local",
+        detail: "ci/absent.yml",
+        from: GITLAB_CI_FILE,
+        range: { start: 9, end: 23 },
+      },
+    ]);
+  });
+
+  test("l'erreur n'est pas redite en info : un seul diagnostic par include cassé", () => {
+    expect(codes(BROKEN)).toEqual([INCLUDE_NOT_FOUND]);
+  });
+
+  test("les trois formes d'échec comptent toutes", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include:",
+        "  - /ci/absent.yml",
+        "  - /ci/jobs.txt",
+        "  - /../dehors.yml",
+        "  - 42",
+        "",
+      ].join("\n"),
+    });
+
+    expect(parsed.pipeline.unresolved).toHaveLength(4);
+    expect(parsed.diagnostics.map((entry) => entry.code)).toEqual([
+      INCLUDE_NOT_FOUND,
+      INCLUDE_NOT_FOUND,
+      INCLUDE_NOT_FOUND,
+      INCLUDE_NOT_FOUND,
+    ]);
+  });
+
+  test("un include résolu ne compte pas, même à côté d'un cassé", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: ["include:", "  - /ci/bon.yml", "  - /ci/absent.yml", ""].join("\n"),
+      "ci/bon.yml": JOB("a", "build"),
+    });
+    expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["ci/absent.yml"]);
+    expect(parsed.pipeline.jobs.map((entry) => entry.id)).toEqual(["a"]);
+  });
+
+  /** Le cycle et la limite s'arrêtent **après** avoir lu le fichier : le pipeline a bien reçu son
+   *  contenu, donc ils ne rendent pas le pipeline partiel. C'est la distinction que `failed` fait,
+   *  et la mesurer évite de transformer `isPartial` en « il y a eu un problème quelque part ». */
+  test("un cycle ne rend pas le pipeline partiel : le contenu a bien été lu", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: "include: ci/a.yml\n",
+      "ci/a.yml": `include: .gitlab-ci.yml\n\n${JOB("a", "build")}`,
+    });
+    expect(parsed.diagnostics.map((entry) => entry.code)).toContain(INCLUDE_CYCLE);
+    expect(isPartial(parsed.pipeline)).toBe(false);
+    expect(parsed.pipeline.jobs.map((entry) => entry.id)).toEqual(["a"]);
+  });
+});
+
+describe("précédence entre extends et définitions inter-fichiers", () => {
+  /** Trouvé par la revue indépendante du 2026-10-23. GitLab fusionne les includes puis le fichier
+   *  principal, et ne résout `extends` qu'ensuite, sur le job fusionné : les clés propres d'un job
+   *  battent toujours ses templates. Keelson faisait l'inverse, parce que les sources du template
+   *  du fichier principal arrivaient après la map de l'include — et la vue Pipeline plaçait donc le
+   *  job dans la mauvaise colonne. */
+  test("une valeur écrite dans l'include bat un extends écrit dans le fichier principal", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include: ci/jobs.yml",
+        "",
+        "stages:",
+        "  - build",
+        "  - test",
+        "",
+        ".base:",
+        "  stage: test",
+        "",
+        "compile:",
+        "  extends: .base",
+        "",
+      ].join("\n"),
+      "ci/jobs.yml": "compile:\n  stage: build\n  script:\n    - make\n",
+    });
+
+    expect(parsed.pipeline.jobs[0]?.stage).toEqual({
+      value: "build",
+      origin: { kind: "include", file: "ci/jobs.yml" },
+    });
+  });
+
+  test("un extends apporte ce que le job ne déclare nulle part", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include: ci/jobs.yml",
+        "",
+        "stages:",
+        "  - build",
+        "  - test",
+        "",
+        ".base:",
+        "  environment:",
+        "    name: production",
+        "",
+        "compile:",
+        "  extends: .base",
+        "",
+      ].join("\n"),
+      "ci/jobs.yml": "compile:\n  stage: build\n  script:\n    - make\n",
+    });
+
+    expect(parsed.pipeline.jobs[0]?.environment?.value.name).toBe("production");
+    expect(parsed.pipeline.jobs[0]?.stage.value).toBe("build");
+  });
+
+  test("les extends des deux fichiers s'additionnent sans doublon", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include: ci/jobs.yml",
+        "",
+        "stages:",
+        "  - build",
+        "",
+        ".du-principal:",
+        "  script:",
+        "    - make",
+        "",
+        "compile:",
+        "  extends:",
+        "    - .du-principal",
+        "    - .de-l-include",
+        "",
+      ].join("\n"),
+      "ci/jobs.yml": [
+        ".de-l-include:",
+        "  stage: build",
+        "",
+        "compile:",
+        "  extends: .de-l-include",
+        "",
+      ].join("\n"),
+    });
+
+    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".de-l-include", ".du-principal"]);
+  });
+});
+
+describe("blocs opaques d'un job surchargé", () => {
+  /** Le défaut que la revue a trouvé **sur le golden du lot lui-même** : les blocs opaques étaient
+   *  pris sur la seule définition propriétaire, donc un job défini dans un include et surchargé
+   *  dans le fichier principal perdait à l'écran son `script` et ses `artifacts`. Le golden
+   *  `override` figeait `"opaque": []`.
+   *
+   *  Pire que le défaut : le correctif existait, et l'une de mes restaurations de fichier pendant
+   *  une vérification rouge l'a détruit sans bruit. La régénération des goldens a ensuite béni la
+   *  régression. C'est pourquoi ce test lit les **clés et les fichiers**, pas un compte. */
+  test("les blocs opaques viennent de toutes les définitions, chacun avec son fichier", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include: ci/jobs.yml",
+        "",
+        "stages:",
+        "  - build",
+        "  - test",
+        "",
+        "compile:",
+        "  stage: test",
+        "  rules:",
+        "    - when: manual",
+        "",
+      ].join("\n"),
+      "ci/jobs.yml": [
+        "compile:",
+        "  stage: build",
+        "  script:",
+        "    - make",
+        "  artifacts:",
+        "    paths:",
+        "      - build/",
+        "",
+      ].join("\n"),
+    });
+
+    const compile = parsed.pipeline.jobs[0];
+    expect(compile?.file).toBe(GITLAB_CI_FILE);
+    expect(compile?.opaque.map((block) => [block.key, block.file])).toEqual([
+      ["script", "ci/jobs.yml"],
+      ["artifacts", "ci/jobs.yml"],
+      ["rules", GITLAB_CI_FILE],
+    ]);
+  });
+
+  test("une clé redéfinie ne garde que la dernière, avec le fichier qui gagne", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include: ci/jobs.yml",
+        "",
+        "stages:",
+        "  - build",
+        "",
+        "compile:",
+        "  script:",
+        "    - make autre",
+        "",
+      ].join("\n"),
+      "ci/jobs.yml": "compile:\n  stage: build\n  script:\n    - make\n",
+    });
+
+    expect(parsed.pipeline.jobs[0]?.opaque.map((block) => [block.key, block.file])).toEqual([
+      ["script", GITLAB_CI_FILE],
+    ]);
   });
 });

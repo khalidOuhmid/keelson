@@ -83,10 +83,14 @@ export function JobEditor({
   };
 
   return (
-    /* La raison est portée par le **groupe** et non par chaque contrôle : un contrôle `disabled`
-       n'est pas tabulable, donc un `aria-describedby` posé dessus ne serait jamais lu. On ne passe
-       pas pour autant en `aria-disabled` focusable — dix arrêts de tabulation sur des contrôles
-       morts coûtent plus qu'ils ne rapportent. */
+    /* La raison est portée par le **groupe** et non par chaque contrôle, parce qu'un contrôle
+       `disabled` n'est pas tabulable. Mesuré : le groupe verrouillé a **zéro** arrêt de
+       tabulation. Le groupe ne l'est pas davantage, donc cet `aria-describedby` ne s'expose qu'en
+       mode exploration — il n'achète rien en tabulation, et prétendre le contraire serait
+       surestimer. Ce qui porte réellement l'information est le `<p>` visible ci-dessous, en flux
+       de lecture. L'attribut reste parce qu'il rattache la phrase au groupe en exploration, où
+       l'ordre de lecture seul ne le dirait pas. On ne passe pas en `aria-disabled` focusable :
+       quinze arrêts morts coûteraient plus qu'ils ne rapportent. */
     // biome-ignore lint/a11y/useSemanticElements: fieldset est réservé aux contrôles d'un seul formulaire ; ce bloc en contient plusieurs
     <div
       role="group"
@@ -94,8 +98,15 @@ export function JobEditor({
       {...(locked ? { "aria-describedby": JOB_LOCK_ID } : {})}
       className="flex flex-col gap-4 border-t border-border-subtle pt-3"
     >
+      {/* `sticky` : mesuré, le groupe des contrôles verrouillés commence sous le pli de la
+          colonne de droite, donc la note et les quinze contrôles morts n'étaient jamais visibles
+          ensemble. On défilait, on tombait sur l'interface morte, et l'explication avait disparu
+          vers le haut. */}
       {lockedTo === null ? null : (
-        <p id={JOB_LOCK_ID} className="text-sm text-text-secondary">
+        <p
+          id={JOB_LOCK_ID}
+          className="sticky top-0 z-10 bg-surface-1 py-1 text-sm text-text-secondary"
+        >
           {jobLockNote(lockedTo)}
         </p>
       )}
