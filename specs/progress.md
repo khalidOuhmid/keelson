@@ -1,27 +1,23 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L2c — messages** (ADR 0002), à cadrer depuis `main`
-Prochaine action : créer la branche `lot/l2c-messages` depuis `main`, puis écrire
-`specs/lots/l2c.md` avant de coder. Périmètre, fixé par l'ADR 0002 et complété par un écart du
-2026-10-22 : `core`, les adaptateurs **et `@keelson/server`** ne produisent plus que `code` et
-`params` structurés et typés ; un module unique `@keelson/core/messages` en rend le texte anglais,
-utilisé par la CLI et par l'UI ; `details` est supprimé et fusionné dans `params`, `JOB_REFERENCED`
-exposant `params.referencedBy`. Touche `OperationError` (`packages/core/src/operations.ts`), la
-forme d'erreur de l'API du serveur, `ApiFailure` (`packages/ui/src/api/client.ts`) et
-`referencedBy()` (`packages/ui/src/editing/drafts.ts`). `specs/diagnostics.md` documente la forme
-des `params` de chaque code, et un test échoue si un code n'a pas de message ou un message pas de
-code. L'écart du 2026-10-22 sur le double calcul de hash dans `packages/server/src/store.ts` se
-traite dans le même lot, qui touche déjà la forme des réponses du serveur.
+Lot courant : **L2b — résolution des `include` locaux**, à cadrer depuis `main`
+Prochaine action : créer la branche `lot/l2b-includes` depuis `main`, puis écrire
+`specs/lots/l2b.md` avant de coder. Deux points déjà fixés par des écarts du 2026-10-22 :
+l'indicateur de **pipeline partiel** dans l'UI, avec le diagnostic `INCLUDE_UNRESOLVED` remonté
+jusqu'à l'écran, et le fait que `EXTENDS_TARGET_NOT_FOUND` est aujourd'hui dégradé en avertissement
+*parce que* les `include` ne sont pas résolus — la résolution doit donc lui rendre sa sévérité
+d'erreur quand plus rien ne manque.
 Blocage : aucun
+
 
 | Lot | Statut | Merge |
 |-----|--------|-------|
 | L0 — socle du monorepo | TERMINÉ | `main` (branche `lot/l0-socle`, créée comme `main`) |
 | L1 — `core` + `adapter-gitlab` | TERMINÉ | `2a48b5a` (`--no-ff`) |
 | L2 — serveur, vue Pipeline, `keelson start` | TERMINÉ | `894464c` (`--no-ff`) |
-| L2c — messages : `code` + `params`, anglais unique, `details` fusionné | **LOT COURANT** — avant L3 (ADR 0002) | — |
-| L2b — résolution des `include` locaux | À FAIRE | — |
+| L2c — messages : `code` + `params`, anglais unique, `details` fusionné | TERMINÉ | `MERGE_L2C` (`--no-ff`) |
+| L2b — résolution des `include` locaux | **LOT COURANT** | — |
 | L3 — taxonomie, catalogue, overlay OWASP | À FAIRE | — |
 | L4 — toolchain | À FAIRE | — |
 | L5 — propositions et insertion | À FAIRE | — |
@@ -273,3 +269,118 @@ retenue pour la suite : **tout correctif se vérifie rouge en réintroduisant le
 Vérification finale depuis un arbre sans aucun `dist/` : `bun install --frozen-lockfile` puis
 `bun run check` → **1011 pass / 0 fail** ; `bun run e2e` → **35 verts** ; binaire buildé exécuté
 sous `node`. Merge `--no-ff` dans `main` (`894464c`), `bun run check` vert sur `main`.
+
+### 2026-10-22 — L2c — le lot complet
+
+Vérification de reprise : arbre propre, `main` à `b8106c2` (après `894464c`), `bun run check` vert
+(**1011 pass / 0 fail**). Aucune divergence entre `progress.md` et le dépôt.
+
+**Étape 0 — inventaire avant toute ligne de code** (`cecfa4c`). `specs/lots/l2c.md` recense les 9
+diagnostics, les 13 erreurs d'opération, les **6 codes de transport du serveur** — non documentés,
+non déclarés comme constantes, écrits en littéral à chaque site — et les 44 appels à `fail()` de
+`apply.ts`, avec fichier et ligne. Deux complétions du périmètre y sont consignées, pas des
+contradictions : la **chrome de la CLI** (usage, aide, « aucun diagnostic ») est en français mais ne
+porte aucun code, donc elle est traduite sur place et n'entre pas au registre ; et les six codes de
+transport entrent au registre, sans quoi l'UI ne peut pas les rendre et le test d'exhaustivité
+aurait son trou exactement là où était le français.
+
+**Une divergence de l'énoncé, consignée et non suivie à la lettre** : il demande un E2E sur « un 409
+`JOB_REFERENCED` », que le serveur ne peut pas produire — le 409 est réservé à `STALE_DOCUMENT`,
+`JOB_REFERENCED` sort en 422 (`store.ts`). L'intention étant sans ambiguïté, l'E2E emprunte le vrai
+chemin : supprimer un job dont trois autres ont besoin.
+
+**Sept décisions tranchées au cadrage**, toutes réversibles donc sans ADR. La principale : un
+discriminant **`reason`** dans les `params` plutôt que treize codes nouveaux, pour `INVALID_OPERATION`
+(8 situations), `RANGE_OUT_OF_BOUNDS` (9) et `NOT_FOUND` (5). Les codes sont un contrat public ; en
+ajouter treize dépassait le périmètre. L'exhaustivité des branches est garantie **à la compilation**
+par la forme de `en.ts` : un code à `reason` se rend par une table de branches, et sa forme à
+l'exécution est ce que le test de couverture parcourt — les deux ne peuvent pas dériver.
+
+**La seule divergence avec l'arborescence demandée** : `messages.test.ts` va dans
+`packages/core/test/`, pas dans `src/messages/`. La contrainte de runtime Node de `CLAUDE.md`
+l'impose — le `tsconfig` de `core` n'inclut que `src/` avec `"types": ["node"]`, et
+`scripts/check-runtime.ts` échoue sur tout import `bun:*` dans un `src/` de package runtime.
+
+**Étapes 1 à 5** (`5f8c9a2`, `f092a91`, `b214be5`, `d072046`, `12f934d`, `524a062`). `Diagnostic` et
+`OperationError` deviennent des **unions discriminées** sur `code`, de sorte que le compilateur
+refuse d'apparier un code et des `params` au hasard ; `renderMessage` accepte directement un
+diagnostic ou une erreur, ce que `render(code, params)` seul ne permettait pas sans perdre la
+corrélation. Le dédoublonnage de `resolve.ts`, qui portait sur le message, porte maintenant sur une
+sérialisation à clés triées des `params` — sans cela deux cibles d'`extends` absentes différentes
+auraient fusionné en un seul diagnostic. Le double calcul de hash du serveur est réduit à
+`result.value.hash`.
+
+**Un défaut trouvé par la migration elle-même** : `ErrorBanner` plantait sur un `JOB_REFERENCED`
+dont les `params` ne portaient pas `referencedBy`. Le type l'exige, le fil ne le garantit pas, et
+l'exception survenait **pendant l'affichage d'une autre erreur** — donc au pire moment.
+
+**Étape 6 — revue indépendante**, en lecture seule dans un worktree isolé, par un sous-agent qui
+n'avait pas vu l'implémentation. Dépôt vérifié intact au retour : même `HEAD`, 75 commits, arbre
+propre, aucun worktree résiduel. Elle a rendu **trois constats qui rouvrent le lot et quatre
+écarts**, tous vérifiés sur pièces.
+
+**Le constat qui compte, et il est humiliant** : le correctif « `render()` ne lève jamais »
+**annulait le test de couverture du même lot**. La revue a cassé `EXTENDS_CYCLE` — une faute de nom
+de `params` — et obtenu **908 pass, 0 fail** : le `try/catch` changeait l'exception en phrase valide,
+et les trois gardes « non vide, pas d'`undefined`, pas de français » étaient tous satisfaits par ce
+repli. Une protection de production avait rendu inerte le test qui la surveillait. Corrigé en deux
+temps : les fixtures portent désormais **le texte attendu de chaque branche**, et elles sont
+exercées par `EN` **directement**, sans le repli.
+
+Deuxième constat : `render()` pouvait rendre `undefined` contre son propre type, parce
+qu'`INVALID_YAML` est le seul renderer dont le corps est une lecture de `params` nue — il ne levait
+pas, il rendait la valeur absente, que la CLI passait ensuite à `.replace()`. Ne pas lever ne
+suffisait donc pas : `render()` garantit maintenant une **phrase non vide**.
+
+Troisième constat : trois chemins d'erreur du serveur n'étaient pas vérifiés, et **mon commentaire
+affirmait le contraire** pour le 413 — en renvoyant vers « son describe », où seul le code était
+testé. Or le 413 est le seul corps que le serveur sérialise à la main, hors du `fail()` qui garantit
+la forme : c'était le chemin le moins gardé, décrit comme couvert. `INTERNAL_ERROR` n'était pas
+testé non plus ; il l'est maintenant, en rendant le dossier du document non inscriptible pour faire
+lever l'écriture atomique.
+
+Quatrième constat retenu, classé rouvrant alors que la revue le donnait en écart :
+`NEED_NOT_FOUND` rendait **une phrase fausse**. Les deux sites avaient fusionné sous un seul texte,
+alors que le second n'est atteint qu'après avoir établi que le need *est* effectif — il vient d'un
+alias d'anchor ou d'un `!reference`. La phrase disait l'inverse de la condition qui y mène, et aucun
+test n'atteignait ce chemin. Deux fixtures l'atteignent maintenant, et le `reason` `notLocal` dit ce
+qui se passe.
+
+**Tests trouvés incapables d'échouer sur ce lot : trois**, tous les trois par la revue.
+1. « chaque rendu est exercé » — absorbé par le repli de `render()`. Cause : *une assertion
+   contrainte par autre chose que ce qu'elle prétend mesurer*, ici un filet de sécurité ajouté
+   quinze minutes plus tôt dans le même lot.
+2. les deux tests de conséquence de `hash.test.ts` — les deux expressions fusionnées rendaient la
+   même valeur, donc aucun test de comportement ne pouvait rougir. Seul le garde structurel protège,
+   et mon commentaire l'attribuait aux deux autres. Cause : *un commentaire qui surestime ce qui
+   protège*. Le garde a par ailleurs été durci — il ne voyait que `hashText(`, pas le détour par
+   `parse(…).hash` — et il retire désormais les commentaires du fichier avant de chercher, pour ne
+   pas se déclencher sur sa propre explication.
+3. le 413 et le bundle d'UI absent — seul le **code** était asserté, pas la forme, donc une clé
+   `message` réapparue serait passée. Cause : *une fixture qui ne reproduit pas la forme du défaut*.
+
+Chaque correctif a été **vérifié rouge en réintroduisant le défaut réel**, sans `git stash`, le
+fichier restauré par réécriture et `git diff` vérifié vide : seize mutations au total, dont les deux
+sens du garde de documentation, le dédoublonnage ramené au seul code, les quatre corps du serveur
+avec une clé `message` remise, le `reason` de `NEED_NOT_FOUND` refusionné, et les trois assertions
+E2E avec le rendu neutralisé.
+
+**ADR** : aucun nouveau. L'ADR 0002 reçoit sa ligne de portée complétée ; l'ADR 0003 a servi deux
+fois à trancher rouvre / écart.
+
+**Écarts** : deux clos avec leur preuve (`@keelson/server` hors de l'ADR 0002, double calcul de
+hash), deux nouveaux — le commentaire du test clavier de L2 qui surestime sa protection, et
+l'absence de validation des `params` à la frontière réseau, qui laisse encore interpoler le mot
+« undefined » dans une phrase lisible. Celui-ci part au lot L8, qui ouvre l'API à des clients
+distants et en a le vrai besoin.
+
+**Dettes datées** : aucune ajoutée. **Perte d'information assumée** : `parseOperation` n'expose plus
+la liste complète des `issues` de zod, seulement `path` et `detail` du premier — porter les issues
+dans `params` ferait dépendre un contrat public des internes de zod.
+
+Vérification finale depuis un arbre **sans aucun `dist/` ni `types/`** : `bun install
+--frozen-lockfile` (133 installs, no changes), `bun run check` → lint 226 fichiers 0 erreur,
+typecheck 0 erreur, **1044 pass / 0 fail**, build complet ; `bun run e2e` → **35 passed** sur le
+binaire réel ; binaire exécuté sous `node v22.16.0` — `validate` rend l'anglais, `--format json`
+expose `params` **et** `message`, l'aide est en anglais. `grep` : **0 ligne de français hors
+commentaire** dans `packages/*/src`.
