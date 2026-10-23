@@ -1,29 +1,49 @@
 # Diagnostics et codes d'erreur
 
 Les codes de ce document sont des **contrats publics**. Chacun est exporté comme constante depuis
-`@keelson/core`, couvert par au moins un test, et consommé par `keelson validate --format json`.
-Renommer ou supprimer un code est une rupture de compatibilité.
+`@keelson/core/messages`, couvert par au moins un test, et consommé par
+`keelson validate --format json`. Renommer ou supprimer un code est une rupture de compatibilité.
 
-Deux familles distinctes :
+**La forme des `params` est un contrat au même titre que le code** ([ADR
+0002](adr/0002-langue-et-messages.md)) : en changer la forme est une rupture de compatibilité.
+`core`, les adaptateurs et `@keelson/server` ne produisent **jamais de texte** ; ils rendent
+`code` + `params`. Le seul endroit du produit qui transforme un `(code, params)` en phrase est
+`render()` dans `@keelson/core/messages`, utilisé par la CLI **et** par l'UI.
+
+Un test échoue si un code de ce document n'a pas de message, si un message n'a pas de code, ou si
+l'ensemble des codes documentés ici diffère de celui du registre — **dans les deux sens**
+(`packages/core/test/messages.test.ts`).
+
+Trois familles distinctes, plus les codes forgés par le client :
 
 - les **diagnostics** (`Diagnostic`) décrivent l'état d'un fichier analysé ; ils sont rendus par
   `parse` et `validate`, portent une sévérité et une plage, et n'empêchent rien ;
 - les **erreurs d'opération** (`OperationError`) sont rendues par `apply` quand une édition est
-  refusée ; elles n'ont pas de sévérité et **aucune modification n'est écrite**.
+  refusée ; elles n'ont pas de sévérité et **aucune modification n'est écrite** ;
+- les **codes de transport** sont rendus par `@keelson/server` avant ou autour du traitement d'une
+  requête.
+
+## Le discriminant `reason`
+
+Deux codes d'opération et un code de transport couvrent chacun plusieurs situations distinctes.
+Plutôt que d'ajouter treize codes à un contrat public, leurs `params` portent un discriminant
+**`reason`**, et le rendu branche dessus. Le `reason` fait donc partie du contrat : les valeurs
+possibles sont listées ci-dessous, et l'exhaustivité des branches de rendu est garantie à la
+compilation.
 
 ## Diagnostics
 
-| Code | Sévérité | Produit par | Signification |
-| --- | --- | --- | --- |
-| `INVALID_YAML` | error | `parse` | Le fichier n'est pas du YAML valide. Un diagnostic par erreur rendue par la lib `yaml`, avec la position. Le parsing continue : le pipeline rendu est partiel. |
-| `INCLUDE_UNRESOLVED` | info | `parse` | Le fichier contient une clé `include`. Les `include` ne sont pas résolus en L1 : le pipeline affiché ne contient que ce fichier local. |
-| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | Un `extends` pointe vers une clé absente du fichier. Dégradé en **warning** quand le fichier contient des `include`, car la cible peut venir d'un include non résolu. Signalé une seule fois par cible. |
-| `EXTENDS_CYCLE` | error | `parse` | Une chaîne d'`extends` boucle. Le message donne le chemin du cycle. La résolution s'arrête à la boucle, le parsing aboutit. |
-| `JOB_WITHOUT_SCRIPT` | warning | `parse` | Un job n'a ni `script`, ni `run`, ni `trigger`. Évalué **après** résolution des `extends` et des anchors. |
-| `UNKNOWN_NEED` | error | `validate` | Un `needs` pointe vers un job qui n'existe pas. Un templates (clé commençant par `.`) n'est pas un job valide pour un `needs`. |
-| `NEEDS_CYCLE` | error | `validate` | Les `needs` forment un cycle. Un diagnostic par composante fortement connexe, avec le chemin du cycle dans le message. |
-| `UNKNOWN_STAGE` | error | `validate` | Un job référence un stage non déclaré. |
-| `NEED_LATER_STAGE` | warning | `validate` | Un job a besoin d'un job situé dans un stage ultérieur. Non évalué quand le stage du job est lui-même inconnu. |
+| Code | Sévérité | Produit par | `params` | Signification |
+| --- | --- | --- | --- | --- |
+| `INVALID_YAML` | error | `parse` | `{ detail }` | Le fichier n'est pas du YAML valide. Un diagnostic par erreur rendue par la lib `yaml`, avec la position. `detail` est la phrase de la lib, reprise telle quelle : elle est déjà en anglais et plus précise que toute reformulation. Le parsing continue : le pipeline rendu est partiel. |
+| `INCLUDE_UNRESOLVED` | info | `parse` | `{}` | Le fichier contient une clé `include`. Les `include` ne sont pas résolus en L1 : le pipeline affiché ne contient que ce fichier local. |
+| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | `{ template }` | Un `extends` pointe vers une clé absente du fichier. Dégradé en **warning** quand le fichier contient des `include`, car la cible peut venir d'un include non résolu. Signalé une seule fois par cible. |
+| `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`extends` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
+| `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | Un job n'a ni `script`, ni `run`, ni `trigger`. Évalué **après** résolution des `extends` et des anchors. |
+| `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | Un `needs` pointe vers un job qui n'existe pas. Un template (clé commençant par `.`) n'est pas un job valide pour un `needs`. |
+| `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | Les `needs` forment un cycle. Un diagnostic par composante fortement connexe ; `cycle` est le chemin, premier élément répété en dernier. |
+| `UNKNOWN_STAGE` | error | `validate` | `{ job, stage }` | Un job référence un stage non déclaré. |
+| `NEED_LATER_STAGE` | warning | `validate` | `{ job, stage, need, needStage }` | Un job a besoin d'un job situé dans un stage ultérieur. Non évalué quand le stage du job est lui-même inconnu. |
 
 ### Exemples
 
@@ -47,7 +67,7 @@ include:
 ```
 
 ```
-fichier.yml:1:1 info INCLUDE_UNRESOLVED les include ne sont pas résolus : …
+fichier.yml:1:1 info INCLUDE_UNRESOLVED includes are not resolved: …
 ```
 
 **`EXTENDS_TARGET_NOT_FOUND`**
@@ -68,7 +88,7 @@ orphelin:
 ```
 
 ```
-error EXTENDS_CYCLE cycle d'extends : .a → .b → .a
+error EXTENDS_CYCLE extends cycle: .a → .b → .a
 ```
 
 **`JOB_WITHOUT_SCRIPT`**
@@ -87,7 +107,7 @@ unit:
 ```
 
 ```
-fichier.yml:1:1 error UNKNOWN_NEED le job « unit » a besoin de « absent », qui n'existe pas
+fichier.yml:1:1 error UNKNOWN_NEED job "unit" needs "absent", which does not exist
 ```
 
 **`NEEDS_CYCLE`**
@@ -102,7 +122,7 @@ c:
 ```
 
 ```
-error NEEDS_CYCLE cycle dans les needs : a → c → b → a
+error NEEDS_CYCLE needs cycle: a → c → b → a
 ```
 
 **`UNKNOWN_STAGE`**
@@ -132,24 +152,78 @@ publish:
 
 ## Erreurs d'opération
 
-Rendues par `apply` dans un `Result` en échec. Aucune n'est levée comme exception : une exception ne
-peut signaler qu'un bug de Keelson.
+Rendues par `apply` dans un `Result` en échec, et relayées telles quelles par `@keelson/server`.
+Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug de Keelson.
 
-| Code | Signification |
-| --- | --- |
-| `STALE_DOCUMENT` | Le `baseHash` de l'opération ne correspond pas au hash du document. Le document a changé depuis le calcul de l'opération. `details` porte `expected` et `received`. |
-| `JOB_NOT_FOUND` | Le job visé n'existe pas. Un template n'est pas un job. |
-| `JOB_REFERENCED` | `removeJob` sur un job dont d'autres jobs ont besoin. `details.referencedBy` liste leurs identifiants ; la suppression en cascade se compose en plusieurs opérations. |
-| `NAME_CONFLICT` | Le nom cible est déjà pris par une clé de premier niveau (job, template ou clé réservée). |
-| `INVALID_NAME` | Le nom est vide, commence par `.`, ou est un mot réservé : `stages`, `variables`, `include`, `default`, `workflow`, `image`, `services`, `cache`, `before_script`, `after_script`. Vaut aussi pour un nom de stage vide. |
-| `STAGE_NOT_FOUND` | Le stage visé n'est pas déclaré. Les stages implicites (`.pre`, `build`, `test`, `deploy`, `.post`) comptent comme déclarés. |
-| `STAGE_EXISTS` | `addStage` sur un stage déjà présent, implicite compris. |
-| `NEED_EXISTS` | `addNeed` sur un need déjà présent dans la valeur effective. |
-| `NEED_NOT_FOUND` | `removeNeed` sur un need absent de la valeur effective. |
-| `CYCLE` | L'opération créerait un cycle dans les `needs` qui n'existait pas avant. Évalué sur l'IR du texte résultant, pour toutes les opérations sauf `splice`. |
-| `UNSUPPORTED_VERSION` | L'opération porte un `v` numérique différent de `1`. |
-| `INVALID_OPERATION` | L'opération ne respecte pas son schéma zod, ou l'édition demandée n'est pas supportée : job en flow style, retrait d'un environnement hérité, `addJob` sans script, résultat qui serait un YAML invalide. |
-| `RANGE_OUT_OF_BOUNDS` | Un `splice` sort du texte, ou un index de stage dépasse la liste. |
+| Code | `params` | Signification |
+| --- | --- | --- |
+| `STALE_DOCUMENT` | `{ expected, received }` | Le `baseHash` de l'opération ne correspond pas au hash du document, qui a changé depuis le calcul de l'opération. `expected` est le hash du document, `received` celui de l'opération. Les deux sont dans les `params` pour le diagnostic, jamais dans la phrase rendue : deux empreintes de 64 caractères n'aident aucun lecteur. |
+| `JOB_NOT_FOUND` | `{ job }` | Le job visé n'existe pas. Un template n'est pas un job. |
+| `JOB_REFERENCED` | `{ job, referencedBy }` | `removeJob` sur un job dont d'autres jobs ont besoin. `referencedBy` liste leurs identifiants ; la suppression en cascade se compose en plusieurs opérations. C'est le seul code que l'UI traite spécialement : elle lit `params.referencedBy` pour lister les référents. |
+| `NAME_CONFLICT` | `{ name }` | Le nom cible est déjà pris par une clé de premier niveau (job, template ou clé réservée). |
+| `INVALID_NAME` | `{ reason: "job", name }` ou `{ reason: "stage" }` | `reason: "job"` : le nom est vide, commence par `.`, ou est un mot réservé — `stages`, `variables`, `include`, `default`, `workflow`, `image`, `services`, `cache`, `before_script`, `after_script`. `reason: "stage"` : nom de stage vide. |
+| `STAGE_NOT_FOUND` | `{ stage }` | Le stage visé n'est pas déclaré. Les stages implicites (`.pre`, `build`, `test`, `deploy`, `.post`) comptent comme déclarés. |
+| `STAGE_EXISTS` | `{ stage }` | `addStage` sur un stage déjà présent, implicite compris. |
+| `NEED_EXISTS` | `{ job, need }` | `addNeed` sur un need déjà présent dans la valeur effective. |
+| `NEED_NOT_FOUND` | `{ job, need }` | `removeNeed` sur un need absent de la valeur effective. |
+| `CYCLE` | `{ operation }` | L'opération créerait un cycle dans les `needs` qui n'existait pas avant. Évalué sur l'IR du texte résultant, pour toutes les opérations sauf `splice`. |
+| `UNSUPPORTED_VERSION` | `{ received, supported }` | L'opération porte un `v` numérique différent de `1`. |
+| `INVALID_OPERATION` | union sur `reason`, voir ci-dessous | L'opération ne respecte pas son schéma, ou l'édition demandée n'est pas supportée. |
+| `RANGE_OUT_OF_BOUNDS` | union sur `reason`, voir ci-dessous | Une plage de source est introuvable, ou un index sort de sa liste. |
+
+### `INVALID_OPERATION`
+
+| `reason` | Autres `params` | Situation |
+| --- | --- | --- |
+| `notAnObject` | — | Le corps reçu n'est pas un objet JSON. |
+| `schema` | `path`, `detail` | Le schéma zod refuse l'opération. `detail` est la phrase de zod, en anglais ; `path` la situe dans l'opération, et vaut `""` quand l'erreur porte sur la racine. |
+| `flowStyleJob` | `job` | Le job est écrit en flow style (`{ … }`) ; l'édition en place supposerait un rendu par ligne. |
+| `jobWithoutScript` | — | `addJob` sans aucune ligne de script. |
+| `inheritedEnvironment` | `job`, `origin` | Retrait d'un environnement hérité : GitLab n'a pas de clé d'annulation. `origin` dit d'où il vient (`extends`, `anchor`, `default`). |
+| `noRootMap` | — | Le fichier n'a pas de map YAML à la racine, et l'opération n'est pas un `splice`. |
+| `wouldBreakYaml` | `operation` | Le texte résultant serait un YAML invalide ; rien n'a été écrit. |
+| `unreadableBody` | — | **Serveur** : le corps de la requête n'est pas du JSON lisible. |
+| `missingOpId` | — | **Serveur** : `opId` absent ou vide. |
+| `missingOp` | — | **Serveur** : `op` absent ou invalide. |
+
+### `RANGE_OUT_OF_BOUNDS`
+
+| `reason` | Autres `params` | Situation |
+| --- | --- | --- |
+| `jobRange` | `job` | Plage introuvable pour la clé du job. |
+| `stageKey` | — | Plage introuvable pour la clé `stage`. |
+| `needsKey` | — | Plage introuvable pour la clé `needs`. |
+| `lastNeed` | — | Plage introuvable pour le dernier élément de `needs`. |
+| `environmentKey` | — | Plage introuvable pour la clé `environment`. |
+| `stageList` | — | Plage introuvable dans la liste de stages. |
+| `emptyStageList` | — | La liste de stages est vide là où un élément est attendu. |
+| `stageIndex` | `index`, `count` | Index de stage au-delà de la liste. |
+| `textRange` | `start`, `end`, `length` | Un `splice` sort du texte. |
+
+## Codes de transport
+
+Rendus par `@keelson/server`. Toute erreur de l'API a la forme `{ code, params }`, plus `hash` pour
+le 409 `STALE_DOCUMENT`. **Il n'y a pas de clé `message` sur le fil** : le texte est rendu côté
+client.
+
+| Code | Statut | `params` | Signification |
+| --- | --- | --- | --- |
+| `FORBIDDEN_HOST` | 403 | `{}` | L'en-tête `Host` n'est pas une forme locale attendue. Refusé avant tout traitement. |
+| `FORBIDDEN_TOKEN` | 403 | `{}` | Token de session absent ou invalide sur une route `/api`. |
+| `METHOD_NOT_ALLOWED` | 405 | `{ method }` | La méthode HTTP n'est pas celle de la route. |
+| `NOT_FOUND` | 404 | union sur `reason` : `unreadableFileName` · `unknownFile {file}` · `missingFile {file}` · `unknownRoute {route}` · `noUiBundle` | `unknownFile` : le fichier n'est pas dans l'espace de travail. `missingFile` : il y est mais n'a pas pu être chargé. `noUiBundle` : ce serveur ne sert pas de bundle d'interface. |
+| `PAYLOAD_TOO_LARGE` | 413 | `{ limitBytes }` | Corps de requête au-delà de la limite. La connexion est fermée. |
+| `INTERNAL_ERROR` | 500 | `{}` | Le gestionnaire a levé. Aucun détail n'est exposé. |
+
+## Codes forgés par le client
+
+Aucun serveur ne les émet. Ils entrent au registre pour que le test d'exhaustivité ne laisse pas
+l'UI rendre un code sans message.
+
+| Code | `params` | Signification |
+| --- | --- | --- |
+| `NETWORK_ERROR` | `{ detail }` | La requête n'a pas abouti. `detail` est le message de l'exception. |
+| `UNEXPECTED_RESPONSE` | `{}` | La réponse d'erreur n'a pas la forme `{ code, params }`. |
 
 ## Convention de position
 
