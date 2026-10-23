@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { hashText, type Operation } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import fc from "fast-check";
 import { apply } from "../../src/apply.ts";
 import { parse } from "../../src/parse.ts";
@@ -28,7 +29,7 @@ describe("propriété : deux applications identiques donnent des sorties identiq
           }
           if (!first.ok && !second.ok) {
             expect(second.error.code).toBe(first.error.code);
-            expect(second.error.message).toBe(first.error.message);
+            expect(renderMessage(second.error)).toBe(renderMessage(first.error));
           }
         },
       ),

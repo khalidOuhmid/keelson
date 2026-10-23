@@ -7,6 +7,7 @@ import type {
   Operation,
   OperationError,
   OperationErrorCode,
+  ParamsOf,
   Pipeline,
   RemoveJobOperation,
   RemoveNeedOperation,
@@ -76,8 +77,8 @@ type EnvironmentInput = {
   action?: string | undefined;
 };
 
-function fail(code: OperationErrorCode, message: string, details?: OperationError["details"]) {
-  return err<ApplyError>(details === undefined ? { code, message } : { code, message, details });
+function fail<C extends OperationErrorCode>(code: C, params: ParamsOf<C>) {
+  return err<ApplyError>({ code, params } as OperationError);
 }
 
 function nodeRange(node: AnyNode): [number, number, number] | undefined {
@@ -104,22 +105,19 @@ function topLevelMap(document: GitlabDocument): YAMLMap | null {
 
 function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target, ApplyError> {
   if (!pipeline.jobs.some((job) => job.id === id)) {
-    return fail(JOB_NOT_FOUND, `le job « ${id} » n'existe pas dans ce fichier`);
+    return fail(JOB_NOT_FOUND, { job: id });
   }
 
   const pair = localPair(root, id);
   const map = pair?.value as AnyNode;
   if (pair === undefined || !isMap(map)) {
-    return fail(JOB_NOT_FOUND, `le job « ${id} » n'existe pas dans ce fichier`);
+    return fail(JOB_NOT_FOUND, { job: id });
   }
 
   if (map.flow === true) {
     // DETTE(2026-10-20): les jobs écrits en flow style ({ … }) ne sont pas éditables
     // — le patch en place supposerait un rendu par ligne. À traiter avec l'éditeur de blocs du lot L2.
-    return fail(
-      INVALID_OPERATION,
-      `le job « ${id} » est écrit en flow style, l'édition en place n'est pas supportée`,
-    );
+    return fail(INVALID_OPERATION, { reason: "flowStyleJob", job: id });
   }
 
   return ok({ pair, map });
@@ -191,16 +189,16 @@ function planAddJob(
   const { job } = operation;
 
   if (!isLegalJobName(job.id)) {
-    return fail(INVALID_NAME, `« ${job.id} » n'est pas un nom de job utilisable`);
+    return fail(INVALID_NAME, { reason: "job", name: job.id });
   }
   if (localPair(root, job.id) !== undefined) {
-    return fail(NAME_CONFLICT, `la clé « ${job.id} » existe déjà dans ce fichier`);
+    return fail(NAME_CONFLICT, { name: job.id });
   }
   if (!pipeline.stages.some((stage) => stage.name === job.stage)) {
-    return fail(STAGE_NOT_FOUND, `le stage « ${job.stage} » n'est pas déclaré`);
+    return fail(STAGE_NOT_FOUND, { stage: job.stage });
   }
   if (job.script.length === 0) {
-    return fail(INVALID_OPERATION, "un job ajouté doit avoir au moins une ligne de script");
+    return fail(INVALID_OPERATION, { reason: "jobWithoutScript" });
   }
 
   const { text, eol, indent } = geometry;
@@ -249,16 +247,12 @@ function planRemoveJob(
     .map((job) => job.id);
 
   if (referencedBy.length > 0) {
-    return fail(
-      JOB_REFERENCED,
-      `le job « ${operation.id} » est référencé par ${referencedBy.join(", ")}`,
-      { referencedBy },
-    );
+    return fail(JOB_REFERENCED, { job: operation.id, referencedBy });
   }
 
   const range = pairRange(located.value.pair);
   if (range === null) {
-    return fail(RANGE_OUT_OF_BOUNDS, `plage introuvable pour « ${operation.id} »`);
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "jobRange", job: operation.id });
   }
 
   const { text, eol } = geometry;
@@ -305,15 +299,15 @@ function planRenameJob(operation: RenameJobOperation, root: YAMLMap, pipeline: P
     return located;
   }
   if (!isLegalJobName(operation.to)) {
-    return fail(INVALID_NAME, `« ${operation.to} » n'est pas un nom de job utilisable`);
+    return fail(INVALID_NAME, { reason: "job", name: operation.to });
   }
   if (localPair(root, operation.to) !== undefined) {
-    return fail(NAME_CONFLICT, `la clé « ${operation.to} » existe déjà dans ce fichier`);
+    return fail(NAME_CONFLICT, { name: operation.to });
   }
 
   const keyRange = valueContent(located.value.pair.key as AnyNode);
   if (keyRange === null) {
-    return fail(RANGE_OUT_OF_BOUNDS, `plage introuvable pour « ${operation.from} »`);
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "jobRange", job: operation.from });
   }
 
   return ok([
@@ -333,14 +327,14 @@ function planSetJobStage(
     return located;
   }
   if (!pipeline.stages.some((stage) => stage.name === operation.stage)) {
-    return fail(STAGE_NOT_FOUND, `le stage « ${operation.stage} » n'est pas déclaré`);
+    return fail(STAGE_NOT_FOUND, { stage: operation.stage });
   }
 
   const local = localPair(located.value.map, "stage");
   if (local !== undefined) {
     const range = valueContent(local.value as AnyNode);
     if (range === null) {
-      return fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour la clé stage");
+      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageKey" });
     }
     return ok([{ ...range, text: operation.stage }]);
   }
@@ -364,10 +358,7 @@ function planAddNeed(
 
   const current = effectiveNeeds(pipeline, operation.id);
   if (current.some((need) => need.job === operation.need.job)) {
-    return fail(
-      NEED_EXISTS,
-      `le job « ${operation.id} » a déjà besoin de « ${operation.need.job} »`,
-    );
+    return fail(NEED_EXISTS, { job: operation.id, need: operation.need.job });
   }
 
   const added: Need = {
@@ -398,19 +389,19 @@ function planAddNeed(
     if (last === undefined) {
       const range = valueContent(seq);
       return range === null
-        ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour la clé needs")
+        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
         : ok([{ ...range, text: `[${added.job}]` }]);
     }
     const end = nodeRange(last)?.[1];
     return end === undefined
-      ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour le dernier need")
+      ? fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" })
       : ok([{ start: end, end, text: `, ${added.job}` }]);
   }
 
   if (last === undefined) {
     const range = pairLineRange(text, local);
     return range === null
-      ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour la clé needs")
+      ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
       : ok([
           {
             ...range,
@@ -425,7 +416,7 @@ function planAddNeed(
 
   const lastRange = nodeRange(last);
   if (lastRange === undefined) {
-    return fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour le dernier need");
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" });
   }
   const prefix = linePrefix(text, lastRange[0]);
   return ok([{ start: lastRange[2], end: lastRange[2], text: renderNeedItem(added, prefix, eol) }]);
@@ -444,10 +435,7 @@ function planRemoveNeed(
 
   const current = effectiveNeeds(pipeline, operation.id);
   if (!current.some((need) => need.job === operation.job)) {
-    return fail(
-      NEED_NOT_FOUND,
-      `le job « ${operation.id} » n'a pas besoin de « ${operation.job} »`,
-    );
+    return fail(NEED_NOT_FOUND, { job: operation.id, need: operation.job });
   }
 
   const remaining = current.filter((need) => need.job !== operation.job);
@@ -470,7 +458,7 @@ function planRemoveNeed(
   if (remaining.length === 0) {
     const range = pairLineRange(geometry.text, local);
     return range === null
-      ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour la clé needs")
+      ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
       : ok([{ ...range, text: "" }]);
   }
 
@@ -487,7 +475,7 @@ function planRemoveNeed(
   const victim = items[index];
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
   if (victimRange === undefined) {
-    return fail(NEED_NOT_FOUND, `need « ${operation.job} » introuvable dans la séquence locale`);
+    return fail(NEED_NOT_FOUND, { job: operation.id, need: operation.job });
   }
 
   if (isSeq(seq) && seq.flow === true) {
@@ -522,16 +510,17 @@ function planSetEnvironment(
     if (local !== undefined) {
       const range = pairLineRange(geometry.text, local);
       return range === null
-        ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour la clé environment")
+        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" })
         : ok([{ ...range, text: "" }]);
     }
     if (inherited !== null) {
       // DETTE(2026-10-20): pas de mécanisme pour annuler un environnement hérité
       // — GitLab n'a pas de clé d'annulation ; à trancher avec la vue Toolchain du lot L4.
-      return fail(
-        INVALID_OPERATION,
-        `l'environnement de « ${operation.id} » est hérité (${inherited.origin.kind}) et ne peut pas être retiré localement`,
-      );
+      return fail(INVALID_OPERATION, {
+        reason: "inheritedEnvironment",
+        job: operation.id,
+        origin: inherited.origin.kind,
+      });
     }
     return ok([]);
   }
@@ -542,7 +531,7 @@ function planSetEnvironment(
     const range = pairLineRange(geometry.text, local);
     const keyStart = nodeRange(local.key as AnyNode)?.[0];
     if (range === null || keyStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, "plage introuvable pour la clé environment");
+      return fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" });
     }
     const pad = linePrefix(geometry.text, keyStart);
     return ok([{ ...range, text: renderEnvironmentBlock(environment, geometry, pad) }]);
@@ -575,18 +564,19 @@ function planAddStage(
   pipeline: Pipeline,
 ): Planned {
   if (operation.name === "") {
-    return fail(INVALID_NAME, "un stage ne peut pas avoir un nom vide");
+    return fail(INVALID_NAME, { reason: "stage" });
   }
   if (pipeline.stages.some((stage) => stage.name === operation.name)) {
-    return fail(STAGE_EXISTS, `le stage « ${operation.name} » existe déjà`);
+    return fail(STAGE_EXISTS, { stage: operation.name });
   }
 
   const index = operation.index ?? pipeline.stages.length;
   if (index > pipeline.stages.length) {
-    return fail(
-      RANGE_OUT_OF_BOUNDS,
-      `index ${index} hors de la liste de ${pipeline.stages.length} stages`,
-    );
+    return fail(RANGE_OUT_OF_BOUNDS, {
+      reason: "stageIndex",
+      index,
+      count: pipeline.stages.length,
+    });
   }
 
   const declared = stagesSeq(root);
@@ -604,13 +594,13 @@ function planAddStage(
     if (anchor !== undefined) {
       const start = nodeRange(anchor)?.[0];
       return start === undefined
-        ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable dans la liste de stages")
+        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" })
         : ok([{ start, end: start, text: `${operation.name}, ` }]);
     }
     const last = items.at(-1);
     const end = last === undefined ? undefined : nodeRange(last)?.[1];
     return end === undefined
-      ? fail(RANGE_OUT_OF_BOUNDS, "plage introuvable dans la liste de stages")
+      ? fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" })
       : ok([{ start: end, end, text: `, ${operation.name}` }]);
   }
 
@@ -618,7 +608,7 @@ function planAddStage(
   if (anchor !== undefined) {
     const anchorStart = nodeRange(anchor)?.[0];
     if (anchorStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, "plage introuvable dans la liste de stages");
+      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
     }
     const at = lineStart(text, anchorStart);
     return ok([
@@ -629,7 +619,7 @@ function planAddStage(
   const last = items.at(-1);
   const lastRange = last === undefined ? undefined : nodeRange(last);
   if (lastRange === undefined) {
-    return fail(RANGE_OUT_OF_BOUNDS, "liste de stages vide");
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" });
   }
   return ok([
     {
@@ -649,13 +639,14 @@ function planMoveStage(
   const names = pipeline.stages.map((stage) => stage.name);
   const from = names.indexOf(operation.name);
   if (from === -1) {
-    return fail(STAGE_NOT_FOUND, `le stage « ${operation.name} » n'existe pas`);
+    return fail(STAGE_NOT_FOUND, { stage: operation.name });
   }
   if (operation.toIndex >= names.length) {
-    return fail(
-      RANGE_OUT_OF_BOUNDS,
-      `index ${operation.toIndex} hors de la liste de ${names.length} stages`,
-    );
+    return fail(RANGE_OUT_OF_BOUNDS, {
+      reason: "stageIndex",
+      index: operation.toIndex,
+      count: names.length,
+    });
   }
 
   const declared = stagesSeq(root);
@@ -674,7 +665,7 @@ function planMoveStage(
   const victim = items[from];
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
   if (victimRange === undefined) {
-    return fail(RANGE_OUT_OF_BOUNDS, "plage introuvable dans la liste de stages");
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
   }
 
   const { text, eol } = geometry;
@@ -687,7 +678,7 @@ function planMoveStage(
   if (anchor !== undefined) {
     const anchorStart = nodeRange(anchor)?.[0];
     if (anchorStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, "plage introuvable dans la liste de stages");
+      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
     }
     const at = lineStart(text, anchorStart);
     return ok([removal, { start: at, end: at, text: line }]);
@@ -696,17 +687,19 @@ function planMoveStage(
   const last = rest.at(-1);
   const lastEnd = last === undefined ? undefined : nodeRange(last)?.[2];
   return lastEnd === undefined
-    ? fail(RANGE_OUT_OF_BOUNDS, "liste de stages vide")
+    ? fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" })
     : ok([removal, { start: lastEnd, end: lastEnd, text: line }]);
 }
 
 function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
   const { text } = geometry;
   if (operation.start > operation.end || operation.end > text.length) {
-    return fail(
-      RANGE_OUT_OF_BOUNDS,
-      `plage [${operation.start}, ${operation.end}) hors du texte de ${text.length} caractères`,
-    );
+    return fail(RANGE_OUT_OF_BOUNDS, {
+      reason: "textRange",
+      start: operation.start,
+      end: operation.end,
+      length: text.length,
+    });
   }
   return ok([{ start: operation.start, end: operation.end, text: operation.text }]);
 }
@@ -753,10 +746,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
   const op = validated.value;
 
   if (op.baseHash !== document.hash) {
-    return fail(STALE_DOCUMENT, "le document a changé depuis le calcul de l'opération", {
-      expected: document.hash,
-      received: op.baseHash,
-    });
+    return fail(STALE_DOCUMENT, { expected: document.hash, received: op.baseHash });
   }
 
   const before = parse(document.text);
@@ -769,7 +759,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
   };
 
   if (root === null && op.kind !== "splice") {
-    return fail(INVALID_OPERATION, "ce fichier n'a pas de map YAML à la racine");
+    return fail(INVALID_OPERATION, { reason: "noRootMap" });
   }
 
   const planned =
@@ -788,14 +778,11 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     after.diagnostics.some((diagnostic) => diagnostic.code === INVALID_YAML) &&
     !before.diagnostics.some((diagnostic) => diagnostic.code === INVALID_YAML);
   if (brokeYaml) {
-    return fail(
-      INVALID_OPERATION,
-      `l'opération ${op.kind} produirait un YAML invalide, elle n'a pas été appliquée`,
-    );
+    return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
   }
 
   if (op.kind !== "splice" && cycleCount(after.pipeline) > cycleCount(before.pipeline)) {
-    return fail(CYCLE, `l'opération ${op.kind} créerait un cycle dans les needs`);
+    return fail(CYCLE, { operation: op.kind });
   }
 
   const first = spliced.touched[0];

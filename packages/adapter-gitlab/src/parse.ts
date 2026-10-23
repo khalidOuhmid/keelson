@@ -74,7 +74,7 @@ export function parse(text: string): ParseResult {
   const diagnostics: Diagnostic[] = yaml.errors.map((error) => ({
     code: INVALID_YAML,
     severity: "error" as const,
-    message: error.message,
+    params: { detail: error.message },
     range: { start: error.pos[0], end: error.pos[1] },
   }));
 
@@ -88,8 +88,7 @@ export function parse(text: string): ParseResult {
     diagnostics.push({
       code: INCLUDE_UNRESOLVED,
       severity: "info",
-      message:
-        "les include ne sont pas résolus : le pipeline affiché ne contient que ce fichier local",
+      params: {},
       range: pairRange(includePair),
     });
   }
@@ -153,7 +152,7 @@ export function parse(text: string): ParseResult {
       diagnostics.push({
         code: JOB_WITHOUT_SCRIPT,
         severity: "warning",
-        message: `le job « ${entry.id} » n'a ni script, ni run, ni trigger`,
+        params: { job: entry.id },
         range: entry.range,
       });
     }

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { JOB_REFERENCED, renderMessage } from "@keelson/core/messages";
 import { BASE, expectOk, expectUnchanged, roundTrip } from "../support/apply.ts";
 
 describe("removeJob", () => {
@@ -100,12 +101,12 @@ describe("removeJob", () => {
 
   test("JOB_REFERENCED si un autre job en a besoin", () => {
     const error = expectUnchanged(BASE, { kind: "removeJob", id: "compile" }, "JOB_REFERENCED");
-    expect(error.message).toContain("unit");
+    expect(renderMessage(error)).toContain("unit");
   });
 
   test("JOB_REFERENCED liste les jobs qui le référencent dans details", () => {
     const error = expectUnchanged(BASE, { kind: "removeJob", id: "compile" }, "JOB_REFERENCED");
-    expect(error.details?.referencedBy).toEqual(["unit"]);
+    expect(error.code === JOB_REFERENCED ? error.params.referencedBy : null).toEqual(["unit"]);
   });
 
   test("retirer d'abord le dépendant permet ensuite de retirer la cible", () => {

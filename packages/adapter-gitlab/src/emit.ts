@@ -21,7 +21,7 @@ export function applySplices(
 
   for (const [index, splice] of ordered.entries()) {
     if (splice.start > splice.end) {
-      throw new Error(`splice inversé : ${splice.start} > ${splice.end}`);
+      throw new Error(`inverted splice: ${splice.start} > ${splice.end}`);
     }
     const previous = ordered[index - 1];
     if (previous !== undefined && splice.start < previous.end) {

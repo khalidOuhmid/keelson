@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { renderMessage } from "@keelson/core/messages";
 import { NEED_LATER_STAGE, NEEDS_CYCLE, UNKNOWN_NEED, UNKNOWN_STAGE } from "../src/diagnostics.ts";
 import { validate } from "../src/validate.ts";
 import { job, need, pipeline, stages } from "./support/pipeline.ts";
@@ -35,8 +36,7 @@ describe("UNKNOWN_NEED", () => {
     const result = validate(pipeline({ jobs: [job("unit", "test", ["absent"])] }));
     expect(codes(result)).toEqual([UNKNOWN_NEED]);
     expect(result[0]?.severity).toBe("error");
-    expect(result[0]?.message).toContain("absent");
-    expect(result[0]?.message).toContain("unit");
+    expect(result[0]?.params).toEqual({ job: "unit", need: "absent" });
   });
 
   test("signale chaque need inexistant séparément", () => {
@@ -65,13 +65,13 @@ describe("NEEDS_CYCLE", () => {
     const result = validate(pipeline({ jobs: [job("a", "test", ["b"]), job("b", "test", ["a"])] }));
     expect(codes(result)).toEqual([NEEDS_CYCLE]);
     expect(result[0]?.severity).toBe("error");
-    expect(result[0]?.message).toContain("a → b → a");
+    expect(result[0]?.params).toEqual({ cycle: ["a", "b", "a"] });
   });
 
   test("signale un auto-need comme cycle", () => {
     const result = validate(pipeline({ jobs: [job("a", "test", ["a"])] }));
     expect(codes(result)).toEqual([NEEDS_CYCLE]);
-    expect(result[0]?.message).toContain("a → a");
+    expect(result[0]?.params).toEqual({ cycle: ["a", "a"] });
   });
 
   test("signale un cycle de trois jobs", () => {
@@ -81,7 +81,7 @@ describe("NEEDS_CYCLE", () => {
       }),
     );
     expect(codes(result)).toEqual([NEEDS_CYCLE]);
-    expect(result[0]?.message).toContain("a → c → b → a");
+    expect(result[0]?.params).toEqual({ cycle: ["a", "c", "b", "a"] });
   });
 
   test("ne signale qu'une fois un cycle atteignable depuis plusieurs entrées", () => {
@@ -132,8 +132,7 @@ describe("UNKNOWN_STAGE", () => {
     const result = validate(pipeline({ jobs: [job("unit", "verify")] }));
     expect(codes(result)).toEqual([UNKNOWN_STAGE]);
     expect(result[0]?.severity).toBe("error");
-    expect(result[0]?.message).toContain("verify");
-    expect(result[0]?.message).toContain("unit");
+    expect(result[0]?.params).toEqual({ job: "unit", stage: "verify" });
   });
 
   test("accepte les stages implicites", () => {
@@ -152,8 +151,12 @@ describe("NEED_LATER_STAGE", () => {
     );
     expect(codes(result)).toEqual([NEED_LATER_STAGE]);
     expect(result[0]?.severity).toBe("warning");
-    expect(result[0]?.message).toContain("compile");
-    expect(result[0]?.message).toContain("publish");
+    expect(result[0]?.params).toEqual({
+      job: "compile",
+      stage: "build",
+      need: "publish",
+      needStage: "deploy",
+    });
   });
 
   test("un need vers un stage antérieur ne déclenche rien", () => {
@@ -180,7 +183,7 @@ describe("déterminisme et combinaisons", () => {
     const result = validate(
       pipeline({ jobs: [job("premier", "inconnu1"), job("second", "inconnu2")] }),
     );
-    expect(result.map((diagnostic) => diagnostic.message.includes("premier"))).toEqual([
+    expect(result.map((diagnostic) => renderMessage(diagnostic).includes("premier"))).toEqual([
       true,
       false,
     ]);

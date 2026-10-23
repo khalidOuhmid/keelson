@@ -162,6 +162,18 @@ describe("rendu anglais", () => {
     );
   });
 
+  /** Trouvé en migrant l'UI : `ErrorBanner` plantait sur un `JOB_REFERENCED` dont les `params` ne
+   *  portaient pas `referencedBy`. Le type l'exige, le fil ne le garantit pas, et l'exception
+   *  survenait pendant l'affichage d'une autre erreur. */
+  test("un rendu ne lève jamais, même sur des params malformés", () => {
+    expect(rendered("JOB_REFERENCED", { job: "compile" })).toBe("unexpected server response");
+    expect(rendered("NOT_FOUND", { reason: "inventé" })).toBe("unexpected server response");
+    expect(rendered("NEEDS_CYCLE", {})).toBe("unexpected server response");
+    expect(rendered("INCLUDE_UNRESOLVED", undefined)).toBe(
+      "includes are not resolved: the pipeline shown contains only this local file",
+    );
+  });
+
   test("les deux branches d'un code à reason rendent des textes distincts", () => {
     expect(rendered("INVALID_NAME", { reason: "job", name: ".tpl" })).not.toBe(
       rendered("INVALID_NAME", { reason: "stage" }),

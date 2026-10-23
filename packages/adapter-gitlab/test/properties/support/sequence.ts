@@ -1,4 +1,5 @@
 import { hashText, type Operation, type SpliceOperation } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { apply } from "../../../src/apply.ts";
 import { parse } from "../../../src/parse.ts";
 import type { Draft } from "../../support/apply.ts";
@@ -41,7 +42,7 @@ export function undoAll(run: SequenceRun): string {
     const document = parse(text).document;
     const result = apply(document, { ...inverse, baseHash: hashText(text) });
     if (!result.ok) {
-      throw new Error(`inverse refusé : ${result.error.code} — ${result.error.message}`);
+      throw new Error(`inverse refusé : ${result.error.code} — ${renderMessage(result.error)}`);
     }
     text = result.value.text;
   }

@@ -6,6 +6,7 @@ import {
   INVALID_YAML,
   JOB_WITHOUT_SCRIPT,
 } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { parse } from "../src/parse.ts";
 import { readEdgeCase } from "./support/corpus.ts";
 
@@ -76,9 +77,9 @@ describe("EXTENDS_TARGET_NOT_FOUND", () => {
   });
 
   test("nomme la cible manquante", () => {
-    expect(
-      diagnostic(readEdgeCase("extends-missing"), EXTENDS_TARGET_NOT_FOUND)?.message,
-    ).toContain(".absent");
+    const found = diagnostic(readEdgeCase("extends-missing"), EXTENDS_TARGET_NOT_FOUND);
+    expect(found?.params).toEqual({ template: ".absent" });
+    expect(found === undefined ? "" : renderMessage(found)).toContain(".absent");
   });
 
   test("n'est pas signalé deux fois pour la même cible", () => {
@@ -120,21 +121,21 @@ describe("JOB_WITHOUT_SCRIPT", () => {
   test("signale en avertissement un job sans script", () => {
     const found = diagnostic(text, JOB_WITHOUT_SCRIPT);
     expect(found?.severity).toBe("warning");
-    expect(found?.message).toContain("muet");
+    expect(found?.params).toEqual({ job: "muet" });
   });
 
   test("un job avec trigger n'est pas signalé", () => {
-    const messages = parse(text)
+    const jobs = parse(text)
       .diagnostics.filter((candidate) => candidate.code === JOB_WITHOUT_SCRIPT)
-      .map((candidate) => candidate.message);
-    expect(messages.some((message) => message.includes("declencheur"))).toBe(false);
+      .map((candidate) => renderMessage(candidate));
+    expect(jobs.some((message) => message.includes("declencheur"))).toBe(false);
   });
 
   test("un job avec run n'est pas signalé", () => {
-    const messages = parse(text)
+    const jobs = parse(text)
       .diagnostics.filter((candidate) => candidate.code === JOB_WITHOUT_SCRIPT)
-      .map((candidate) => candidate.message);
-    expect(messages.some((message) => message.includes("avec-run"))).toBe(false);
+      .map((candidate) => renderMessage(candidate));
+    expect(jobs.some((message) => message.includes("avec-run"))).toBe(false);
   });
 
   test("est évalué après résolution des extends", () => {

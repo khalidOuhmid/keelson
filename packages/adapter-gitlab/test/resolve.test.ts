@@ -110,8 +110,7 @@ describe("cycle d'extends", () => {
   test("le diagnostic est une erreur et nomme le chemin", () => {
     const cycle = parse(text).diagnostics.find((diagnostic) => diagnostic.code === EXTENDS_CYCLE);
     expect(cycle?.severity).toBe("error");
-    expect(cycle?.message).toContain(".a");
-    expect(cycle?.message).toContain(".b");
+    expect(cycle?.params).toEqual({ trail: [".a", ".b", ".a"] });
   });
 
   test("le parsing aboutit malgré le cycle", () => {
@@ -126,7 +125,7 @@ describe("cible d'extends absente", () => {
       (diagnostic) => diagnostic.code === EXTENDS_TARGET_NOT_FOUND,
     );
     expect(found?.severity).toBe("error");
-    expect(found?.message).toContain(".absent");
+    expect(found?.params).toEqual({ template: ".absent" });
   });
 
   test("dégrade en avertissement quand le fichier contient des include", () => {

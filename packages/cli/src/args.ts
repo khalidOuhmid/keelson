@@ -27,6 +27,6 @@ export function parseCommandArgs<V extends Record<string, unknown>>(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, message: message === "" ? "arguments invalides" : message };
+    return { ok: false, message: message === "" ? "invalid arguments" : message };
   }
 }

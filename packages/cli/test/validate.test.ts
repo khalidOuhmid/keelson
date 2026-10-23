@@ -118,7 +118,7 @@ describe("sortie texte", () => {
   test("annonce l'absence de diagnostic sur un fichier sain", async () => {
     const result = await run(["validate", fixture("sain.yml", VALID)]);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("aucun diagnostic");
+    expect(result.stdout).toContain("no diagnostics");
   });
 
   test("cumule les diagnostics de parse et de validate", async () => {
@@ -209,7 +209,7 @@ describe("aide", () => {
 
   test("validate n'est plus annoncée comme non implémentée", async () => {
     expect((await run(["validate", fixture("aide.yml", VALID)])).stderr).not.toContain(
-      "pas encore implémentée",
+      "not implemented yet",
     );
   });
 });

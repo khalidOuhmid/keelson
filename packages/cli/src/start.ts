@@ -48,7 +48,7 @@ function bundledUiDir(): string | undefined {
 }
 
 function usage(message: string): CliResult {
-  return { stdout: "", stderr: `keelson start : ${message}\n`, exitCode: 2 };
+  return { stdout: "", stderr: `keelson start: ${message}\n`, exitCode: 2 };
 }
 
 export async function startCommand(
@@ -69,7 +69,7 @@ export async function startCommand(
   }
 
   if (parsed.positionals.length > 1) {
-    return usage(`un seul dossier attendu, « ${parsed.positionals[1]} » est en trop`);
+    return usage(`expected a single directory, "${parsed.positionals[1]}" is one too many`);
   }
 
   const target = parsed.positionals[0] ?? cwd;
@@ -77,17 +77,19 @@ export async function startCommand(
 
   try {
     if (!statSync(root).isDirectory()) {
-      return usage(`« ${root} » n'est pas un dossier`);
+      return usage(`"${root}" is not a directory`);
     }
   } catch {
-    return usage(`dossier introuvable : ${root}`);
+    return usage(`directory not found: ${root}`);
   }
 
   let port = 0;
   if (parsed.values.port !== undefined) {
     const candidate = Number(parsed.values.port);
     if (!Number.isInteger(candidate) || candidate < 0 || candidate > 65_535) {
-      return usage(`--port attend un entier entre 0 et 65535, reçu « ${parsed.values.port} »`);
+      return usage(
+        `--port expects an integer between 0 and 65535, received "${parsed.values.port}"`,
+      );
     }
     port = candidate;
   }
@@ -103,8 +105,8 @@ export async function startCommand(
     const busy = reason.includes("EADDRINUSE");
     return usage(
       busy
-        ? `le port ${port} est déjà utilisé, choisissez-en un autre avec --port`
-        : `impossible de démarrer le serveur : ${reason}`,
+        ? `port ${port} is already in use, pick another one with --port`
+        : `cannot start the server: ${reason}`,
     );
   }
 
