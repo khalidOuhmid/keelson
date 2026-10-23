@@ -16,24 +16,24 @@ export type RunOptions = {
 };
 
 const DESCRIPTIONS: Record<Command, string> = {
-  start: "ouvre l'UI web locale sur le dépôt courant",
-  validate: "valide le pipeline et la toolchain",
-  coverage: "rapporte la couverture des couches OWASP DevSecOps",
-  export: "exporte le modèle vers un format tiers",
+  start: "open the local web UI on the current repository",
+  validate: "validate the pipeline and the toolchain",
+  coverage: "report coverage of the OWASP DevSecOps layers",
+  export: "export the model to a third-party format",
 };
 
 function helpText(): string {
   const lines = [
     `keelson ${packageJson.version}`,
     "",
-    "Usage : keelson <commande> [options]",
+    "Usage: keelson <command> [options]",
     "",
-    "Commandes :",
+    "Commands:",
     ...COMMANDS.map((command) => `  ${command.padEnd(10)}${DESCRIPTIONS[command]}`),
     "",
-    "Options :",
-    "  -h, --help       affiche cette aide",
-    "  -v, --version    affiche la version",
+    "Options:",
+    "  -h, --help       show this help",
+    "  -v, --version    show the version",
     "",
   ];
   return `${lines.join("\n")}\n`;
@@ -71,14 +71,14 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     // DETTE(2026-10-20): commande `export` non implémentée — livrée au lot L5.
     return {
       stdout: "",
-      stderr: `keelson ${first} : commande pas encore implémentée.\n`,
+      stderr: `keelson ${first}: command not implemented yet.\n`,
       exitCode: 2,
     };
   }
 
   return {
     stdout: "",
-    stderr: `keelson : commande inconnue « ${first} ».\n${helpText()}`,
+    stderr: `keelson: unknown command "${first}".\n${helpText()}`,
     exitCode: 2,
   };
 }

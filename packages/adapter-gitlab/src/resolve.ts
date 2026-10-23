@@ -127,7 +127,7 @@ export function sourcesFor(
       push(context.diagnostics, {
         code: EXTENDS_CYCLE,
         severity: "error",
-        message: `cycle d'extends : ${[...trail, template].join(" → ")}`,
+        params: { trail: [...trail, template] },
         range: pairRange(localPair(map, "extends") ?? ({} as Pair<unknown, unknown>)),
       });
       continue;
@@ -138,7 +138,7 @@ export function sourcesFor(
       push(context.diagnostics, {
         code: EXTENDS_TARGET_NOT_FOUND,
         severity: context.extendsSeverity,
-        message: `la cible d'extends « ${template} » n'existe pas dans ce fichier`,
+        params: { template },
         range: pairRange(localPair(map, "extends") ?? ({} as Pair<unknown, unknown>)),
       });
       continue;
@@ -157,9 +157,22 @@ export function sourcesFor(
   return sources;
 }
 
+/** Sérialisation à clés triées : le dédoublonnage portait sur le message, qui n'existe plus. Deux
+ *  diagnostics de même code ne sont le même que si leurs `params` ont le même contenu — et pas
+ *  seulement les mêmes clés dans le même ordre, qui dépend de l'ordre d'écriture du littéral. */
+function stableParams(diagnostic: Diagnostic): string {
+  const params = diagnostic.params as Record<string, unknown>;
+  return JSON.stringify(
+    Object.keys(params)
+      .sort()
+      .map((key) => [key, params[key]]),
+  );
+}
+
 function push(diagnostics: Diagnostic[], diagnostic: Diagnostic): void {
   const already = diagnostics.some(
-    (existing) => existing.code === diagnostic.code && existing.message === diagnostic.message,
+    (existing) =>
+      existing.code === diagnostic.code && stableParams(existing) === stableParams(diagnostic),
   );
   if (!already) {
     diagnostics.push(diagnostic);

@@ -1,5 +1,6 @@
 import { createServer as createHttpServer, type Server } from "node:http";
 import { resolve } from "node:path";
+import { INTERNAL_ERROR } from "@keelson/core/messages";
 import { createRequestHandler } from "./app.ts";
 import { createToken, LOOPBACK } from "./security.ts";
 import { createSseHub } from "./sse.ts";
@@ -55,7 +56,7 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
       if (!response.headersSent) {
         response.writeHead(500, { "content-type": "application/json; charset=utf-8" });
       }
-      response.end(JSON.stringify({ code: "INTERNAL_ERROR", message: "erreur interne" }));
+      response.end(JSON.stringify({ code: INTERNAL_ERROR, params: {} }));
     });
   });
 

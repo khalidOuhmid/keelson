@@ -66,6 +66,6 @@ describe("applySplices", () => {
   });
 
   test("lève sur un splice inversé", () => {
-    expect(() => applySplices("abcdef", [{ start: 3, end: 1, text: "" }])).toThrow(/inversé/);
+    expect(() => applySplices("abcdef", [{ start: 3, end: 1, text: "" }])).toThrow(/inverted/);
   });
 });

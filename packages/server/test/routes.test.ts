@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { chmodSync, readFileSync } from "node:fs";
 import { hashText } from "@keelson/core";
 import { codeOf, type Harness, SAMPLE, startHarness } from "./support/harness.ts";
 
@@ -123,16 +123,16 @@ describe("POST /api/documents/:file/operations", () => {
     expect(body.hash).toBe(hashText(SAMPLE));
   });
 
-  test("rend 422 sur une erreur métier avec code, message et details", async () => {
+  test("rend 422 sur une erreur métier avec code et params", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: await currentHash(), kind: "removeJob", id: "compile" },
     });
     expect(response.status).toBe(422);
-    const body = (await response.json()) as Record<string, unknown>;
-    expect(body.code).toBe("JOB_REFERENCED");
-    expect(typeof body.message).toBe("string");
-    expect((body.details as { referencedBy: string[] }).referencedBy).toEqual(["unit"]);
+    expect(await response.json()).toEqual({
+      code: "JOB_REFERENCED",
+      params: { job: "compile", referencedBy: ["unit"] },
+    });
   });
 
   test("rend 404 pour un fichier hors du workspace", async () => {
@@ -195,28 +195,210 @@ describe("limite de taille du corps", () => {
 });
 
 describe("forme des erreurs", () => {
-  test("toute erreur porte code et message", async () => {
-    const responses = await Promise.all([
-      harness.api("/api/documents/absent.yml"),
-      harness.api("/api/inconnu"),
-      harness.api("/api/workspace", { method: "PUT" }),
-    ]);
+  /** Un chemin d'erreur par entrée, et pour chacun la forme **exacte** du corps. `toEqual` plutôt
+   *  qu'une suite de `toBe` : c'est la seule façon de faire échouer le test si une clé `message`
+   *  réapparaît, et c'est précisément ce que ce lot interdit.
+   *
+   *  La table couvre tous les chemins sauf `INTERNAL_ERROR`, qui demande de faire lever le
+   *  gestionnaire et vit donc dans son propre describe. La revue du 2026-10-22 a relevé que la
+   *  version précédente de ce commentaire renvoyait le 413 vers « son describe », où seul le
+   *  **code** était vérifié : or le 413 est le seul corps que le serveur sérialise à la main, hors
+   *  du `fail()` qui garantit la forme. C'était donc le chemin le moins gardé, décrit comme
+   *  couvert. Il est dans la table maintenant. */
+  const paths: {
+    label: string;
+    call: () => Promise<Response>;
+    status: number;
+    body: Record<string, unknown>;
+  }[] = [
+    {
+      label: "405 sur une méthode refusée",
+      call: () => harness.api("/api/workspace", { method: "PUT" }),
+      status: 405,
+      body: { code: "METHOD_NOT_ALLOWED", params: { method: "PUT" } },
+    },
+    {
+      // Le flux lit son token dans la requête, pas dans un en-tête : `raw` plus `?token=`, sinon
+      // le 403 du token arrive avant le 405 et le chemin de la méthode n'est jamais atteint.
+      label: "405 sur le flux d'événements",
+      call: () =>
+        harness.raw(`/api/events?token=${encodeURIComponent(harness.server.token)}`, {
+          method: "DELETE",
+        }),
+      status: 405,
+      body: { code: "METHOD_NOT_ALLOWED", params: { method: "DELETE" } },
+    },
+    {
+      label: "403 sans token sur une route API",
+      call: () => harness.raw("/api/workspace"),
+      status: 403,
+      body: { code: "FORBIDDEN_TOKEN", params: {} },
+    },
+    {
+      label: "403 sur un en-tête Host étranger",
+      call: () => harness.api("/api/workspace", { headers: { host: "evil.example.com" } }),
+      status: 403,
+      body: { code: "FORBIDDEN_HOST", params: {} },
+    },
+    {
+      label: "405 sur la route des opérations",
+      call: () => harness.api("/api/documents/.gitlab-ci.yml/operations"),
+      status: 405,
+      body: { code: "METHOD_NOT_ALLOWED", params: { method: "GET" } },
+    },
+    {
+      label: "404 sur un document hors du workspace",
+      call: () => harness.api("/api/documents/absent.yml"),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "absent.yml" } },
+    },
+    {
+      // `%` seul est un échappement invalide : `decodeURIComponent` lève.
+      label: "404 sur un nom de fichier indécodable, route du document",
+      call: () => harness.api("/api/documents/%"),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unreadableFileName" } },
+    },
+    {
+      label: "404 sur un nom de fichier indécodable, route des opérations",
+      call: () =>
+        harness.api("/api/documents/%/operations", {
+          method: "POST",
+          body: JSON.stringify({ opId: "op-1", op: {} }),
+        }),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unreadableFileName" } },
+    },
+    {
+      // Le seul corps que le serveur sérialise à la main, donc le seul qui puisse dériver de la
+      // forme sans que `fail()` l'en empêche.
+      label: "413 au-delà de la limite de corps",
+      call: () =>
+        post({
+          opId: "op-1",
+          op: {
+            v: 1,
+            baseHash: "0".repeat(64),
+            kind: "splice",
+            start: 0,
+            end: 0,
+            text: "x".repeat(1_100_000),
+          },
+        }),
+      status: 413,
+      body: { code: "PAYLOAD_TOO_LARGE", params: { limitBytes: 1_048_576 } },
+    },
+    {
+      label: "404 sur une route API inconnue",
+      call: () => harness.api("/api/inconnu"),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unknownRoute", route: "/api/inconnu" } },
+    },
+    {
+      label: "404 sur une opération visant un fichier hors du workspace",
+      call: () =>
+        harness.api("/api/documents/autre.yml/operations", {
+          method: "POST",
+          body: JSON.stringify({
+            opId: "op-1",
+            op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "x" },
+          }),
+        }),
+      status: 404,
+      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "autre.yml" } },
+    },
+    {
+      label: "400 sur un corps illisible",
+      call: () => post("pas du json{"),
+      status: 400,
+      body: { code: "INVALID_OPERATION", params: { reason: "unreadableBody" } },
+    },
+    {
+      label: "400 sans opId",
+      call: () => post({ op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "x" } }),
+      status: 400,
+      body: { code: "INVALID_OPERATION", params: { reason: "missingOpId" } },
+    },
+    {
+      label: "400 sans op",
+      call: () => post({ opId: "op-1" }),
+      status: 400,
+      body: { code: "INVALID_OPERATION", params: { reason: "missingOp" } },
+    },
+    {
+      label: "400 sur une version d'opération non supportée",
+      call: () => post({ opId: "op-1", op: { v: 2, baseHash: "0".repeat(64), kind: "addStage" } }),
+      status: 400,
+      body: { code: "UNSUPPORTED_VERSION", params: { received: 2, supported: 1 } },
+    },
+  ];
 
-    for (const response of responses) {
+  for (const { label, call, status, body } of paths) {
+    test(label, async () => {
+      const response = await call();
+      expect(response.status).toBe(status);
       expect(response.headers.get("content-type")).toContain("application/json");
-      const body = (await response.json()) as Record<string, unknown>;
-      expect(typeof body.code).toBe("string");
-      expect(typeof body.message).toBe("string");
-    }
+      expect(await response.json()).toEqual(body);
+    });
+  }
+
+  test("400 sur un schéma invalide : le détail de zod passe en params, sans message", async () => {
+    const response = await post({
+      opId: "op-1",
+      op: { v: 1, baseHash: await currentHash(), kind: "dropDatabase" },
+    });
+    expect(response.status).toBe(400);
+    const parsed = (await response.json()) as { code: string; params: Record<string, unknown> };
+    expect(Object.keys(parsed).sort()).toEqual(["code", "params"]);
+    expect(parsed.code).toBe("INVALID_OPERATION");
+    expect(parsed.params.reason).toBe("schema");
+    expect(typeof parsed.params.detail).toBe("string");
   });
 
-  test("une route API inconnue rend 404", async () => {
-    expect((await harness.api("/api/inconnu")).status).toBe(404);
+  test("409 porte le hash courant en plus de code et params, et rien d'autre", async () => {
+    const response = await post({
+      opId: "op-1",
+      op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "verify" },
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "STALE_DOCUMENT",
+      params: { expected: hashText(SAMPLE), received: "0".repeat(64) },
+      hash: hashText(SAMPLE),
+    });
+  });
+});
+
+describe("INTERNAL_ERROR", () => {
+  /** Le sixième code de transport, et le seul que la table de formes ne peut pas atteindre : il
+   *  faut faire **lever** le gestionnaire. L'écriture atomique passe par un fichier temporaire dans
+   *  le dossier du document ; un dossier sans droit d'écriture la fait donc échouer, et l'exception
+   *  remonte jusqu'au filet de `createServer`. Relevé absent par la revue du 2026-10-22. */
+  test("un gestionnaire qui lève rend 500 avec code et params, et aucun détail", async () => {
+    const hash = await currentHash();
+    chmodSync(harness.root, 0o500);
+    try {
+      const response = await post({
+        opId: "op-1",
+        op: { v: 1, baseHash: hash, kind: "addStage", name: "verify" },
+      });
+      expect(response.status).toBe(500);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      // Aucun détail exposé : ni chemin, ni message d'exception.
+      expect(await response.json()).toEqual({ code: "INTERNAL_ERROR", params: {} });
+    } finally {
+      chmodSync(harness.root, 0o700);
+    }
   });
 });
 
 describe("sans bundle d'UI", () => {
-  test("une route hors API rend 404", async () => {
-    expect((await harness.raw("/")).status).toBe(404);
+  test("une route hors API rend 404 avec la forme attendue", async () => {
+    const response = await harness.raw("/");
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      code: "NOT_FOUND",
+      params: { reason: "noUiBundle" },
+    });
   });
 });

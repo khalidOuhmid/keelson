@@ -253,17 +253,17 @@ describe("édition", () => {
     expect(h.submitted[1]?.op.kind).toBe("splice");
   });
 
-  test("le message d'erreur du serveur est affiché tel quel", async () => {
+  test("l'erreur du serveur est rendue en anglais depuis son code et ses params", async () => {
     const h = harness();
     h.queueSubmit({
       ok: false,
-      error: { status: 422, code: "STAGE_EXISTS", message: "le stage existe déjà" },
+      error: { status: 422, code: "STAGE_EXISTS", params: { stage: "build" } },
     });
     await renderApp(h);
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "test");
     await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
 
-    expect(await screen.findByText("le stage existe déjà")).toBeDefined();
+    expect(await screen.findByText('stage "build" already exists')).toBeDefined();
     expect(await screen.findByText("STAGE_EXISTS")).toBeDefined();
   });
 
@@ -271,7 +271,12 @@ describe("édition", () => {
     const h = harness();
     h.queueSubmit({
       ok: false,
-      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: NEXT },
+      error: {
+        status: 409,
+        code: "STALE_DOCUMENT",
+        params: { expected: NEXT, received: HASH },
+        hash: NEXT,
+      },
     });
     await renderApp(h);
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
@@ -288,7 +293,9 @@ describe("édition", () => {
 describe("YAML invalide", () => {
   const broken: DocumentPayload = {
     ...DOCUMENT,
-    diagnostics: [{ code: "INVALID_YAML", severity: "error", message: "indentation", range: null }],
+    diagnostics: [
+      { code: "INVALID_YAML", severity: "error", params: { detail: "indentation" }, range: null },
+    ],
   };
 
   test("affiche l'état invalide et désactive l'édition", async () => {
@@ -463,7 +470,7 @@ describe("bannières et opération en vol, sur le rendu", () => {
     const h = harness();
     h.queueSubmit({
       ok: false,
-      error: { status: 422, code: "STAGE_EXISTS", message: "stage already exists" },
+      error: { status: 422, code: "STAGE_EXISTS", params: { stage: "build" } },
     });
     await renderApp(h);
 

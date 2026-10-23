@@ -113,13 +113,16 @@ et écrit.
 |---|---|---|
 | GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash }` · 404 |
-| POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ pipeline, diagnostics, hash, inverse, touched }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, message, details }` |
+| POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
 | GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, heartbeat toutes les 15 s |
 | GET | `/*` | bundle de l'UI, repli SPA sur `index.html` |
 
 Les `diagnostics` de ces réponses combinent ceux de `parse` **et** ceux de `validate`, comme le fait
 `keelson validate` : l'API et la CLI disent la même chose du même fichier. Toute erreur a la forme
-`{ code, message, details? }`, avec les codes documentés dans [diagnostics.md](diagnostics.md).
+`{ code, params }`, plus `hash` sur le 409, avec les codes et la forme de leurs `params` documentés
+dans [diagnostics.md](diagnostics.md). **Aucune clé `message` n'est sur le fil** : le serveur ne
+produit pas de texte, le client rend la phrase par `render()` de `@keelson/core/messages`
+([ADR 0002](adr/0002-langue-et-messages.md)).
 
 ### Garanties d'écriture
 

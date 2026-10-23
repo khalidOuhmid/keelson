@@ -53,10 +53,10 @@ describe("binaire buildé exécuté par node", () => {
     }
   });
 
-  test("coverage sort en 2 avec le message « pas encore implémentée »", () => {
+  test("coverage sort en 2 avec le message « command not implemented yet »", () => {
     const result = keelson(["coverage"]);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("pas encore implémentée");
+    expect(result.stderr).toContain("not implemented yet");
   });
 });
 
@@ -108,7 +108,7 @@ describe("validate sous node", () => {
   test("sort en 0 sur une fixture valide", () => {
     const result = keelson(["validate", join(workspace, "valide.yml")]);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("aucun diagnostic");
+    expect(result.stdout).toContain("no diagnostics");
   });
 
   test("sort en 1 sur une fixture invalide en nommant le code", () => {

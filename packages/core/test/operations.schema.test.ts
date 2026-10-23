@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { renderMessage } from "@keelson/core/messages";
 import type { OperationErrorCode } from "../src/operations.ts";
 import {
   INVALID_OPERATION,
@@ -17,7 +18,7 @@ function withBase<T extends Record<string, unknown>>(operation: T) {
 function expectAccepted(operation: Record<string, unknown>): void {
   const result = parseOperation(withBase(operation));
   if (!result.ok) {
-    throw new Error(`opération refusée alors qu'elle est valide : ${result.error.message}`);
+    throw new Error(`opération refusée alors qu'elle est valide : ${renderMessage(result.error)}`);
   }
   expect(String(result.value.kind)).toBe(String(operation.kind));
 }

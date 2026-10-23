@@ -216,32 +216,42 @@ describe("erreurs", () => {
     await addStage("verify");
     api.queue({
       ok: false,
-      error: { status: 422, code: "JOB_REFERENCED", message: "le job est référencé" },
+      error: {
+        status: 422,
+        code: "JOB_REFERENCED",
+        params: { job: "compile", referencedBy: ["unit"] },
+      },
     });
     await addStage("publish");
 
     expect(state().error?.code).toBe("JOB_REFERENCED");
-    expect(state().error?.message).toBe("le job est référencé");
+    expect(state().error?.params).toEqual({ job: "compile", referencedBy: ["unit"] });
     expect(state().canUndo()).toBe(true);
   });
 
   test("une erreur n'avance pas le hash", async () => {
     api.queue({
       ok: false,
-      error: { status: 422, code: "STAGE_EXISTS", message: "déjà là" },
+      error: { status: 422, code: "STAGE_EXISTS", params: { stage: "verify" } },
     });
     await addStage("verify");
     expect(state().hash).toBe(HASH_A);
   });
 
   test("une erreur n'empile pas d'inverse", async () => {
-    api.queue({ ok: false, error: { status: 400, code: "INVALID_OPERATION", message: "non" } });
+    api.queue({
+      ok: false,
+      error: { status: 400, code: "INVALID_OPERATION", params: { reason: "missingOp" } },
+    });
     await addStage("verify");
     expect(state().canUndo()).toBe(false);
   });
 
   test("l'erreur est effacée par l'opération suivante réussie", async () => {
-    api.queue({ ok: false, error: { status: 422, code: "STAGE_EXISTS", message: "déjà là" } });
+    api.queue({
+      ok: false,
+      error: { status: 422, code: "STAGE_EXISTS", params: { stage: "verify" } },
+    });
     await addStage("verify");
     expect(state().error).not.toBeNull();
     await addStage("publish");
@@ -257,7 +267,12 @@ describe("409 : le fichier a changé sur disque", () => {
 
     api.queue({
       ok: false,
-      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+      error: {
+        status: 409,
+        code: "STALE_DOCUMENT",
+        params: { expected: HASH_C, received: HASH_A },
+        hash: HASH_C,
+      },
     });
     await addStage("publish");
 
@@ -269,7 +284,12 @@ describe("409 : le fichier a changé sur disque", () => {
   test("informe que le fichier a changé et que l'opération n'a pas été appliquée", async () => {
     api.queue({
       ok: false,
-      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+      error: {
+        status: 409,
+        code: "STALE_DOCUMENT",
+        params: { expected: HASH_C, received: HASH_A },
+        hash: HASH_C,
+      },
     });
     await addStage("verify");
     expect(state().notice?.kind).toBe("stale");
@@ -340,7 +360,9 @@ describe("édition désactivée", () => {
   test("l'édition est désactivée quand un diagnostic d'erreur est présent", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
-      diagnostics: [{ code: "INVALID_YAML", severity: "error", message: "cassé", range: null }],
+      diagnostics: [
+        { code: "INVALID_YAML", severity: "error", params: { detail: "broken" }, range: null },
+      ],
     });
     expect(state().canEdit()).toBe(false);
   });
@@ -352,7 +374,7 @@ describe("édition désactivée", () => {
         {
           code: "UNKNOWN_NEED",
           severity: "error",
-          message: "need vers un job inexistant",
+          params: { job: "unit", need: "absent" },
           range: { start: 0, end: 5 },
         },
       ],
@@ -364,11 +386,11 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "INVALID_YAML", severity: "error", message: "cassé", range: null },
+        { code: "INVALID_YAML", severity: "error", params: { detail: "broken" }, range: null },
         {
           code: "UNKNOWN_NEED",
           severity: "error",
-          message: "need absent",
+          params: { job: "unit", need: "absent" },
           range: { start: 0, end: 5 },
         },
       ],
@@ -380,7 +402,7 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "JOB_WITHOUT_SCRIPT", severity: "warning", message: "muet", range: null },
+        { code: "JOB_WITHOUT_SCRIPT", severity: "warning", params: { job: "muet" }, range: null },
       ],
     });
     expect(state().canEdit()).toBe(true);
@@ -404,7 +426,12 @@ describe("fermeture des bannières", () => {
   test("dismissError efface l'erreur sans toucher à l'avis", async () => {
     api.queue({
       ok: false,
-      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+      error: {
+        status: 409,
+        code: "STALE_DOCUMENT",
+        params: { expected: HASH_C, received: HASH_A },
+        hash: HASH_C,
+      },
     });
     await addStage("verify");
 
@@ -420,7 +447,12 @@ describe("fermeture des bannières", () => {
   test("dismissNotice efface l'avis sans toucher à l'erreur", async () => {
     api.queue({
       ok: false,
-      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+      error: {
+        status: 409,
+        code: "STALE_DOCUMENT",
+        params: { expected: HASH_C, received: HASH_A },
+        hash: HASH_C,
+      },
     });
     await addStage("verify");
 
@@ -438,14 +470,19 @@ describe("409 : l'erreur du serveur survit au rechargement", () => {
   test("le code et le message du serveur restent affichables après le 409", async () => {
     api.queue({
       ok: false,
-      error: { status: 409, code: "STALE_DOCUMENT", message: "périmé", hash: HASH_C },
+      error: {
+        status: 409,
+        code: "STALE_DOCUMENT",
+        params: { expected: HASH_C, received: HASH_A },
+        hash: HASH_C,
+      },
     });
     await addStage("verify");
 
     expect(state().error).toEqual({
       status: 409,
       code: "STALE_DOCUMENT",
-      message: "périmé",
+      params: { expected: HASH_C, received: HASH_A },
       hash: HASH_C,
     });
     expect(state().notice?.kind).toBe("stale");

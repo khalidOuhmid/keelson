@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { hashText } from "@keelson/core";
+import { STALE_DOCUMENT } from "@keelson/core/messages";
 import { apply } from "../src/apply.ts";
 import { parse } from "../src/parse.ts";
 import { BASE, expectOk } from "./support/apply.ts";
@@ -26,8 +27,9 @@ describe("préconditions de baseHash", () => {
   test("le message nomme les deux hash", () => {
     const result = apply(parse(BASE).document, withHash("0".repeat(64)));
     if (!result.ok) {
-      expect(result.error.details?.expected).toBe(hashText(BASE));
-      expect(result.error.details?.received).toBe("0".repeat(64));
+      const params = result.error.code === STALE_DOCUMENT ? result.error.params : null;
+      expect(params?.expected).toBe(hashText(BASE));
+      expect(params?.received).toBe("0".repeat(64));
     }
   });
 

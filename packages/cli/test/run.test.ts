@@ -34,10 +34,10 @@ describe("commandes", () => {
   });
 
   for (const command of ["coverage", "export"]) {
-    test(`${command} répond « pas encore implémentée » et sort en 2`, async () => {
+    test(`${command} répond « command not implemented yet » et sort en 2`, async () => {
       const result = await run([command]);
       expect(result.exitCode).toBe(2);
-      expect(result.stderr).toContain("pas encore implémentée");
+      expect(result.stderr).toContain("not implemented yet");
       expect(result.stderr).toContain(command);
       expect(result.stdout).toBe("");
     });
@@ -47,7 +47,7 @@ describe("commandes", () => {
 describe("start", () => {
   test("n'est plus annoncée comme non implémentée", async () => {
     const result = await run(["start", "--turbo"]);
-    expect(result.stderr).not.toContain("pas encore implémentée");
+    expect(result.stderr).not.toContain("not implemented yet");
   });
 
   test("une option inconnue sort en 2 sans démarrer de serveur", async () => {
@@ -58,7 +58,7 @@ describe("start", () => {
 describe("validate", () => {
   test("n'est plus annoncée comme non implémentée", async () => {
     const result = await run(["validate", "fichier-absent.yml"]);
-    expect(result.stderr).not.toContain("pas encore implémentée");
+    expect(result.stderr).not.toContain("not implemented yet");
   });
 
   test("sort en 2 quand le fichier est introuvable", async () => {

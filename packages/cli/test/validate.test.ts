@@ -118,7 +118,7 @@ describe("sortie texte", () => {
   test("annonce l'absence de diagnostic sur un fichier sain", async () => {
     const result = await run(["validate", fixture("sain.yml", VALID)]);
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("aucun diagnostic");
+    expect(result.stdout).toContain("no diagnostics");
   });
 
   test("cumule les diagnostics de parse et de validate", async () => {
@@ -147,6 +147,43 @@ describe("sortie texte", () => {
     expect(output.exitCode).toBe(1);
     expect(output.stdout).toContain("INVALID_YAML");
   });
+
+  /** La CLI ne formule plus rien elle-même : chaque ligne est `render(code, params)`. Le test
+   *  couvre une famille par origine — parse, résolution d'extends, validation — pour que la
+   *  substitution des `params` soit vérifiée sur le vrai chemin, pas seulement dans le registre. */
+  test("rend le texte anglais de chaque famille de diagnostic", async () => {
+    const melange = [
+      "include:",
+      "  - template: Jobs/SAST.gitlab-ci.yml",
+      "",
+      "stages:",
+      "  - build",
+      "  - test",
+      "",
+      "muet:",
+      "  stage: build",
+      "",
+      "orphelin:",
+      "  stage: test",
+      "  extends: .absent",
+      "  script: a",
+      "",
+      "unit:",
+      "  stage: test",
+      "  needs:",
+      "    - introuvable",
+      "  script: b",
+      "",
+    ].join("\n");
+
+    const output = (await run(["validate", fixture("anglais.yml", melange)])).stdout;
+    expect(output).toContain(
+      "includes are not resolved: the pipeline shown contains only this local file",
+    );
+    expect(output).toContain('extends target ".absent" does not exist in this file');
+    expect(output).toContain('job "muet" has no script, no run and no trigger');
+    expect(output).toContain('job "unit" needs "introuvable", which does not exist');
+  });
 });
 
 describe("sortie JSON", () => {
@@ -156,7 +193,7 @@ describe("sortie JSON", () => {
     expect(Array.isArray(parsed)).toBe(true);
   });
 
-  test("chaque entrée porte file, code, severity, message, line et column", async () => {
+  test("chaque entrée porte file, code, severity, params, message, line et column", async () => {
     const path = fixture("json2.yml", WITH_ERROR);
     const parsed = JSON.parse((await run(["validate", path, "--format", "json"])).stdout) as Record<
       string,
@@ -164,9 +201,20 @@ describe("sortie JSON", () => {
     >[];
     const entry = parsed.find((candidate) => candidate.code === "UNKNOWN_NEED");
     expect(entry).toBeDefined();
+    expect(Object.keys(entry ?? {}).sort()).toEqual([
+      "code",
+      "column",
+      "file",
+      "line",
+      "message",
+      "params",
+      "severity",
+    ]);
     expect(entry?.file).toBe(path);
     expect(entry?.severity).toBe("error");
-    expect(typeof entry?.message).toBe("string");
+    // Les deux : les `params` sont le contrat qu'un script lit, le message est ce qu'un humain lit.
+    expect(entry?.params).toEqual({ job: "unit", need: "absent" });
+    expect(entry?.message).toBe('job "unit" needs "absent", which does not exist');
     expect(typeof entry?.line).toBe("number");
     expect(typeof entry?.column).toBe("number");
   });
@@ -209,7 +257,7 @@ describe("aide", () => {
 
   test("validate n'est plus annoncée comme non implémentée", async () => {
     expect((await run(["validate", fixture("aide.yml", VALID)])).stderr).not.toContain(
-      "pas encore implémentée",
+      "not implemented yet",
     );
   });
 });

@@ -1,4 +1,4 @@
-import type { Diagnostic, OperationErrorCode, Pipeline, SpliceOperation } from "@keelson/core";
+import type { Diagnostic, OperationError, Pipeline, SpliceOperation } from "@keelson/core";
 import type { GitlabDocument } from "./document.ts";
 
 export { err, ok, type Result } from "@keelson/core";
@@ -15,8 +15,6 @@ export type ApplyOk = {
 
 export type SourceRangeList = { start: number; end: number }[];
 
-export type ApplyError = {
-  code: OperationErrorCode;
-  message: string;
-  details?: Record<string, unknown>;
-};
+/** L'adaptateur n'ajoute rien à l'erreur de `core` : il la rend telle quelle. L'alias reste pour
+ *  que les signatures de ce paquet nomment ce qu'elles rendent. */
+export type ApplyError = OperationError;

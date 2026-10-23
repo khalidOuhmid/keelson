@@ -1,5 +1,6 @@
 import { expect } from "bun:test";
 import { hashText, type Operation, type OperationErrorCode } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { apply } from "../../src/apply.ts";
 import { parse } from "../../src/parse.ts";
 import type { ApplyError, ApplyOk } from "../../src/result.ts";
@@ -39,7 +40,7 @@ export function run(text: string, draft: Draft) {
 export function expectOk(text: string, draft: Draft): ApplyOk {
   const result = run(text, draft);
   if (!result.ok) {
-    throw new Error(`opération refusée : ${result.error.code} — ${result.error.message}`);
+    throw new Error(`opération refusée : ${result.error.code} — ${renderMessage(result.error)}`);
   }
   return result.value;
 }
@@ -63,7 +64,7 @@ export function roundTrip(text: string, draft: Draft): void {
   const applied = expectOk(text, draft);
   const back = apply(applied.document, applied.inverse);
   if (!back.ok) {
-    throw new Error(`inverse refusé : ${back.error.code} — ${back.error.message}`);
+    throw new Error(`inverse refusé : ${back.error.code} — ${renderMessage(back.error)}`);
   }
   expect(back.value.text).toBe(text);
 }

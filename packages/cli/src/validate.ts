@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import { parse } from "@keelson/adapter-gitlab";
 import type { Diagnostic } from "@keelson/core";
 import { hasErrors, validate as validatePipeline } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
 
@@ -18,7 +19,7 @@ type Options = {
 };
 
 function usage(message: string): CliResult {
-  return { stdout: "", stderr: `keelson validate : ${message}\n`, exitCode: 2 };
+  return { stdout: "", stderr: `keelson validate: ${message}\n`, exitCode: 2 };
 }
 
 function parseArguments(argv: readonly string[], cwd: string): Options | CliResult {
@@ -32,12 +33,12 @@ function parseArguments(argv: readonly string[], cwd: string): Options | CliResu
   }
 
   if (parsed.positionals.length > 1) {
-    return usage(`un seul fichier attendu, « ${parsed.positionals[1]} » est en trop`);
+    return usage(`expected a single file, "${parsed.positionals[1]}" is one too many`);
   }
 
   const requested = parsed.values.format;
   if (requested !== undefined && !FORMATS.includes(requested as Format)) {
-    return usage(`format « ${requested} » inconnu, attendu text ou json`);
+    return usage(`unknown format "${requested}", expected text or json`);
   }
 
   const target = parsed.positionals[0] ?? DEFAULT_FILE;
@@ -54,10 +55,13 @@ function positionOf(text: string, offset: number): { line: number; column: numbe
   return { line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 };
 }
 
+/** `--format json` expose **et** les `params` **et** le `message` rendu : les `params` sont le
+ *  contrat, que des scripts lisent ; le message est ce qu'un humain lit dans la sortie d'une CI. */
 type Reported = {
   file: string;
   code: string;
   severity: Diagnostic["severity"];
+  params: Record<string, unknown>;
   message: string;
   line: number;
   column: number;
@@ -70,7 +74,8 @@ function report(file: string, text: string, diagnostics: readonly Diagnostic[]):
       file,
       code: diagnostic.code,
       severity: diagnostic.severity,
-      message: diagnostic.message.replace(/\s+/g, " ").trim(),
+      params: diagnostic.params as Record<string, unknown>,
+      message: renderMessage(diagnostic).replace(/\s+/g, " ").trim(),
       line,
       column,
     };
@@ -79,7 +84,7 @@ function report(file: string, text: string, diagnostics: readonly Diagnostic[]):
 
 function renderText(reported: readonly Reported[]): string {
   if (reported.length === 0) {
-    return "aucun diagnostic\n";
+    return "no diagnostics\n";
   }
   return reported
     .map(
@@ -98,11 +103,11 @@ export function validateCommand(argv: readonly string[], cwd: string): CliResult
   let text: string;
   try {
     if (!statSync(parsed.file).isFile()) {
-      return usage(`« ${parsed.file} » n'est pas un fichier`);
+      return usage(`"${parsed.file}" is not a file`);
     }
     text = readFileSync(parsed.file, "utf8");
   } catch {
-    return usage(`fichier introuvable : ${parsed.file}`);
+    return usage(`file not found: ${parsed.file}`);
   }
 
   const result = parse(text);

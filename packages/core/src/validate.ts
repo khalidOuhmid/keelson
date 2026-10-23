@@ -7,7 +7,7 @@ type Graph = ReadonlyMap<string, readonly string[]>;
 function required<K, V>(map: ReadonlyMap<K, V>, key: K): V {
   const value = map.get(key);
   if (value === undefined) {
-    throw new Error(`clé absente de la table interne : ${String(key)}`);
+    throw new Error(`key missing from internal table: ${String(key)}`);
   }
   return value;
 }
@@ -149,7 +149,7 @@ function cycleDiagnostics(jobs: readonly Job[], graph: Graph): Diagnostic[] {
     diagnostics.push({
       code: NEEDS_CYCLE,
       severity: "error",
-      message: `cycle dans les needs : ${cyclePath(anchor, members, graph).join(" → ")}`,
+      params: { cycle: cyclePath(anchor, members, graph) },
       range: byId.get(anchor)?.range ?? null,
     });
   }
@@ -168,7 +168,7 @@ export function validate(pipeline: Pipeline): Diagnostic[] {
       diagnostics.push({
         code: UNKNOWN_STAGE,
         severity: "error",
-        message: `le job « ${job.id} » référence le stage « ${job.stage.value} », qui n'est pas déclaré`,
+        params: { job: job.id, stage: job.stage.value },
         range: job.range,
       });
     }
@@ -179,7 +179,7 @@ export function validate(pipeline: Pipeline): Diagnostic[] {
         diagnostics.push({
           code: UNKNOWN_NEED,
           severity: "error",
-          message: `le job « ${job.id} » a besoin de « ${need.job} », qui n'existe pas`,
+          params: { job: job.id, need: need.job },
           range: job.range,
         });
         continue;
@@ -191,7 +191,12 @@ export function validate(pipeline: Pipeline): Diagnostic[] {
         diagnostics.push({
           code: NEED_LATER_STAGE,
           severity: "warning",
-          message: `le job « ${job.id} » (stage « ${job.stage.value} ») a besoin de « ${need.job} », qui est dans le stage ultérieur « ${target.stage.value} »`,
+          params: {
+            job: job.id,
+            stage: job.stage.value,
+            need: need.job,
+            needStage: target.stage.value,
+          },
           range: job.range,
         });
       }

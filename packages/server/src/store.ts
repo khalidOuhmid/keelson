@@ -1,7 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { apply, parse } from "@keelson/adapter-gitlab";
-import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
-import { hashText, parseOperation, validate } from "@keelson/core";
+import type {
+  Diagnostic,
+  MessageCode,
+  Operation,
+  ParamsOf,
+  Pipeline,
+  SourceRange,
+  SpliceOperation,
+} from "@keelson/core";
+import { parseOperation, validate } from "@keelson/core";
+import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
@@ -31,12 +40,11 @@ export type OperationBody = {
   touched: SourceRange[];
 };
 
+/** Pas de `message` : le texte est rendu côté client par `@keelson/core/messages`. `hash` n'est
+ *  présent que sur le 409, où le client en a besoin pour recalculer son opération. */
 export type ErrorBody = {
-  code: string;
-  message: string;
-  details?: unknown;
-  hash?: string;
-};
+  [C in MessageCode]: { code: C; params: ParamsOf<C>; hash?: string };
+}[MessageCode];
 
 export type StoreResponse = {
   status: 200 | 400 | 404 | 409 | 422;
@@ -159,40 +167,34 @@ export class DocumentStore {
 
   private async executeOperation(file: string, operation: Operation): Promise<StoreResponse> {
     if (this.absolute(file) === null) {
-      return { status: 404, body: { code: "NOT_FOUND", message: `fichier inconnu : ${file}` } };
+      return {
+        status: 404,
+        body: { code: NOT_FOUND, params: { reason: "unknownFile", file } },
+      };
     }
 
     const validated = parseOperation(operation);
     if (!validated.ok) {
-      return {
-        status: 400,
-        body: {
-          code: validated.error.code,
-          message: validated.error.message,
-          ...(validated.error.details === undefined ? {} : { details: validated.error.details }),
-        },
-      };
+      return { status: 400, body: validated.error };
     }
 
     const current =
       this.loaded.get(file) ?? (await this.load(file).then(() => this.loaded.get(file)));
     if (current === undefined) {
-      return { status: 404, body: { code: "NOT_FOUND", message: `fichier introuvable : ${file}` } };
+      return {
+        status: 404,
+        body: { code: NOT_FOUND, params: { reason: "missingFile", file } },
+      };
     }
 
     const parsed = parse(current.text);
     const result = apply(parsed.document, validated.value);
 
     if (!result.ok) {
-      const stale = result.error.code === "STALE_DOCUMENT";
+      const stale = result.error.code === STALE_DOCUMENT;
       return {
         status: stale ? 409 : 422,
-        body: {
-          code: result.error.code,
-          message: result.error.message,
-          ...(result.error.details === undefined ? {} : { details: result.error.details }),
-          ...(stale ? { hash: current.hash } : {}),
-        },
+        body: stale ? { ...result.error, hash: current.hash } : result.error,
       };
     }
 
@@ -205,7 +207,10 @@ export class DocumentStore {
       text: result.value.text,
       pipeline: result.value.pipeline,
       diagnostics,
-      hash: hashText(result.value.text),
+      // `apply` rend `parse(texte).hash`, donc le hash du texte qu'il vient d'écrire. Le recalculer
+      // ici donnait deux expressions pour une seule vérité : si elles divergeaient, le cache
+      // répondrait 409 contre un hash que le client n'a jamais reçu.
+      hash: result.value.hash,
     });
 
     return {

@@ -64,3 +64,5 @@ Option 3.
   `packages/ui/src/api/client.ts`, et `referencedBy()` dans `packages/ui/src/editing/drafts.ts`.
 - Bénéfice collatéral pour le lot L8 : un client distant qui reçoit `code` et `params` peut
   formuler son propre message sans analyser une chaîne.
+
+Portée complétée le 2026-10-22 : `@keelson/server`, voir l'écart du même jour.

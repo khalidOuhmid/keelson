@@ -198,19 +198,21 @@ describe("opérations de stages", () => {
 });
 
 describe("referencedBy", () => {
-  function failure(details: unknown): ApiFailure {
-    return { status: 422, code: "JOB_REFERENCED", message: "référencé", details };
+  /** Les `params` viennent du réseau : le cast est là pour reproduire ce qu'un serveur mal luné
+   *  peut envoyer sous un code dont le type promet mieux. */
+  function failure(params: unknown): ApiFailure {
+    return { status: 422, code: "JOB_REFERENCED", params } as ApiFailure;
   }
 
   test("extrait la liste des jobs qui référencent la cible", () => {
     expect(referencedBy(failure({ referencedBy: ["unit", "ship"] }))).toEqual(["unit", "ship"]);
   });
 
-  test("rend une liste vide quand details est absent", () => {
-    expect(referencedBy({ status: 422, code: "JOB_REFERENCED", message: "x" })).toEqual([]);
+  test("rend une liste vide quand referencedBy est absent", () => {
+    expect(referencedBy(failure({ job: "compile" }))).toEqual([]);
   });
 
-  test("rend une liste vide quand details n'a pas la bonne forme", () => {
+  test("rend une liste vide quand les params n'ont pas la bonne forme", () => {
     expect(referencedBy(failure({ autre: 1 }))).toEqual([]);
     expect(referencedBy(failure("texte"))).toEqual([]);
     expect(referencedBy(failure({ referencedBy: "unit" }))).toEqual([]);

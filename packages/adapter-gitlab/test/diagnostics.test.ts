@@ -6,6 +6,7 @@ import {
   INVALID_YAML,
   JOB_WITHOUT_SCRIPT,
 } from "@keelson/core";
+import { renderMessage } from "@keelson/core/messages";
 import { parse } from "../src/parse.ts";
 import { readEdgeCase } from "./support/corpus.ts";
 
@@ -76,9 +77,9 @@ describe("EXTENDS_TARGET_NOT_FOUND", () => {
   });
 
   test("nomme la cible manquante", () => {
-    expect(
-      diagnostic(readEdgeCase("extends-missing"), EXTENDS_TARGET_NOT_FOUND)?.message,
-    ).toContain(".absent");
+    const found = diagnostic(readEdgeCase("extends-missing"), EXTENDS_TARGET_NOT_FOUND);
+    expect(found?.params).toEqual({ template: ".absent" });
+    expect(found === undefined ? "" : renderMessage(found)).toContain(".absent");
   });
 
   test("n'est pas signalé deux fois pour la même cible", () => {
@@ -120,21 +121,21 @@ describe("JOB_WITHOUT_SCRIPT", () => {
   test("signale en avertissement un job sans script", () => {
     const found = diagnostic(text, JOB_WITHOUT_SCRIPT);
     expect(found?.severity).toBe("warning");
-    expect(found?.message).toContain("muet");
+    expect(found?.params).toEqual({ job: "muet" });
   });
 
   test("un job avec trigger n'est pas signalé", () => {
-    const messages = parse(text)
+    const jobs = parse(text)
       .diagnostics.filter((candidate) => candidate.code === JOB_WITHOUT_SCRIPT)
-      .map((candidate) => candidate.message);
-    expect(messages.some((message) => message.includes("declencheur"))).toBe(false);
+      .map((candidate) => renderMessage(candidate));
+    expect(jobs.some((message) => message.includes("declencheur"))).toBe(false);
   });
 
   test("un job avec run n'est pas signalé", () => {
-    const messages = parse(text)
+    const jobs = parse(text)
       .diagnostics.filter((candidate) => candidate.code === JOB_WITHOUT_SCRIPT)
-      .map((candidate) => candidate.message);
-    expect(messages.some((message) => message.includes("avec-run"))).toBe(false);
+      .map((candidate) => renderMessage(candidate));
+    expect(jobs.some((message) => message.includes("avec-run"))).toBe(false);
   });
 
   test("est évalué après résolution des extends", () => {
@@ -165,6 +166,61 @@ describe("JOB_WITHOUT_SCRIPT", () => {
       "",
     ].join("\n");
     expect(codes(anchored)).not.toContain(JOB_WITHOUT_SCRIPT);
+  });
+});
+
+describe("dédoublonnage par code et params", () => {
+  /** Le dédoublonnage portait sur le `message`, qui n'existe plus. S'il s'était contenté du `code`,
+   *  deux cibles d'`extends` absentes **différentes** auraient fusionné en un seul diagnostic, et
+   *  l'une des deux serait devenue invisible. */
+  test("deux cibles d'extends absentes différentes donnent deux diagnostics", () => {
+    const text = [
+      "stages:",
+      "  - test",
+      "",
+      "un:",
+      "  extends: .absent-un",
+      "  script: a",
+      "",
+      "deux:",
+      "  extends: .absent-deux",
+      "  script: b",
+      "",
+    ].join("\n");
+
+    const found = parse(text).diagnostics.filter(
+      (candidate) => candidate.code === EXTENDS_TARGET_NOT_FOUND,
+    );
+    expect(found.map((candidate) => candidate.params)).toEqual([
+      { template: ".absent-un" },
+      { template: ".absent-deux" },
+    ]);
+  });
+});
+
+describe("forme des diagnostics", () => {
+  test("aucun diagnostic ne porte de message ni de details", () => {
+    const text = [
+      "include:",
+      "  - template: Jobs/SAST.gitlab-ci.yml",
+      "",
+      "stages:",
+      "  - test",
+      "",
+      "muet:",
+      "  stage: test",
+      "",
+      "orphelin:",
+      "  extends: .absent",
+      "  script: a",
+      "",
+    ].join("\n");
+
+    const found = parse(text).diagnostics;
+    expect(found.length).toBeGreaterThan(0);
+    for (const candidate of found) {
+      expect(Object.keys(candidate).sort()).toEqual(["code", "params", "range", "severity"]);
+    }
   });
 });
 

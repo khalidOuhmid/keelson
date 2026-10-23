@@ -1,3 +1,4 @@
+import { JOB_REFERENCED } from "@keelson/core/messages";
 import type { ApiFailure } from "../api/client.ts";
 import type { Draft } from "../state/store.ts";
 
@@ -101,12 +102,13 @@ export function moveStage(name: string, toIndex: number): Draft {
   return { kind: "moveStage", name, toIndex };
 }
 
+/** Les `params` viennent du réseau : le code peut être `JOB_REFERENCED` sans que `referencedBy`
+ *  soit une liste de chaînes. Le filtre reste donc, malgré le type. */
 export function referencedBy(error: ApiFailure): string[] {
-  const details = error.details;
-  if (typeof details !== "object" || details === null) {
+  if (error.code !== JOB_REFERENCED) {
     return [];
   }
-  const listed = (details as { referencedBy?: unknown }).referencedBy;
+  const listed: unknown = error.params.referencedBy;
   return Array.isArray(listed)
     ? listed.filter((entry): entry is string => typeof entry === "string")
     : [];

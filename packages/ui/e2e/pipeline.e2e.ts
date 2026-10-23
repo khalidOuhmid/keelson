@@ -100,7 +100,9 @@ test("la suppression du fichier affiche l'état supprimé", async ({ page }) => 
   await expect(page.getByRole("heading", { name: /deleted/i })).toBeVisible({ timeout: 10_000 });
 });
 
-test("un 409 affiche le message, recharge et vide l'historique", async ({ page }) => {
+test("un 409 dit en anglais que rien n'a été appliqué, recharge et vide l'historique", async ({
+  page,
+}) => {
   await page.route("**/api/events*", (route) => route.abort());
   await open(page);
 
@@ -114,20 +116,34 @@ test("un 409 affiche le message, recharge et vide l'historique", async ({ page }
   await page.getByRole("button", { name: "Add stage" }).click();
 
   await expect(page.getByTestId("notice-kind")).toContainText("Not applied");
+  // Le titre de ce test promettait « le message » sans jamais l'asserter — relevé par la revue du
+  // 2026-10-22. Depuis que le serveur n'envoie plus de phrase, c'est ici le seul endroit où le
+  // rendu du 409 sur le binaire réel est vérifié.
+  // Deux `role="alert"` coexistent sur ce chemin : la bannière de notice, qui porte son texte en
+  // dur côté UI, et la bannière d'erreur, qui rend celui du serveur. C'est la seconde qu'on veut,
+  // désignée par le code qu'elle affiche — `.first()` prendrait la notice et le test passerait
+  // sans que rien ne soit rendu depuis `code` + `params`.
+  const banner = page.getByRole("alert").filter({ hasText: "STALE_DOCUMENT" });
+  await expect(banner).toContainText("the document changed since the operation was computed");
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
   expect(keelson.read()).not.toContain("publish");
 });
 
-test("une erreur métier affiche le message du serveur", async ({ page }) => {
+test("une erreur métier affiche le texte anglais rendu depuis le code du serveur", async ({
+  page,
+}) => {
   await open(page);
 
   await page.getByRole("textbox", { name: "New stage name" }).fill("build");
   await page.getByRole("button", { name: "Add stage" }).click();
 
   await expect(page.getByText("STAGE_EXISTS")).toBeVisible();
+  // Le serveur n'envoie plus de phrase : s'il n'y avait pas de rendu côté client, la bannière
+  // n'afficherait que le code. Le texte exact est donc ce qui prouve que `render()` a tourné.
+  await expect(page.getByRole("alert")).toContainText('stage "build" already exists');
 });
 
-test("supprimer un job référencé liste les jobs qui le référencent", async ({ page }) => {
+test("supprimer un job référencé affiche la phrase anglaise et les référents", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /build-image/ }).click();
@@ -136,7 +152,12 @@ test("supprimer un job référencé liste les jobs qui le référencent", async 
 
   await expect(page.getByText("JOB_REFERENCED")).toBeVisible();
   const banner = page.getByRole("alert");
-  await expect(banner).toContainText("unit-tests");
+  const referents = ["unit-tests", "secret-detection", "container-scan"];
+  await expect(banner).toContainText(`job "build-image" is needed by ${referents.join(", ")}`);
+  // Les pastilles sont un chemin distinct de la phrase : elles viennent de `params.referencedBy`,
+  // pas du rendu. La liste est exacte, pas un sous-ensemble — un référent manquant à l'écran est
+  // un job que l'utilisateur croira pouvoir garder.
+  await expect(banner.getByRole("listitem")).toHaveText(referents);
 });
 
 test("cliquer un diagnostic sélectionne le job concerné", async ({ page }) => {

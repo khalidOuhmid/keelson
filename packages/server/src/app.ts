@@ -1,5 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Operation } from "@keelson/core";
+import type { MessageCode, Operation, ParamsOf } from "@keelson/core";
+import {
+  FORBIDDEN_HOST,
+  FORBIDDEN_TOKEN,
+  INVALID_OPERATION,
+  METHOD_NOT_ALLOWED,
+  NOT_FOUND,
+  PAYLOAD_TOO_LARGE,
+} from "@keelson/core/messages";
 import { isAllowedHost, TOKEN_HEADER, tokensMatch } from "./security.ts";
 import type { SseHub } from "./sse.ts";
 import type { StaticHandler } from "./static.ts";
@@ -26,9 +34,19 @@ function send(response: ServerResponse, status: number, body: Json): void {
   response.end(payload);
 }
 
-function fail(response: ServerResponse, status: number, code: string, message: string): void {
-  send(response, status, { code, message });
+/** Aucune clé `message` sur le fil : le texte est rendu par le client depuis `code` + `params`. */
+function fail<C extends MessageCode>(
+  response: ServerResponse,
+  status: number,
+  code: C,
+  params: ParamsOf<C>,
+): void {
+  send(response, status, { code, params });
 }
+
+/** `request.method` est `string | undefined` côté Node. Le rendre explicite ici plutôt que de
+ *  laisser « undefined » arriver dans la phrase affichée. */
+const methodOf = (request: IncomingMessage): string => request.method ?? "unknown";
 
 async function readBody(request: IncomingMessage): Promise<string | "too-large"> {
   const chunks: Buffer[] = [];
@@ -60,7 +78,7 @@ export function createRequestHandler(context: AppContext) {
     const url = new URL(request.url ?? "/", `http://127.0.0.1:${context.port()}`);
 
     if (!isAllowedHost(request.headers.host, context.port())) {
-      fail(response, 403, "FORBIDDEN_HOST", "en-tête Host refusé par le serveur local");
+      fail(response, 403, FORBIDDEN_HOST, {});
       return;
     }
 
@@ -74,14 +92,14 @@ export function createRequestHandler(context: AppContext) {
           : (request.headers[TOKEN_HEADER] as string | undefined);
 
       if (!tokensMatch(context.token, presented)) {
-        fail(response, 403, "FORBIDDEN_TOKEN", "token de session absent ou invalide");
+        fail(response, 403, FORBIDDEN_TOKEN, {});
         return;
       }
     }
 
     if (pathname === "/api/workspace") {
       if (request.method !== "GET") {
-        fail(response, 405, "METHOD_NOT_ALLOWED", `méthode ${request.method} refusée`);
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
         return;
       }
       send(response, 200, { files: context.store.workspaceFiles() as unknown as Json[] });
@@ -90,7 +108,7 @@ export function createRequestHandler(context: AppContext) {
 
     if (pathname === "/api/events") {
       if (request.method !== "GET") {
-        fail(response, 405, "METHOD_NOT_ALLOWED", `méthode ${request.method} refusée`);
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
         return;
       }
       context.hub.attach(request, response);
@@ -100,21 +118,21 @@ export function createRequestHandler(context: AppContext) {
     const operations = /^\/api\/documents\/([^/]+)\/operations$/.exec(pathname);
     if (operations !== null) {
       if (request.method !== "POST") {
-        fail(response, 405, "METHOD_NOT_ALLOWED", `méthode ${request.method} refusée`);
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
         return;
       }
 
       const file = decodeFile(operations[1] ?? "");
       if (file === null) {
-        fail(response, 404, "NOT_FOUND", "nom de fichier illisible");
+        fail(response, 404, NOT_FOUND, { reason: "unreadableFileName" });
         return;
       }
 
       const raw = await readBody(request);
       if (raw === "too-large") {
         const payload = JSON.stringify({
-          code: "PAYLOAD_TOO_LARGE",
-          message: "corps de requête supérieur à 1 Mo",
+          code: PAYLOAD_TOO_LARGE,
+          params: { limitBytes: MAX_BODY_BYTES },
         });
         response.writeHead(413, {
           "content-type": "application/json; charset=utf-8",
@@ -130,17 +148,17 @@ export function createRequestHandler(context: AppContext) {
       try {
         parsed = JSON.parse(raw);
       } catch {
-        fail(response, 400, "INVALID_OPERATION", "corps de requête JSON illisible");
+        fail(response, 400, INVALID_OPERATION, { reason: "unreadableBody" });
         return;
       }
 
       const envelope = parsed as { op?: unknown; opId?: unknown };
       if (typeof envelope.opId !== "string" || envelope.opId === "") {
-        fail(response, 400, "INVALID_OPERATION", "opId absent ou vide");
+        fail(response, 400, INVALID_OPERATION, { reason: "missingOpId" });
         return;
       }
       if (typeof envelope.op !== "object" || envelope.op === null) {
-        fail(response, 400, "INVALID_OPERATION", "op absent ou invalide");
+        fail(response, 400, INVALID_OPERATION, { reason: "missingOp" });
         return;
       }
 
@@ -156,14 +174,21 @@ export function createRequestHandler(context: AppContext) {
     const document = /^\/api\/documents\/([^/]+)$/.exec(pathname);
     if (document !== null) {
       if (request.method !== "GET") {
-        fail(response, 405, "METHOD_NOT_ALLOWED", `méthode ${request.method} refusée`);
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
         return;
       }
 
       const file = decodeFile(document[1] ?? "");
-      const loaded = file === null ? null : await context.store.load(file);
+      if (file === null) {
+        // Même condition que sur la route des opérations, donc même `reason` : un nom indécodable
+        // n'est pas un fichier inconnu, et le dire autrement selon la route n'aiderait personne.
+        fail(response, 404, NOT_FOUND, { reason: "unreadableFileName" });
+        return;
+      }
+
+      const loaded = await context.store.load(file);
       if (loaded === null) {
-        fail(response, 404, "NOT_FOUND", `fichier inconnu : ${file ?? ""}`);
+        fail(response, 404, NOT_FOUND, { reason: "unknownFile", file });
         return;
       }
       send(response, 200, loaded as unknown as Json);
@@ -171,17 +196,17 @@ export function createRequestHandler(context: AppContext) {
     }
 
     if (isApi) {
-      fail(response, 404, "NOT_FOUND", `route inconnue : ${pathname}`);
+      fail(response, 404, NOT_FOUND, { reason: "unknownRoute", route: pathname });
       return;
     }
 
     if (request.method !== "GET" && request.method !== "HEAD") {
-      fail(response, 405, "METHOD_NOT_ALLOWED", `méthode ${request.method} refusée`);
+      fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
       return;
     }
 
     if (!context.serveStatic(pathname, response)) {
-      fail(response, 404, "NOT_FOUND", "aucun bundle d'interface n'est servi par ce serveur");
+      fail(response, 404, NOT_FOUND, { reason: "noUiBundle" });
     }
   };
 }

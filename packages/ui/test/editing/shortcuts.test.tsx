@@ -147,8 +147,17 @@ describe("HistoryControls", () => {
 });
 
 describe("ErrorBanner", () => {
-  function failure(overrides: Partial<ApiFailure> = {}): ApiFailure {
-    return { status: 422, code: "STAGE_EXISTS", message: "le stage existe déjà", ...overrides };
+  /** Les surcharges ne sont pas typées : deux tests ci-dessous envoient volontairement des `params`
+   *  que le type interdit — un `JOB_REFERENCED` sans `referencedBy`, un `CYCLE` qui en porte un.
+   *  C'est exactement ce qu'un serveur d'une autre version peut mettre sur le fil, et le point de
+   *  ces tests est que l'UI n'en invente rien. */
+  function failure(overrides: Record<string, unknown> = {}): ApiFailure {
+    return {
+      status: 422,
+      code: "STAGE_EXISTS",
+      params: { stage: "build" },
+      ...overrides,
+    } as ApiFailure;
   }
 
   test("n'affiche rien sans erreur", () => {
@@ -156,9 +165,9 @@ describe("ErrorBanner", () => {
     expect(container.textContent).toBe("");
   });
 
-  test("affiche le message du serveur tel quel", () => {
+  test("affiche la phrase anglaise rendue depuis le code et les params", () => {
     render(<ErrorBanner error={failure()} onDismiss={() => {}} />);
-    expect(screen.getByText("le stage existe déjà")).toBeDefined();
+    expect(screen.getByText('stage "build" already exists')).toBeDefined();
   });
 
   test("affiche le code du serveur", () => {
@@ -171,30 +180,48 @@ describe("ErrorBanner", () => {
     expect(screen.getByRole("alert")).toBeDefined();
   });
 
-  test("sur JOB_REFERENCED, liste les jobs qui référencent la cible", () => {
-    render(
+  test("sur JOB_REFERENCED, rend la phrase anglaise et chaque référent", () => {
+    const { container } = render(
       <ErrorBanner
         error={failure({
           code: "JOB_REFERENCED",
-          message: "référencé",
-          details: { referencedBy: ["unit", "ship"] },
+          params: { job: "compile", referencedBy: ["unit", "ship"] },
         })}
         onDismiss={() => {}}
       />,
     );
-    expect(screen.getByText("unit")).toBeDefined();
-    expect(screen.getByText("ship")).toBeDefined();
+    // La phrase vient de `render()`, les pastilles de `params.referencedBy` : deux chemins
+    // distincts dans le composant, et le test échoue si l'un des deux casse.
+    expect(screen.getByText('job "compile" is needed by unit, ship')).toBeDefined();
+    const referents = [...container.querySelectorAll("li")].map((node) => node.textContent);
+    expect(referents).toEqual(["unit", "ship"]);
   });
 
-  test("n'invente pas de liste quand JOB_REFERENCED n'a pas de details", () => {
-    render(<ErrorBanner error={failure({ code: "JOB_REFERENCED" })} onDismiss={() => {}} />);
+  test("un code sans params rend quand même sa phrase", () => {
+    render(
+      <ErrorBanner
+        error={failure({ status: 403, code: "FORBIDDEN_TOKEN", params: {} })}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(screen.getByText("the session token is missing or invalid")).toBeDefined();
+    expect(screen.getByText("FORBIDDEN_TOKEN")).toBeDefined();
+  });
+
+  test("n'invente pas de liste quand JOB_REFERENCED n'a pas de referencedBy", () => {
+    render(
+      <ErrorBanner
+        error={failure({ code: "JOB_REFERENCED", params: { job: "compile" } })}
+        onDismiss={() => {}}
+      />,
+    );
     expect(screen.queryByRole("list")).toBeNull();
   });
 
   test("ne traite aucun autre code de façon particulière", () => {
     render(
       <ErrorBanner
-        error={failure({ code: "CYCLE", details: { referencedBy: ["unit"] } })}
+        error={failure({ code: "CYCLE", params: { operation: "addNeed", referencedBy: ["unit"] } })}
         onDismiss={() => {}}
       />,
     );

@@ -1,45 +1,37 @@
 import { z } from "zod";
+import {
+  INVALID_OPERATION,
+  type OperationErrorCode,
+  type ParamsOf,
+  UNSUPPORTED_VERSION,
+} from "./messages/codes.ts";
 import { err, ok, type Result } from "./result.ts";
 
 export const OPERATION_VERSION = 1;
 
-export const STALE_DOCUMENT = "STALE_DOCUMENT";
-export const JOB_NOT_FOUND = "JOB_NOT_FOUND";
-export const JOB_REFERENCED = "JOB_REFERENCED";
-export const NAME_CONFLICT = "NAME_CONFLICT";
-export const INVALID_NAME = "INVALID_NAME";
-export const STAGE_NOT_FOUND = "STAGE_NOT_FOUND";
-export const STAGE_EXISTS = "STAGE_EXISTS";
-export const NEED_EXISTS = "NEED_EXISTS";
-export const NEED_NOT_FOUND = "NEED_NOT_FOUND";
-export const CYCLE = "CYCLE";
-export const UNSUPPORTED_VERSION = "UNSUPPORTED_VERSION";
-export const INVALID_OPERATION = "INVALID_OPERATION";
-export const RANGE_OUT_OF_BOUNDS = "RANGE_OUT_OF_BOUNDS";
-
-export const OPERATION_ERROR_CODES = [
-  STALE_DOCUMENT,
+export type { OperationErrorCode } from "./messages/codes.ts";
+export {
+  CYCLE,
+  INVALID_NAME,
+  INVALID_OPERATION,
   JOB_NOT_FOUND,
   JOB_REFERENCED,
   NAME_CONFLICT,
-  INVALID_NAME,
-  STAGE_NOT_FOUND,
-  STAGE_EXISTS,
   NEED_EXISTS,
   NEED_NOT_FOUND,
-  CYCLE,
-  UNSUPPORTED_VERSION,
-  INVALID_OPERATION,
+  OPERATION_ERROR_CODES,
   RANGE_OUT_OF_BOUNDS,
-] as const;
+  STAGE_EXISTS,
+  STAGE_NOT_FOUND,
+  STALE_DOCUMENT,
+  UNSUPPORTED_VERSION,
+} from "./messages/codes.ts";
 
-export type OperationErrorCode = (typeof OPERATION_ERROR_CODES)[number];
-
+/** Union discriminée, comme `Diagnostic`, et pour la même raison. `details` n'existe plus : ce qui
+ *  décrivait l'erreur est dans `params`, qui est typé par code. */
 export type OperationError = {
-  code: OperationErrorCode;
-  message: string;
-  details?: Record<string, unknown>;
-};
+  [C in OperationErrorCode]: { code: C; params: ParamsOf<C> };
+}[OperationErrorCode];
 
 export const RESERVED_JOB_NAMES = [
   "stages",
@@ -176,30 +168,27 @@ export type Operation = z.infer<typeof operationSchema>;
 
 export function parseOperation(input: unknown): Result<Operation, OperationError> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    return err({
-      code: INVALID_OPERATION,
-      message: "une opération doit être un objet JSON",
-    });
+    return err({ code: INVALID_OPERATION, params: { reason: "notAnObject" } });
   }
 
   const version = (input as { v?: unknown }).v;
   if (typeof version === "number" && version !== OPERATION_VERSION) {
     return err({
       code: UNSUPPORTED_VERSION,
-      message: `version d'opération ${version} non supportée, attendu ${OPERATION_VERSION}`,
-      details: { received: version, supported: OPERATION_VERSION },
+      params: { received: version, supported: OPERATION_VERSION },
     });
   }
 
   const parsed = operationSchema.safeParse(input);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    const path = issue === undefined ? "" : issue.path.join(".");
-    const detail = issue === undefined ? "forme invalide" : issue.message;
     return err({
       code: INVALID_OPERATION,
-      message: path === "" ? detail : `${path} : ${detail}`,
-      details: { issues: parsed.error.issues },
+      params: {
+        reason: "schema",
+        path: issue === undefined ? "" : issue.path.join("."),
+        detail: issue === undefined ? "invalid shape" : issue.message,
+      },
     });
   }
 

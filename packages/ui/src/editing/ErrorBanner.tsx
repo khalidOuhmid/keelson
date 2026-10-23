@@ -1,3 +1,4 @@
+import { JOB_REFERENCED, renderMessage } from "@keelson/core/messages";
 import type { ApiFailure } from "../api/client.ts";
 import { referencedBy } from "./drafts.ts";
 
@@ -11,7 +12,7 @@ export function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
     return null;
   }
 
-  const referents = error.code === "JOB_REFERENCED" ? referencedBy(error) : [];
+  const referents = error.code === JOB_REFERENCED ? referencedBy(error) : [];
 
   return (
     <div
@@ -22,7 +23,7 @@ export function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
         {error.code}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="text-sm text-text-primary">{error.message}</p>
+        <p className="text-sm text-text-primary">{renderMessage(error)}</p>
         {referents.length === 0 ? null : (
           <ul className="flex flex-wrap gap-1.5">
             {referents.map((job) => (
