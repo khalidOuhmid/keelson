@@ -16,7 +16,7 @@ Blocage : aucun
 | L1 — `core` + `adapter-gitlab` | TERMINÉ | `2a48b5a` (`--no-ff`) |
 | L2 — serveur, vue Pipeline, `keelson start` | TERMINÉ | `894464c` (`--no-ff`) |
 | L2c — messages : `code` + `params`, anglais unique, `details` fusionné | TERMINÉ | `82bcb79` (`--no-ff`) |
-| L2b — résolution des `include` locaux, origine par fichier, écriture bornée | TERMINÉ | `MERGE_SHA` (`--no-ff`) |
+| L2b — résolution des `include` locaux, origine par fichier, écriture bornée | TERMINÉ | `5a5b530` (`--no-ff`) |
 | L3 — taxonomie, catalogue, overlay OWASP | **LOT COURANT** | — |
 | L4 — toolchain | À FAIRE | — |
 | L5 — propositions et insertion | À FAIRE | — |
