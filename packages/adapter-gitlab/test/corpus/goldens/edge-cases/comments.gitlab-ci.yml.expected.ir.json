@@ -6,7 +6,8 @@
       "range": {
         "start": 87,
         "end": 92
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
@@ -14,7 +15,8 @@
       "range": {
         "start": 133,
         "end": 137
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -35,13 +37,15 @@
           "range": {
             "start": 165,
             "end": 226
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 139,
         "end": 226
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "unit",
@@ -71,15 +75,20 @@
           "range": {
             "start": 324,
             "end": 349
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 279,
         "end": 349
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
-  "opaque": []
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

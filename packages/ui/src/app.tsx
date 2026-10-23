@@ -1,3 +1,4 @@
+import { emptyPipeline } from "@keelson/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
@@ -175,7 +176,7 @@ export function App({ deps }: AppProps = {}) {
     }
     return (
       <PipelineCanvas
-        pipeline={state.pipeline ?? { stages: [], jobs: [], templates: [], opaque: [] }}
+        pipeline={state.pipeline ?? emptyPipeline(state.file ?? "")}
         selectedJobId={state.selectedJobId}
         onSelectJob={(id) => store.getState().selectJob(id)}
       />

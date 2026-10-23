@@ -6,7 +6,8 @@
       "range": {
         "start": 140,
         "end": 145
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
@@ -14,7 +15,8 @@
       "range": {
         "start": 150,
         "end": 154
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -35,13 +37,15 @@
           "range": {
             "start": 182,
             "end": 201
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 156,
         "end": 201
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "herite",
@@ -60,13 +64,15 @@
           "range": {
             "start": 256,
             "end": 281
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 202,
         "end": 281
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
@@ -75,6 +81,38 @@
       "key": "include",
       "range": {
         "start": 0,
+        "end": 127
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": [
+    {
+      "form": "template",
+      "detail": "Jobs/SAST.gitlab-ci.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 13,
+        "end": 47
+      }
+    },
+    {
+      "form": "local",
+      "detail": "/ci/partagé.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 51,
+        "end": 74
+      }
+    },
+    {
+      "form": "project",
+      "detail": "groupe/projet / /ci/distant.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 78,
         "end": 127
       }
     }

@@ -21,6 +21,8 @@ export function describeOrigin(origin: Origin): OriginLabel | null {
       return { label: "from anchor", source: `&${origin.name}` };
     case "reference":
       return { label: "from reference", source: `[${origin.path.join(", ")}]` };
+    case "include":
+      return { label: "from included file", source: origin.file };
   }
 }
 

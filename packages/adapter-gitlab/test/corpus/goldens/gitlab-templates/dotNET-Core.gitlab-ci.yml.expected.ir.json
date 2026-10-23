@@ -3,27 +3,32 @@
     {
       "name": ".pre",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "build",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": ".post",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -44,13 +49,15 @@
           "range": {
             "start": 4615,
             "end": 4657
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 4068,
         "end": 4657
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "tests",
@@ -69,13 +76,15 @@
           "range": {
             "start": 5094,
             "end": 5135
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 4658,
         "end": 5135
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "deploy",
@@ -101,13 +110,15 @@
           "range": {
             "start": 5162,
             "end": 5208
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 5136,
         "end": 5234
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
@@ -117,28 +128,35 @@
       "range": {
         "start": 982,
         "end": 1025
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "variables",
       "range": {
         "start": 1051,
         "end": 1436
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "cache",
       "range": {
         "start": 2214,
         "end": 3487
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "before_script",
       "range": {
         "start": 3994,
         "end": 4067
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
-  ]
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

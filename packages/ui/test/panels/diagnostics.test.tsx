@@ -8,6 +8,8 @@ afterEach(cleanup);
 
 /** Un diagnostic ne porte plus de `message` : le code et ses `params` vont ensemble, et le
  *  compilateur le vérifie. Les fixtures nomment donc un code réel, jamais un code inventé. */
+const MAIN = ".gitlab-ci.yml";
+
 const SAMPLES = {
   need: { code: "UNKNOWN_NEED", params: { job: "unit", need: "absent" } },
   cycle: { code: "NEEDS_CYCLE", params: { cycle: ["a", "b", "a"] } },
@@ -15,13 +17,17 @@ const SAMPLES = {
     code: "NEED_LATER_STAGE",
     params: { job: "compile", stage: "build", need: "publish", needStage: "deploy" },
   },
-  include: { code: "INCLUDE_UNRESOLVED", params: {} },
+  include: {
+    code: "INCLUDE_UNRESOLVED",
+    params: { form: "template", detail: "Jobs/SAST.gitlab-ci.yml" },
+  },
 } as const satisfies Record<string, Pick<Diagnostic, "code" | "params">>;
 
 type Shape = { severity?: Severity; range?: SourceRange | null };
 
 function diagnostic(sample: keyof typeof SAMPLES = "need", shape: Shape = {}): Diagnostic {
   return {
+    file: MAIN,
     ...SAMPLES[sample],
     severity: shape.severity ?? "error",
     range: shape.range === undefined ? { start: 40, end: 90 } : shape.range,

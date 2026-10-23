@@ -3,27 +3,32 @@
     {
       "name": ".pre",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "build",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": ".post",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -43,7 +48,8 @@
       "range": {
         "start": 2695,
         "end": 2733
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "deploy:jdk8",
@@ -62,20 +68,23 @@
           "range": {
             "start": 3167,
             "end": 3492
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "only",
           "range": {
             "start": 3494,
             "end": 3563
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 3136,
         "end": 3563
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [
@@ -84,7 +93,8 @@
       "range": {
         "start": 2518,
         "end": 2659
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "opaque": [
@@ -93,21 +103,27 @@
       "range": {
         "start": 749,
         "end": 1662
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "image",
       "range": {
         "start": 1944,
         "end": 1969
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "cache",
       "range": {
         "start": 2334,
         "end": 2371
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
-  ]
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

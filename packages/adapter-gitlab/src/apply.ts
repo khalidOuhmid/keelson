@@ -734,6 +734,12 @@ function planFor(
   }
 }
 
+/** Toute relecture dans `apply` passe par ici : un `parse(texte)` nu perdrait le nom du fichier et
+ *  le lecteur d'includes, donc l'IR relue n'aurait plus les jobs des fichiers inclus. */
+function reparse(document: GitlabDocument, text: string) {
+  return parse(text, { file: document.file, read: document.read ?? undefined });
+}
+
 function cycleCount(pipeline: Pipeline): number {
   return validate(pipeline).filter((diagnostic) => diagnostic.code === NEEDS_CYCLE).length;
 }
@@ -749,7 +755,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     return fail(STALE_DOCUMENT, { expected: document.hash, received: op.baseHash });
   }
 
-  const before = parse(document.text);
+  const before = reparse(document, document.text);
   const root = topLevelMap(document);
 
   const geometry: Geometry = {
@@ -771,7 +777,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
   }
 
   const spliced = applySplices(document.text, planned.value);
-  const after = parse(spliced.text);
+  const after = reparse(document, spliced.text);
 
   const brokeYaml =
     op.kind !== "splice" &&

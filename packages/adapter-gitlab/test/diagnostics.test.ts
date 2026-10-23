@@ -50,12 +50,33 @@ describe("INCLUDE_UNRESOLVED", () => {
     expect(found?.severity).toBe("info");
   });
 
-  test("porte la plage de la clé include", () => {
+  /** La plage pointe l'**entrée** et non la clé `include` : un fichier peut mêler des includes
+   *  résolus et non résolus, et souligner la clé commune dirait que tout le bloc est en cause.
+   *  Pas de `if (range != null)` ici — c'était un garde qui laissait le test passer précisément
+   *  dans le cas où il n'avait rien mesuré. */
+  test("porte la plage de l'entrée non résolue, pas celle de la clé include", () => {
     const text = readEdgeCase("with-include");
     const found = diagnostic(text, INCLUDE_UNRESOLVED);
-    if (found?.range != null) {
-      expect(text.slice(found.range.start, found.range.end)).toStartWith("include:");
+    const range = found?.range;
+    if (range === null || range === undefined) {
+      throw new Error("INCLUDE_UNRESOLVED sans plage");
     }
+    // `trimEnd` : la plage d'un nœud `yaml` va jusqu'au début du nœud suivant, donc elle emporte
+    // le retour à la ligne. C'est la convention de `contentRange` dans tout l'adaptateur.
+    expect(text.slice(range.start, range.end).trimEnd()).toBe("template: Jobs/SAST.gitlab-ci.yml");
+  });
+
+  test("un diagnostic par entrée non résolue, et aucun pour un include local", () => {
+    const found = parse(readEdgeCase("with-include")).diagnostics.filter(
+      (candidate) => candidate.code === INCLUDE_UNRESOLVED,
+    );
+    // Trois entrées, dont un `local:` — sans lecteur il compte aussi comme non résolu, mais avec
+    // sa forme à lui, pour ne pas prétendre qu'un fichier du dépôt est hors de portée.
+    expect(found.map((candidate) => candidate.params.form)).toEqual([
+      "template",
+      "local",
+      "project",
+    ]);
   });
 
   test("un fichier sans include ne déclenche rien", () => {
@@ -219,7 +240,13 @@ describe("forme des diagnostics", () => {
     const found = parse(text).diagnostics;
     expect(found.length).toBeGreaterThan(0);
     for (const candidate of found) {
-      expect(Object.keys(candidate).sort()).toEqual(["code", "params", "range", "severity"]);
+      expect(Object.keys(candidate).sort()).toEqual([
+        "code",
+        "file",
+        "params",
+        "range",
+        "severity",
+      ]);
     }
   });
 });

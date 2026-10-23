@@ -6,7 +6,8 @@
       "range": {
         "start": 12,
         "end": 17
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
@@ -14,7 +15,8 @@
       "range": {
         "start": 22,
         "end": 28
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -33,7 +35,8 @@
       "range": {
         "start": 30,
         "end": 51
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "declencheur",
@@ -52,13 +55,15 @@
           "range": {
             "start": 83,
             "end": 117
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 52,
         "end": 117
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "avec-run",
@@ -77,15 +82,20 @@
           "range": {
             "start": 145,
             "end": 191
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 118,
         "end": 191
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
-  "opaque": []
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

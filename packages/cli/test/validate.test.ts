@@ -178,7 +178,7 @@ describe("sortie texte", () => {
 
     const output = (await run(["validate", fixture("anglais.yml", melange)])).stdout;
     expect(output).toContain(
-      "includes are not resolved: the pipeline shown contains only this local file",
+      "this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete",
     );
     expect(output).toContain('extends target ".absent" does not exist in this file');
     expect(output).toContain('job "muet" has no script, no run and no trigger');

@@ -11,7 +11,11 @@ export type Diagnostic = {
     code: C;
     severity: Severity;
     params: ParamsOf<C>;
+    /** Offset dans le texte de `file`, pas dans celui du fichier principal. */
     range: SourceRange | null;
+    /** Toujours présent. Un `undefined` qui voudrait dire « le fichier principal » serait
+     *  exactement la valeur absente que le lot L2c a passé sa journée à retirer des rendus. */
+    file: string;
   };
 }[DiagnosticCode];
 
@@ -20,6 +24,9 @@ export {
   DIAGNOSTIC_CODES,
   EXTENDS_CYCLE,
   EXTENDS_TARGET_NOT_FOUND,
+  INCLUDE_CYCLE,
+  INCLUDE_LIMIT_EXCEEDED,
+  INCLUDE_NOT_FOUND,
   INCLUDE_UNRESOLVED,
   INVALID_YAML,
   JOB_WITHOUT_SCRIPT,

@@ -7,6 +7,8 @@ import { NewJobForm } from "../../src/editing/NewJobForm.tsx";
 import { StageControls } from "../../src/editing/StageControls.tsx";
 import type { Draft } from "../../src/state/store.ts";
 
+const MAIN = ".gitlab-ci.yml";
+
 afterEach(cleanup);
 
 function job(overrides: Partial<Job> = {}): Job {
@@ -18,12 +20,18 @@ function job(overrides: Partial<Job> = {}): Job {
     extends: [],
     opaque: [],
     range: { start: 0, end: 10 },
+    file: MAIN,
     ...overrides,
   };
 }
 
 const PIPELINE: Pipeline = {
-  stages: ["build", "test", "deploy"].map((name) => ({ name, implicit: false, range: null })),
+  stages: ["build", "test", "deploy"].map((name) => ({
+    name,
+    implicit: false,
+    range: null,
+    file: MAIN,
+  })),
   jobs: [
     job({ id: "compile", stage: { value: "build", origin: { kind: "local" } } }),
     job(),
@@ -31,6 +39,9 @@ const PIPELINE: Pipeline = {
   ],
   templates: [],
   opaque: [],
+  main: MAIN,
+  files: [MAIN],
+  unresolved: [],
 };
 
 function collector() {

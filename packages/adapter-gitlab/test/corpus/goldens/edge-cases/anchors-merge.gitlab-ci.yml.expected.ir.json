@@ -6,7 +6,8 @@
       "range": {
         "start": 103,
         "end": 108
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
@@ -14,7 +15,8 @@
       "range": {
         "start": 113,
         "end": 117
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -36,20 +38,23 @@
           "range": {
             "start": 130,
             "end": 144
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "script",
           "range": {
             "start": 146,
             "end": 174
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 119,
         "end": 174
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "unit",
@@ -79,20 +84,23 @@
           "range": {
             "start": 183,
             "end": 207
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "script",
           "range": {
             "start": 246,
             "end": 269
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 175,
         "end": 269
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [
@@ -101,15 +109,20 @@
       "range": {
         "start": 0,
         "end": 53
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": ".extra",
       "range": {
         "start": 54,
         "end": 90
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
-  "opaque": []
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

@@ -1,5 +1,9 @@
 import type { Job, Need, Pipeline, SourceRange, Stage, Valued } from "../../src/ir.ts";
 
+/** Le fichier principal des fixtures. Un `file` par élément est obligatoire depuis la résolution
+ *  des `include` : les fixtures mono-fichier nomment donc toutes celui-ci. */
+export const MAIN = ".gitlab-ci.yml";
+
 export function range(start = 0, end = 1): SourceRange {
   return { start, end };
 }
@@ -26,11 +30,12 @@ export function job(id: string, stage: string, needs?: readonly string[] | reado
     extends: [],
     opaque: [],
     range: range(),
+    file: MAIN,
   };
 }
 
 export function stages(...names: readonly string[]): Stage[] {
-  return names.map((name) => ({ name, implicit: false, range: range() }));
+  return names.map((name) => ({ name, implicit: false, range: range(), file: MAIN }));
 }
 
 export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
@@ -39,5 +44,8 @@ export function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     jobs: overrides.jobs ?? [],
     templates: overrides.templates ?? [],
     opaque: overrides.opaque ?? [],
+    main: overrides.main ?? MAIN,
+    files: overrides.files ?? [MAIN],
+    unresolved: overrides.unresolved ?? [],
   };
 }

@@ -17,8 +17,20 @@ const chain = (names: readonly string[]): string => names.join(" → ");
 export const EN: Catalogue = {
   // `detail` est la phrase de la lib `yaml`, déjà en anglais et plus précise que toute reformulation.
   INVALID_YAML: (p) => p.detail,
-  INCLUDE_UNRESOLVED: () =>
-    "includes are not resolved: the pipeline shown contains only this local file",
+  // Seuls les includes **distants** restent non résolus : les locaux le sont depuis le lot L2b.
+  INCLUDE_UNRESOLVED: (p) =>
+    `this ${p.form} include is not resolved (${p.detail}), so the pipeline shown may be incomplete`,
+  INCLUDE_NOT_FOUND: {
+    missing: (p) => `included file ${quoted(p.path)} does not exist`,
+    notYaml: (p) => `included file ${quoted(p.path)} is not a .yml or .yaml file`,
+    // GitLab exige un chemin depuis la racine du dépôt. Un chemin qui en sort est refusé avant
+    // toute lecture : le serveur lit le disque pour le compte d'une page web.
+    outsideRoot: (p) => `included path ${quoted(p.path)} leaves the repository root`,
+    malformed: () => "this include entry has no form Keelson understands",
+  },
+  INCLUDE_CYCLE: (p) => `include cycle: ${chain(p.trail)}`,
+  INCLUDE_LIMIT_EXCEEDED: (p) =>
+    `more than ${p.limit} included files, include resolution stopped there`,
   EXTENDS_TARGET_NOT_FOUND: (p) =>
     `extends target ${quoted(p.template)} does not exist in this file`,
   EXTENDS_CYCLE: (p) => `extends cycle: ${chain(p.trail)}`,
@@ -78,6 +90,14 @@ export const EN: Catalogue = {
     emptyStageList: () => "the stage list is empty",
     stageIndex: (p) => `index ${p.index} is outside a list of ${p.count} stages`,
     textRange: (p) => `range [${p.start}, ${p.end}) is outside a text of ${p.length} characters`,
+  },
+  FROM_INCLUDED_FILE: {
+    job: (p) =>
+      `job ${quoted(p.job)} comes from included file ${quoted(p.file)}, which Keelson never writes`,
+    stages: (p) =>
+      `the stage list comes from included file ${quoted(p.file)}, which Keelson never writes`,
+    referencedByInclude: (p) =>
+      `job ${quoted(p.job)} is needed by ${p.referencedBy.map((entry) => `${entry.job} in ${entry.file}`).join(", ")}, and Keelson never writes an included file`,
   },
 
   FORBIDDEN_HOST: () => "the local server refused the Host header",

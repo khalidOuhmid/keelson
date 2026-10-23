@@ -1,5 +1,8 @@
 export const INVALID_YAML = "INVALID_YAML";
 export const INCLUDE_UNRESOLVED = "INCLUDE_UNRESOLVED";
+export const INCLUDE_NOT_FOUND = "INCLUDE_NOT_FOUND";
+export const INCLUDE_CYCLE = "INCLUDE_CYCLE";
+export const INCLUDE_LIMIT_EXCEEDED = "INCLUDE_LIMIT_EXCEEDED";
 export const EXTENDS_TARGET_NOT_FOUND = "EXTENDS_TARGET_NOT_FOUND";
 export const EXTENDS_CYCLE = "EXTENDS_CYCLE";
 export const JOB_WITHOUT_SCRIPT = "JOB_WITHOUT_SCRIPT";
@@ -11,6 +14,9 @@ export const NEED_LATER_STAGE = "NEED_LATER_STAGE";
 export const DIAGNOSTIC_CODES = [
   INVALID_YAML,
   INCLUDE_UNRESOLVED,
+  INCLUDE_NOT_FOUND,
+  INCLUDE_CYCLE,
+  INCLUDE_LIMIT_EXCEEDED,
   EXTENDS_TARGET_NOT_FOUND,
   EXTENDS_CYCLE,
   JOB_WITHOUT_SCRIPT,
@@ -33,6 +39,7 @@ export const CYCLE = "CYCLE";
 export const UNSUPPORTED_VERSION = "UNSUPPORTED_VERSION";
 export const INVALID_OPERATION = "INVALID_OPERATION";
 export const RANGE_OUT_OF_BOUNDS = "RANGE_OUT_OF_BOUNDS";
+export const FROM_INCLUDED_FILE = "FROM_INCLUDED_FILE";
 
 export const OPERATION_ERROR_CODES = [
   STALE_DOCUMENT,
@@ -48,6 +55,7 @@ export const OPERATION_ERROR_CODES = [
   UNSUPPORTED_VERSION,
   INVALID_OPERATION,
   RANGE_OUT_OF_BOUNDS,
+  FROM_INCLUDED_FILE,
 ] as const;
 
 export const FORBIDDEN_HOST = "FORBIDDEN_HOST";
@@ -92,7 +100,17 @@ type Empty = Record<string, never>;
  *  par la forme de `en.ts`. */
 export type MessageParams = {
   INVALID_YAML: { detail: string };
-  INCLUDE_UNRESOLVED: Empty;
+  INCLUDE_UNRESOLVED: {
+    form: "local" | "remote" | "project" | "template" | "component";
+    detail: string;
+  };
+  INCLUDE_NOT_FOUND:
+    | { reason: "missing"; path: string }
+    | { reason: "notYaml"; path: string }
+    | { reason: "outsideRoot"; path: string }
+    | { reason: "malformed" };
+  INCLUDE_CYCLE: { trail: readonly string[] };
+  INCLUDE_LIMIT_EXCEEDED: { limit: number };
   EXTENDS_TARGET_NOT_FOUND: { template: string };
   EXTENDS_CYCLE: { trail: readonly string[] };
   JOB_WITHOUT_SCRIPT: { job: string };
@@ -135,6 +153,14 @@ export type MessageParams = {
     | { reason: "emptyStageList" }
     | { reason: "stageIndex"; index: number; count: number }
     | { reason: "textRange"; start: number; end: number; length: number };
+  FROM_INCLUDED_FILE:
+    | { reason: "job"; job: string; file: string }
+    | { reason: "stages"; file: string }
+    | {
+        reason: "referencedByInclude";
+        job: string;
+        referencedBy: readonly { job: string; file: string }[];
+      };
 
   FORBIDDEN_HOST: Empty;
   FORBIDDEN_TOKEN: Empty;

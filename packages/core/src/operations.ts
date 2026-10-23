@@ -12,6 +12,7 @@ export const OPERATION_VERSION = 1;
 export type { OperationErrorCode } from "./messages/codes.ts";
 export {
   CYCLE,
+  FROM_INCLUDED_FILE,
   INVALID_NAME,
   INVALID_OPERATION,
   JOB_NOT_FOUND,

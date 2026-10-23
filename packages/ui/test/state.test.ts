@@ -7,9 +7,11 @@ const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 const HASH_C = "c".repeat(64);
 
+const MAIN = ".gitlab-ci.yml";
+
 function pipeline(jobs: string[] = ["compile"]): Pipeline {
   return {
-    stages: [{ name: "build", implicit: false, range: { start: 0, end: 5 } }],
+    stages: [{ name: "build", implicit: false, range: { start: 0, end: 5 }, file: MAIN }],
     jobs: jobs.map((id) => ({
       id,
       stage: { value: "build", origin: { kind: "local" } },
@@ -18,9 +20,13 @@ function pipeline(jobs: string[] = ["compile"]): Pipeline {
       extends: [],
       opaque: [],
       range: { start: 0, end: 10 },
+      file: MAIN,
     })),
     templates: [],
     opaque: [],
+    main: MAIN,
+    files: [MAIN],
+    unresolved: [],
   };
 }
 
@@ -361,7 +367,13 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "INVALID_YAML", severity: "error", params: { detail: "broken" }, range: null },
+        {
+          code: "INVALID_YAML",
+          severity: "error",
+          params: { detail: "broken" },
+          range: null,
+          file: MAIN,
+        },
       ],
     });
     expect(state().canEdit()).toBe(false);
@@ -376,6 +388,7 @@ describe("édition désactivée", () => {
           severity: "error",
           params: { job: "unit", need: "absent" },
           range: { start: 0, end: 5 },
+          file: MAIN,
         },
       ],
     });
@@ -386,12 +399,19 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "INVALID_YAML", severity: "error", params: { detail: "broken" }, range: null },
+        {
+          code: "INVALID_YAML",
+          severity: "error",
+          params: { detail: "broken" },
+          range: null,
+          file: MAIN,
+        },
         {
           code: "UNKNOWN_NEED",
           severity: "error",
           params: { job: "unit", need: "absent" },
           range: { start: 0, end: 5 },
+          file: MAIN,
         },
       ],
     });
@@ -402,7 +422,13 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "JOB_WITHOUT_SCRIPT", severity: "warning", params: { job: "muet" }, range: null },
+        {
+          code: "JOB_WITHOUT_SCRIPT",
+          severity: "warning",
+          params: { job: "muet" },
+          range: null,
+          file: MAIN,
+        },
       ],
     });
     expect(state().canEdit()).toBe(true);
