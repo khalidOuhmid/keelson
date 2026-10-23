@@ -108,6 +108,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       const stillThere = result.value.pipeline.jobs.some((job) => job.id === get().selectedJobId);
       set({
         text: result.value.text,
+        included: result.value.included,
         pipeline: result.value.pipeline,
         diagnostics: result.value.diagnostics,
         hash: result.value.hash,
@@ -174,6 +175,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         set({
           file,
           text: payload.text,
+          included: payload.included,
           pipeline: payload.pipeline,
           diagnostics: payload.diagnostics,
           hash: payload.hash,

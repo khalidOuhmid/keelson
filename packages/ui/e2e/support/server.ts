@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,14 +17,30 @@ export type Running = {
   dir: string;
   file: string;
   read: () => string;
+  readAt: (path: string) => string;
   write: (text: string) => void;
+  writeAt: (path: string, text: string) => void;
   stop: () => Promise<void>;
 };
 
-export async function startKeelson(): Promise<Running> {
+export type Tree = Record<string, string>;
+
+/** `tree` remplace la fixture de dev par un arbre écrit sur place : les surfaces d'include ne
+ *  s'exercent que sur plusieurs fichiers, et un seul fichier ne reproduirait pas leur forme. Les
+ *  chemins sont relatifs à la racine, séparateurs `/`. */
+export async function startKeelson(tree?: Tree): Promise<Running> {
   const dir = mkdtempSync(join(tmpdir(), "keelson-e2e-"));
   const file = join(dir, ".gitlab-ci.yml");
-  copyFileSync(FIXTURE, file);
+
+  if (tree === undefined) {
+    copyFileSync(FIXTURE, file);
+  } else {
+    for (const [path, text] of Object.entries(tree)) {
+      const absolute = join(dir, path);
+      mkdirSync(dirname(absolute), { recursive: true });
+      writeFileSync(absolute, text);
+    }
+  }
 
   const child: ChildProcess = spawn("node", [BINARY, "start", "--no-open", "--port", "0"], {
     cwd: dir,
@@ -63,7 +79,9 @@ export async function startKeelson(): Promise<Running> {
     dir,
     file,
     read: () => readFileSync(file, "utf8"),
+    readAt: (path) => readFileSync(join(dir, path), "utf8"),
     write: (text) => writeFileSync(file, text),
+    writeAt: (path, text) => writeFileSync(join(dir, path), text),
     async stop() {
       child.kill("SIGINT");
       await new Promise<void>((resolve) => {

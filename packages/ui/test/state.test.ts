@@ -582,3 +582,52 @@ describe("sélection par plage avec plusieurs fichiers", () => {
     expect(state().selectedJobId).toBe("compile");
   });
 });
+
+describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", () => {
+  /** Trouvé par l'E2E, pas par ce fichier : `documentLoaded` et le rechargement posaient `text`
+   *  sans poser `included`, donc `textOf` rendait une chaîne vide pour un fichier inclus et le
+   *  panneau affichait « Content unavailable » sur un bloc parfaitement lisible. Même classe de
+   *  défaut que l'`applyPayload` qui ne rafraîchissait pas `text` au lot L2 : un champ de l'état
+   *  mis à jour sur un seul des trois chemins qui l'alimentent. */
+  const INCLUDED_TEXT = "sast:\n  script:\n    - make scan\n";
+
+  function payloadWithIncluded(): DocumentPayload {
+    return { ...documentPayload(), included: { "ci/jobs.yml": INCLUDED_TEXT } };
+  }
+
+  test("documentLoaded les garde", () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    expect(state().textOf("ci/jobs.yml")).toBe(INCLUDED_TEXT);
+  });
+
+  /** Le texte **change** entre le premier chargement et le rechargement. Sans ce changement, ne
+   *  pas reposer `included` laisserait en place la valeur du premier chargement et le test
+   *  passerait — c'est la première version de ces deux tests, vérifiée incapable d'échouer. */
+  const RELOADED_TEXT = "sast:\n  script:\n    - make scan --fast\n";
+
+  test("un rechargement après un événement serveur les repose", async () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    api.queueDocument({
+      ok: true,
+      value: { ...documentPayload(HASH_B), included: { "ci/jobs.yml": RELOADED_TEXT } },
+    });
+    await state().serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_B });
+    expect(state().textOf("ci/jobs.yml")).toBe(RELOADED_TEXT);
+  });
+
+  test("une opération réussie les repose", async () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_B, HASH_A), included: { "ci/jobs.yml": RELOADED_TEXT } },
+    });
+    await addStage("livrer");
+    expect(state().textOf("ci/jobs.yml")).toBe(RELOADED_TEXT);
+  });
+
+  test("le fichier principal se lit dans text, pas dans included", () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    expect(state().textOf(MAIN)).toBe(payloadWithIncluded().text);
+    expect(state().textOf("inconnu.yml")).toBe("");
+  });
+});
