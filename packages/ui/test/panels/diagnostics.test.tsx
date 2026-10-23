@@ -8,6 +8,8 @@ afterEach(cleanup);
 
 /** Un diagnostic ne porte plus de `message` : le code et ses `params` vont ensemble, et le
  *  compilateur le vérifie. Les fixtures nomment donc un code réel, jamais un code inventé. */
+const MAIN = ".gitlab-ci.yml";
+
 const SAMPLES = {
   need: { code: "UNKNOWN_NEED", params: { job: "unit", need: "absent" } },
   cycle: { code: "NEEDS_CYCLE", params: { cycle: ["a", "b", "a"] } },
@@ -15,13 +17,17 @@ const SAMPLES = {
     code: "NEED_LATER_STAGE",
     params: { job: "compile", stage: "build", need: "publish", needStage: "deploy" },
   },
-  include: { code: "INCLUDE_UNRESOLVED", params: {} },
+  include: {
+    code: "INCLUDE_UNRESOLVED",
+    params: { form: "template", detail: "Jobs/SAST.gitlab-ci.yml" },
+  },
 } as const satisfies Record<string, Pick<Diagnostic, "code" | "params">>;
 
 type Shape = { severity?: Severity; range?: SourceRange | null };
 
 function diagnostic(sample: keyof typeof SAMPLES = "need", shape: Shape = {}): Diagnostic {
   return {
+    file: MAIN,
     ...SAMPLES[sample],
     severity: shape.severity ?? "error",
     range: shape.range === undefined ? { start: 40, end: 90 } : shape.range,
@@ -30,8 +36,14 @@ function diagnostic(sample: keyof typeof SAMPLES = "need", shape: Shape = {}): D
 
 type Picked = { start: number; end: number } | null;
 
-function renderPanel(diagnostics: Diagnostic[], onSelect: (range: Picked) => void = () => {}) {
-  return render(<DiagnosticsPanel diagnostics={diagnostics} onSelectRange={onSelect} />);
+function renderPanel(
+  diagnostics: Diagnostic[],
+  onSelect: (file: string, range: Picked) => void = () => {},
+  main = MAIN,
+) {
+  return render(
+    <DiagnosticsPanel diagnostics={diagnostics} onSelectRange={onSelect} main={main} />,
+  );
 }
 
 describe("structure", () => {
@@ -99,18 +111,18 @@ describe("contenu d'un diagnostic", () => {
 
 describe("sélection", () => {
   test("un clic sur un diagnostic remonte sa plage", async () => {
-    const picked: Picked[] = [];
-    renderPanel([diagnostic()], (range) => picked.push(range));
+    const picked: { file: string; range: Picked }[] = [];
+    renderPanel([diagnostic()], (file, range) => picked.push({ file, range }));
     await userEvent.click(screen.getByRole("button", { name: /UNKNOWN_NEED/ }));
-    expect(picked).toEqual([{ start: 40, end: 90 }]);
+    expect(picked).toEqual([{ file: MAIN, range: { start: 40, end: 90 } }]);
   });
 
   test("Entrée au clavier remonte aussi la plage", async () => {
-    const picked: Picked[] = [];
-    renderPanel([diagnostic()], (range) => picked.push(range));
+    const picked: { file: string; range: Picked }[] = [];
+    renderPanel([diagnostic()], (file, range) => picked.push({ file, range }));
     screen.getByRole("button", { name: /UNKNOWN_NEED/ }).focus();
     await userEvent.keyboard("{Enter}");
-    expect(picked).toEqual([{ start: 40, end: 90 }]);
+    expect(picked).toEqual([{ file: MAIN, range: { start: 40, end: 90 } }]);
   });
 
   test("un diagnostic sans plage n'est pas cliquable", () => {

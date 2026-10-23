@@ -1,0 +1,12 @@
+include: /ci/jobs.yml
+
+stages:
+  - build
+  - test
+
+unit:
+  stage: test
+  needs:
+    - compile
+  script:
+    - make check

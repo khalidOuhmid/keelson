@@ -1,0 +1,6 @@
+include: .gitlab-ci.yml
+
+tourne:
+  stage: build
+  script:
+    - make

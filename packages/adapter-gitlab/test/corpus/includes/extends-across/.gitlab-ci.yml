@@ -1,0 +1,11 @@
+include: ci/templates.yml
+
+stages:
+  - build
+  - deploy
+
+livrer:
+  extends: .base
+  stage: deploy
+  script:
+    - make ship

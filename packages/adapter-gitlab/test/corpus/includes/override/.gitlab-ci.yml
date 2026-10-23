@@ -1,0 +1,8 @@
+include: ci/jobs.yml
+
+stages:
+  - build
+  - test
+
+compile:
+  stage: test

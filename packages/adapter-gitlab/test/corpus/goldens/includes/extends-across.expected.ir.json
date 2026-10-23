@@ -1,0 +1,83 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 39,
+        "end": 44
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 49,
+        "end": 55
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "livrer",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": {
+        "value": {
+          "name": "production",
+          "url": "https://exemple"
+        },
+        "origin": {
+          "kind": "include",
+          "file": "ci/templates.yml"
+        }
+      },
+      "extends": [".base"],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 100,
+            "end": 124
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "range": {
+        "start": 57,
+        "end": 124
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "templates": [
+    {
+      "id": ".base",
+      "range": {
+        "start": 0,
+        "end": 83
+      },
+      "file": "ci/templates.yml"
+    }
+  ],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 26
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["ci/templates.yml", ".gitlab-ci.yml"],
+  "unresolved": []
+}

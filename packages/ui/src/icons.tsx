@@ -80,3 +80,13 @@ export function InheritedIcon(props: IconProps) {
     </Glyph>
   );
 }
+
+/** Marque de pliage. Distincte d'`ArrowRightIcon` : une flèche dit « va là », un chevron dit
+ *  « ceci se déplie ». Elle tourne de 90° quand le `details` est ouvert. */
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M6 4l4 4-4 4" />
+    </Glyph>
+  );
+}

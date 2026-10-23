@@ -6,7 +6,8 @@
       "range": {
         "start": 492,
         "end": 496
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "build",
@@ -14,7 +15,8 @@
       "range": {
         "start": 501,
         "end": 506
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
@@ -22,7 +24,8 @@
       "range": {
         "start": 511,
         "end": 517
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -43,13 +46,15 @@
           "range": {
             "start": 543,
             "end": 705
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 519,
         "end": 705
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "compile",
@@ -68,20 +73,23 @@
           "range": {
             "start": 732,
             "end": 801
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "artifacts",
           "range": {
             "start": 803,
             "end": 844
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 706,
         "end": 844
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "deploy",
@@ -107,13 +115,15 @@
           "range": {
             "start": 871,
             "end": 917
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 845,
         "end": 943
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
@@ -123,7 +133,11 @@
       "range": {
         "start": 458,
         "end": 479
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
-  ]
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

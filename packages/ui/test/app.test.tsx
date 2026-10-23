@@ -7,6 +7,8 @@ import type { ServerEvent } from "../src/api/events.ts";
 import { App, type AppDeps } from "../src/app.tsx";
 import { LAYOUT_TOKENS } from "../src/views/pipeline/metrics.ts";
 
+const MAIN = ".gitlab-ci.yml";
+
 const HASH = "a".repeat(64);
 const NEXT = "b".repeat(64);
 
@@ -21,7 +23,7 @@ afterEach(cleanup);
 
 function pipeline(): Pipeline {
   return {
-    stages: ["build", "test"].map((name) => ({ name, implicit: false, range: null })),
+    stages: ["build", "test"].map((name) => ({ name, implicit: false, range: null, file: MAIN })),
     jobs: [
       {
         id: "compile",
@@ -31,6 +33,7 @@ function pipeline(): Pipeline {
         extends: [],
         opaque: [],
         range: { start: 0, end: 20 },
+        file: MAIN,
       },
       {
         id: "unit",
@@ -43,10 +46,14 @@ function pipeline(): Pipeline {
         extends: [".base"],
         opaque: [],
         range: { start: 20, end: 60 },
+        file: MAIN,
       },
     ],
     templates: [],
     opaque: [],
+    main: MAIN,
+    files: [MAIN],
+    unresolved: [],
   };
 }
 
@@ -57,6 +64,7 @@ const DOCUMENT: DocumentPayload = {
   pipeline: pipeline(),
   diagnostics: [],
   hash: HASH,
+  included: {},
 };
 
 type Harness = {
@@ -83,6 +91,7 @@ function harness(
     pipeline: pipeline(),
     diagnostics: [],
     hash: NEXT,
+    included: {},
     inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
     touched: [],
   };
@@ -294,7 +303,13 @@ describe("YAML invalide", () => {
   const broken: DocumentPayload = {
     ...DOCUMENT,
     diagnostics: [
-      { code: "INVALID_YAML", severity: "error", params: { detail: "indentation" }, range: null },
+      {
+        code: "INVALID_YAML",
+        severity: "error",
+        params: { detail: "indentation" },
+        range: null,
+        file: MAIN,
+      },
     ],
   };
 
@@ -585,6 +600,7 @@ describe("suppression confirmée : focus et sélection", () => {
         pipeline: withoutUnit(),
         diagnostics: [],
         hash: NEXT,
+        included: {},
         inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
         touched: [],
       },

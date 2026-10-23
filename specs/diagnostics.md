@@ -14,6 +14,10 @@ Un test échoue si un code de ce document n'a pas de message, si un message n'a 
 l'ensemble des codes documentés ici diffère de celui du registre — **dans les deux sens**
 (`packages/core/test/messages.test.ts`).
 
+**Chaque diagnostic porte un `file`**, chemin relatif à la racine du dépôt, et son `range` est un
+offset dans le texte de **ce** fichier. Depuis la résolution des `include` (lot L2b), un pipeline
+est fait de plusieurs fichiers : une plage sans fichier ne situe plus rien.
+
 Trois familles distinctes, plus les codes forgés par le client :
 
 - les **diagnostics** (`Diagnostic`) décrivent l'état d'un fichier analysé ; ils sont rendus par
@@ -25,7 +29,7 @@ Trois familles distinctes, plus les codes forgés par le client :
 
 ## Le discriminant `reason`
 
-Trois codes d'opération et un code de transport couvrent chacun plusieurs situations distinctes.
+Plusieurs codes couvrent chacun plusieurs situations distinctes.
 Plutôt que d'ajouter treize codes à un contrat public, leurs `params` portent un discriminant
 **`reason`**, et le rendu branche dessus. Le `reason` fait donc partie du contrat : les valeurs
 possibles sont listées ci-dessous, et l'exhaustivité des branches de rendu est garantie à la
@@ -36,8 +40,11 @@ compilation.
 | Code | Sévérité | Produit par | `params` | Signification |
 | --- | --- | --- | --- | --- |
 | `INVALID_YAML` | error | `parse` | `{ detail }` | Le fichier n'est pas du YAML valide. Un diagnostic par erreur rendue par la lib `yaml`, avec la position. `detail` est la phrase de la lib, reprise telle quelle : elle est déjà en anglais et plus précise que toute reformulation. Le parsing continue : le pipeline rendu est partiel. |
-| `INCLUDE_UNRESOLVED` | info | `parse` | `{}` | Le fichier contient une clé `include`. Les `include` ne sont pas résolus en L1 : le pipeline affiché ne contient que ce fichier local. |
-| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | `{ template }` | Un `extends` pointe vers une clé absente du fichier. Dégradé en **warning** quand le fichier contient des `include`, car la cible peut venir d'un include non résolu. Signalé une seule fois par cible. |
+| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | Un `include` d'une forme que Keelson ne résout pas : `remote`, `project`, `template` ou `component`. Un diagnostic par entrée, et non un seul par fichier. `detail` est la valeur telle qu'elle est écrite. Le pipeline affiché est **partiel** : voir `Pipeline.unresolved` et `isPartial()`. |
+| `INCLUDE_NOT_FOUND` | error | `parse` | union sur `reason` : `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | Un `include: local` ne mène à rien d'utilisable. `missing` : le fichier n'existe pas. `notYaml` : GitLab exige l'extension `.yml` ou `.yaml`. `outsideRoot` : le chemin sort de la racine du dépôt — refusé **avant** toute lecture, parce que le serveur lit le disque pour le compte d'une page web. `malformed` : l'entrée n'a aucune forme reconnaissable. |
+| `INCLUDE_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`include` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
+| `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | Plus de `limit` fichiers inclus. La limite documentée par GitLab est de **150** fichiers inclus par pipeline, nids compris — c'est un compte, pas une profondeur de nid, et Keelson n'en invente pas d'autre. |
+| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | `{ template }` | Un `extends` pointe vers une clé absente de **tous** les fichiers résolus. Dégradé en **warning** seulement si au moins un `include` n'a pas été résolu, car la cible peut en venir. Tous les includes résolus ⇒ `error`, même s'il y en a. Signalé une seule fois par cible. |
 | `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`extends` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
 | `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | Un job n'a ni `script`, ni `run`, ni `trigger`. Évalué **après** résolution des `extends` et des anchors. |
 | `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | Un `needs` pointe vers un job qui n'existe pas. Un template (clé commençant par `.`) n'est pas un job valide pour un `needs`. |
@@ -63,11 +70,27 @@ fichier.yml:3:2 error INVALID_YAML All mapping items must start at the same colu
 
 ```yaml
 include:
+  - local: ci/jobs.yml
   - template: Jobs/SAST.gitlab-ci.yml
 ```
 
+Le premier est résolu, le second non : un seul diagnostic, pour le `template`.
+
 ```
-fichier.yml:1:1 info INCLUDE_UNRESOLVED includes are not resolved: …
+fichier.yml:3:5 info INCLUDE_UNRESOLVED this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete
+```
+
+**`INCLUDE_CYCLE`**
+
+```yaml
+# .gitlab-ci.yml
+include: ci/a.yml
+# ci/a.yml
+include: .gitlab-ci.yml
+```
+
+```
+error INCLUDE_CYCLE include cycle: .gitlab-ci.yml → ci/a.yml → .gitlab-ci.yml
 ```
 
 **`EXTENDS_TARGET_NOT_FOUND`**
@@ -170,6 +193,16 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `UNSUPPORTED_VERSION` | `{ received, supported }` | L'opération porte un `v` numérique différent de `1`. |
 | `INVALID_OPERATION` | union sur `reason`, voir ci-dessous | L'opération ne respecte pas son schéma, ou l'édition demandée n'est pas supportée. |
 | `RANGE_OUT_OF_BOUNDS` | union sur `reason`, voir ci-dessous | Une plage de source est introuvable, ou un index sort de sa liste. |
+| `FROM_INCLUDED_FILE` | union sur `reason`, voir ci-dessous | L'opération visait un élément qui ne vit pas dans le fichier principal. Keelson ne réécrit **jamais** un fichier inclus. |
+
+### `FROM_INCLUDED_FILE`
+
+| `reason` | Autres `params` | Situation |
+| --- | --- | --- |
+| `job` | `job`, `file` | Le job visé vient d'un fichier inclus. Un job inclus puis **redéfini** dans le fichier principal appartient au fichier principal et reste éditable : c'est l'ordre de fusion de GitLab. |
+| `nameTaken` | `name`, `file` | `addJob` ou `renameJob` vers un nom déjà pris par une clé d'un fichier inclus. Keelson refuse plutôt que d'écrire une surcharge partielle : le job résultant hériterait silencieusement des clés de l'include. |
+| `stages` | `file` | La liste `stages` est déclarée dans un fichier inclus. `addStage` et `moveStage` y sont donc refusés ; ajouter un job dans un de ces stages reste permis. |
+| `referencedByInclude` | `job`, `referencedBy: { job, file }[]` | `renameJob` sur un job dont un job d'un fichier inclus a besoin : renommer sans réécrire ce fichier casserait son `needs`. |
 
 ### `INVALID_OPERATION`
 

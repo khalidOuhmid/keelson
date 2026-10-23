@@ -7,6 +7,8 @@ function need(job: string, optional = false): Need {
   return { job, optional, artifacts: true };
 }
 
+const MAIN = ".gitlab-ci.yml";
+
 function pipeline(
   stages: { name: string; implicit?: boolean }[],
   jobs: { id: string; stage: string; origin?: Origin; needs?: Need[] }[],
@@ -16,6 +18,7 @@ function pipeline(
       name: stage.name,
       implicit: stage.implicit ?? false,
       range: null,
+      file: MAIN,
     })),
     jobs: jobs.map((job, index) => ({
       id: job.id,
@@ -25,9 +28,13 @@ function pipeline(
       extends: [],
       opaque: [],
       range: { start: index * 100, end: index * 100 + 50 },
+      file: MAIN,
     })),
     templates: [],
     opaque: [],
+    main: MAIN,
+    files: [MAIN],
+    unresolved: [],
   };
 }
 

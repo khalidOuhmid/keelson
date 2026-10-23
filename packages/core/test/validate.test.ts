@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderMessage } from "@keelson/core/messages";
 import { NEED_LATER_STAGE, NEEDS_CYCLE, UNKNOWN_NEED, UNKNOWN_STAGE } from "../src/diagnostics.ts";
 import { validate } from "../src/validate.ts";
-import { job, need, pipeline, stages } from "./support/pipeline.ts";
+import { job, MAIN, need, pipeline, stages } from "./support/pipeline.ts";
 
 function codes(diagnostics: readonly { code: string }[]): string[] {
   return diagnostics.map((diagnostic) => diagnostic.code);
@@ -48,7 +48,7 @@ describe("UNKNOWN_NEED", () => {
     const result = validate(
       pipeline({
         jobs: [job("unit", "test", [".base"])],
-        templates: [{ id: ".base", range: { start: 0, end: 1 } }],
+        templates: [{ id: ".base", range: { start: 0, end: 1 }, file: MAIN }],
       }),
     );
     expect(codes(result)).toEqual([UNKNOWN_NEED]);

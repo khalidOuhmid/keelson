@@ -68,8 +68,18 @@ de code serveur · observabilité runtime · sécurité runtime · policy-as-cod
   lot L1 sur un corpus de 34 fichiers (20 templates officiels MIT de `gitlab-org/gitlab`, 14
   fixtures écrites à la main), et par quatre propriétés fast-check : aller-retour, inverse,
   déterminisme, localité.
-- Les `include` distants et les `extends` multi-fichiers sont **résolus en lecture seule** pour
-  l'affichage. L'écriture ne touche que le fichier local.
+- Les `include` **locaux** sont résolus en lecture seule depuis le lot L2b : chemins depuis la
+  racine du dépôt, jokers `*` et `**`, récursion bornée par la détection de cycle et par la limite
+  de 150 fichiers documentée par GitLab. Les formes distantes (`remote`, `project`, `template`,
+  `component`) ne sont pas résolues et sont signalées une par une : le pipeline est alors
+  **partiel**, ce que l'IR dit par `Pipeline.unresolved` et l'UI à l'écran.
+- Chaque fichier garde son propre CST : Keelson ne fabrique jamais un YAML fusionné. La fusion est
+  une chaîne ordonnée de définitions, celle qui résolvait déjà `extends` et les anchors. Les plages
+  restent donc vraies dans leur fichier, et chaque élément de l'IR porte le sien.
+- **L'écriture ne touche que le fichier principal.** Toute opération visant un élément qui vient
+  d'un fichier inclus est refusée par `FROM_INCLUDED_FILE`. Un élément inclus puis redéfini dans le
+  fichier principal appartient au fichier principal, et reste donc éditable — c'est l'ordre de
+  fusion de GitLab.
 
 ## 6. Intégrations
 
@@ -112,8 +122,8 @@ et écrit.
 | Méthode | Route | Réponses |
 |---|---|---|
 | GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }` |
-| GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash }` · 404 |
-| POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
+| GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included }` · 404 |
+| POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
 | GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, heartbeat toutes les 15 s |
 | GET | `/*` | bundle de l'UI, repli SPA sur `index.html` |
 
@@ -132,6 +142,11 @@ produit pas de texte, le client rend la phrase par `render()` de `@keelson/core/
   le même document.
 - **Idempotente** : chaque requête porte un `opId` ; les 100 derniers par document sont mémorisés
   avec leur réponse, et un `opId` rejoué rend la même réponse sans réécrire.
+- **Fichiers inclus** : le serveur surveille aussi le dossier de chaque fichier inclus résolu, et
+  une modification y provoque la relecture du **document principal**, puis un `document.changed` sur
+  lui. Keelson n'écrivant jamais un fichier inclus, il n'y a aucune écriture propre à taire : le
+  garde de hash ne s'applique qu'au fichier principal. L'ensemble surveillé est recalculé à chaque
+  chargement, parce qu'il change dès que la clé `include` change.
 - **Modifications externes** : le serveur surveille le **dossier** et filtre sur le nom du fichier,
   parce qu'un éditeur remplace souvent le fichier par un `rename` — surveiller le fichier seul
   manquerait l'événement. Après un changement il relit : si le hash est celui qu'il connaît, c'est sa
@@ -196,7 +211,7 @@ depuis plus de six mois.
 | L1  | `core` + `adapter-gitlab`, aller-retour validé sur un corpus réel              |
 | L2  | UI vue Pipeline : lecture puis édition                                         |
 | L2c | Messages : `core` rend `code` + `params`, anglais unique (ADR 0002)            |
-| L2b | Résolution des `include` locaux                                                |
+| L2b | Résolution des `include` locaux, origine par fichier, écriture bornée au fichier principal |
 | L3  | `taxonomy` + `catalog` + overlay OWASP                                         |
 | L4  | `toolchain` : fichier, inférence des intégrations, vue                          |
 | L5  | Propositions d'outils et insertion de jobs                                     |

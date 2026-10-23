@@ -3,27 +3,32 @@
     {
       "name": ".pre",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "build",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": ".post",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -44,13 +49,15 @@
           "range": {
             "start": 14,
             "end": 43
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 0,
         "end": 43
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "avant",
@@ -69,13 +76,15 @@
           "range": {
             "start": 67,
             "end": 92
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 44,
         "end": 92
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "apres",
@@ -94,15 +103,20 @@
           "range": {
             "start": 117,
             "end": 142
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 93,
         "end": 142
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
-  "opaque": []
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

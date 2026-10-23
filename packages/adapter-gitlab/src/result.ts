@@ -11,6 +11,9 @@ export type ApplyOk = {
   hash: string;
   inverse: SpliceOperation;
   touched: SourceRangeList;
+  /** Le texte de chaque fichier inclus après l'opération : les plages des blocs opaques d'un job
+   *  inclus sont des offsets dedans. */
+  included: Record<string, string>;
 };
 
 export type SourceRangeList = { start: number; end: number }[];

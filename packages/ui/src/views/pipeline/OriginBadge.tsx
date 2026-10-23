@@ -1,6 +1,6 @@
 import type { Origin } from "@keelson/core";
 import { InheritedIcon } from "../../icons.tsx";
-import { describeOrigin, ORIGIN_HINT } from "./origin.ts";
+import { describeOrigin, hintFor } from "./origin.ts";
 
 export type OriginBadgeProps = {
   origin: Origin;
@@ -15,7 +15,7 @@ export function OriginBadge({ origin }: OriginBadgeProps) {
   return (
     <span
       data-testid="origin-badge"
-      title={ORIGIN_HINT}
+      title={hintFor(origin)}
       className="inline-flex min-w-0 max-w-full items-center gap-1 text-2xs font-medium text-text-muted"
     >
       <InheritedIcon />

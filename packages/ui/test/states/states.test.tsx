@@ -11,12 +11,15 @@ import { NoticeBar } from "../../src/states/NoticeBar.tsx";
 
 afterEach(cleanup);
 
+const MAIN = ".gitlab-ci.yml";
+
 function error(detail = "broken"): Diagnostic {
   return {
     code: "INVALID_YAML",
     severity: "error",
     params: { detail },
     range: { start: 0, end: 4 },
+    file: MAIN,
   };
 }
 
@@ -72,7 +75,13 @@ describe("InvalidDocument", () => {
       <InvalidDocument
         diagnostics={[
           error("blocking"),
-          { code: "JOB_WITHOUT_SCRIPT", severity: "warning", params: { job: "muet" }, range: null },
+          {
+            code: "JOB_WITHOUT_SCRIPT",
+            severity: "warning",
+            params: { job: "muet" },
+            range: null,
+            file: MAIN,
+          },
         ]}
       />,
     );

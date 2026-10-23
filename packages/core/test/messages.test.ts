@@ -38,8 +38,39 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   ],
   INCLUDE_UNRESOLVED: [
     {
-      params: {},
-      text: "includes are not resolved: the pipeline shown contains only this local file",
+      params: { form: "template", detail: "Jobs/SAST.gitlab-ci.yml" },
+      text: "this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete",
+    },
+    {
+      params: { form: "local", detail: "ci/jobs.yml" },
+      text: "this local include is not resolved (ci/jobs.yml), so the pipeline shown may be incomplete",
+    },
+  ],
+  INCLUDE_NOT_FOUND: [
+    {
+      params: { reason: "missing", path: "ci/absent.yml" },
+      text: 'included file "ci/absent.yml" does not exist',
+    },
+    {
+      params: { reason: "notYaml", path: "ci/jobs.txt" },
+      text: 'included file "ci/jobs.txt" is not a .yml or .yaml file',
+    },
+    {
+      params: { reason: "outsideRoot", path: "../../etc/passwd" },
+      text: 'included path "../../etc/passwd" leaves the repository root',
+    },
+    { params: { reason: "malformed" }, text: "this include entry has no form Keelson understands" },
+  ],
+  INCLUDE_CYCLE: [
+    {
+      params: { trail: [".gitlab-ci.yml", "ci/a.yml", ".gitlab-ci.yml"] },
+      text: "include cycle: .gitlab-ci.yml → ci/a.yml → .gitlab-ci.yml",
+    },
+  ],
+  INCLUDE_LIMIT_EXCEEDED: [
+    {
+      params: { limit: 150 },
+      text: "more than 150 included files, include resolution stopped there",
     },
   ],
   EXTENDS_TARGET_NOT_FOUND: [
@@ -141,6 +172,28 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     { params: { reason: "unreadableBody" }, text: "request body is not readable JSON" },
     { params: { reason: "missingOpId" }, text: "opId is missing or empty" },
     { params: { reason: "missingOp" }, text: "op is missing or invalid" },
+  ],
+  FROM_INCLUDED_FILE: [
+    {
+      params: { reason: "job", job: "sast", file: "ci/jobs.yml" },
+      text: 'job "sast" comes from included file "ci/jobs.yml", which Keelson never writes',
+    },
+    {
+      params: { reason: "stages", file: "ci/jobs.yml" },
+      text: 'the stage list comes from included file "ci/jobs.yml", which Keelson never writes',
+    },
+    {
+      params: { reason: "nameTaken", name: "sast", file: "ci/jobs.yml" },
+      text: 'the name "sast" is already used in included file "ci/jobs.yml"',
+    },
+    {
+      params: {
+        reason: "referencedByInclude",
+        job: "compile",
+        referencedBy: [{ job: "sast", file: "ci/jobs.yml" }],
+      },
+      text: 'job "compile" is needed by sast in ci/jobs.yml, and Keelson never writes an included file',
+    },
   ],
   RANGE_OUT_OF_BOUNDS: [
     { params: { reason: "jobRange", job: "unit" }, text: 'no source range found for job "unit"' },
@@ -299,9 +352,7 @@ describe("rendu anglais", () => {
     expect(rendered("NEEDS_CYCLE", {})).toBe("unexpected server response");
     expect(rendered("INVALID_YAML", {})).toBe("unexpected server response");
     expect(rendered("INVALID_YAML", { detail: "   " })).toBe("unexpected server response");
-    expect(rendered("INCLUDE_UNRESOLVED", undefined)).toBe(
-      "includes are not resolved: the pipeline shown contains only this local file",
-    );
+    expect(rendered("INCLUDE_UNRESOLVED", undefined)).toBe("unexpected server response");
   });
 
   test("les deux branches d'un code à reason rendent des textes distincts", () => {

@@ -32,3 +32,30 @@ export function readCorpus(file: CorpusFile): string {
 export function readEdgeCase(name: string): string {
   return readFileSync(join(EDGE_CASES_DIR, `${name}.gitlab-ci.yml`), "utf8");
 }
+
+export const INCLUDES_DIR = join(CORPUS_ROOT, "includes");
+
+/** Un arbre du corpus d'includes : un dossier, son `.gitlab-ci.yml` à la racine, et ses fichiers
+ *  inclus. L'arbre est la fixture, parce que la forme du défaut qu'on veut couvrir est
+ *  « plusieurs fichiers » — un seul fichier ne la reproduirait pas. */
+export type CorpusTree = {
+  name: string;
+  root: string;
+  main: string;
+};
+
+export function corpusTrees(): CorpusTree[] {
+  return readdirSync(INCLUDES_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .map((name) => ({
+      name,
+      root: join(INCLUDES_DIR, name),
+      main: ".gitlab-ci.yml",
+    }));
+}
+
+export function readTreeMain(tree: CorpusTree): string {
+  return readFileSync(join(tree.root, tree.main), "utf8");
+}

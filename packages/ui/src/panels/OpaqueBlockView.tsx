@@ -63,7 +63,7 @@ export function OpaqueBlockView({ blockKey, source }: OpaqueBlockViewProps) {
     <div
       ref={host}
       data-testid={`opaque-editor-${blockKey}`}
-      className="rounded-sm border border-border-subtle bg-surface-inset font-mono text-xs"
+      className="rounded-sm border border-border-default bg-surface-inset font-mono text-xs"
     />
   );
 }

@@ -18,6 +18,11 @@ export type JobNodeData = {
   environment: string | null;
   extendsFrom: string[];
   selected: boolean;
+  /** Le fichier où vit la définition du job, et `included` quand ce n'est pas le fichier
+   *  principal. Keelson n'écrit jamais dans un fichier inclus : le nœud doit le dire avant que
+   *  l'utilisateur ne clique. */
+  file: string;
+  included: boolean;
 };
 
 export type ColumnNodeData = {
@@ -94,6 +99,8 @@ export function toFlowGraph(
           environment: job.environment?.value.name ?? null,
           extendsFrom: job.extends,
           selected: job.id === selectedJobId,
+          file: job.file,
+          included: job.file !== pipeline.main,
         } satisfies JobNodeData,
         width: placed.width,
         height: placed.height,

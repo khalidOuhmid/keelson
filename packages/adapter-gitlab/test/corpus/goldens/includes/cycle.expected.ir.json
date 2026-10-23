@@ -1,0 +1,86 @@
+{
+  "stages": [
+    {
+      "name": ".pre",
+      "implicit": true,
+      "range": null,
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "build",
+      "implicit": true,
+      "range": null,
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "test",
+      "implicit": true,
+      "range": null,
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "deploy",
+      "implicit": true,
+      "range": null,
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": ".post",
+      "implicit": true,
+      "range": null,
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "tourne",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "include",
+          "file": "ci/a.yml"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 50,
+            "end": 69
+          },
+          "file": "ci/a.yml"
+        }
+      ],
+      "range": {
+        "start": 25,
+        "end": 69
+      },
+      "file": "ci/a.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 24
+      },
+      "file": "ci/a.yml"
+    },
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 18
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["ci/a.yml", ".gitlab-ci.yml"],
+  "unresolved": []
+}

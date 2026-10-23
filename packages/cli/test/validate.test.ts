@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../src/run.ts";
@@ -178,7 +178,7 @@ describe("sortie texte", () => {
 
     const output = (await run(["validate", fixture("anglais.yml", melange)])).stdout;
     expect(output).toContain(
-      "includes are not resolved: the pipeline shown contains only this local file",
+      "this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete",
     );
     expect(output).toContain('extends target ".absent" does not exist in this file');
     expect(output).toContain('job "muet" has no script, no run and no trigger');
@@ -259,5 +259,79 @@ describe("aide", () => {
     expect((await run(["validate", fixture("aide.yml", VALID)])).stderr).not.toContain(
       "not implemented yet",
     );
+  });
+});
+
+describe("include locaux", () => {
+  /** Un arbre complet dans son propre dossier temporaire : sans `.git`, la racine retenue est le
+   *  dossier du fichier, ce qui est exactement le cas normal d'un `.gitlab-ci.yml` à la racine. */
+  function tree(): { root: string; main: string; included: string } {
+    const root = mkdtempSync(join(tmpdir(), "keelson-includes-"));
+    mkdirSync(join(root, "ci"), { recursive: true });
+    writeFileSync(
+      join(root, ".gitlab-ci.yml"),
+      ["include: /ci/jobs.yml", "", "stages:", "  - build", "  - test", ""].join("\n"),
+    );
+    writeFileSync(
+      join(root, "ci", "jobs.yml"),
+      [
+        "muet:",
+        "  stage: build",
+        "",
+        "casse:",
+        "  stage: inconnu",
+        "  script:",
+        "    - x",
+        "",
+      ].join("\n"),
+    );
+    return {
+      root,
+      main: join(root, ".gitlab-ci.yml"),
+      included: join(root, "ci", "jobs.yml"),
+    };
+  }
+
+  test("les jobs d'un fichier inclus sont validés", async () => {
+    const { main } = tree();
+    const output = (await run(["validate", main])).stdout;
+    expect(output).toContain("JOB_WITHOUT_SCRIPT");
+    expect(output).toContain("UNKNOWN_STAGE");
+  });
+
+  /** Le point du lot pour la CLI : un diagnostic d'un fichier inclus nomme **ce** fichier, pas
+   *  celui qui a été passé en argument. Sans cela, l'utilisateur ouvrirait `.gitlab-ci.yml` à une
+   *  ligne qui ne contient rien de ce que le message décrit. */
+  test("chaque diagnostic nomme le fichier où il vit", async () => {
+    const { main, included } = tree();
+    const parsed = JSON.parse((await run(["validate", main, "--format", "json"])).stdout) as {
+      code: string;
+      file: string;
+      line: number;
+    }[];
+
+    const muet = parsed.find((entry) => entry.code === "JOB_WITHOUT_SCRIPT");
+    expect(muet?.file).toBe(included);
+    expect(muet?.line).toBe(1);
+  });
+
+  test("la ligne est comptée dans le texte du fichier inclus, pas dans le principal", async () => {
+    const { main } = tree();
+    const parsed = JSON.parse((await run(["validate", main, "--format", "json"])).stdout) as {
+      code: string;
+      line: number;
+    }[];
+    // `casse:` est à la ligne 4 de `ci/jobs.yml`. Le fichier principal n'a que six lignes, donc une
+    // conversion faite avec son texte rendrait un numéro plausible : c'est pourquoi l'assertion
+    // porte sur la valeur exacte et non sur « une ligne existe ».
+    expect(parsed.find((entry) => entry.code === "UNKNOWN_STAGE")?.line).toBe(4);
+  });
+
+  test("un include introuvable est une erreur, et le code de sortie le dit", async () => {
+    const root = mkdtempSync(join(tmpdir(), "keelson-absent-"));
+    writeFileSync(join(root, ".gitlab-ci.yml"), "include: /ci/absent.yml\n");
+    const result = await run(["validate", join(root, ".gitlab-ci.yml")]);
+    expect(result.stdout).toContain("INCLUDE_NOT_FOUND");
+    expect(result.exitCode).toBe(1);
   });
 });

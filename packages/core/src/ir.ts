@@ -8,7 +8,10 @@ export type Origin =
   | { kind: "default" }
   | { kind: "extends"; template: string }
   | { kind: "anchor"; name: string }
-  | { kind: "reference"; path: string[] };
+  | { kind: "reference"; path: string[] }
+  /** La valeur vient de la définition du même nom dans un fichier inclus, que le fichier courant
+   *  n'a pas surchargée. */
+  | { kind: "include"; file: string };
 
 export type Valued<T> = {
   value: T;
@@ -30,12 +33,20 @@ export type Environment = {
 export type OpaqueBlock = {
   key: string;
   range: SourceRange;
+  /** Le fichier dont `range` est un offset. Un bloc opaque est rendu à l'écran en coupant les
+   *  octets du texte : lire ceux d'un autre fichier afficherait un fragment pris ailleurs. */
+  file: string;
 };
 
+/** `file` est le chemin, relatif à la racine du dépôt, du fichier où vit la **dernière** définition
+ *  de l'élément dans l'ordre de fusion de GitLab — donc celui qu'un utilisateur éditerait, et le
+ *  seul que Keelson accepte de réécrire quand c'est le fichier principal. `range` est un offset
+ *  dans le texte de **ce** fichier, pas dans celui du fichier principal. */
 export type Stage = {
   name: string;
   implicit: boolean;
   range: SourceRange | null;
+  file: string;
 };
 
 export type Job = {
@@ -46,11 +57,25 @@ export type Job = {
   extends: string[];
   opaque: OpaqueBlock[];
   range: SourceRange;
+  file: string;
 };
 
 export type Template = {
   id: string;
   range: SourceRange;
+  file: string;
+};
+
+/** Un `include` que Keelson ne résout pas : les quatre formes distantes, et `local` dans le seul
+ *  cas où l'appelant n'a fourni aucun lecteur de fichiers. `detail` est la valeur telle qu'elle est
+ *  écrite, pour que l'écran puisse dire ce qui manque et non seulement qu'il manque quelque
+ *  chose. */
+export type UnresolvedInclude = {
+  form: "local" | "remote" | "project" | "template" | "component";
+  detail: string;
+  /** Le fichier qui porte la clé `include`, pas la cible. */
+  from: string;
+  range: SourceRange | null;
 };
 
 export type Pipeline = {
@@ -58,7 +83,24 @@ export type Pipeline = {
   jobs: Job[];
   templates: Template[];
   opaque: OpaqueBlock[];
+  /** Le fichier principal : celui que Keelson écrit. */
+  main: string;
+  /** Le fichier principal et chaque fichier inclus résolu, dans l'ordre de fusion. */
+  files: string[];
+  unresolved: UnresolvedInclude[];
 };
+
+/** Un pipeline sans rien dedans, nommé une seule fois : l'UI en a besoin tant que rien n'est
+ *  chargé, et `parse` quand la racine du fichier n'est pas une map. */
+export function emptyPipeline(main: string): Pipeline {
+  return { stages: [], jobs: [], templates: [], opaque: [], main, files: [], unresolved: [] };
+}
+
+/** Un pipeline est **partiel** dès qu'un include n'a pas été résolu : des jobs peuvent manquer à
+ *  l'écran. Dérivé plutôt que stocké — un booléen stocké peut mentir, celui-ci ne peut pas. */
+export function isPartial(pipeline: Pipeline): boolean {
+  return pipeline.unresolved.length > 0;
+}
 
 export function findJob(pipeline: Pipeline, id: string): Job | undefined {
   return pipeline.jobs.find((candidate) => candidate.id === id);

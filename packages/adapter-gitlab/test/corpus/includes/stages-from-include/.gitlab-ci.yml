@@ -1,0 +1,6 @@
+include: ci/stages.yml
+
+travail:
+  stage: livrer
+  script:
+    - make

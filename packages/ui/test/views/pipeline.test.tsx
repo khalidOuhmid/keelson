@@ -34,12 +34,15 @@ type JobSpec = {
   extends?: string[];
 };
 
+const MAIN = ".gitlab-ci.yml";
+
 function pipeline(stages: { name: string; implicit?: boolean }[], jobs: JobSpec[]): Pipeline {
   return {
     stages: stages.map((stage) => ({
       name: stage.name,
       implicit: stage.implicit ?? false,
       range: null,
+      file: MAIN,
     })),
     jobs: jobs.map((job, index) => ({
       id: job.id,
@@ -55,9 +58,13 @@ function pipeline(stages: { name: string; implicit?: boolean }[], jobs: JobSpec[
       extends: job.extends ?? [],
       opaque: [],
       range: { start: index * 100, end: index * 100 + 50 },
+      file: MAIN,
     })),
     templates: [],
     opaque: [],
+    main: MAIN,
+    files: [MAIN],
+    unresolved: [],
   };
 }
 

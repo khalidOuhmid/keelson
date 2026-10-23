@@ -3,27 +3,32 @@
     {
       "name": ".pre",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "build",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": ".post",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -44,13 +49,15 @@
           "range": {
             "start": 821,
             "end": 940
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 813,
         "end": 940
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "run",
@@ -69,20 +76,23 @@
           "range": {
             "start": 948,
             "end": 1005
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "artifacts",
           "range": {
             "start": 1005,
             "end": 1043
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 941,
         "end": 1043
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "pages",
@@ -101,27 +111,31 @@
           "range": {
             "start": 1053,
             "end": 1164
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "artifacts",
           "range": {
             "start": 1166,
             "end": 1203
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "rules",
           "range": {
             "start": 1205,
             "end": 1262
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1044,
         "end": 1262
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "deploy",
@@ -147,13 +161,15 @@
           "range": {
             "start": 1289,
             "end": 1335
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1263,
         "end": 1361
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
@@ -163,28 +179,35 @@
       "range": {
         "start": 400,
         "end": 421
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "variables",
       "range": {
         "start": 527,
         "end": 584
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "cache",
       "range": {
         "start": 633,
         "end": 666
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "key": "before_script",
       "range": {
         "start": 667,
         "end": 812
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
-  ]
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

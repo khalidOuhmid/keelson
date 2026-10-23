@@ -1,0 +1,56 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 75,
+        "end": 80
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 62
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": [
+    {
+      "form": "local",
+      "detail": "ci/absent.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 13,
+        "end": 26
+      }
+    },
+    {
+      "form": "local",
+      "detail": "ci/jobs.txt",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 31,
+        "end": 42
+      }
+    },
+    {
+      "form": "local",
+      "detail": "/../dehors.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 47,
+        "end": 61
+      }
+    }
+  ]
+}

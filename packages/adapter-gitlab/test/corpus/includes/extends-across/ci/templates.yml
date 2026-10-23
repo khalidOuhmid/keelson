@@ -1,0 +1,5 @@
+.base:
+  stage: build
+  environment:
+    name: production
+    url: https://exemple

@@ -3,27 +3,32 @@
     {
       "name": ".pre",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "build",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": ".post",
       "implicit": true,
-      "range": null
+      "range": null,
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -44,48 +49,55 @@
           "range": {
             "start": 1132,
             "end": 1213
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "allow_failure",
           "range": {
             "start": 1215,
             "end": 1235
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "script",
           "range": {
             "start": 1237,
             "end": 1390
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "artifacts",
           "range": {
             "start": 1392,
             "end": 1520
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "rules",
           "range": {
             "start": 1522,
             "end": 3739
-          }
+          },
+          "file": ".gitlab-ci.yml"
         },
         {
           "key": "after_script",
           "range": {
             "start": 3741,
             "end": 3920
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1110,
         "end": 3920
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
@@ -95,7 +107,11 @@
       "range": {
         "start": 884,
         "end": 1109
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
-  ]
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

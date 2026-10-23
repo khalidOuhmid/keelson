@@ -6,7 +6,8 @@
       "range": {
         "start": 12,
         "end": 16
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -27,15 +28,20 @@
           "range": {
             "start": 63,
             "end": 91
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 18,
         "end": 91
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
-  "opaque": []
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

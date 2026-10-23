@@ -71,8 +71,11 @@ function lineStarts(text: string): number[] {
   return positions;
 }
 
-export function operationArb(text: string): fc.Arbitrary<Draft> {
-  const pipeline: Pipeline = parse(text).pipeline;
+/** `pipeline` est injectable pour les arbres multi-fichiers : leurs jobs et leurs stages viennent
+ *  de plusieurs textes, donc `parse(text)` seul ne les verrait pas et les opérations tirées ne
+ *  viseraient jamais un élément inclus — c'est-à-dire jamais le cas qu'on veut couvrir. */
+export function operationArb(text: string, given?: Pipeline): fc.Arbitrary<Draft> {
+  const pipeline: Pipeline = given ?? parse(text).pipeline;
   const jobIds = pipeline.jobs.map((job) => job.id);
   const stageNames = pipeline.stages.map((stage) => stage.name);
   const taken = new Set([

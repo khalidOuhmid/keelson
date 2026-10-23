@@ -1,0 +1,113 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 199,
+        "end": 204
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "a",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "include",
+          "file": "ci/a.yml"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 20,
+            "end": 41
+          },
+          "file": "ci/a.yml"
+        }
+      ],
+      "range": {
+        "start": 0,
+        "end": 41
+      },
+      "file": "ci/a.yml"
+    },
+    {
+      "id": "b",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "include",
+          "file": "ci/b.yml"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 20,
+            "end": 41
+          },
+          "file": "ci/b.yml"
+        }
+      ],
+      "range": {
+        "start": 0,
+        "end": 41
+      },
+      "file": "ci/b.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 186
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["ci/a.yml", "ci/b.yml", ".gitlab-ci.yml"],
+  "unresolved": [
+    {
+      "form": "template",
+      "detail": "Jobs/SAST.gitlab-ci.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 47,
+        "end": 81
+      }
+    },
+    {
+      "form": "project",
+      "detail": "groupe/projet / /ci/distant.yml",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 85,
+        "end": 134
+      }
+    },
+    {
+      "form": "component",
+      "detail": "$CI_SERVER_FQDN/groupe/composant@1.0",
+      "from": ".gitlab-ci.yml",
+      "range": {
+        "start": 138,
+        "end": 186
+      }
+    }
+  ]
+}

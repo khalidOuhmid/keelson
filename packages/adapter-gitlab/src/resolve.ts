@@ -102,59 +102,106 @@ function anchorMerges(map: YAMLMap, document: Document.Parsed): { map: YAMLMap; 
   return merges;
 }
 
+/** Une définition d'une clé de premier niveau, dans le fichier qui la porte. Une même clé peut en
+ *  avoir plusieurs : un job défini dans un fichier inclus puis surchargé dans le principal. Elles
+ *  sont toujours rangées dans l'ordre de fusion de GitLab, la dernière gagnant. */
+export type Definition = {
+  map: YAMLMap;
+  file: string;
+};
+
 export type Source = {
   map: YAMLMap;
   origin: Origin;
+  /** Le fichier d'où vient cette map. Les alias et les `!reference` se résolvent contre le
+   *  document de **ce** fichier : un anchor n'existe que dans le fichier qui le déclare. */
+  file: string;
 };
 
 export type ResolveContext = {
-  document: Document.Parsed;
-  lookup: ReadonlyMap<string, YAMLMap>;
+  documents: ReadonlyMap<string, Document.Parsed>;
+  lookup: ReadonlyMap<string, readonly Definition[]>;
   diagnostics: Diagnostic[];
   extendsSeverity: "error" | "warning";
+  /** Le fichier principal, le seul dont une valeur a l'origine `local`. */
+  main: string;
 };
 
+function documentOf(context: ResolveContext, file: string): Document.Parsed | null {
+  return context.documents.get(file) ?? null;
+}
+
+function originOf(context: ResolveContext, definition: Definition, fallback: Origin): Origin {
+  return definition.file === context.main ? fallback : { kind: "include", file: definition.file };
+}
+
+/** L'ordre des sources est l'ordre de précédence croissante : `matches(...).at(-1)` gagne.
+ *
+ *  Les `extends` de **toutes** les définitions passent d'abord, puis les définitions elles-mêmes.
+ *  La version précédente les entrelaçait définition par définition, et le défaut était réel : un
+ *  `extends: .base` écrit dans le fichier principal battait une valeur écrite **directement** dans
+ *  la définition de l'include, parce que les sources du template arrivaient après la map de
+ *  l'include. GitLab fusionne les includes puis le fichier principal, et ne résout `extends`
+ *  qu'ensuite, sur le job fusionné : les clés propres d'un job battent toujours ses templates.
+ *  Trouvé par la revue indépendante du 2026-10-23, qui plaçait le job dans la mauvaise colonne. */
 export function sourcesFor(
-  map: YAMLMap,
+  definitions: readonly Definition[],
   selfOrigin: Origin,
   context: ResolveContext,
   trail: readonly string[] = [],
 ): Source[] {
-  const sources: Source[] = [];
+  const inherited: Source[] = [];
+  const own: Source[] = [];
 
-  for (const template of extendsOf(map)) {
-    if (trail.includes(template)) {
-      push(context.diagnostics, {
-        code: EXTENDS_CYCLE,
-        severity: "error",
-        params: { trail: [...trail, template] },
-        range: pairRange(localPair(map, "extends") ?? ({} as Pair<unknown, unknown>)),
-      });
-      continue;
+  for (const definition of definitions) {
+    const map = definition.map;
+    const extendsRange = (): SourceRange | null =>
+      pairRange(localPair(map, "extends") ?? ({} as Pair<unknown, unknown>));
+
+    for (const template of extendsOf(map)) {
+      if (trail.includes(template)) {
+        push(context.diagnostics, {
+          code: EXTENDS_CYCLE,
+          severity: "error",
+          params: { trail: [...trail, template] },
+          range: extendsRange(),
+          file: definition.file,
+        });
+        continue;
+      }
+
+      const target = context.lookup.get(template);
+      if (target === undefined || target.length === 0) {
+        push(context.diagnostics, {
+          code: EXTENDS_TARGET_NOT_FOUND,
+          severity: context.extendsSeverity,
+          params: { template },
+          range: extendsRange(),
+          file: definition.file,
+        });
+        continue;
+      }
+
+      inherited.push(
+        ...sourcesFor(target, { kind: "extends", template }, context, [...trail, template]),
+      );
     }
 
-    const target = context.lookup.get(template);
-    if (target === undefined) {
-      push(context.diagnostics, {
-        code: EXTENDS_TARGET_NOT_FOUND,
-        severity: context.extendsSeverity,
-        params: { template },
-        range: pairRange(localPair(map, "extends") ?? ({} as Pair<unknown, unknown>)),
-      });
-      continue;
+    const document = documentOf(context, definition.file);
+    if (document !== null) {
+      for (const merge of [...anchorMerges(map, document)].reverse()) {
+        own.push({
+          map: merge.map,
+          origin: { kind: "anchor", name: merge.name },
+          file: definition.file,
+        });
+      }
     }
 
-    sources.push(
-      ...sourcesFor(target, { kind: "extends", template }, context, [...trail, template]),
-    );
+    own.push({ map, origin: originOf(context, definition, selfOrigin), file: definition.file });
   }
 
-  for (const merge of [...anchorMerges(map, context.document)].reverse()) {
-    sources.push({ map: merge.map, origin: { kind: "anchor", name: merge.name } });
-  }
-
-  sources.push({ map, origin: selfOrigin });
-  return sources;
+  return [...inherited, ...own];
 }
 
 /** Sérialisation à clés triées : le dédoublonnage portait sur le message, qui n'existe plus. Deux
@@ -182,12 +229,15 @@ function push(diagnostics: Diagnostic[], diagnostic: Diagnostic): void {
 type Match = {
   node: AnyNode;
   origin: Origin;
+  file: string;
 };
 
 function matches(sources: readonly Source[], key: string): Match[] {
   return sources.flatMap((source) => {
     const pair = localPair(source.map, key);
-    return pair === undefined ? [] : [{ node: pair.value as AnyNode, origin: source.origin }];
+    return pair === undefined
+      ? []
+      : [{ node: pair.value as AnyNode, origin: source.origin, file: source.file }];
   });
 }
 
@@ -195,18 +245,27 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
   return matches(sources, key).length > 0;
 }
 
+/** Un alias et un `!reference` ne traversent **pas** les fichiers : chez GitLab, un anchor est
+ *  local au document qui le déclare. Chacun est donc résolu contre le document du fichier d'où
+ *  vient la map qui le porte, et pas contre le fichier principal. */
 function dereference(
   node: AnyNode,
+  file: string,
   context: ResolveContext,
 ): { node: AnyNode; origin: Origin | null } {
+  const document = documentOf(context, file);
+  if (document === null) {
+    return { node, origin: null };
+  }
+
   if (isAlias(node)) {
-    return { node: node.resolve(context.document) ?? null, origin: null };
+    return { node: node.resolve(document) ?? null, origin: null };
   }
 
   const tagged = node as { tag?: string } | null | undefined;
   if (tagged?.tag === REFERENCE_TAG && isSeq(node)) {
     const path = stringsOf(node);
-    const target = context.document.getIn(path, true);
+    const target = document.getIn(path, true);
     return {
       node: (target ?? null) as AnyNode,
       origin: { kind: "reference", path },
@@ -225,7 +284,7 @@ export function resolveStage(
     return null;
   }
 
-  const { node, origin } = dereference(found.node, context);
+  const { node, origin } = dereference(found.node, found.file, context);
   if (!isScalar(node) || typeof node.value !== "string") {
     return null;
   }
@@ -273,7 +332,7 @@ export function resolveNeeds(
     return null;
   }
 
-  const { node, origin } = dereference(found.node, context);
+  const { node, origin } = dereference(found.node, found.file, context);
   if (!isSeq(node)) {
     return null;
   }
@@ -347,7 +406,7 @@ export function resolveEnvironment(
     return null;
   }
 
-  const resolvedLast = dereference(last.node, context);
+  const resolvedLast = dereference(last.node, last.file, context);
   const origin = resolvedLast.origin ?? last.origin;
 
   if (isScalar(resolvedLast.node) && typeof resolvedLast.node.value === "string") {
@@ -356,7 +415,7 @@ export function resolveEnvironment(
 
   let merged: Record<string, unknown> = {};
   for (const match of found) {
-    const object = plainObject(dereference(match.node, context).node);
+    const object = plainObject(dereference(match.node, match.file, context).node);
     if (object !== null) {
       merged = deepMerge(merged, object);
     }

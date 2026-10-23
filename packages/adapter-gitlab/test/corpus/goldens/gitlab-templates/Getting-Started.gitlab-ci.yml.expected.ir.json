@@ -6,7 +6,8 @@
       "range": {
         "start": 1022,
         "end": 1027
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "test",
@@ -14,7 +15,8 @@
       "range": {
         "start": 1032,
         "end": 1036
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "name": "deploy",
@@ -22,7 +24,8 @@
       "range": {
         "start": 1041,
         "end": 1047
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "jobs": [
@@ -43,13 +46,15 @@
           "range": {
             "start": 1137,
             "end": 1211
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1049,
         "end": 1211
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "unit-test-job",
@@ -68,13 +73,15 @@
           "range": {
             "start": 1356,
             "end": 1481
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1212,
         "end": 1481
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "lint-test-job",
@@ -93,13 +100,15 @@
           "range": {
             "start": 1620,
             "end": 1740
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1482,
         "end": 1740
-      }
+      },
+      "file": ".gitlab-ci.yml"
     },
     {
       "id": "deploy-job",
@@ -125,15 +134,20 @@
           "range": {
             "start": 1913,
             "end": 2007
-          }
+          },
+          "file": ".gitlab-ci.yml"
         }
       ],
       "range": {
         "start": 1741,
         "end": 2007
-      }
+      },
+      "file": ".gitlab-ci.yml"
     }
   ],
   "templates": [],
-  "opaque": []
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
 }

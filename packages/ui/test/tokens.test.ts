@@ -236,3 +236,71 @@ describe("aucun token promis sans consommateur", () => {
     });
   }
 });
+
+describe("`border-subtle` n'est jamais une limite de composant", () => {
+  /** `DESIGN.md` l'énonce nommément : « Rule Faint : structural dividers only… it is never a
+   *  component boundary ». La passe `critique` du 2026-10-23 a trouvé que L2b venait de
+   *  l'employer comme bordure d'un nœud de job — mesurée à 1,26:1 contre sa colonne, soit un
+   *  objet qui ne se lit plus comme un objet.
+   *
+   *  Le garde de 1.4.11 ne pouvait pas l'attraper : il ne teste que `border-default` et `accent`,
+   *  précisément parce que `DESIGN.md` jurait que `border-subtle` n'était jamais une bordure de
+   *  composant. C'est cette promesse-là qu'il faut garder, et elle ne se mesure pas en contraste
+   *  mais sur l'usage.
+   *
+   *  La règle retenue : `border-border-subtle` ne vaut qu'avec une **arête nommée** —
+   *  `border-b`, `border-t`, `border-l`, `border-r` —, c'est-à-dire un filet. Une bordure sur les
+   *  quatre côtés ferme une forme, et fermer une forme est le rôle de `border-default`. */
+  const EDGE = /border-(?:[btlr])\b/;
+
+  /** La seule exception, nommée plutôt que laissée au hasard de la correspondance. Une colonne de
+   *  stage est un **fond**, pas un composant : elle doit s'effacer derrière les cartes de job
+   *  qu'elle contient, et lui donner `border-default` ferait concurrencer le conteneur à son
+   *  contenu. La règle réelle est donc « une limite de composant doit être lisible », et une
+   *  colonne n'en est pas une.
+   *
+   *  Une exception nommée se relit ; un motif élargi pour la faire passer ne se relit pas. */
+  const BACKDROPS = ["views/pipeline/StageColumnNode.tsx"];
+
+  function offendingLines(): { file: string; line: number; text: string }[] {
+    const found: { file: string; line: number; text: string }[] = [];
+
+    for (const path of sourceFiles(sourceRoot)) {
+      const name = relative(sourceRoot, path).split(/[\\/]/).join("/");
+      if (name === TOKENS_FILE) {
+        continue;
+      }
+      for (const [index, text] of readFileSync(path, "utf8").split("\n").entries()) {
+        if (
+          text.includes("border-border-subtle") &&
+          !EDGE.test(text) &&
+          !BACKDROPS.includes(name)
+        ) {
+          found.push({ file: name, line: index + 1, text: text.trim() });
+        }
+      }
+    }
+
+    return found;
+  }
+
+  test("chaque usage est un filet sur une arête nommée, jamais une forme fermée", () => {
+    expect(offendingLines()).toEqual([]);
+  });
+
+  test("chaque fond de l'exception existe encore, et emploie bien le token", () => {
+    // Sans ce test, une entrée devenue obsolète resterait dans la liste et y masquerait un
+    // fichier futur qui porterait le même chemin.
+    for (const name of BACKDROPS) {
+      const text = readFileSync(join(sourceRoot, name), "utf8");
+      expect({ name, uses: text.includes("border-border-subtle") }).toEqual({ name, uses: true });
+    }
+  });
+
+  test("le garde voit bien une forme fermée : il en reconnaît une écrite à la main", () => {
+    // Sans ce second test, la règle pourrait être une expression qui ne correspond à rien et le
+    // premier test serait vert par construction.
+    expect(EDGE.test('className="border border-border-subtle rounded-md"')).toBe(false);
+    expect(EDGE.test('className="border-b border-border-subtle"')).toBe(true);
+  });
+});

@@ -120,7 +120,7 @@ function cyclePath(start: string, members: ReadonlySet<string>, graph: Graph): s
   return path;
 }
 
-function cycleDiagnostics(jobs: readonly Job[], graph: Graph): Diagnostic[] {
+function cycleDiagnostics(jobs: readonly Job[], graph: Graph, main: string): Diagnostic[] {
   const order = new Map(jobs.map((job, position) => [job.id, position]));
   const byId = new Map(jobs.map((job) => [job.id, job]));
   const diagnostics: Diagnostic[] = [];
@@ -151,6 +151,9 @@ function cycleDiagnostics(jobs: readonly Job[], graph: Graph): Diagnostic[] {
       severity: "error",
       params: { cycle: cyclePath(anchor, members, graph) },
       range: byId.get(anchor)?.range ?? null,
+      // Le cycle est attribué au fichier du job qui l'ancre. Faute de ce job, au fichier principal :
+      // il n'y a pas d'autre fichier à nommer, et un diagnostic sans fichier ne situe rien.
+      file: byId.get(anchor)?.file ?? main,
     });
   }
 
@@ -170,6 +173,7 @@ export function validate(pipeline: Pipeline): Diagnostic[] {
         severity: "error",
         params: { job: job.id, stage: job.stage.value },
         range: job.range,
+        file: job.file,
       });
     }
 
@@ -181,6 +185,7 @@ export function validate(pipeline: Pipeline): Diagnostic[] {
           severity: "error",
           params: { job: job.id, need: need.job },
           range: job.range,
+          file: job.file,
         });
         continue;
       }
@@ -198,11 +203,14 @@ export function validate(pipeline: Pipeline): Diagnostic[] {
             needStage: target.stage.value,
           },
           range: job.range,
+          file: job.file,
         });
       }
     }
   }
 
-  diagnostics.push(...cycleDiagnostics(pipeline.jobs, buildGraph(pipeline.jobs, known)));
+  diagnostics.push(
+    ...cycleDiagnostics(pipeline.jobs, buildGraph(pipeline.jobs, known), pipeline.main),
+  );
   return diagnostics;
 }

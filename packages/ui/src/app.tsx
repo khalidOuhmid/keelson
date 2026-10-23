@@ -1,3 +1,4 @@
+import { emptyPipeline } from "@keelson/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
@@ -23,6 +24,7 @@ import { InvalidDocument } from "./states/InvalidDocument.tsx";
 import { Loading } from "./states/Loading.tsx";
 import { NoCiFile } from "./states/NoCiFile.tsx";
 import { NoticeBar } from "./states/NoticeBar.tsx";
+import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
 
 type ClientSurface = {
@@ -175,12 +177,20 @@ export function App({ deps }: AppProps = {}) {
     }
     return (
       <PipelineCanvas
-        pipeline={state.pipeline ?? { stages: [], jobs: [], templates: [], opaque: [] }}
+        pipeline={state.pipeline ?? emptyPipeline(state.file ?? "")}
         selectedJobId={state.selectedJobId}
         onSelectJob={(id) => store.getState().selectJob(id)}
       />
     );
   })();
+
+  /** Les fichiers résolus autres que le principal. `files` peut contenir deux fois le même —
+   *  GitLab ne dédoublonne pas les includes — mais le compte annoncé à l'écran est un compte de
+   *  **fichiers**, pas d'entrées. */
+  const resolvedIncludes = [
+    ...new Set((state.pipeline?.files ?? []).filter((file) => file !== state.pipeline?.main)),
+  ];
+  const includedCount = resolvedIncludes.length;
 
   const showSidebar = state.status === "ready" && !blocking && state.pipeline !== null;
 
@@ -194,6 +204,19 @@ export function App({ deps }: AppProps = {}) {
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
           {state.file === null ? null : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
+          )}
+          {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
+              testé et invisible — ce que `CLAUDE.md` interdit. Il dit à l'utilisateur que ce qu'il
+              lit vient de plusieurs fichiers, ce que ni le graphe ni le chemin de l'en-tête ne
+              disent. */}
+          {includedCount === 0 ? null : (
+            <span
+              data-testid="included-files-tag"
+              title={`Resolved includes: ${resolvedIncludes.join(", ")}`}
+              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+            >
+              {includedCount === 1 ? "1 included file" : `${includedCount} included files`}
+            </span>
           )}
         </span>
         <span className="flex shrink-0 items-center gap-3">
@@ -215,6 +238,8 @@ export function App({ deps }: AppProps = {}) {
           />
         </span>
       </header>
+
+      {state.pipeline === null ? null : <PartialPipelineBar pipeline={state.pipeline} />}
 
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null ? (
@@ -242,7 +267,8 @@ export function App({ deps }: AppProps = {}) {
           <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto">
             <JobDetailPanel
               job={selected}
-              text={state.text}
+              textOf={(file) => state.textOf(file)}
+              main={state.pipeline.main}
               onClose={() => store.getState().selectJob(null)}
             />
             <div className="border-l border-border-subtle bg-surface-1 p-3">
@@ -252,6 +278,7 @@ export function App({ deps }: AppProps = {}) {
                 pipeline={state.pipeline}
                 onSubmit={(draft) => void store.getState().submit(draft)}
                 disabled={!editable}
+                lockedTo={selected.file === state.pipeline.main ? null : selected.file}
               />
             </div>
           </aside>
@@ -261,7 +288,8 @@ export function App({ deps }: AppProps = {}) {
       <div className="max-h-1/3 shrink-0 overflow-y-auto">
         <DiagnosticsPanel
           diagnostics={state.diagnostics}
-          onSelectRange={(range) => store.getState().selectByRange(range)}
+          main={state.pipeline?.main ?? state.file ?? ""}
+          onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
         />
       </div>
     </div>

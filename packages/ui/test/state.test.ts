@@ -7,9 +7,11 @@ const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 const HASH_C = "c".repeat(64);
 
+const MAIN = ".gitlab-ci.yml";
+
 function pipeline(jobs: string[] = ["compile"]): Pipeline {
   return {
-    stages: [{ name: "build", implicit: false, range: { start: 0, end: 5 } }],
+    stages: [{ name: "build", implicit: false, range: { start: 0, end: 5 }, file: MAIN }],
     jobs: jobs.map((id) => ({
       id,
       stage: { value: "build", origin: { kind: "local" } },
@@ -18,14 +20,24 @@ function pipeline(jobs: string[] = ["compile"]): Pipeline {
       extends: [],
       opaque: [],
       range: { start: 0, end: 10 },
+      file: MAIN,
     })),
     templates: [],
     opaque: [],
+    main: MAIN,
+    files: [MAIN],
+    unresolved: [],
   };
 }
 
 function documentPayload(hash = HASH_A): DocumentPayload {
-  return { text: "stages:\n  - build\n", pipeline: pipeline(), diagnostics: [], hash };
+  return {
+    text: "stages:\n  - build\n",
+    pipeline: pipeline(),
+    diagnostics: [],
+    hash,
+    included: {},
+  };
 }
 
 function operationPayload(hash: string, inverseHash: string): OperationPayload {
@@ -34,6 +46,7 @@ function operationPayload(hash: string, inverseHash: string): OperationPayload {
     pipeline: pipeline(["compile", "unit"]),
     diagnostics: [],
     hash,
+    included: {},
     inverse: {
       v: 1,
       baseHash: inverseHash,
@@ -335,13 +348,13 @@ describe("sélection", () => {
   });
 
   test("sélectionner depuis un diagnostic sélectionne le job de la plage", () => {
-    state().selectByRange({ start: 0, end: 10 });
+    state().selectByRange(MAIN, { start: 0, end: 10 });
     expect(state().selectedJobId).toBe("compile");
   });
 
   test("une plage hors de tout job ne sélectionne rien", () => {
     state().selectJob("compile");
-    state().selectByRange({ start: 9000, end: 9001 });
+    state().selectByRange(MAIN, { start: 9000, end: 9001 });
     expect(state().selectedJobId).toBeNull();
   });
 
@@ -361,7 +374,13 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "INVALID_YAML", severity: "error", params: { detail: "broken" }, range: null },
+        {
+          code: "INVALID_YAML",
+          severity: "error",
+          params: { detail: "broken" },
+          range: null,
+          file: MAIN,
+        },
       ],
     });
     expect(state().canEdit()).toBe(false);
@@ -376,6 +395,7 @@ describe("édition désactivée", () => {
           severity: "error",
           params: { job: "unit", need: "absent" },
           range: { start: 0, end: 5 },
+          file: MAIN,
         },
       ],
     });
@@ -386,12 +406,19 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "INVALID_YAML", severity: "error", params: { detail: "broken" }, range: null },
+        {
+          code: "INVALID_YAML",
+          severity: "error",
+          params: { detail: "broken" },
+          range: null,
+          file: MAIN,
+        },
         {
           code: "UNKNOWN_NEED",
           severity: "error",
           params: { job: "unit", need: "absent" },
           range: { start: 0, end: 5 },
+          file: MAIN,
         },
       ],
     });
@@ -402,7 +429,13 @@ describe("édition désactivée", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
-        { code: "JOB_WITHOUT_SCRIPT", severity: "warning", params: { job: "muet" }, range: null },
+        {
+          code: "JOB_WITHOUT_SCRIPT",
+          severity: "warning",
+          params: { job: "muet" },
+          range: null,
+          file: MAIN,
+        },
       ],
     });
     expect(state().canEdit()).toBe(true);
@@ -524,5 +557,77 @@ describe("le texte suit les opérations", () => {
     await state().undo();
 
     expect(state().text).toBe("stages:\n  - build\n");
+  });
+});
+
+describe("sélection par plage avec plusieurs fichiers", () => {
+  /** Deux fichiers ont chacun leurs offsets à partir de zéro. Sans le fichier dans la clé, la
+   *  plage d'un diagnostic venu d'un fichier inclus tombe dans la plage d'un job du fichier
+   *  principal, et l'écran sélectionne un job qui n'a rien à voir avec le message lu. */
+  test("une plage venue d'un autre fichier ne sélectionne pas un job du fichier principal", () => {
+    state().documentLoaded(MAIN, {
+      text: "stages:\n  - build\n",
+      pipeline: pipeline(),
+      diagnostics: [],
+      hash: HASH_A,
+      included: { "ci/jobs.yml": "compile:\n" },
+    });
+
+    // `compile` occupe [0, 10[ dans le fichier principal. La même plage dans `ci/jobs.yml` ne
+    // désigne pas ce job.
+    state().selectByRange("ci/jobs.yml", { start: 0, end: 10 });
+    expect(state().selectedJobId).toBeNull();
+
+    state().selectByRange(MAIN, { start: 0, end: 10 });
+    expect(state().selectedJobId).toBe("compile");
+  });
+});
+
+describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", () => {
+  /** Trouvé par l'E2E, pas par ce fichier : `documentLoaded` et le rechargement posaient `text`
+   *  sans poser `included`, donc `textOf` rendait une chaîne vide pour un fichier inclus et le
+   *  panneau affichait « Content unavailable » sur un bloc parfaitement lisible. Même classe de
+   *  défaut que l'`applyPayload` qui ne rafraîchissait pas `text` au lot L2 : un champ de l'état
+   *  mis à jour sur un seul des trois chemins qui l'alimentent. */
+  const INCLUDED_TEXT = "sast:\n  script:\n    - make scan\n";
+
+  function payloadWithIncluded(): DocumentPayload {
+    return { ...documentPayload(), included: { "ci/jobs.yml": INCLUDED_TEXT } };
+  }
+
+  test("documentLoaded les garde", () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    expect(state().textOf("ci/jobs.yml")).toBe(INCLUDED_TEXT);
+  });
+
+  /** Le texte **change** entre le premier chargement et le rechargement. Sans ce changement, ne
+   *  pas reposer `included` laisserait en place la valeur du premier chargement et le test
+   *  passerait — c'est la première version de ces deux tests, vérifiée incapable d'échouer. */
+  const RELOADED_TEXT = "sast:\n  script:\n    - make scan --fast\n";
+
+  test("un rechargement après un événement serveur les repose", async () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    api.queueDocument({
+      ok: true,
+      value: { ...documentPayload(HASH_B), included: { "ci/jobs.yml": RELOADED_TEXT } },
+    });
+    await state().serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_B });
+    expect(state().textOf("ci/jobs.yml")).toBe(RELOADED_TEXT);
+  });
+
+  test("une opération réussie les repose", async () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_B, HASH_A), included: { "ci/jobs.yml": RELOADED_TEXT } },
+    });
+    await addStage("livrer");
+    expect(state().textOf("ci/jobs.yml")).toBe(RELOADED_TEXT);
+  });
+
+  test("le fichier principal se lit dans text, pas dans included", () => {
+    state().documentLoaded(MAIN, payloadWithIncluded());
+    expect(state().textOf(MAIN)).toBe(payloadWithIncluded().text);
+    expect(state().textOf("inconnu.yml")).toBe("");
   });
 });

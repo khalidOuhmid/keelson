@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { apply, parse } from "@keelson/adapter-gitlab";
+import { apply, createFileReader, type IncludeReader, parse } from "@keelson/adapter-gitlab";
 import type {
   Diagnostic,
   MessageCode,
@@ -25,6 +25,11 @@ export type DocumentBody = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
+  /** Le texte de chaque fichier inclus, tel qu'il a servi à cette analyse. Il part sur le fil avec
+   *  le reste plutôt que par une route dédiée : les plages des blocs opaques d'un job inclus sont
+   *  des offsets dans ces textes, et une route séparée les laisserait se désaligner entre deux
+   *  requêtes — en plus d'ouvrir une seconde surface de lecture du disque à borner. */
+  included: Record<string, string>;
 };
 
 export type OperationBody = {
@@ -38,6 +43,7 @@ export type OperationBody = {
   hash: string;
   inverse: SpliceOperation;
   touched: SourceRange[];
+  included: Record<string, string>;
 };
 
 /** Pas de `message` : le texte est rendu côté client par `@keelson/core/messages`. `hash` n'est
@@ -57,6 +63,7 @@ type Loaded = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
+  included: Record<string, string>;
 };
 
 export class DocumentStore {
@@ -64,10 +71,21 @@ export class DocumentStore {
   private readonly queues = new Map<string, Promise<unknown>>();
   private readonly seen = new Map<string, Map<string, StoreResponse>>();
 
+  /** Un lecteur par store, donc un seul parcours du dépôt pour les candidats d'un joker, quel que
+   *  soit le nombre de requêtes. */
+  private readonly reader: IncludeReader;
+
+  /** Prévenus après chaque chargement réussi. Le watcher s'y abonne pour apprendre les fichiers
+   *  inclus : sans cela il ne les connaîtrait qu'après un premier changement, donc le tout premier
+   *  changement d'un fichier inclus serait toujours manqué. */
+  private readonly loadedListeners = new Set<() => void>();
+
   constructor(
     private readonly root: string,
     private files: readonly WorkspaceFile[],
-  ) {}
+  ) {
+    this.reader = createFileReader(root);
+  }
 
   workspaceFiles(): readonly WorkspaceFile[] {
     return this.files;
@@ -95,7 +113,7 @@ export class DocumentStore {
       return null;
     }
 
-    const parsed = parse(text);
+    const parsed = parse(text, { file, read: this.reader });
     const diagnostics = allDiagnostics(parsed.diagnostics, parsed.pipeline);
     this.loaded.set(file, {
       absolute,
@@ -103,9 +121,27 @@ export class DocumentStore {
       pipeline: parsed.pipeline,
       diagnostics,
       hash: parsed.hash,
+      included: parsed.included,
     });
 
-    return { text, pipeline: parsed.pipeline, diagnostics, hash: parsed.hash };
+    for (const listener of this.loadedListeners) {
+      listener();
+    }
+
+    return {
+      text,
+      pipeline: parsed.pipeline,
+      diagnostics,
+      hash: parsed.hash,
+      included: parsed.included,
+    };
+  }
+
+  onLoaded(listener: () => void): () => void {
+    this.loadedListeners.add(listener);
+    return () => {
+      this.loadedListeners.delete(listener);
+    };
   }
 
   currentHash(file: string): string | undefined {
@@ -114,6 +150,13 @@ export class DocumentStore {
 
   currentText(file: string): string | undefined {
     return this.loaded.get(file)?.text;
+  }
+
+  /** Les fichiers inclus par un document, tels que la dernière analyse les a résolus. Le watcher
+   *  s'en sert pour surveiller aussi leurs dossiers : sans cela, modifier un fichier inclus ne
+   *  provoquait aucun événement et l'écran restait sur un pipeline périmé. */
+  includedFiles(file: string): readonly string[] {
+    return Object.keys(this.loaded.get(file)?.included ?? {});
   }
 
   forget(file: string): void {
@@ -187,7 +230,7 @@ export class DocumentStore {
       };
     }
 
-    const parsed = parse(current.text);
+    const parsed = parse(current.text, { file, read: this.reader });
     const result = apply(parsed.document, validated.value);
 
     if (!result.ok) {
@@ -206,6 +249,7 @@ export class DocumentStore {
       absolute: current.absolute,
       text: result.value.text,
       pipeline: result.value.pipeline,
+      included: result.value.included,
       diagnostics,
       // `apply` rend `parse(texte).hash`, donc le hash du texte qu'il vient d'écrire. Le recalculer
       // ici donnait deux expressions pour une seule vérité : si elles divergeaient, le cache
@@ -222,6 +266,7 @@ export class DocumentStore {
         hash: result.value.hash,
         inverse: result.value.inverse,
         touched: result.value.touched,
+        included: result.value.included,
       },
     };
   }

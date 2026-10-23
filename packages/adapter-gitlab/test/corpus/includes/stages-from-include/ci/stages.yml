@@ -1,0 +1,3 @@
+stages:
+  - preparer
+  - livrer

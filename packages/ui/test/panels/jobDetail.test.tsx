@@ -18,9 +18,11 @@ const TEXT = [
   "",
 ].join("\n");
 
+const MAIN = ".gitlab-ci.yml";
+
 function at(needle: string, length: number): OpaqueBlock {
   const start = TEXT.indexOf(needle);
-  return { key: needle.replace(":", ""), range: { start, end: start + length } };
+  return { key: needle.replace(":", ""), range: { start, end: start + length }, file: MAIN };
 }
 
 const SCRIPT_BLOCK = at("script:", "script:\n    - make all\n    - make check\n".length);
@@ -35,12 +37,20 @@ function job(overrides: Partial<Job> = {}): Job {
     extends: [],
     opaque: [SCRIPT_BLOCK],
     range: { start: 0, end: TEXT.length },
+    file: MAIN,
     ...overrides,
   };
 }
 
-function renderPanel(value: Job, text = TEXT) {
-  return render(<JobDetailPanel job={value} text={text} onClose={() => undefined} />);
+function renderPanel(value: Job, text = TEXT, texts: Record<string, string> = {}) {
+  return render(
+    <JobDetailPanel
+      job={value}
+      textOf={(file) => (file === MAIN ? text : (texts[file] ?? ""))}
+      main={MAIN}
+      onClose={() => undefined}
+    />,
+  );
 }
 
 describe("sliceOpaque", () => {
@@ -53,11 +63,13 @@ describe("sliceOpaque", () => {
   });
 
   test("une plage hors bornes rend une chaîne vide plutôt que de lever", () => {
-    expect(sliceOpaque(TEXT, { key: "x", range: { start: 9000, end: 9100 } })).toBeNull();
+    expect(
+      sliceOpaque(TEXT, { key: "x", range: { start: 9000, end: 9100 }, file: MAIN }),
+    ).toBeNull();
   });
 
   test("une plage inversée rend une chaîne vide", () => {
-    expect(sliceOpaque(TEXT, { key: "x", range: { start: 50, end: 10 } })).toBeNull();
+    expect(sliceOpaque(TEXT, { key: "x", range: { start: 50, end: 10 }, file: MAIN })).toBeNull();
   });
 });
 
@@ -244,10 +256,10 @@ describe("bloc opaque dont la plage ne peut pas être lue", () => {
   /** `sliceOpaque` rendait `""` sur une plage hors bornes ou inversée, ce qu'un bloc vide rend
    *  aussi : la seule surface dont la promesse est « ceci est verbatim » ne savait pas dire
    *  qu'elle ne savait pas. Le principe 3 de PRODUCT.md impose de montrer l'incertitude. */
-  const BROKEN = { key: "script", range: { start: 9000, end: 9100 } };
+  const BROKEN = { key: "script", range: { start: 9000, end: 9100 }, file: MAIN };
 
   test("sliceOpaque distingue l'illisible du vide", () => {
-    expect(sliceOpaque("", { key: "script", range: { start: 0, end: 0 } })).toBeNull();
+    expect(sliceOpaque("", { key: "script", range: { start: 0, end: 0 }, file: MAIN })).toBeNull();
     expect(sliceOpaque(TEXT, BROKEN)).toBeNull();
   });
 

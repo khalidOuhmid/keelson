@@ -5,7 +5,11 @@ export type EmptyStateProps = {
 };
 
 export function EmptyState({ heading, tone = "neutral", children }: EmptyStateProps) {
-  const border = tone === "alert" ? "border-warning-muted" : "border-border-subtle";
+  /** `border-default` et non `border-subtle` : ce cadre ferme une forme, et `DESIGN.md` réserve
+   *  `border-subtle` aux filets structurels. Trouvé par le garde ajouté au lot L2b, qui l'a vu
+   *  parce que la variable sort la classe de son `className` — le cadre est mesuré à 3,81:1 contre
+   *  `surface-1`, là où `border-subtle` était à 1,26:1. */
+  const border = tone === "alert" ? "border-warning-muted" : "border-border-default";
 
   return (
     <div className="flex h-full items-center justify-center bg-surface-0 p-6">

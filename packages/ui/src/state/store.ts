@@ -37,6 +37,10 @@ export type StoreDependencies = {
 export type KeelsonState = {
   file: string | null;
   text: string;
+  /** Le texte de chaque fichier inclus, par chemin. `textOf` lit ici ou dans `text` : une plage
+   *  venue d'un fichier inclus découpée dans le texte du fichier principal rendrait des octets
+   *  pris ailleurs. */
+  included: Record<string, string>;
   pipeline: Pipeline | null;
   diagnostics: Diagnostic[];
   hash: string | null;
@@ -49,7 +53,8 @@ export type KeelsonState = {
   documentLoaded(file: string, payload: DocumentPayload): void;
   workspaceEmpty(): void;
   selectJob(id: string | null): void;
-  selectByRange(range: SourceRange | null): void;
+  selectByRange(file: string, range: SourceRange | null): void;
+  textOf(file: string): string;
   canEdit(): boolean;
   canUndo(): boolean;
   canRedo(): boolean;
@@ -82,6 +87,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         // `text` doit suivre : les plages des blocs opaques viennent du nouveau pipeline, et le
         // watcher tait les ecritures propres du serveur, donc aucun rechargement ne le reparerait.
         text: payload.text,
+        included: payload.included,
         pipeline: payload.pipeline,
         diagnostics: payload.diagnostics,
         hash: payload.hash,
@@ -102,6 +108,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       const stillThere = result.value.pipeline.jobs.some((job) => job.id === get().selectedJobId);
       set({
         text: result.value.text,
+        included: result.value.included,
         pipeline: result.value.pipeline,
         diagnostics: result.value.diagnostics,
         hash: result.value.hash,
@@ -153,6 +160,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
     return {
       file: null,
       text: "",
+      included: {},
       pipeline: null,
       diagnostics: [],
       hash: null,
@@ -167,6 +175,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         set({
           file,
           text: payload.text,
+          included: payload.included,
           pipeline: payload.pipeline,
           diagnostics: payload.diagnostics,
           hash: payload.hash,
@@ -186,15 +195,26 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         set({ selectedJobId: id });
       },
 
-      selectByRange(range) {
+      /** Le fichier fait partie de la clé : deux fichiers ont chacun leurs offsets à partir de
+       *  zéro, donc une plage venue d'un fichier inclus tomberait dans la plage d'un job du
+       *  fichier principal et sélectionnerait le mauvais job. */
+      selectByRange(file, range) {
         if (range === null) {
           set({ selectedJobId: null });
           return;
         }
         const job = get().pipeline?.jobs.find(
-          (candidate) => range.start >= candidate.range.start && range.start < candidate.range.end,
+          (candidate) =>
+            candidate.file === file &&
+            range.start >= candidate.range.start &&
+            range.start < candidate.range.end,
         );
         set({ selectedJobId: job?.id ?? null });
+      },
+
+      textOf(file) {
+        const state = get();
+        return file === state.file ? state.text : (state.included[file] ?? "");
       },
 
       canEdit() {
