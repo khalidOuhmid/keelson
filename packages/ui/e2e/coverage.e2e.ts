@@ -173,6 +173,24 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
+  test("les colonnes du catalogue restent nommées au défilement", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Catalog" }).click();
+      const table = page.getByRole("table");
+      await table.getByRole("button", { name: "ZAP" }).scrollIntoViewIfNeeded();
+
+      const header = table.getByRole("columnheader", { name: "Tool" });
+      const list = await table.locator("..").boundingBox();
+      const cell = await header.boundingBox();
+      expect(cell?.y).toBeGreaterThanOrEqual(list?.y ?? Number.POSITIVE_INFINITY);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("à 375 px, l'en-tête tient dans la fenêtre", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson(TREE);

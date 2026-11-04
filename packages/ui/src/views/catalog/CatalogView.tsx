@@ -92,9 +92,9 @@ export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
         {shown.length === 0 ? (
           <p className="p-3 text-sm text-text-muted">No tool matches these filters.</p>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
             <table className="w-full border-collapse text-left">
-              <thead className="text-2xs font-semibold tracking-label text-text-muted uppercase">
+              <thead className="sticky top-0 z-10 bg-surface-0 text-2xs font-semibold tracking-label text-text-muted uppercase">
                 <tr className="border-b border-border-subtle">
                   <th scope="col" className="py-1 font-semibold">
                     Tool
