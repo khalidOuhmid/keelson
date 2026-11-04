@@ -1,0 +1,6 @@
+.base:
+  stage: deploy
+  needs:
+    - compile
+  environment:
+    name: production

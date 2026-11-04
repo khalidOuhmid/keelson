@@ -75,18 +75,21 @@ export function createFileReader(root: string): IncludeReader {
       // Second contrôle, **sur le chemin réel**. Les deux contrôles lexicaux ne voyaient pas les
       // liens symboliques : `ci/fuite.yml → /etc/passwd` passait les deux, et le contenu du
       // fichier visé partait dans la charge envoyée au navigateur. Trouvé par la revue
-      // indépendante du 2026-10-23. L'extension était contrôlée sur le **nom du lien**, jamais
-      // sur sa cible.
+      // indépendante du 2026-10-23.
       //
-      // Le lien reste permis s'il **reste** sous la racine : un dépôt peut légitimement en
-      // contenir, et seule la cible décide.
+      // Un lien reste permis si sa **cible** reste sous la racine et reste du YAML : sans ce
+      // second point, un lien interne vers `.git/config` ou `.env` passait, l'extension n'étant
+      // contrôlée que sur le nom du lien.
       let real: string;
       try {
         real = realpathSync(absolute);
       } catch {
         return null;
       }
-      if (real !== absoluteRoot && !real.startsWith(realPrefix)) {
+      if (
+        !real.startsWith(realPrefix) ||
+        !YAML_EXTENSIONS.some((extension) => real.endsWith(extension))
+      ) {
         return null;
       }
 

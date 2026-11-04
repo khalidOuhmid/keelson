@@ -112,6 +112,38 @@ describe("un lien symbolique qui sort de la racine", () => {
   });
 });
 
+describe("un fichier principal lié hors de la racine", () => {
+  /** Le fichier principal ne passait pas par le lecteur : `.gitlab-ci.yml` lié vers n'importe quel
+   *  fichier partait tel quel dans la charge, sans même de contrôle d'extension. Même scénario que
+   *  le lien inclus, par la seule voie que le correctif de L2b n'avait pas fermée. */
+  function linkMainOutside(): string {
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-main-"));
+    writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
+    rmSync(join(root, ".gitlab-ci.yml"));
+    symlinkSync(join(outside, "s.yml"), join(root, ".gitlab-ci.yml"));
+    return outside;
+  }
+
+  test("il n'est pas détecté comme fichier de l'espace de travail", () => {
+    const outside = linkMainOutside();
+    try {
+      expect(detectWorkspace(root)).toEqual([]);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test("le store ne le charge pas, même si la liste le nomme", async () => {
+    const outside = linkMainOutside();
+    try {
+      const forced = new DocumentStore(root, [{ path: ".gitlab-ci.yml", adapter: "gitlab" }]);
+      expect(await forced.load(".gitlab-ci.yml")).toBeNull();
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("écriture bornée au fichier principal", () => {
   test("une opération sur un job inclus est refusée en 422", async () => {
     await store.load(".gitlab-ci.yml");

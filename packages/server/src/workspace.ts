@@ -1,5 +1,5 @@
-import { existsSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
+import { createFileReader } from "@keelson/adapter-gitlab";
 
 export type AdapterName = "gitlab";
 
@@ -11,15 +11,9 @@ export type WorkspaceFile = {
 export const GITLAB_CI_FILE = ".gitlab-ci.yml";
 
 export function detectWorkspace(root: string): WorkspaceFile[] {
-  const candidate = join(root, GITLAB_CI_FILE);
-  try {
-    if (existsSync(candidate) && statSync(candidate).isFile()) {
-      return [{ path: GITLAB_CI_FILE, adapter: "gitlab" }];
-    }
-  } catch {
-    return [];
-  }
-  return [];
+  return createFileReader(root).read(GITLAB_CI_FILE) === null
+    ? []
+    : [{ path: GITLAB_CI_FILE, adapter: "gitlab" }];
 }
 
 export function resolveWorkspaceFile(

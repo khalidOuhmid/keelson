@@ -89,6 +89,14 @@ test.describe("include locaux sur le binaire réel", () => {
       await expect(editor.getByRole("button", { name: /Delete job/ })).toBeDisabled();
       await expect(editor.getByRole("button", { name: /Add need/ })).toBeDisabled();
 
+      // « Delete job » gardait sa bordure rouge sur un job qu'on ne peut pas supprimer. Comparé à
+      // un bouton neutre sur le style calculé : une classe présente ne prouve pas qu'elle gagne.
+      const border = (name: RegExp) =>
+        editor
+          .getByRole("button", { name })
+          .evaluate((node) => getComputedStyle(node).borderTopColor);
+      expect(await border(/Delete job/)).toBe(await border(/^Rename$/));
+
       expect(keelson.readAt(INCLUDED_PATH)).toBe(INCLUDED);
     } finally {
       await keelson.stop();

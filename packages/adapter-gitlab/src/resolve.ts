@@ -245,9 +245,22 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
   return matches(sources, key).length > 0;
 }
 
-/** Un alias et un `!reference` ne traversent **pas** les fichiers : chez GitLab, un anchor est
- *  local au document qui le déclare. Chacun est donc résolu contre le document du fichier d'où
- *  vient la map qui le porte, et pas contre le fichier principal. */
+/** Le dernier fichier de l'ordre de fusion qui définit le chemin : un `!reference` vise la
+ *  configuration fusionnée, donc il traverse les fichiers, et le fichier principal gagne. Le
+ *  résultat est ce fichier-là : un alias qu'on y trouverait n'a de sens que dans son document. */
+function referenceTarget(path: readonly string[], context: ResolveContext): AnyNode {
+  for (const document of [...context.documents.values()].reverse()) {
+    const target = document.getIn(path, true);
+    if (target !== undefined) {
+      return target as AnyNode;
+    }
+  }
+  return null;
+}
+
+/** Un alias ne traverse **pas** les fichiers : chez GitLab, un anchor est local au document qui le
+ *  déclare, donc il se résout contre le fichier d'où vient la map qui le porte. Un `!reference`,
+ *  lui, les traverse. */
 function dereference(
   node: AnyNode,
   file: string,
@@ -265,11 +278,7 @@ function dereference(
   const tagged = node as { tag?: string } | null | undefined;
   if (tagged?.tag === REFERENCE_TAG && isSeq(node)) {
     const path = stringsOf(node);
-    const target = document.getIn(path, true);
-    return {
-      node: (target ?? null) as AnyNode,
-      origin: { kind: "reference", path },
-    };
+    return { node: referenceTarget(path, context), origin: { kind: "reference", path } };
   }
 
   return { node, origin: null };

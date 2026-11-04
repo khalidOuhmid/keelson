@@ -53,6 +53,25 @@ describe("la frontière de la racine", () => {
     expect(createFileReader(root).read("ci/alias.yml")).toContain("compile:");
   });
 
+  /** Le lien reste dans la racine, mais sa cible n'est pas un YAML : `.git/config` ou `.env`
+   *  partiraient vers le navigateur. L'extension se contrôle sur la cible, pas sur le nom du lien. */
+  test("un lien interne vers un fichier qui n'est pas du YAML est refusé", () => {
+    writeFileSync(join(root, ".env"), "API_KEY=x\n");
+    symlinkSync(join(root, ".env"), join(root, "ci", "env.yml"));
+    expect(createFileReader(root).read("ci/env.yml")).toBeNull();
+  });
+
+  /** Sans `realPrefix`, comparer un chemin réel à la racine écrite refuserait tout. */
+  test("une racine atteinte par un lien lit encore ses fichiers", () => {
+    const alias = `${root}-alias`;
+    symlinkSync(root, alias);
+    try {
+      expect(createFileReader(alias).read("ci/jobs.yml")).toContain("compile:");
+    } finally {
+      rmSync(alias);
+    }
+  });
+
   test("un chemin lexicalement sorti de la racine est refusé", () => {
     expect(createFileReader(root).read("../dehors.yml")).toBeNull();
     expect(createFileReader(root).read("/etc/passwd")).toBeNull();

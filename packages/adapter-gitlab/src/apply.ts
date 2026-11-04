@@ -45,7 +45,7 @@ import { DEFAULT_STAGES } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
 import { parse } from "./parse.ts";
-import { type AnyNode, localPair, localPairs, pairRange } from "./resolve.ts";
+import { type AnyNode, localPair, localPairs, pairRange, REFERENCE_TAG } from "./resolve.ts";
 import type { ApplyError, ApplyOk } from "./result.ts";
 import {
   afterLine,
@@ -399,7 +399,13 @@ function planSetJobStage(
     if (range === null) {
       return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageKey" });
     }
-    return ok([{ ...range, text: operation.stage }]);
+    // La plage d'un `!reference` commence après son tag : remplacer la valeur seule écrirait
+    // `stage: !reference test`. La clé est donc réécrite avec, et la surcharge est explicite.
+    const tagged = (local.value as { tag?: string }).tag === REFERENCE_TAG;
+    const keyStart = nodeRange(local.key as AnyNode)?.[0];
+    return tagged && keyStart !== undefined
+      ? ok([{ start: keyStart, end: range.end, text: `stage: ${operation.stage}` }])
+      : ok([{ ...range, text: operation.stage }]);
   }
 
   const at = overrideInsertAt(geometry, located.value);

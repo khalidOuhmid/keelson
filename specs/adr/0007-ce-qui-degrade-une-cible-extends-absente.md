@@ -17,6 +17,9 @@ n'y est inconnu : sa cause est un `INCLUDE_NOT_FOUND` en erreur, et une fois cel
 diagnostic disparaît ou devient exact. Un include distant, ou un `local` qu'on n'a pas cherché, laisse
 `warning`, parce que la cible peut réellement s'y trouver.
 
+Une URL en forme courte (`include: 'https://…'`) est un include distant, pas un chemin local cassé.
+Ce que la limite de 150 fichiers coupe n'a pas été lu : il compte dans la première famille.
+
 ## Conséquences
 
 - Un pipeline peut être partiel (`isPartial`) et rendre quand même `error` : les deux répondent à

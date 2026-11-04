@@ -311,3 +311,38 @@ describe("apply ne fait rien sortir du fichier principal", () => {
     ]);
   });
 });
+
+describe("setJobStage sur une valeur !reference", () => {
+  /** Le badge promet une surcharge explicite. L'opération écrivait `stage: !reference test` : le
+   *  tag restait sur un scalaire, une forme que personne n'a saisie et que GitLab refuse. */
+  const REFERENCED = [
+    "stages:",
+    "  - build",
+    "  - test",
+    "",
+    ".base:",
+    "  stage: build",
+    "",
+    "compile:",
+    "  stage: !reference [.base, stage]",
+    "  script:",
+    "    - make",
+    "",
+  ].join("\n");
+
+  test("la référence est remplacée en entier, et l'inverse la restaure", () => {
+    const { result } = run(
+      { [GITLAB_CI_FILE]: REFERENCED },
+      { kind: "setJobStage", id: "compile", stage: "test" },
+    );
+    if (!result.ok) {
+      throw new Error(`opération refusée : ${result.error.code}`);
+    }
+
+    expect(result.value.text).toBe(
+      REFERENCED.replace("stage: !reference [.base, stage]", "stage: test"),
+    );
+    const back = apply(result.value.document, result.value.inverse);
+    expect(back.ok ? back.value.text : null).toBe(REFERENCED);
+  });
+});

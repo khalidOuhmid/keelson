@@ -570,9 +570,9 @@ describe("un include local cassé rend le pipeline partiel", () => {
     expect(parsed.pipeline.jobs.map((entry) => entry.id)).toEqual(["a"]);
   });
 
-  /** Le cycle et la limite s'arrêtent **après** avoir lu le fichier : le pipeline a bien reçu son
-   *  contenu, donc ils ne rendent pas le pipeline partiel. C'est la distinction que `failed` fait,
-   *  et la mesurer évite de transformer `isPartial` en « il y a eu un problème quelque part ». */
+  /** Le cycle s'arrête sur un fichier **déjà lu** : le pipeline a bien reçu son contenu, donc il ne
+   *  devient pas partiel. La mesurer évite de transformer `isPartial` en « il y a eu un problème
+   *  quelque part ». La limite, elle, coupe du contenu : voir plus bas. */
   test("un cycle ne rend pas le pipeline partiel : le contenu a bien été lu", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/a.yml\n",
@@ -735,5 +735,131 @@ describe("blocs opaques d'un job surchargé", () => {
     expect(parsed.pipeline.jobs[0]?.opaque.map((block) => [block.key, block.file])).toEqual([
       ["script", GITLAB_CI_FILE],
     ]);
+  });
+});
+
+describe("un !reference traverse les fichiers", () => {
+  /** Exigé par le lot L2b et annoncé dans son cadrage, puis jamais livré : la référence était
+   *  cherchée dans le seul fichier qui la porte, et un commentaire présentait cette limite comme
+   *  une règle de GitLab. Résultat : `stage` retombait sur le défaut, sans diagnostic. */
+  const TREE = {
+    [GITLAB_CI_FILE]: [
+      "include: /ci/base.yml",
+      "",
+      "stages:",
+      "  - build",
+      "  - deploy",
+      "",
+      "compile:",
+      "  stage: build",
+      "  script:",
+      "    - make",
+      "",
+      "livrer:",
+      "  stage: !reference [.base, stage]",
+      "  needs: !reference [.base, needs]",
+      "  environment: !reference [.base, environment]",
+      "  script:",
+      "    - make ship",
+      "",
+    ].join("\n"),
+    "ci/base.yml": [
+      ".base:",
+      "  stage: deploy",
+      "  needs:",
+      "    - compile",
+      "  environment:",
+      "    name: production",
+      "",
+    ].join("\n"),
+  };
+
+  function livrer() {
+    return parseTree(TREE).pipeline.jobs.find((job) => job.id === "livrer");
+  }
+
+  test("le stage référencé est celui du fichier inclus", () => {
+    expect(livrer()?.stage).toEqual({
+      value: "deploy",
+      origin: { kind: "reference", path: [".base", "stage"] },
+    });
+  });
+
+  test("les needs et l'environnement référencés aussi", () => {
+    expect(livrer()?.needs?.value.map((need) => need.job)).toEqual(["compile"]);
+    expect(livrer()?.environment?.value.name).toBe("production");
+  });
+
+  test("le fichier principal gagne quand les deux définissent la cible", () => {
+    const parsed = parseTree({
+      ...TREE,
+      [GITLAB_CI_FILE]: `${TREE[GITLAB_CI_FILE]}\n.base:\n  stage: build\n`,
+    });
+    expect(parsed.pipeline.jobs.find((job) => job.id === "livrer")?.stage.value).toBe("build");
+  });
+});
+
+describe("include distant en forme courte", () => {
+  /** « If the file is a remote file, it is the same as include:remote » : une URL nue n'est pas un
+   *  chemin local. La traiter comme tel réécrivait l'URL, rendait une fausse erreur de fichier
+   *  absent, et faisait passer une cible `extends` absente en erreur. */
+  const URL = "https://example.com/ci/base.yml";
+
+  test("une URL nue est un include remote, intacte", () => {
+    const parsed = parseTree({ [GITLAB_CI_FILE]: `include: '${URL}'\n` });
+    expect(parsed.pipeline.unresolved.map((entry) => [entry.form, entry.detail])).toEqual([
+      ["remote", URL],
+    ]);
+    expect(codes({ [GITLAB_CI_FILE]: `include: '${URL}'\n` })).toEqual([INCLUDE_UNRESOLVED]);
+  });
+
+  test("dans une liste aussi, et la cible extends absente reste un avertissement", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include:",
+        `  - ${URL}`,
+        "",
+        "orphelin:",
+        "  extends: .absent",
+        "  script:",
+        "    - make",
+        "",
+      ].join("\n"),
+    });
+    expect(
+      parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
+    ).toBe("warning");
+  });
+
+  test("un chemin local qui contient http n'est pas une URL", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: "include: ci/https.yml\n",
+      "ci/https.yml": JOB("a", "build"),
+    });
+    expect(parsed.pipeline.unresolved).toEqual([]);
+  });
+});
+
+describe("limite d'includes et pipeline partiel", () => {
+  /** Ce que la limite coupe n'a pas été lu : le pipeline est donc partiel, et une cible `extends`
+   *  absente peut s'y trouver. La première version laissait `isPartial` à faux. */
+  function beyond(extra: string) {
+    const files: Record<string, string> = { [GITLAB_CI_FILE]: `include: ci/f0.yml\n${extra}` };
+    const total = MAX_INCLUDED_FILES + 5;
+    for (let index = 0; index < total; index += 1) {
+      files[`ci/f${index}.yml`] = index + 1 < total ? `include: ci/f${index + 1}.yml\n` : "";
+    }
+    return parseTree(files);
+  }
+
+  test("le pipeline coupé par la limite est partiel", () => {
+    expect(isPartial(beyond("").pipeline)).toBe(true);
+  });
+
+  test("une cible extends absente y reste un avertissement", () => {
+    const parsed = beyond("\norphelin:\n  extends: .absent\n  script:\n    - make\n");
+    expect(
+      parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
+    ).toBe("warning");
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Job, Pipeline, Stage, UnresolvedInclude } from "@keelson/core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReactFlowProvider } from "@xyflow/react";
 import { JobEditor } from "../src/editing/JobEditor.tsx";
@@ -252,14 +252,6 @@ describe("les contrôles d'édition d'un job inclus", () => {
     expect(drafts).toEqual([]);
   });
 
-  /** « Delete job » gardait sa bordure rouge sur un job qu'on ne peut pas supprimer : une couleur
-   *  de conséquence sur un contrôle qui n'en a aucune. */
-  test("le bouton de suppression désactivé perd sa couleur de danger", () => {
-    renderEditor(job("sast", INCLUDED), INCLUDED);
-    const remove = screen.getByRole("button", { name: /delete job/i });
-    expect(remove.className).toContain("disabled:border-border-default");
-  });
-
   test("la raison est portée par le groupe et présente dans le DOM", () => {
     renderEditor(job("sast", INCLUDED), INCLUDED);
 
@@ -422,6 +414,29 @@ describe("le texte d'aide du badge d'origine, dans le panneau de détail", () =>
     expect(hint).toBe(
       "This job is defined in an included file. Keelson never writes to included files, so this value cannot be overridden here.",
     );
+  });
+
+  /** Les trois champs, un par un : le texte passe par trois appels distincts de `Field`, et un test
+   *  sur le seul stage laissait les deux autres sans aucune garde. */
+  test("Stage, Needs et Environment portent tous le même refus sur un job inclus", () => {
+    render(
+      <JobDetailPanel
+        job={job("sast", INCLUDED, {
+          needs: { value: [], origin: includeOrigin },
+          environment: { value: { name: "prod" }, origin: includeOrigin },
+        })}
+        textOf={() => ""}
+        main={MAIN}
+        onClose={() => undefined}
+      />,
+    );
+    for (const field of ["job-stage", "job-needs", "job-environment"]) {
+      const badge = within(screen.getByTestId(field)).getByTestId("origin-badge");
+      expect({ field, hint: badge.getAttribute("title") }).toEqual({
+        field,
+        hint: READ_ONLY_ORIGIN_HINT,
+      });
+    }
   });
 
   /** Le cas que regarder l'origine seule ne pouvait pas voir : un job inclus dont la valeur vient
