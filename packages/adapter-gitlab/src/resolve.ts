@@ -468,9 +468,15 @@ function inheritedKeys(
   sources: readonly Source[],
   context: ResolveContext,
 ): ReadonlySet<string> | null {
-  const inherit = matches(sources, "inherit").at(-1);
-  const map = inherit === undefined ? null : dereference(inherit.node, inherit.file, context).node;
-  const value = isMap(map) ? (localPair(map, "default")?.value as AnyNode) : null;
+  // GitLab fusionne `inherit` en profondeur à travers `extends` : le `default` le plus proche gagne,
+  // même si un `inherit` plus proche ne parle que de `variables`.
+  const value = matches(sources, "inherit")
+    .reverse()
+    .map((entry) => {
+      const map = dereference(entry.node, entry.file, context).node;
+      return isMap(map) ? (localPair(map, "default")?.value as AnyNode) : undefined;
+    })
+    .find((entry) => entry !== undefined);
   if (isScalar(value) && value.value === false) {
     return new Set();
   }
@@ -497,31 +503,47 @@ export function defaultSources(root: YAMLMap, file: string, context: ResolveCont
   ];
 }
 
+/** `extends` fusionne les maps : `image: { entrypoint }` garde le `name` du template. Un scalaire
+ *  arrête la remontée, et un `name` écrit aussi. */
+function imageOf(found: readonly Match[], context: ResolveContext): string | null {
+  for (const source of found.toReversed()) {
+    const image = dereference(source.node, source.file, context).node;
+    const document = documentOf(context, source.file);
+    const named =
+      isMap(image) && document !== null
+        ? dereference(entryAt(image, "name", document), source.file, context).node
+        : image;
+    if (isScalar(named) && named.value !== null) {
+      return typeof named.value === "string" ? named.value : null;
+    }
+    if (!isMap(image)) {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function resolveSignals(
   sources: readonly Source[],
   defaults: readonly Source[],
   context: ResolveContext,
 ): JobSignals {
-  const inherited = inheritedKeys(sources, context);
-  const find = (key: string) =>
-    matches([...(inherited === null || inherited.has(key) ? defaults : []), ...sources], key).at(
-      -1,
-    );
+  // Un job `trigger` crée un pipeline : ni image ni script ne s'y exécutent, `default:` compris.
+  if (matches(sources, "trigger").length > 0) {
+    return { image: null, script: [] };
+  }
 
-  const found = find("image");
-  const image = found === undefined ? null : dereference(found.node, found.file, context).node;
-  const document = found === undefined ? null : documentOf(context, found.file);
-  const named =
-    isMap(image) && found !== undefined && document !== null
-      ? dereference(entryAt(image, "name", document), found.file, context).node
-      : image;
+  const inherited = inheritedKeys(sources, context);
+  const candidates = (key: string) =>
+    matches([...(inherited === null || inherited.has(key) ? defaults : []), ...sources], key);
+  const find = (key: string) => candidates(key).at(-1);
 
   const sections = SCRIPT_SECTIONS.map((key) =>
     key === "script" ? matches(sources, key).at(-1) : find(key),
   );
 
   return {
-    image: isScalar(named) && typeof named.value === "string" ? named.value : null,
+    image: imageOf(candidates("image"), context),
     script: sections.flatMap((section) =>
       section === undefined ? [] : scriptLines(section.node, section.file, context),
     ),

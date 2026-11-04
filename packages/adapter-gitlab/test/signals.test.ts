@@ -93,3 +93,28 @@ describe("les valeurs effectives de D1", () => {
     expect(cases.map((text) => signals(text)?.image)).toEqual(["a/b", "a/b", "a/b"]);
   });
 });
+
+describe("fusion d'extends et jobs sans exécution", () => {
+  test("inherit se fusionne clé par clé : default: false du template survit", () => {
+    const text =
+      "default:\n  image: d\n\n.t:\n  inherit:\n    default: false\n\njob:\n  extends: .t\n  inherit:\n    variables: false\n  script: a\n";
+    expect(signals(text)?.image).toBeNull();
+  });
+
+  test("une image objet se fusionne : le nom vient du template, l'entrypoint du job", () => {
+    const text =
+      ".t:\n  image:\n    name: aquasec/trivy\n\njob:\n  extends: .t\n  image:\n    entrypoint: ['']\n  script: a\n";
+    expect(signals(text)?.image).toBe("aquasec/trivy");
+  });
+
+  test("un scalaire du job remplace l'objet du template", () => {
+    const text = ".t:\n  image:\n    name: a/b\n\njob:\n  extends: .t\n  image: c/d\n  script: a\n";
+    expect(signals(text)?.image).toBe("c/d");
+  });
+
+  test("un job trigger n'exécute rien : image et before_script de default ne s'y appliquent pas", () => {
+    const text =
+      "default:\n  image: aquasec/trivy\n  before_script:\n    - trivy fs .\n\njob:\n  trigger: child.yml\n";
+    expect(signals(text)).toEqual({ image: null, script: [] });
+  });
+});
