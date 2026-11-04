@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DocumentStore } from "../src/store.ts";
@@ -87,6 +87,28 @@ describe("chargement d'un document à includes", () => {
   test("le store expose les fichiers inclus du document", async () => {
     await store.load(".gitlab-ci.yml");
     expect(store.includedFiles(".gitlab-ci.yml")).toEqual(["ci/jobs.yml"]);
+  });
+});
+
+describe("un lien symbolique qui sort de la racine", () => {
+  /** La conséquence réelle du défaut trouvé par la revue de L2b n'est pas qu'un `read()` rende une
+   *  valeur : c'est que le contenu d'un fichier arbitraire parte dans la charge envoyée au
+   *  navigateur. `reader.test.ts` garde le lecteur, ce test garde la charge. */
+  test("son contenu n'entre pas dans la charge du document", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-dehors-"));
+    try {
+      writeFileSync(join(outside, "secret.txt"), "SECRET-HORS-DEPOT\n");
+      symlinkSync(join(outside, "secret.txt"), join(root, "ci", "fuite.yml"));
+      write(".gitlab-ci.yml", MAIN.replace("/ci/jobs.yml", "/ci/fuite.yml"));
+
+      const loaded = await store.load(".gitlab-ci.yml");
+
+      expect(JSON.stringify(loaded)).not.toContain("SECRET-HORS-DEPOT");
+      expect(loaded?.included).toEqual({});
+      expect(loaded?.diagnostics.map((entry) => entry.code)).toContain("INCLUDE_NOT_FOUND");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 });
 

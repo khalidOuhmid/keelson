@@ -66,10 +66,10 @@ export type Template = {
   file: string;
 };
 
-/** Un `include` que Keelson ne résout pas : les quatre formes distantes, et `local` dans le seul
- *  cas où l'appelant n'a fourni aucun lecteur de fichiers. `detail` est la valeur telle qu'elle est
- *  écrite, pour que l'écran puisse dire ce qui manque et non seulement qu'il manque quelque
- *  chose. */
+/** Un `include` dont le contenu manque au pipeline affiché : les quatre formes distantes, et
+ *  `local` quand l'appelant n'a fourni aucun lecteur ou que le fichier n'a pas pu être résolu.
+ *  `detail` est la valeur telle qu'elle est écrite, pour que l'écran puisse dire ce qui manque et
+ *  non seulement qu'il manque quelque chose. */
 export type UnresolvedInclude = {
   form: "local" | "remote" | "project" | "template" | "component";
   detail: string;

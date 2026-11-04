@@ -230,9 +230,11 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
     }
 
     if (entry.kind === "malformed") {
-      notFound(state, parent.file, "an unreadable include entry", entry.range, {
-        reason: "malformed",
-      });
+      // `detail` est la valeur telle qu'elle est écrite, comme partout ailleurs. Une phrase ici
+      // serait du texte produit hors du module de messages, ce que l'ADR 0002 interdit.
+      const written =
+        entry.range === null ? "" : parent.text.slice(entry.range.start, entry.range.end);
+      notFound(state, parent.file, written.trim(), entry.range, { reason: "malformed" });
       continue;
     }
 

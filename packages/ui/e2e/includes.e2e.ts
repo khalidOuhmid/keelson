@@ -141,6 +141,35 @@ test.describe("include locaux sur le binaire réel", () => {
   });
 });
 
+test("la raison du verrou reste visible quand on défile jusqu'aux contrôles", async ({ page }) => {
+  // Mesure de géométrie : `happy-dom` ne fait aucune mise en page, donc `sticky` ne se vérifie
+  // qu'ici. Sans lui, la note sort par le haut de la colonne pendant qu'on atteint les contrôles
+  // morts qu'elle explique.
+  const keelson = await startKeelson(TREE);
+  try {
+    await page.goto(keelson.url);
+    await page.locator('[data-job-id="sast"]').click();
+
+    const editor = page.getByRole("group", { name: "Job editor" });
+    const column = page.locator("aside", { has: editor });
+    await column.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    await expect.poll(() => column.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+
+    const note = editor.getByText("Editing is off for this job");
+    const noteBox = await note.boundingBox();
+    const columnBox = await column.boundingBox();
+    if (noteBox === null || columnBox === null) {
+      throw new Error("note ou colonne sans géométrie");
+    }
+    expect(noteBox.y).toBeGreaterThanOrEqual(columnBox.y);
+    expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(columnBox.y + columnBox.height);
+  } finally {
+    await keelson.stop();
+  }
+});
+
 test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {
   /** `happy-dom` n'implémente pas le basculement natif de `<details>` à la touche Entrée : le test
    *  unitaire ne peut mesurer que la focalisabilité du résumé. Le dépliage, lui, ne se vérifie que

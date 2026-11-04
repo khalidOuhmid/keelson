@@ -115,6 +115,31 @@ describe("un job inclus dans la vue Pipeline", () => {
     );
   });
 
+  /** Mesuré par la passe `critique` de L2b : le badge occupait 178 px d'une ligne de 205 et
+   *  réduisait le stage à 23 px tronqués. Il est donc absent d'un nœud inclus, et reste sur un nœud
+   *  du fichier principal, où il n'est pas redondant avec `read-only`. */
+  test("le badge d'origine n'est pas sur un nœud inclus", () => {
+    renderNode("sast");
+    expect(screen.queryByTestId("origin-badge")).toBeNull();
+  });
+
+  test("le badge d'origine reste sur un nœud du fichier principal", () => {
+    render(
+      <ReactFlowProvider>
+        <JobNode
+          {...({
+            id: "local-job",
+            data: {
+              ...nodeData("local-job"),
+              stageOrigin: { kind: "extends", template: ".base" },
+            },
+          } as JobNodeProps)}
+        />
+      </ReactFlowProvider>,
+    );
+    expect(screen.getByTestId("origin-badge")).toBeDefined();
+  });
+
   test("un job du fichier principal ne porte aucune de ces marques", () => {
     renderNode("local-job");
     expect(screen.queryByText("read-only")).toBeNull();
@@ -169,6 +194,11 @@ describe("le panneau de détail d'un job inclus", () => {
     const block = screen.getByRole("group", { name: "Opaque block script" });
     expect(block.textContent).toContain("make inclu");
     expect(block.textContent).not.toContain("LOCAL");
+  });
+
+  test("le fichier source n'est nommé que s'il n'est pas le fichier principal", () => {
+    renderPanel(job("local-job"));
+    expect(screen.queryByTestId("job-source-file")).toBeNull();
   });
 
   test("un job du fichier principal n'a pas de note de verrou", () => {

@@ -516,6 +516,13 @@ describe("un include local cassé rend le pipeline partiel", () => {
     ]);
   });
 
+  test("une entrée illisible garde sa valeur écrite, et aucune phrase de l'adaptateur", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: ["include:", "  - 42", ""].join("\n"),
+    });
+    expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["42"]);
+  });
+
   test("un include résolu ne compte pas, même à côté d'un cassé", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include:", "  - /ci/bon.yml", "  - /ci/absent.yml", ""].join("\n"),
