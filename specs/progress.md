@@ -592,4 +592,8 @@ affirmait que l'édition ne réécrit jamais la liste entière. `specs/pilote.md
 **Ce qui reste volontairement non traité** : les formes rares de `setJobStage`, `keelson validate`
 sans le lecteur, et `writeAtomic` à travers un lien interne, tous consignés.
 
-Vérification finale depuis un arbre sans `dist/`, `types/` ni `*.tsbuildinfo` : VERIF.
+Vérification finale depuis un arbre sans `dist/`, `types/` ni `*.tsbuildinfo` :
+`bun install --frozen-lockfile` (133 installs, no changes), `bun run check` → lint 248 fichiers
+0 erreur, typecheck 0 erreur, **1236 pass / 0 fail**, build complet ; `bun run e2e` → **46 passed** ;
+`KEELSON_FC_RUNS=500` sur les propriétés → 18 pass ; binaire sous `node v22.16.0` : un include local
+cassé rend `INCLUDE_NOT_FOUND` et `EXTENDS_TARGET_NOT_FOUND` en `error`, sur le bon fichier, exit 1.
