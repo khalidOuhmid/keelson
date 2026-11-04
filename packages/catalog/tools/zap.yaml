@@ -7,7 +7,7 @@ homepage: https://www.zaproxy.org
 verifiedAt: https://www.zaproxy.org/docs/docker/about/
 logo: null
 detect:
-  images: ['zaproxy/zap', 'owasp/zap2docker']
+  images: ['zaproxy/zap-stable', 'zaproxy/zap-weekly', 'zaproxy/zaproxy', 'owasp/zap2docker-stable', 'owasp/zap2docker-weekly']
   scripts: ['\bzap-(baseline|full-scan|api-scan)\.py\b']
 snippets:
   gitlab: |

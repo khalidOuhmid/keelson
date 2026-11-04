@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Job, Pipeline } from "@keelson/core";
+import { parse as parseYaml } from "yaml";
 import { coverage, detectTools, loadCatalog, type Tool } from "../src/index.ts";
 
 const { tools } = loadCatalog();
@@ -46,6 +47,48 @@ function pipeline(jobs: Job[], unresolved: Pipeline["unresolved"] = []): Pipelin
     unresolved,
   };
 }
+
+describe("les fiches réelles", () => {
+  const catalog = loadCatalog();
+  const found = (signals: { image: string | null; script: string[] }) =>
+    detectTools(signals, catalog.tools).map((entry) => entry.tool);
+
+  test.each([
+    ['bash -c "trivy fs ."', "trivy"],
+    ["sh -c 'trivy image x'", "trivy"],
+    ["(trivy fs .)", "trivy"],
+    ["time(trivy fs .)", "trivy"],
+    ['bash -c "semgrep scan"', "semgrep"],
+  ])("le script %s nomme %s", (line, tool) => {
+    expect(found({ image: null, script: [line] })).toContain(tool);
+  });
+
+  test.each([
+    "zaproxy/zap-stable:2.15",
+    "zaproxy/zap-weekly",
+    "ghcr.io/zaproxy/zaproxy:stable",
+    "owasp/zap2docker-stable",
+  ])("l'image officielle %s est ZAP", (image) => {
+    expect(found({ image, script: [] })).toContain("zap");
+  });
+
+  test("chaque image de snippet GitLab est reconnue par sa propre fiche", () => {
+    const missed = catalog.tools.flatMap((tool) => {
+      const snippet = tool.snippets.gitlab;
+      if (snippet === null) {
+        return [];
+      }
+      const jobs = parseYaml(snippet) as Record<string, { image?: string | { name: string } }>;
+      return Object.values(jobs).flatMap((job) => {
+        const image = typeof job.image === "object" ? job.image.name : (job.image ?? null);
+        return image === null || found({ image, script: [] }).includes(tool.id)
+          ? []
+          : [`${tool.id}: ${image}`];
+      });
+    });
+    expect(missed).toEqual([]);
+  });
+});
 
 describe("détection", () => {
   test("sur l'image, sans tenir compte de la casse ni du tag", () => {
