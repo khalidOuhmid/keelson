@@ -170,6 +170,41 @@ test("la raison du verrou reste visible quand on défile jusqu'aux contrôles", 
   }
 });
 
+test("dépliée, la bande partielle ne dévore pas l'écran", async ({ page }) => {
+  // Mesuré pendant `polish` : avec 31 includes non résolus, 729 px sur 800, et 2751 px à 375 de
+  // large. Une borne en pourcentage ne vaut que sur un élément dont le parent a une hauteur.
+  const templates = Array.from(
+    { length: 40 },
+    (_, index) => `  - template: Jobs/Template-${index}.gitlab-ci.yml`,
+  );
+  const keelson = await startKeelson({
+    ".gitlab-ci.yml": [
+      "include:",
+      ...templates,
+      "",
+      "compile:",
+      "  script:",
+      "    - make",
+      "",
+    ].join("\n"),
+  });
+  try {
+    await page.goto(keelson.url);
+    await page.locator("summary").click();
+
+    const bar = page.getByRole("group", { name: "Partial pipeline" });
+    await expect(bar).toContainText("Jobs/Template-0.gitlab-ci.yml");
+    const box = await bar.boundingBox();
+    const viewport = page.viewportSize();
+    if (box === null || viewport === null) {
+      throw new Error("bande ou fenêtre sans géométrie");
+    }
+    expect(box.height).toBeLessThanOrEqual(viewport.height / 3 + 1);
+  } finally {
+    await keelson.stop();
+  }
+});
+
 test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {
   /** `happy-dom` n'implémente pas le basculement natif de `<details>` à la touche Entrée : le test
    *  unitaire ne peut mesurer que la focalisabilité du résumé. Le dépliage, lui, ne se vérifie que

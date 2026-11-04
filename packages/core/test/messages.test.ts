@@ -76,7 +76,7 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   EXTENDS_TARGET_NOT_FOUND: [
     {
       params: { template: ".absent" },
-      text: 'extends target ".absent" does not exist in this file',
+      text: 'extends target ".absent" does not exist in any resolved file',
     },
   ],
   EXTENDS_CYCLE: [{ params: { trail: [".a", ".b", ".a"] }, text: "extends cycle: .a → .b → .a" }],

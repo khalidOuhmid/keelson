@@ -252,6 +252,14 @@ describe("les contrôles d'édition d'un job inclus", () => {
     expect(drafts).toEqual([]);
   });
 
+  /** « Delete job » gardait sa bordure rouge sur un job qu'on ne peut pas supprimer : une couleur
+   *  de conséquence sur un contrôle qui n'en a aucune. */
+  test("le bouton de suppression désactivé perd sa couleur de danger", () => {
+    renderEditor(job("sast", INCLUDED), INCLUDED);
+    const remove = screen.getByRole("button", { name: /delete job/i });
+    expect(remove.className).toContain("disabled:border-border-default");
+  });
+
   test("la raison est portée par le groupe et présente dans le DOM", () => {
     renderEditor(job("sast", INCLUDED), INCLUDED);
 
