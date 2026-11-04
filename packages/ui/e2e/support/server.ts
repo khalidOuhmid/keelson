@@ -81,7 +81,10 @@ export async function startKeelson(tree?: Tree): Promise<Running> {
     read: () => readFileSync(file, "utf8"),
     readAt: (path) => readFileSync(join(dir, path), "utf8"),
     write: (text) => writeFileSync(file, text),
-    writeAt: (path, text) => writeFileSync(join(dir, path), text),
+    writeAt: (path, text) => {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), text);
+    },
     async stop() {
       child.kill("SIGINT");
       await new Promise<void>((resolve) => {

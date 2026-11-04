@@ -119,6 +119,9 @@ que le contrôle de `Host` du serveur exige. Un test
 (`packages/ui/test/devProxy.test.ts`) garde la cohérence du token, du port et de cette option entre
 le script et la configuration Vite.
 
+`KEELSON_DEV_FIXTURE=includes bun run dev` ouvre `packages/ui/dev-fixture-includes/`, un pipeline
+réparti sur plusieurs fichiers, pour les surfaces d'include.
+
 La fixture de dev est un pipeline volontairement riche : quatre stages, needs en forme objet et
 optionnels, `extends`, environnement. Les tests E2E en prennent une copie temporaire.
 

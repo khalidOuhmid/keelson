@@ -1,0 +1,14 @@
+# Keelson dev fixture — a pipeline split across files, for the include surfaces.
+
+include:
+  - /ci/security.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - build
+  - test
+
+compile:
+  stage: build
+  script:
+    - make
