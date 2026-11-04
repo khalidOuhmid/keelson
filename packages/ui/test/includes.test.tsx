@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 import type { Job, Pipeline, Stage, UnresolvedInclude } from "@keelson/core";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { JobEditor } from "../src/editing/JobEditor.tsx";
 import { StageControls } from "../src/editing/StageControls.tsx";
 import { JobDetailPanel } from "../src/panels/JobDetailPanel.tsx";
 import type { Draft } from "../src/state/store.ts";
@@ -206,47 +205,6 @@ describe("le panneau de détail d'un job inclus", () => {
       screen.getByRole("region", { name: "Job detail" }).getAttribute("aria-describedby"),
     ).toBeNull();
     expect(screen.getByRole("heading", { level: 2 }).textContent).not.toContain("read-only");
-  });
-});
-
-describe("les contrôles d'édition d'un job inclus", () => {
-  function renderEditor(target: Job, lockedTo: string | null) {
-    const drafts: Draft[] = [];
-    render(
-      <JobEditor
-        job={target}
-        pipeline={pipeline()}
-        onSubmit={(draft) => drafts.push(draft)}
-        lockedTo={lockedTo}
-      />,
-    );
-    return drafts;
-  }
-
-  /** Le formulaire entier disparaît : des champs vides et des cases cochées par défaut se liraient
-   *  comme l'état d'un job qu'on ne peut de toute façon pas écrire. */
-  test("un job inclus ne rend aucun contrôle, seulement la raison", () => {
-    const { container } = render(
-      <JobEditor
-        job={job("sast", INCLUDED)}
-        pipeline={pipeline()}
-        onSubmit={() => undefined}
-        lockedTo={INCLUDED}
-      />,
-    );
-    expect(container.querySelectorAll("input, select, button, form")).toHaveLength(0);
-    expect(container.textContent).toBe(
-      `Editing is off for this job. It is defined in ${INCLUDED}, and Keelson never writes to included files.`,
-    );
-  });
-
-  test("sans verrou, les contrôles restent actifs et la raison est absente", () => {
-    renderEditor(job("local-job"), null);
-
-    const group = screen.getByRole("group", { name: "Job editor" });
-    expect([...group.querySelectorAll("button")].some((b) => !b.hasAttribute("disabled"))).toBe(
-      true,
-    );
   });
 });
 

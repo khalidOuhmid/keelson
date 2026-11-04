@@ -14,7 +14,7 @@ export function LayerTag({ layer }: { layer: LayerId }) {
     <span
       title={name}
       data-family={family}
-      className={`shrink-0 rounded-sm border px-1 text-2xs tracking-label uppercase ${TONE[family]}`}
+      className={`min-w-0 truncate rounded-sm border px-1 text-2xs tracking-label uppercase ${TONE[family]}`}
     >
       {short}
     </span>

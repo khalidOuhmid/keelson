@@ -83,7 +83,7 @@ test.describe("include locaux sur le binaire réel", () => {
 
       await expect(page.getByTestId("job-source-file")).toContainText(INCLUDED_PATH);
 
-      await expect(page.getByText("Editing is off for this job")).toBeVisible();
+      await expect(page.getByText("This job is defined in an included file.")).toBeVisible();
       await expect(page.getByRole("group", { name: "Job editor" })).toHaveCount(0);
 
       expect(keelson.readAt(INCLUDED_PATH)).toBe(INCLUDED);

@@ -60,12 +60,14 @@ describe("panneau de couverture", () => {
 
   test("compte les couches couvertes sur les vingt et une", () => {
     renderPanel(coverage({ sast: ["a"], sca: ["b"] }));
-    expect(screen.getByTestId("coverage-count").textContent).toBe("2 of 21 layers covered");
+    expect(screen.getByTestId("coverage-count").textContent).toBe(
+      "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+    );
   });
 
   test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {
     const { onShowTools } = renderPanel(coverage({ sast: ["a"] }));
-    const uncovered = screen.getByRole("region", { name: "Uncovered layers" });
+    const uncovered = screen.getByRole("region", { name: "Uncovered OWASP layers" });
 
     expect(within(uncovered).getByText("Dynamic testing")).toBeDefined();
     expect(
@@ -80,21 +82,33 @@ describe("panneau de couverture", () => {
 
   test("une couche OWASP cite la Guideline, une catégorie plateforme non", () => {
     renderPanel(coverage({}));
-    const uncovered = screen.getByRole("region", { name: "Uncovered layers" });
+    const uncovered = screen.getByRole("region", { name: "Uncovered OWASP layers" });
     const rowOf = (name: string) => within(uncovered).getByText(name).closest("li") as HTMLElement;
 
     const link = within(rowOf("Dynamic testing")).getByRole("link", { name: "OWASP guideline" });
     expect(link.getAttribute("href")).toContain("2-4-2-Dynamic-Application-Security-Testing.md");
-    expect(within(rowOf("Source control")).queryByRole("link")).toBeNull();
+    const platform = screen.getByRole("region", { name: "Platform categories not seen" });
+    const row = within(platform).getByText("Source control").closest("li") as HTMLElement;
+    expect(within(row).queryByRole("link")).toBeNull();
   });
 
   test("choisir une couche couverte la met en avant, et le bouton le dit", async () => {
     const { onSelect } = renderPanel(coverage({ sast: ["a", "b"] }), "sast");
     const button = screen.getByRole("button", { name: /Static analysis/ });
     expect(button.getAttribute("aria-pressed")).toBe("true");
-    expect(button.textContent).toContain("2 jobs");
+    expect(button.textContent).toContain("a, b");
     await userEvent.click(button);
     expect(onSelect).toHaveBeenCalledWith("sast");
+  });
+
+  /** Une catégorie plateforme vit autour du pipeline : sur un dépôt GitLab, « Source control » n'est
+   *  pas une lacune de sécurité, et le compte unique mêlait les deux référentiels. */
+  test("une catégorie plateforme non vue n'est pas une couche OWASP non couverte", () => {
+    renderPanel(coverage({}));
+    const owasp = screen.getByRole("region", { name: "Uncovered OWASP layers" });
+    const platform = screen.getByRole("region", { name: "Platform categories not seen" });
+    expect(within(owasp).queryByText("Source control")).toBeNull();
+    expect(within(platform).getByText("Source control")).toBeDefined();
   });
 
   test("un pipeline partiel fait de la couverture une borne basse, à l'écran", () => {
@@ -178,6 +192,17 @@ describe("étiquettes de couche sur un nœud", () => {
     expect(button.textContent).not.toContain("IaC");
   });
 
+  test("sur l'overlay, le stage laisse sa place : la colonne le dit déjà", () => {
+    expect(node({ jobs: new Map([["scan", ["sast"]]]), selected: null }).textContent).not.toContain(
+      "test",
+    );
+  });
+
+  test("la couche choisie passe devant, sinon elle resterait derrière le compteur", () => {
+    const button = node({ jobs: new Map([["scan", ["sast", "sca", "dast"]]]), selected: "dast" });
+    expect(button.textContent).toContain("DAST");
+  });
+
   test("la couche choisie met le job en avant", () => {
     expect(
       node({ jobs: new Map([["scan", ["sast"]]]), selected: "sast" }).getAttribute(
@@ -254,6 +279,27 @@ describe("catalogue", () => {
     renderCatalog();
     await userEvent.selectOptions(screen.getByLabelText("Layer"), "iast");
     expect(screen.getByText("No tool matches these filters.")).toBeDefined();
+  });
+
+  test("le résultat d'un filtre est annoncé aux lecteurs d'écran", () => {
+    renderCatalog();
+    expect(screen.getByTestId("catalog-count").getAttribute("role")).toBe("status");
+  });
+
+  test("les outils sont triés par nom, sans tenir compte de la casse", () => {
+    render(
+      <CatalogView
+        catalog={{
+          layers: [...LAYERS],
+          tools: [tool("z", { name: "Zeta" }), tool("a", { name: "alpha" })],
+          logos: {},
+        }}
+        initialLayer={null}
+      />,
+    );
+    expect(
+      screen.getAllByRole("button", { pressed: false }).map((entry) => entry.textContent),
+    ).toEqual(["alpha", "Zeta"]);
   });
 
   test("la fiche dit la licence, sa nature, la vérification et le snippet", async () => {

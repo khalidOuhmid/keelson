@@ -162,7 +162,7 @@ export function App({ deps }: AppProps = {}) {
   const editable = state.canEdit() && !state.pending;
 
   useHistoryShortcuts({
-    enabled: editable,
+    enabled: editable && state.view === "pipeline",
     onUndo: () => void store.getState().undo(),
     onRedo: () => void store.getState().redo(),
   });
@@ -235,7 +235,7 @@ export function App({ deps }: AppProps = {}) {
       <NoticeBar notice={state.notice} onDismiss={() => store.getState().dismissNotice()} />
       <ErrorBanner error={state.error} onDismiss={() => store.getState().dismissError()} />
 
-      <header className="flex h-[var(--keelson-header-height)] shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-3">
+      <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
         <span className="flex items-baseline gap-2 overflow-hidden">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
           {state.file === null ? null : (
@@ -255,7 +255,7 @@ export function App({ deps }: AppProps = {}) {
             </span>
           )}
         </span>
-        <span className="flex shrink-0 items-center gap-3">
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {state.pending ? (
             <span
               data-testid="pending-indicator"
@@ -282,19 +282,24 @@ export function App({ deps }: AppProps = {}) {
                 key={view}
                 type="button"
                 aria-current={state.view === view ? "page" : undefined}
-                onClick={() => store.getState().setView(view)}
-                className={`${BUTTON} aria-[current=page]:border-accent aria-[current=page]:text-text-primary`}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  store.getState().setView(view);
+                }}
+                className={`${BUTTON} aria-[current=page]:border-accent aria-[current=page]:bg-surface-3 aria-[current=page]:font-semibold aria-[current=page]:text-text-primary`}
               >
                 {label}
               </button>
             ))}
           </nav>
-          <HistoryControls
-            canUndo={state.canUndo()}
-            canRedo={state.canRedo()}
-            onUndo={() => void store.getState().undo()}
-            onRedo={() => void store.getState().redo()}
-          />
+          {state.view === "pipeline" ? (
+            <HistoryControls
+              canUndo={state.canUndo()}
+              canRedo={state.canRedo()}
+              onUndo={() => void store.getState().undo()}
+              onRedo={() => void store.getState().redo()}
+            />
+          ) : null}
         </span>
       </header>
 
@@ -318,7 +323,10 @@ export function App({ deps }: AppProps = {}) {
                 coverage={state.coverage}
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}
-                onShowTools={(layer) => store.getState().showTools(layer)}
+                onShowTools={(layer) => {
+                  setSidebarOpen(false);
+                  store.getState().showTools(layer);
+                }}
               />
             ) : (
               <>
@@ -349,9 +357,14 @@ export function App({ deps }: AppProps = {}) {
               job={selected}
               textOf={(file) => state.textOf(file)}
               main={state.pipeline.main}
+              coverage={
+                reading
+                  ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)
+                  : null
+              }
               onClose={() => store.getState().selectJob(null)}
             />
-            {reading ? null : (
+            {reading || selected.file !== state.pipeline.main ? null : (
               <div className="border-l border-border-subtle bg-surface-1 p-3">
                 <JobEditor
                   key={selected.id}
@@ -359,7 +372,6 @@ export function App({ deps }: AppProps = {}) {
                   pipeline={state.pipeline}
                   onSubmit={(draft) => void store.getState().submit(draft)}
                   disabled={!editable}
-                  lockedTo={selected.file === state.pipeline.main ? null : selected.file}
                 />
               </div>
             )}

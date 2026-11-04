@@ -11,27 +11,14 @@ import {
   setJobStage,
 } from "./drafts.ts";
 
-export function jobLockNote(file: string): string {
-  return `Editing is off for this job. It is defined in ${file}, and Keelson never writes to included files.`;
-}
-
 export type JobEditorProps = {
   job: Job;
   pipeline: Pipeline;
   onSubmit: (draft: Draft) => void;
   disabled?: boolean;
-  /** Le fichier inclus qui possède le job, ou `null` s'il vit dans le fichier principal. Non nul
-   *  ⇒ seule la raison est rendue. */
-  lockedTo?: string | null;
 };
 
-export function JobEditor({
-  job,
-  pipeline,
-  onSubmit,
-  disabled = false,
-  lockedTo = null,
-}: JobEditorProps) {
+export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEditorProps) {
   const needs = job.needs?.value ?? [];
   const required = new Set(needs.map((need) => need.job));
   const candidates = pipeline.jobs
@@ -76,16 +63,6 @@ export function JobEditor({
       onSubmit(draft);
     }
   };
-
-  // Un job inclus n'a pas de formulaire : des champs vides et des cases cochées par défaut se
-  // liraient comme l'état d'un job qu'on ne peut de toute façon pas écrire.
-  if (lockedTo !== null) {
-    return (
-      <p className="border-t border-border-subtle pt-3 text-sm text-text-secondary">
-        {jobLockNote(lockedTo)}
-      </p>
-    );
-  }
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: fieldset est réservé aux contrôles d'un seul formulaire ; ce bloc en contient plusieurs

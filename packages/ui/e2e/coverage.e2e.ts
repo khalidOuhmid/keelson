@@ -34,7 +34,9 @@ test.describe("couverture sur le binaire réel", () => {
       await page.getByRole("button", { name: "Coverage" }).click();
 
       await expect(page.getByRole("group", { name: "Stages" })).toHaveCount(0);
-      await expect(page.getByTestId("coverage-count")).toHaveText("2 of 21 layers covered");
+      await expect(page.getByTestId("coverage-count")).toHaveText(
+        "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+      );
       await expect(page.locator('[data-job-id="secrets"]')).toContainText("Secrets");
       // Détecté à travers un include, sur une ligne de script.
       await expect(page.locator('[data-job-id="sast"]')).toContainText("SAST");
@@ -71,7 +73,7 @@ test.describe("couverture sur le binaire réel", () => {
       await page.getByRole("button", { name: "Coverage" }).click();
 
       const row = page
-        .getByRole("region", { name: "Uncovered layers" })
+        .getByRole("region", { name: "Uncovered OWASP layers" })
         .getByRole("listitem")
         .filter({ hasText: "Dynamic testing" });
       await row.getByRole("button", { name: "See tools" }).click();
@@ -92,13 +94,68 @@ test.describe("couverture sur le binaire réel", () => {
     try {
       await page.goto(keelson.url);
       await page.getByRole("button", { name: "Coverage" }).click();
-      await expect(page.getByTestId("coverage-count")).toHaveText("2 of 21 layers covered");
+      await expect(page.getByTestId("coverage-count")).toHaveText(
+        "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+      );
 
       keelson.writeAt(".devsecops/layout.json", '{"version":1,"layers":{"compile":["iast"]}}');
 
-      await expect(page.getByTestId("coverage-count")).toHaveText("3 of 21 layers covered", {
-        timeout: 10_000,
-      });
+      await expect(page.getByTestId("coverage-count")).toHaveText(
+        "3 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+        {
+          timeout: 10_000,
+        },
+      );
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("la vue de lecture n'écrit rien, même à Ctrl+Z", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("New stage name").fill("livrer");
+      await page.getByRole("button", { name: "Add stage" }).click();
+      await expect.poll(() => keelson.read()).toContain("livrer");
+      const written = keelson.read();
+
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await expect(page.getByRole("button", { name: /Undo/ })).toHaveCount(0);
+      await page.keyboard.press("Control+z");
+      await page.waitForTimeout(300);
+      expect(keelson.read()).toBe(written);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("à 375 px, l'en-tête tient dans la fenêtre", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await expect(page.getByRole("button", { name: "Catalog" })).toBeVisible();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBe(0);
+
+      await page.getByRole("button", { name: "Catalog" }).click();
+      await page.getByRole("button", { name: /^ZAP/ }).scrollIntoViewIfNeeded();
+      await expect(page.getByLabel("Layer")).toBeInViewport();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("le panneau d'un job dit ce qui a décidé de ses couches", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await page.locator('[data-job-id="sast"]').click();
+      await expect(page.getByTestId("job-layers-source")).toHaveText("Detected from semgrep.");
     } finally {
       await keelson.stop();
     }

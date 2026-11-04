@@ -8,4 +8,5 @@ export {
   type Layer,
   type LayerFamily,
   type LayerId,
+  type LayerSource,
 } from "./layers.ts";

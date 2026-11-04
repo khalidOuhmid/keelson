@@ -112,7 +112,14 @@ export function toFlowGraph(
           selected: job.id === selectedJobId,
           file: job.file,
           included: job.file !== pipeline.main,
-          layers: overlay === null ? null : (overlay.jobs.get(job.id) ?? []),
+          // La couche choisie passe en tête : sinon elle peut rester cachée derrière « +2 ».
+          layers:
+            overlay === null
+              ? null
+              : [...(overlay.jobs.get(job.id) ?? [])].sort(
+                  (left, right) =>
+                    Number(right === overlay.selected) - Number(left === overlay.selected),
+                ),
           emphasised:
             overlay?.selected != null &&
             (overlay.jobs.get(job.id) ?? []).includes(overlay.selected),
