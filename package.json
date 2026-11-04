@@ -28,6 +28,7 @@
     "@types/bun": "^1.4.3",
     "@types/node": "^26.6.5",
     "fast-check": "^4.10.2",
+    "simple-icons": "^16.36.0",
     "typescript": "^7.0.2"
   }
 }
