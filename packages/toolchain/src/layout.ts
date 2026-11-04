@@ -5,13 +5,19 @@ import { z } from "zod";
 
 export const LAYOUT_FILE = ".devsecops/layout.json";
 
+export type Position = { x: number; y: number };
+
+export type Positions = Readonly<Record<string, Position>>;
+
 const layoutSchema = z.object({
   version: z.literal(1),
   layers: z.record(z.string(), z.array(z.string())).default({}),
+  positions: z.record(z.string(), z.strictObject({ x: z.number(), y: z.number() })).default({}),
 });
 
 export type ParsedLayout = {
   overrides: Readonly<Record<string, readonly LayerId[]>>;
+  positions: Positions;
   diagnostics: Diagnostic[];
 };
 
@@ -20,14 +26,18 @@ function warn(found: Omit<Diagnostic, "severity" | "range" | "file">): Diagnosti
 }
 
 function invalid(detail: string): ParsedLayout {
-  return { overrides: {}, diagnostics: [warn({ code: LAYOUT_INVALID, params: { detail } })] };
+  return {
+    overrides: {},
+    positions: {},
+    diagnostics: [warn({ code: LAYOUT_INVALID, params: { detail } })],
+  };
 }
 
 /** Un fichier illisible n'empêche rien : la détection s'applique, et le diagnostic le dit. `text`
  *  nul veut dire que le fichier n'existe pas, ce qui est le cas normal. */
 export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayout {
   if (text === null) {
-    return { overrides: {}, diagnostics: [] };
+    return { overrides: {}, positions: {}, diagnostics: [] };
   }
 
   let raw: unknown;
@@ -59,5 +69,26 @@ export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayo
     overrides[job] = layers.filter(isLayerId);
   }
 
-  return { overrides, diagnostics };
+  return { overrides, positions: parsed.data.positions, diagnostics };
+}
+
+/** Le texte de `layout.json` avec ces positions, ou `null` si le fichier actuel n'est pas compris :
+ *  Keelson n'écrase pas ce qu'il ne sait pas lire. Les clés qu'il ignore survivent. */
+export function writePositions(text: string | null, positions: Positions): string | null {
+  let current: unknown = { version: 1 };
+  if (text !== null) {
+    try {
+      current = JSON.parse(text);
+    } catch {
+      return null;
+    }
+    if (!layoutSchema.safeParse(current).success) {
+      return null;
+    }
+  }
+
+  const sorted = Object.fromEntries(
+    Object.entries(positions).sort(([left], [right]) => (left < right ? -1 : 1)),
+  );
+  return `${JSON.stringify({ ...(current as object), positions: sorted }, null, 2)}\n`;
 }

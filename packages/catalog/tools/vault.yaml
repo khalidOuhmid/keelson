@@ -21,4 +21,5 @@ snippets:
   github: |
     - name: Read a secret from Vault
       run: vault kv get -mount=secret -field=passcode creds
+integration: fetch-secret
 lastVerified: 2026-11-04

@@ -1,9 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import type { Job, Pipeline } from "@keelson/core";
 import { parse as parseYaml } from "yaml";
-import { coverage, detectTools, loadCatalog, type Tool } from "../src/index.ts";
+import { coverage, detectIntegrations, detectTools, loadCatalog, type Tool } from "../src/index.ts";
 
 const { tools } = loadCatalog();
+
+function catalogTool(id: string): Tool {
+  const found = tools.find((entry) => entry.id === id);
+  if (found === undefined) {
+    throw new Error(id);
+  }
+  return found;
+}
 
 function tool(id: string, overrides: Partial<Tool> = {}): Tool {
   return {
@@ -15,6 +23,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     homepage: "https://exemple.org",
     verifiedAt: "https://exemple.org",
     logo: null,
+    integration: null,
     detect: { images: [`exemple/${id}`], scripts: [`\\b${id}\\b`] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
@@ -48,7 +57,61 @@ function pipeline(jobs: Job[], unresolved: Pipeline["unresolved"] = []): Pipelin
   };
 }
 
+describe("intégrations détectées", () => {
+  const service = tool("nexus", { kind: "service", integration: "push" });
+
+  test("le script d'un job nomme un service qui porte une intégration", () => {
+    expect(detectIntegrations({ image: null, script: ["nexus upload"] }, [service])).toEqual([
+      { tool: "nexus", kind: "push" },
+    ]);
+  });
+
+  test("l'image seule ne prouve pas l'intégration", () => {
+    expect(detectIntegrations({ image: "exemple/nexus", script: [] }, [service])).toEqual([]);
+  });
+
+  test("un outil sans intégration ne propose rien", () => {
+    expect(detectIntegrations({ image: null, script: ["trivy"] }, [tool("trivy")])).toEqual([]);
+  });
+
+  test("un service couvre une couche, et le résultat le nomme", () => {
+    const result = coverage(
+      pipeline([]),
+      [tool("gitea", { kind: "service", layers: ["scm"] })],
+      {},
+      [],
+      [{ id: "git", tool: "gitea", url: null, environment: null }],
+    );
+    const entry = result.layers.find((layer) => layer.layer === "scm");
+    expect(entry).toEqual({ layer: "scm", covered: true, jobs: [], services: ["git"] });
+  });
+
+  test("un service dont l'outil est inconnu ne couvre rien", () => {
+    const result = coverage(
+      pipeline([]),
+      [],
+      {},
+      [],
+      [{ id: "git", tool: "gitea", url: null, environment: null }],
+    );
+    expect(result.layers.every((layer) => !layer.covered)).toBe(true);
+  });
+});
+
 describe("les fiches réelles", () => {
+  test("les outils de plateforme obligatoires disent leur intégration", () => {
+    const of = (id: string) => catalogTool(id).integration;
+    expect(of("nexus")).toBe("push");
+    expect(of("harbor")).toBe("push");
+    expect(of("artifactory")).toBe("push");
+    expect(of("defectdojo")).toBe("upload-report");
+    expect(of("dependency-track")).toBe("upload-report");
+    expect(of("sonarqube")).toBe("upload-report");
+    expect(of("vault")).toBe("fetch-secret");
+    expect(of("openbao")).toBe("fetch-secret");
+    expect(of("sentry")).toBe("notify");
+  });
+
   const catalog = loadCatalog();
   const found = (signals: { image: string | null; script: string[] }) =>
     detectTools(signals, catalog.tools).map((entry) => entry.tool);

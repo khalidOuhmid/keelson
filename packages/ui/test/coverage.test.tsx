@@ -22,6 +22,7 @@ function coverage(covered: Partial<Record<LayerId, string[]>>, partial = false):
       layer: id,
       covered: covered[id] !== undefined,
       jobs: covered[id] ?? [],
+      services: [],
     })),
   };
 }
@@ -39,6 +40,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     detect: { images: [], scripts: [] },
     snippets: { gitlab: "a:\n  script: x\n", github: null },
     lastVerified: "2026-11-04",
+    integration: null,
     ...overrides,
   };
 }

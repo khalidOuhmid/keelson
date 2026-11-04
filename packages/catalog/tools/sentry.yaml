@@ -21,4 +21,5 @@ snippets:
   github: |
     - name: Create a Sentry release
       run: sentry-cli releases new --finalize "$GITHUB_SHA"
+integration: notify
 lastVerified: 2026-11-04

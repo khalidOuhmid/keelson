@@ -20,4 +20,5 @@ snippets:
     - name: Upload to DefectDojo
       run: |
         curl -X POST "$DOJO_URL/api/v2/import-scan/" -H "Authorization: Token $DOJO_TOKEN" -F scan_type="Trivy Scan" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT
+integration: upload-report
 lastVerified: 2026-11-04
