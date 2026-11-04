@@ -22,7 +22,7 @@ Ce fichier est la consigne complète de l'agent jusqu'à la fin du projet. Il se
 - Front : `/impeccable shape` avant toute surface nouvelle, `critique` puis `audit` après, `polish` en fin de lot, `document` dès que les tokens changent.
 
 ## Gestion du contexte
-Si le contexte s'épuise : arrêt à la fin d'une étape complète (tests verts, commit fait, arbre propre), « Prochaine action » de `progress.md` assez précise pour une session vierge, puis la ligne `SESSION TERMINÉE — reprendre avec le même prompt`. Rapport final en cinq lignes au plus : fait, reste, décisions. Aucune proposition de boucle, de script ou de diagnostic d'outillage.
+Ne t'arrête jamais de toi-même : la compaction automatique du contexte gère la longueur de la session
 
 ## Lots, dans cet ordre
 
