@@ -138,6 +138,7 @@ export type MessageParams = {
     | { reason: "flowStyleJob"; job: string }
     | { reason: "jobWithoutScript" }
     | { reason: "inheritedEnvironment"; job: string; origin: string }
+    | { reason: "sharedValue"; job: string; key: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }
     | { reason: "unreadableBody" }

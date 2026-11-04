@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { INVALID_OPERATION } from "@keelson/core";
 import { BASE, expectOk, expectUnchanged, jobOf, roundTrip } from "../support/apply.ts";
 
 describe("setJobStage", () => {
@@ -107,4 +108,21 @@ describe("setJobStage", () => {
     const applied = expectOk(texte, { kind: "setJobStage", id: "solo", stage: "deploy" });
     expect(jobOf(applied.text, "solo").stage.value).toBe("deploy");
   });
+});
+
+describe("setJobStage refuse ce qu'une réécriture de clé perdrait", () => {
+  const HEAD = "stages:\n  - build\n  - test\n\n.base:\n  stage: build\n\ncompile:\n";
+  const draft = { kind: "setJobStage", id: "compile", stage: "test" } as const;
+
+  for (const [label, stage] of [
+    ["une ancre sur la valeur", "  stage: &s !reference [.base, stage]\n"],
+    ["un commentaire sur le tag", "  stage: !reference # garde\n    - .base\n    - stage\n"],
+    ["un commentaire entre les items", "  stage: !reference\n    - .base # garde\n    - stage\n"],
+    ["une clé explicite", "  ? stage\n  : !reference [.base, stage]\n"],
+  ] as const) {
+    test(`${label}`, () => {
+      const error = expectUnchanged(`${HEAD}${stage}  script: x\n`, draft, INVALID_OPERATION);
+      expect(error.params).toEqual({ reason: "sharedValue", job: "compile", key: "stage" });
+    });
+  }
 });

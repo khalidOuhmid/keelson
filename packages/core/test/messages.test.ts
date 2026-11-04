@@ -164,6 +164,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       params: { reason: "inheritedEnvironment", job: "deploy", origin: "extends" },
       text: 'the environment of "deploy" is inherited (extends) and cannot be removed locally',
     },
+    {
+      params: { reason: "sharedValue", job: "unit", key: "needs" },
+      text: 'the needs of "unit" comes through an anchor or a !reference that Keelson cannot rewrite in place',
+    },
     { params: { reason: "noRootMap" }, text: "this file has no YAML map at its root" },
     {
       params: { reason: "wouldBreakYaml", operation: "renameJob" },

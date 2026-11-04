@@ -73,6 +73,8 @@ export const EN: Catalogue = {
     jobWithoutScript: () => "an added job must have at least one script line",
     inheritedEnvironment: (p) =>
       `the environment of ${quoted(p.job)} is inherited (${p.origin}) and cannot be removed locally`,
+    sharedValue: (p) =>
+      `the ${p.key} of ${quoted(p.job)} comes through an anchor or a !reference that Keelson cannot rewrite in place`,
     noRootMap: () => "this file has no YAML map at its root",
     wouldBreakYaml: (p) =>
       `operation ${p.operation} would produce invalid YAML, nothing was written`,

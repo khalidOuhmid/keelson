@@ -213,6 +213,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `flowStyleJob` | `job` | Le job est écrit en flow style (`{ … }`) ; l'édition en place supposerait un rendu par ligne. |
 | `jobWithoutScript` | — | `addJob` sans aucune ligne de script. |
 | `inheritedEnvironment` | `job`, `origin` | Retrait d'un environnement hérité : GitLab n'a pas de clé d'annulation. `origin` dit d'où il vient (`extends`, `anchor`, `default`). |
+| `sharedValue` | `job`, `key` | La valeur vient d'un alias d'anchor ou d'un `!reference` et l'écrire en place perdrait quelque chose : `addNeed` sur une liste partagée, ou `setJobStage` sur un `!reference` portant une ancre, un commentaire ou une clé explicite `?`. |
 | `noRootMap` | — | Le fichier n'a pas de map YAML à la racine, et l'opération n'est pas un `splice`. |
 | `wouldBreakYaml` | `operation` | Le texte résultant serait un YAML invalide ; rien n'a été écrit. |
 | `unreadableBody` | — | **Serveur** : le corps de la requête n'est pas du JSON lisible. |

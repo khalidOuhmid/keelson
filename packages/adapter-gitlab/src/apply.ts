@@ -40,7 +40,7 @@ import {
   STALE_DOCUMENT,
   validate,
 } from "@keelson/core";
-import { isMap, isSeq, type Node, type Pair, YAMLMap, type YAMLSeq } from "yaml";
+import { isAlias, isMap, isSeq, type Node, type Pair, YAMLMap, type YAMLSeq } from "yaml";
 import { DEFAULT_STAGES } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
@@ -408,9 +408,20 @@ function planSetJobStage(
     const keyStart = nodeRange(local.key as AnyNode)?.[0];
     const end =
       isSeq(value) && value.flow !== true ? nodeRange(seqItems(value).at(-1))?.[1] : range.end;
-    return tagged && keyStart !== undefined && end !== undefined
-      ? ok([{ start: keyStart, end, text: `stage: ${operation.stage}` }])
-      : ok([{ ...range, text: operation.stage }]);
+    if (!tagged || keyStart === undefined || end === undefined) {
+      return ok([{ ...range, text: operation.stage }]);
+    }
+
+    // Une ancre, un commentaire ou une clé explicite vivent dans la plage réécrite : les perdre
+    // sans le dire écrirait un fichier faux, donc on refuse.
+    const lines = geometry.text.slice(keyStart, end).split(/\r?\n/);
+    const anchored = (value as { anchor?: string }).anchor !== undefined;
+    const commented = lines.slice(0, -1).some((line) => /\s#/.test(line));
+    const explicitKey = linePrefix(geometry.text, keyStart).trim() === "?";
+    if (anchored || commented || explicitKey) {
+      return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "stage" });
+    }
+    return ok([{ start: keyStart, end, text: `stage: ${operation.stage}` }]);
   }
 
   const at = overrideInsertAt(geometry, located.value);
@@ -456,6 +467,12 @@ function planAddNeed(
   }
 
   const seq = local.value as AnyNode;
+  // Une liste partagée ne s'étend pas en place : le remplacement perdrait ses items, et un item
+  // ajouté à un `!reference` serait un chemin faux. Keelson ne réécrit pas ce qu'elle partage.
+  if (isAlias(seq) || (seq as { tag?: string }).tag === REFERENCE_TAG) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
+  }
+
   const items = seqItems(seq);
   const last = items.at(-1);
 
