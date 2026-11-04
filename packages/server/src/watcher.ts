@@ -48,9 +48,17 @@ export function watchDocuments(
       return;
     }
 
+    // Le fichier existe mais le lecteur le refuse, par exemple un lien hors de la racine. `load` le
+    // purge du store : l'écran doit l'apprendre, sinon il reste sur un pipeline qui n'existe plus.
+    const known = store.currentHash(file) !== undefined;
     const loaded = await store.load(file);
-    if (loaded !== null && !closed) {
+    if (closed) {
+      return;
+    }
+    if (loaded !== null) {
       emit({ kind: "document.changed", file, hash: loaded.hash });
+    } else if (known) {
+      emit({ kind: "document.removed", file });
     }
   };
 

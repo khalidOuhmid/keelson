@@ -799,6 +799,65 @@ describe("un !reference traverse les fichiers", () => {
   });
 });
 
+describe("la cible d'un !reference suit la configuration fusionnée", () => {
+  const ref = "deploy:\n  stage: !reference [.b, stage]\n  script:\n    - make\n";
+
+  function stageOf(main: string, included: string): string | undefined {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: `include: ci/x.yml\n\n${main}\n${ref}`,
+      "ci/x.yml": included,
+    });
+    return parsed.pipeline.jobs.find((job) => job.id === "deploy")?.stage.value;
+  }
+
+  /** `getIn` ne traverse ni alias ni clé de fusion : il rendait « absent », et la recherche
+   *  retombait sur un fichier antérieur, donc sur la valeur perdante. */
+  test("le fichier gagnant passe par un alias", () => {
+    expect(stageOf(".a: &a\n  stage: b\n.b: *a", ".b:\n  stage: c\n")).toBe("b");
+  });
+
+  test("le fichier gagnant passe par une clé de fusion", () => {
+    expect(stageOf(".a: &a\n  stage: b\n.b:\n  <<: *a", ".b:\n  stage: c\n")).toBe("b");
+  });
+
+  test("la valeur visée est elle-même un alias", () => {
+    expect(stageOf("x: &v b\n.b:\n  stage: *v", "")).toBe("b");
+  });
+
+  /** Une valeur qui n'est pas une map remplace celle de l'include : il n'y a plus rien à trouver. */
+  test("une clé remplacée par un scalaire ne laisse pas passer l'include", () => {
+    expect(stageOf(".b: 1", ".b:\n  stage: c\n")).toBe("test");
+  });
+
+  /** Le dernier passage d'un fichier inclus deux fois gagne, pour `extends` comme pour
+   *  `!reference` : les deux ne doivent pas se contredire dans le même pipeline. */
+  test("un fichier inclus deux fois gagne à son dernier passage", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include:",
+        "  - ci/x.yml",
+        "  - ci/y.yml",
+        "  - ci/x.yml",
+        "",
+        "par-extends:",
+        "  extends: .t",
+        "  script:",
+        "    - make",
+        "",
+        "par-reference:",
+        "  stage: !reference [.t, stage]",
+        "  script:",
+        "    - make",
+        "",
+      ].join("\n"),
+      "ci/x.yml": ".t:\n  stage: a\n",
+      "ci/y.yml": ".t:\n  stage: b\n",
+    });
+    const stages = parsed.pipeline.jobs.map((job) => job.stage.value);
+    expect(stages).toEqual(["a", "a"]);
+  });
+});
+
 describe("include distant en forme courte", () => {
   /** « If the file is a remote file, it is the same as include:remote » : une URL nue n'est pas un
    *  chemin local. La traiter comme tel réécrivait l'URL, rendait une fausse erreur de fichier

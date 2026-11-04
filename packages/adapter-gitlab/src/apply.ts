@@ -401,10 +401,15 @@ function planSetJobStage(
     }
     // La plage d'un `!reference` commence après son tag : remplacer la valeur seule écrirait
     // `stage: !reference test`. La clé est donc réécrite avec, et la surcharge est explicite.
-    const tagged = (local.value as { tag?: string }).tag === REFERENCE_TAG;
+    // La fin d'une séquence en bloc emporte son saut de ligne et les commentaires qui suivent :
+    // on s'arrête donc à la fin de son dernier item.
+    const value = local.value as AnyNode;
+    const tagged = (value as { tag?: string }).tag === REFERENCE_TAG;
     const keyStart = nodeRange(local.key as AnyNode)?.[0];
-    return tagged && keyStart !== undefined
-      ? ok([{ start: keyStart, end: range.end, text: `stage: ${operation.stage}` }])
+    const end =
+      isSeq(value) && value.flow !== true ? nodeRange(seqItems(value).at(-1))?.[1] : range.end;
+    return tagged && keyStart !== undefined && end !== undefined
+      ? ok([{ start: keyStart, end, text: `stage: ${operation.stage}` }])
       : ok([{ ...range, text: operation.stage }]);
   }
 

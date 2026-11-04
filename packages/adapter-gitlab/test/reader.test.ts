@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -75,6 +76,12 @@ describe("la frontière de la racine", () => {
   test("un chemin lexicalement sorti de la racine est refusé", () => {
     expect(createFileReader(root).read("../dehors.yml")).toBeNull();
     expect(createFileReader(root).read("/etc/passwd")).toBeNull();
+  });
+
+  /** Lire une FIFO bloque sans fin, et `detectWorkspace` figeait le démarrage du serveur. */
+  test("seul un fichier ordinaire est lu", () => {
+    spawnSync("mkfifo", [join(root, "ci", "tube.yml")]);
+    expect(createFileReader(root).read("ci/tube.yml")).toBeNull();
   });
 
   test("un fichier absent rend null plutôt que de lever", () => {

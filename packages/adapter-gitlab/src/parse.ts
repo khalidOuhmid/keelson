@@ -250,6 +250,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
 
   const context: ResolveContext = {
     documents,
+    merged: order.map((parsed) => parsed.yaml),
     lookup,
     diagnostics,
     /** Dégradé en avertissement **seulement** si un include qu'on n'a pas pu lire peut expliquer

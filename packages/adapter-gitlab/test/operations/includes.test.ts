@@ -345,4 +345,48 @@ describe("setJobStage sur une valeur !reference", () => {
     const back = apply(result.value.document, result.value.inverse);
     expect(back.ok ? back.value.text : null).toBe(REFERENCED);
   });
+
+  const HEAD = "stages:\n  - build\n  - test\n\n.base:\n  stage: build\n\ncompile:\n";
+  const BLOCK = "  stage: !reference\n    - .base\n    - stage\n";
+
+  function retarget(text: string): string {
+    const { result } = run(
+      { [GITLAB_CI_FILE]: text },
+      { kind: "setJobStage", id: "compile", stage: "test" },
+    );
+    if (!result.ok) {
+      throw new Error(`opération refusée : ${result.error.code}`);
+    }
+    const back = apply(result.value.document, result.value.inverse);
+    expect(back.ok ? back.value.text : null).toBe(text);
+    return result.value.text;
+  }
+
+  /** La fin d'une séquence en bloc emporte son saut de ligne et ce qui suit : remplacer jusque-là
+   *  collait la ligne suivante, et le geste était refusé ou mangeait la fin du fichier. */
+  test("une référence en bloc est remplacée, la ligne suivante reste à sa place", () => {
+    expect(retarget(`${HEAD}${BLOCK}  script:\n    - make\n`)).toBe(
+      `${HEAD}  stage: test\n  script:\n    - make\n`,
+    );
+  });
+
+  test("en fin de fichier, le saut de ligne final reste", () => {
+    expect(retarget(`${HEAD}  script:\n    - make\n${BLOCK}`)).toBe(
+      `${HEAD}  script:\n    - make\n  stage: test\n`,
+    );
+  });
+
+  test("le commentaire et la ligne vide qui suivent restent", () => {
+    expect(retarget(`${HEAD}${BLOCK}  # garde\n\n  script:\n    - make\n`)).toBe(
+      `${HEAD}  stage: test\n  # garde\n\n  script:\n    - make\n`,
+    );
+  });
+
+  test("le commentaire du dernier item reste, en CRLF aussi", () => {
+    const crlf = (text: string) => text.replaceAll("\n", "\r\n");
+    const block = "  stage: !reference\n    - .base\n    - stage # note\n";
+    expect(retarget(crlf(`${HEAD}${block}  script:\n    - make\n`))).toBe(
+      crlf(`${HEAD}  stage: test # note\n  script:\n    - make\n`),
+    );
+  });
 });

@@ -1,4 +1,4 @@
-import { type Dirent, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { type Dirent, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import type { IncludeReader } from "./includes.ts";
 
@@ -93,8 +93,9 @@ export function createFileReader(root: string): IncludeReader {
         return null;
       }
 
+      // Un fichier ordinaire seulement : lire une FIFO bloque sans fin, et figerait le serveur.
       try {
-        return readFileSync(real, "utf8");
+        return statSync(real).isFile() ? readFileSync(real, "utf8") : null;
       } catch {
         return null;
       }

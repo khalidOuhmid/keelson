@@ -220,6 +220,25 @@ describe("surveillance des fichiers inclus", () => {
     expect(event.kind === "document.changed" ? event.file : "").toBe(".gitlab-ci.yml");
   });
 
+  /** Le store purge le document, donc l'écran doit l'apprendre : sinon il reste sur un pipeline qui
+   *  n'existe plus, jusqu'au 404 de la prochaine opération. */
+  test("un fichier principal remplacé par un lien refusé émet document.removed", async () => {
+    await store.load(".gitlab-ci.yml");
+    watcher = watchDocuments(root, store, (event) => events.push(event));
+
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-devenu-"));
+    try {
+      writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
+      rmSync(join(root, ".gitlab-ci.yml"));
+      symlinkSync(join(outside, "s.yml"), join(root, ".gitlab-ci.yml"));
+
+      const event = await waitForEvent();
+      expect(event).toEqual({ kind: "document.removed", file: ".gitlab-ci.yml" });
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   test("un include ajouté après coup entre dans la surveillance", async () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));

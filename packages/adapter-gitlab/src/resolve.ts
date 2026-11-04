@@ -120,6 +120,9 @@ export type Source = {
 
 export type ResolveContext = {
   documents: ReadonlyMap<string, Document.Parsed>;
+  /** Les documents dans l'ordre de fusion. Distinct de `documents`, qui ne garde d'un fichier inclus
+   *  deux fois que sa première position : GitLab retient la dernière. */
+  merged: readonly Document.Parsed[];
   lookup: ReadonlyMap<string, readonly Definition[]>;
   diagnostics: Diagnostic[];
   extendsSeverity: "error" | "warning";
@@ -245,14 +248,49 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
   return matches(sources, key).length > 0;
 }
 
-/** Le dernier fichier de l'ordre de fusion qui définit le chemin : un `!reference` vise la
- *  configuration fusionnée, donc il traverse les fichiers, et le fichier principal gagne. Le
- *  résultat est ce fichier-là : un alias qu'on y trouverait n'a de sens que dans son document. */
+/** La valeur de `key` dans `node`, à travers les alias et les clés de fusion : `undefined` si la
+ *  clé est absente, `null` si `node` n'est pas une map, c'est-à-dire si la valeur a remplacé toute
+ *  map que les fichiers antérieurs auraient définie là. */
+function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode {
+  const target = isAlias(node) ? node.resolve(document) : node;
+  if (!isMap(target)) {
+    return null;
+  }
+
+  const pair = localPair(target, key);
+  if (pair !== undefined) {
+    return pair.value as AnyNode;
+  }
+
+  for (const merge of anchorMerges(target, document)) {
+    const merged = entryAt(merge.map, key, document);
+    if (merged !== undefined) {
+      return merged;
+    }
+  }
+  return undefined;
+}
+
+/** Le chemin dans un seul document, ou `undefined` s'il n'y figure pas. `Document.getIn` ne
+ *  traverse ni alias ni clé de fusion : il rendait « absent » pour le fichier gagnant. */
+function targetIn(path: readonly string[], document: Document.Parsed): AnyNode {
+  let node: AnyNode = document.contents as AnyNode;
+  for (const key of path) {
+    node = entryAt(node, key, document);
+    if (node === undefined || node === null) {
+      return node;
+    }
+  }
+  return isAlias(node) ? (node.resolve(document) ?? null) : node;
+}
+
+/** Un `!reference` vise la configuration fusionnée, donc il traverse les fichiers : on remonte
+ *  l'ordre de fusion et le premier fichier qui définit le chemin gagne, comme pour une valeur. */
 function referenceTarget(path: readonly string[], context: ResolveContext): AnyNode {
-  for (const document of [...context.documents.values()].reverse()) {
-    const target = document.getIn(path, true);
+  for (const document of [...context.merged].reverse()) {
+    const target = targetIn(path, document);
     if (target !== undefined) {
-      return target as AnyNode;
+      return target;
     }
   }
   return null;
