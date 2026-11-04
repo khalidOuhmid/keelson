@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
@@ -189,6 +197,38 @@ describe("un fichier que le parseur ne sait pas lire", () => {
       process.off("unhandledRejection", record);
       watcher.close();
     }
+  });
+});
+
+describe("relecture du disque avant écriture", () => {
+  test("une écriture externe que le watcher n'a pas vue rend 409 et reste intacte", async () => {
+    await store.load(".gitlab-ci.yml");
+    const external = `${MAIN}# externe\n`;
+    writeFileSync(join(root, ".gitlab-ci.yml"), external);
+
+    const response = await store.applyOperation(
+      ".gitlab-ci.yml",
+      { v: 1, baseHash: hashText(MAIN), kind: "addStage", name: "verify" },
+      "op",
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ code: "STALE_DOCUMENT", hash: hashText(external) });
+    expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(external);
+  });
+
+  test("un fichier supprimé rend 404 sans le recréer", async () => {
+    await store.load(".gitlab-ci.yml");
+    rmSync(join(root, ".gitlab-ci.yml"));
+
+    const response = await store.applyOperation(
+      ".gitlab-ci.yml",
+      { v: 1, baseHash: hashText(MAIN), kind: "addStage", name: "verify" },
+      "op",
+    );
+
+    expect(response.status).toBe(404);
+    expect(existsSync(join(root, ".gitlab-ci.yml"))).toBe(false);
   });
 });
 

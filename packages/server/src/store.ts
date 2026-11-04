@@ -245,6 +245,11 @@ export class DocumentStore {
       return { status: 400, body: validated.error };
     }
 
+    // Le watcher a 40 ms de retard sur le disque : sans cette relecture, une écriture externe dans
+    // cette fenêtre serait écrasée par une opération fondée sur le texte en cache.
+    if (this.loaded.has(file) && this.reader.read(file) !== this.loaded.get(file)?.text) {
+      await this.load(file);
+    }
     const current =
       this.loaded.get(file) ?? (await this.load(file).then(() => this.loaded.get(file)));
     if (current === undefined) {
