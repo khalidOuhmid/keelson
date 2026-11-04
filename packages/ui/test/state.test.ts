@@ -94,7 +94,7 @@ class FakeApi {
     );
   };
 
-  document = async (): Promise<ApiResult<DocumentPayload>> =>
+  document: () => Promise<ApiResult<DocumentPayload>> = async () =>
     this.documents.shift() ?? { ok: true, value: documentPayload(HASH_C) };
 }
 
@@ -378,6 +378,59 @@ describe("coverage.changed sur un client en retard", () => {
     api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
     await state().serverEvent({ kind: "coverage.changed", file: MAIN });
     expect(state().hash).toBe(HASH_B);
+  });
+});
+
+describe("coverage.changed pendant une opération", () => {
+  function held() {
+    let settle: (result: ApiResult<OperationPayload>) => void = () => {};
+    const promise = new Promise<ApiResult<OperationPayload>>((resolve) => {
+      settle = resolve;
+    });
+    store = createStore({
+      submit: () => promise,
+      document: api.document,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    state().documentLoaded(MAIN, documentPayload());
+    return settle;
+  }
+
+  test("le fichier déjà écrit par cette opération ne passe pas pour une modification", async () => {
+    const settle = held();
+    const submitted = addStage("verify");
+    api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+    expect(state().notice).toBeNull();
+
+    settle({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await submitted;
+    expect(state().notice).toBeNull();
+    expect(state().canUndo()).toBe(true);
+  });
+
+  test("une couverture au hash déjà atteint s'applique", async () => {
+    let answer: (result: ApiResult<DocumentPayload>) => void = () => {};
+    api.document = () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      });
+    const late = createStore({
+      submit: () => Promise.resolve({ ok: true, value: operationPayload(HASH_B, HASH_A) }),
+      document: api.document,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    late.getState().documentLoaded(MAIN, documentPayload());
+    const handled = late.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    await late.getState().submit({ kind: "addStage", name: "verify" });
+    answer({
+      ok: true,
+      value: { ...documentPayload(HASH_B), coverage: { ...NO_COVERAGE, partial: true } },
+    });
+    await handled;
+    expect(late.getState().coverage?.partial).toBe(true);
   });
 });
 

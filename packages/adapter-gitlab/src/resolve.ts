@@ -259,7 +259,12 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
 /** La valeur de `key` dans `node`, à travers les alias et les clés de fusion : `undefined` si la
  *  clé est absente, `null` si `node` n'est pas une map, c'est-à-dire si la valeur a remplacé toute
  *  map que les fichiers antérieurs auraient définie là. */
-function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode {
+function entryAt(
+  node: AnyNode,
+  key: string,
+  document: Document.Parsed,
+  visited: ReadonlySet<YAMLMap> = new Set(),
+): AnyNode {
   const target = isAlias(node) ? node.resolve(document) : node;
   if (!isMap(target)) {
     return null;
@@ -270,8 +275,13 @@ function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode
     return pair.value as AnyNode;
   }
 
+  // `job: &a` suivi de `<<: *a` est du YAML valide : une map peut se fusionner sur elle-même.
+  const seen = new Set(visited).add(target);
   for (const merge of anchorMerges(target, document)) {
-    const merged = entryAt(merge.map, key, document);
+    if (seen.has(merge.map)) {
+      continue;
+    }
+    const merged = entryAt(merge.map, key, document, seen);
     if (merged !== undefined) {
       return merged;
     }

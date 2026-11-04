@@ -135,4 +135,12 @@ describe("fusion d'extends et jobs sans exécution", () => {
       "default:\n  image: aquasec/trivy\n  before_script:\n    - trivy fs .\n\njob:\n  trigger: child.yml\n";
     expect(signals(text)).toEqual({ image: null, script: [] });
   });
+
+  test.each([
+    ["<<: *a", "job: &a\n  script: a\n  <<: *a\n"],
+    ["<<: [*a]", "job: &a\n  script: a\n  <<: [*a]\n"],
+    ["template", ".t: &t\n  script: a\n  <<: *t\n\njob:\n  extends: .t\n"],
+  ])("une map fusionnée sur elle-même ne fait pas planter le parse : %s", (_label, text) => {
+    expect(signals(`default:\n  image: d\n\n${text}`)?.image).toBe("d");
+  });
 });

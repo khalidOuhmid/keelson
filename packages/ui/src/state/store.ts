@@ -351,19 +351,21 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         if (event.kind === "coverage.changed") {
           const known = get().hash;
           const result = await dependencies.document(event.file);
-          // Une opération arrivée pendant le GET a déjà rendu sa couverture, plus récente.
-          if (!result.ok || get().hash !== known) {
+          if (!result.ok) {
             return;
           }
-          // Le serveur ne diffuse pas ses propres écritures : aucun `document.changed` ne suivra.
-          if (result.value.hash !== known) {
+          if (result.value.hash === get().hash) {
+            set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
+            return;
+          }
+          // Autre hash sans opération de ce client : le serveur ne diffuse pas ses écritures, aucun
+          // `document.changed` ne suivra. Avec une opération, c'est sa réponse qui fait foi.
+          if (get().hash === known && !get().pending) {
             await reload(event.file, {
               kind: "reloaded",
               message: "The file changed on disk and was reloaded.",
             });
-            return;
           }
-          set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
           return;
         }
 
