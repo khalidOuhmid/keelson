@@ -1,0 +1,15 @@
+id: harbor
+name: 'Harbor'
+kind: service
+layers: [registry]
+license: Apache-2.0
+homepage: https://goharbor.io
+verifiedAt: https://github.com/goharbor/harbor
+logo: harbor
+detect:
+  images: []
+  scripts: ['\bharbor[.\-/]']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

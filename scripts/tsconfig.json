@@ -13,6 +13,12 @@
     },
     {
       "path": "../packages/server"
+    },
+    {
+      "path": "../packages/catalog"
+    },
+    {
+      "path": "../packages/taxonomy"
     }
   ]
 }

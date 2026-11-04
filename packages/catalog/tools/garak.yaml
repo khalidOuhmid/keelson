@@ -1,0 +1,21 @@
+id: garak
+name: 'garak'
+kind: job
+layers: [ai]
+license: Apache-2.0
+homepage: https://github.com/NVIDIA/garak
+verifiedAt: https://github.com/NVIDIA/garak
+logo: null
+detect:
+  images: []
+  scripts: ['\bgarak\b']
+snippets:
+  gitlab: |
+    garak:
+      stage: test
+      script:
+        - python -m garak --target_type openai --target_name $MODEL
+  github: |
+    - name: Run garak
+      run: python -m garak --target_type openai --target_name $MODEL
+lastVerified: 2026-11-04

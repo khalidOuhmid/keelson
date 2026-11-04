@@ -1,0 +1,15 @@
+id: openbao
+name: 'OpenBao'
+kind: service
+layers: [secrets-management]
+license: MPL-2.0
+homepage: https://openbao.org
+verifiedAt: https://github.com/openbao/openbao
+logo: null
+detect:
+  images: ['openbao/openbao']
+  scripts: ['\bbao\s+(kv|read|login|write)\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

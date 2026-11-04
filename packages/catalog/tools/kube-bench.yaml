@@ -1,0 +1,24 @@
+id: kube-bench
+name: 'kube-bench'
+kind: job
+layers: [infrastructure, compliance]
+license: Apache-2.0
+homepage: https://github.com/aquasecurity/kube-bench
+verifiedAt: https://github.com/aquasecurity/kube-bench
+logo: null
+detect:
+  images: ['aquasec/kube-bench']
+  scripts: ['\bkube-bench\b']
+snippets:
+  gitlab: |
+    kube-bench:
+      stage: test
+      image:
+        name: aquasec/kube-bench:latest
+        entrypoint: [""]
+      script:
+        - kube-bench run
+  github: |
+    - name: Run kube-bench
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" aquasec/kube-bench:latest kube-bench run
+lastVerified: 2026-11-04

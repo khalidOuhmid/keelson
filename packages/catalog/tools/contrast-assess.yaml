@@ -1,0 +1,15 @@
+id: contrast-assess
+name: 'Contrast Assess'
+kind: service
+layers: [iast]
+license: Proprietary
+homepage: https://www.contrastsecurity.com/contrast-assess
+verifiedAt: https://www.contrastsecurity.com/contrast-assess
+logo: null
+detect:
+  images: []
+  scripts: ['\bcontrast(-agent|\.jar)\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

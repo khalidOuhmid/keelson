@@ -1,0 +1,21 @@
+id: openscap
+name: 'OpenSCAP'
+kind: job
+layers: [compliance]
+license: LGPL-2.1-only
+homepage: https://github.com/OpenSCAP/openscap
+verifiedAt: https://github.com/OpenSCAP/openscap
+logo: null
+detect:
+  images: []
+  scripts: ['\boscap\b']
+snippets:
+  gitlab: |
+    openscap:
+      stage: test
+      script:
+        - oscap oval eval --results oval-results.xml scap-oval.xml
+  github: |
+    - name: Run OpenSCAP
+      run: oscap oval eval --results oval-results.xml scap-oval.xml
+lastVerified: 2026-11-04

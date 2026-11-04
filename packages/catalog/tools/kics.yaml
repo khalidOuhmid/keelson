@@ -1,0 +1,24 @@
+id: kics
+name: 'KICS'
+kind: job
+layers: [iac]
+license: Apache-2.0
+homepage: https://github.com/Checkmarx/kics
+verifiedAt: https://github.com/Checkmarx/kics
+logo: checkmarx
+detect:
+  images: ['checkmarx/kics']
+  scripts: ['\bkics\s+scan\b']
+snippets:
+  gitlab: |
+    kics:
+      stage: test
+      image:
+        name: checkmarx/kics:latest
+        entrypoint: [""]
+      script:
+        - /app/bin/kics scan -p .
+  github: |
+    - name: Run KICS
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" checkmarx/kics:latest /app/bin/kics scan -p .
+lastVerified: 2026-11-04

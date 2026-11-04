@@ -1,0 +1,24 @@
+id: renovate
+name: 'Renovate'
+kind: job
+layers: [sca]
+license: AGPL-3.0-only
+homepage: https://github.com/renovatebot/renovate
+verifiedAt: https://github.com/renovatebot/renovate
+logo: renovate
+detect:
+  images: ['renovate/renovate']
+  scripts: ['\brenovate\b']
+snippets:
+  gitlab: |
+    renovate:
+      stage: build
+      image:
+        name: renovate/renovate:latest
+        entrypoint: [""]
+      script:
+        - renovate --platform=gitlab
+  github: |
+    - name: Run Renovate
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" renovate/renovate:latest renovate --platform=gitlab
+lastVerified: 2026-11-04

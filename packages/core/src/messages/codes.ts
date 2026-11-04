@@ -10,6 +10,15 @@ export const UNKNOWN_NEED = "UNKNOWN_NEED";
 export const NEEDS_CYCLE = "NEEDS_CYCLE";
 export const UNKNOWN_STAGE = "UNKNOWN_STAGE";
 export const NEED_LATER_STAGE = "NEED_LATER_STAGE";
+export const LAYOUT_INVALID = "LAYOUT_INVALID";
+export const LAYOUT_UNKNOWN_LAYER = "LAYOUT_UNKNOWN_LAYER";
+export const LAYOUT_UNKNOWN_JOB = "LAYOUT_UNKNOWN_JOB";
+export const COVERAGE_LAYER_MISSING = "COVERAGE_LAYER_MISSING";
+export const CATALOG_INVALID_TOOL = "CATALOG_INVALID_TOOL";
+export const CATALOG_DUPLICATE_TOOL = "CATALOG_DUPLICATE_TOOL";
+export const CATALOG_UNKNOWN_LOGO = "CATALOG_UNKNOWN_LOGO";
+export const CATALOG_MISSING_SNIPPET = "CATALOG_MISSING_SNIPPET";
+export const CATALOG_STALE_TOOL = "CATALOG_STALE_TOOL";
 
 export const DIAGNOSTIC_CODES = [
   INVALID_YAML,
@@ -24,6 +33,15 @@ export const DIAGNOSTIC_CODES = [
   NEEDS_CYCLE,
   UNKNOWN_STAGE,
   NEED_LATER_STAGE,
+  LAYOUT_INVALID,
+  LAYOUT_UNKNOWN_LAYER,
+  LAYOUT_UNKNOWN_JOB,
+  COVERAGE_LAYER_MISSING,
+  CATALOG_INVALID_TOOL,
+  CATALOG_DUPLICATE_TOOL,
+  CATALOG_UNKNOWN_LOGO,
+  CATALOG_MISSING_SNIPPET,
+  CATALOG_STALE_TOOL,
 ] as const;
 
 export const STALE_DOCUMENT = "STALE_DOCUMENT";
@@ -118,6 +136,15 @@ export type MessageParams = {
   NEEDS_CYCLE: { cycle: readonly string[] };
   UNKNOWN_STAGE: { job: string; stage: string };
   NEED_LATER_STAGE: { job: string; stage: string; need: string; needStage: string };
+  LAYOUT_INVALID: { detail: string };
+  LAYOUT_UNKNOWN_LAYER: { job: string; layer: string };
+  LAYOUT_UNKNOWN_JOB: { job: string };
+  COVERAGE_LAYER_MISSING: { layer: string; name: string };
+  CATALOG_INVALID_TOOL: { detail: string };
+  CATALOG_DUPLICATE_TOOL: { tool: string };
+  CATALOG_UNKNOWN_LOGO: { tool: string; logo: string };
+  CATALOG_MISSING_SNIPPET: { tool: string };
+  CATALOG_STALE_TOOL: { tool: string; lastVerified: string };
 
   STALE_DOCUMENT: { expected: string; received: string };
   JOB_NOT_FOUND: { job: string };

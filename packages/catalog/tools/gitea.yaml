@@ -1,0 +1,15 @@
+id: gitea
+name: 'Gitea'
+kind: service
+layers: [scm]
+license: MIT
+homepage: https://about.gitea.com
+verifiedAt: https://github.com/go-gitea/gitea
+logo: gitea
+detect:
+  images: []
+  scripts: []
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

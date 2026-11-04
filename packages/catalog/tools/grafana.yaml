@@ -1,0 +1,15 @@
+id: grafana
+name: 'Grafana'
+kind: service
+layers: [observability]
+license: AGPL-3.0-only
+homepage: https://grafana.com
+verifiedAt: https://github.com/grafana/grafana
+logo: grafana
+detect:
+  images: ['grafana/grafana']
+  scripts: ['\bgrafana\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

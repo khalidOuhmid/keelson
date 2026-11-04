@@ -1,0 +1,15 @@
+id: github
+name: 'GitHub'
+kind: service
+layers: [scm]
+license: Proprietary
+homepage: https://github.com
+verifiedAt: https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security
+logo: github
+detect:
+  images: []
+  scripts: []
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

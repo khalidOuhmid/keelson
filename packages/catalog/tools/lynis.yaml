@@ -1,0 +1,21 @@
+id: lynis
+name: 'Lynis'
+kind: job
+layers: [infrastructure, compliance]
+license: GPL-3.0-only
+homepage: https://github.com/CISOfy/lynis
+verifiedAt: https://github.com/CISOfy/lynis
+logo: null
+detect:
+  images: []
+  scripts: ['\blynis\s+audit\b']
+snippets:
+  gitlab: |
+    lynis:
+      stage: test
+      script:
+        - lynis audit system
+  github: |
+    - name: Run Lynis
+      run: lynis audit system
+lastVerified: 2026-11-04

@@ -1,0 +1,24 @@
+id: vault
+name: 'HashiCorp Vault'
+kind: service
+layers: [secrets-management]
+license: BUSL-1.1
+homepage: https://www.vaultproject.io
+verifiedAt: https://github.com/hashicorp/vault/blob/main/LICENSE
+logo: vault
+detect:
+  images: ['hashicorp/vault']
+  scripts: ['\bvault\s+(kv|read|login|write)\b']
+snippets:
+  gitlab: |
+    vault:
+      stage: build
+      image:
+        name: hashicorp/vault:latest
+        entrypoint: [""]
+      script:
+        - vault kv get -mount=secret -field=passcode creds
+  github: |
+    - name: Read a secret from Vault
+      run: vault kv get -mount=secret -field=passcode creds
+lastVerified: 2026-11-04

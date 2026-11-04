@@ -1,0 +1,24 @@
+id: semgrep
+name: 'Semgrep'
+kind: job
+layers: [sast]
+license: LGPL-2.1-only
+homepage: https://github.com/semgrep/semgrep
+verifiedAt: https://github.com/semgrep/semgrep
+logo: null
+detect:
+  images: ['semgrep/semgrep', 'returntocorp/semgrep']
+  scripts: ['\bsemgrep\s+(ci|scan)\b']
+snippets:
+  gitlab: |
+    semgrep:
+      stage: test
+      image:
+        name: semgrep/semgrep:latest
+        entrypoint: [""]
+      script:
+        - semgrep scan --config auto --error
+  github: |
+    - name: Run Semgrep
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" semgrep/semgrep:latest semgrep scan --config auto --error
+lastVerified: 2026-11-04

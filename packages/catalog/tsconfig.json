@@ -3,5 +3,13 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src", "package.json"]
+  "include": ["src", "src/generated/*.json", "package.json"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../taxonomy"
+    }
+  ]
 }

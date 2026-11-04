@@ -1,0 +1,23 @@
+id: snyk
+name: 'Snyk'
+kind: job
+layers: [sca, sast, iac]
+license: Apache-2.0
+homepage: https://snyk.io
+verifiedAt: https://github.com/snyk/cli
+logo: snyk
+detect:
+  images: ['snyk/snyk']
+  scripts: ['\bsnyk\s+(test|code|container|iac|monitor)\b']
+snippets:
+  gitlab: |
+    snyk:
+      stage: test
+      script:
+        - npx snyk test
+  github: |
+    - name: Run Snyk
+      run: npx snyk test
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+lastVerified: 2026-11-04

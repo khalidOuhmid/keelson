@@ -1,0 +1,24 @@
+id: nikto
+name: 'Nikto'
+kind: job
+layers: [dast]
+license: GPL-3.0-only
+homepage: https://github.com/sullo/nikto
+verifiedAt: https://github.com/sullo/nikto
+logo: null
+detect:
+  images: ['sullo/nikto', 'hackllc/nikto']
+  scripts: ['\bnikto(\.pl)?\s+-h\b']
+snippets:
+  gitlab: |
+    nikto:
+      stage: test
+      image:
+        name: ghcr.io/sullo/nikto:latest
+        entrypoint: [""]
+      script:
+        - nikto.pl -h $TARGET_URL
+  github: |
+    - name: Run Nikto
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/sullo/nikto:latest nikto.pl -h $TARGET_URL
+lastVerified: 2026-11-04

@@ -1,0 +1,15 @@
+id: 42crunch
+name: '42Crunch'
+kind: service
+layers: [api]
+license: Proprietary
+homepage: https://42crunch.com
+verifiedAt: https://42crunch.com/
+logo: null
+detect:
+  images: []
+  scripts: ['\b42crunch\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

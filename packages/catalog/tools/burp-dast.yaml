@@ -1,0 +1,15 @@
+id: burp-dast
+name: 'Burp Suite DAST'
+kind: service
+layers: [dast]
+license: Proprietary
+homepage: https://portswigger.net/burp/dast
+verifiedAt: https://portswigger.net/burp/enterprise
+logo: null
+detect:
+  images: ['portswigger/']
+  scripts: []
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

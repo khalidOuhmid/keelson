@@ -1,0 +1,24 @@
+id: sentry
+name: 'Sentry'
+kind: service
+layers: [observability]
+license: FSL-1.1-Apache-2.0
+homepage: https://sentry.io
+verifiedAt: https://docs.sentry.io/cli/releases/
+logo: sentry
+detect:
+  images: ['getsentry/sentry-cli']
+  scripts: ['\bsentry-cli\b']
+snippets:
+  gitlab: |
+    sentry-release:
+      stage: deploy
+      image:
+        name: getsentry/sentry-cli:latest
+        entrypoint: [""]
+      script:
+        - sentry-cli releases new --finalize "$CI_COMMIT_SHA"
+  github: |
+    - name: Create a Sentry release
+      run: sentry-cli releases new --finalize "$GITHUB_SHA"
+lastVerified: 2026-11-04

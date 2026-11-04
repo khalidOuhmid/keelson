@@ -1,0 +1,24 @@
+id: inspec
+name: 'Chef InSpec'
+kind: job
+layers: [compliance]
+license: Apache-2.0
+homepage: https://github.com/inspec/inspec
+verifiedAt: https://github.com/inspec/inspec
+logo: chef
+detect:
+  images: ['chef/inspec']
+  scripts: ['\binspec\s+exec\b']
+snippets:
+  gitlab: |
+    inspec:
+      stage: deploy
+      image:
+        name: chef/inspec:latest
+        entrypoint: [""]
+      script:
+        - inspec exec test.rb
+  github: |
+    - name: Run Chef InSpec
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" chef/inspec:latest inspec exec test.rb
+lastVerified: 2026-11-04

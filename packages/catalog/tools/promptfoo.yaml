@@ -1,0 +1,21 @@
+id: promptfoo
+name: 'promptfoo'
+kind: job
+layers: [ai]
+license: MIT
+homepage: https://github.com/promptfoo/promptfoo
+verifiedAt: https://github.com/promptfoo/promptfoo
+logo: null
+detect:
+  images: []
+  scripts: ['\bpromptfoo\s+(eval|redteam)\b']
+snippets:
+  gitlab: |
+    promptfoo:
+      stage: test
+      script:
+        - npx promptfoo eval
+  github: |
+    - name: Run promptfoo
+      run: npx promptfoo eval
+lastVerified: 2026-11-04

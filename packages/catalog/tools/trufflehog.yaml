@@ -1,0 +1,24 @@
+id: trufflehog
+name: 'TruffleHog'
+kind: job
+layers: [secrets]
+license: AGPL-3.0-only
+homepage: https://github.com/trufflesecurity/trufflehog
+verifiedAt: https://github.com/trufflesecurity/trufflehog
+logo: null
+detect:
+  images: ['trufflehog']
+  scripts: ['\btrufflehog\b']
+snippets:
+  gitlab: |
+    trufflehog:
+      stage: test
+      image:
+        name: trufflesecurity/trufflehog:latest
+        entrypoint: [""]
+      script:
+        - trufflehog git file://. --results=verified,unknown --fail
+  github: |
+    - name: Run TruffleHog
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" trufflesecurity/trufflehog:latest trufflehog git file://. --results=verified,unknown --fail
+lastVerified: 2026-11-04

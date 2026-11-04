@@ -1,0 +1,21 @@
+id: kubescape
+name: 'Kubescape'
+kind: job
+layers: [cnapp, compliance, continuous]
+license: Apache-2.0
+homepage: https://github.com/kubescape/kubescape
+verifiedAt: https://github.com/kubescape/kubescape
+logo: null
+detect:
+  images: []
+  scripts: ['\bkubescape\s+scan\b']
+snippets:
+  gitlab: |
+    kubescape:
+      stage: test
+      script:
+        - kubescape scan .
+  github: |
+    - name: Run Kubescape
+      run: kubescape scan .
+lastVerified: 2026-11-04

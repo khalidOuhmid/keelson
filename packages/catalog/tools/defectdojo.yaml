@@ -1,0 +1,23 @@
+id: defectdojo
+name: 'DefectDojo'
+kind: service
+layers: [vulnerability-aggregation]
+license: BSD-3-Clause
+homepage: https://www.defectdojo.org
+verifiedAt: https://github.com/DefectDojo/django-DefectDojo
+logo: null
+detect:
+  images: []
+  scripts: ['/api/v2/(re)?import-scan/']
+snippets:
+  gitlab: |
+    defectdojo:
+      stage: deploy
+      script:
+        - |
+          curl -X POST "$DOJO_URL/api/v2/import-scan/" -H "Authorization: Token $DOJO_TOKEN" -F scan_type="Trivy Scan" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT
+  github: |
+    - name: Upload to DefectDojo
+      run: |
+        curl -X POST "$DOJO_URL/api/v2/import-scan/" -H "Authorization: Token $DOJO_TOKEN" -F scan_type="Trivy Scan" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT
+lastVerified: 2026-11-04

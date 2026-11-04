@@ -1,0 +1,24 @@
+id: checkov
+name: 'Checkov'
+kind: job
+layers: [iac]
+license: Apache-2.0
+homepage: https://github.com/bridgecrewio/checkov
+verifiedAt: https://github.com/bridgecrewio/checkov
+logo: null
+detect:
+  images: ['bridgecrew/checkov']
+  scripts: ['\bcheckov\b']
+snippets:
+  gitlab: |
+    checkov:
+      stage: test
+      image:
+        name: bridgecrew/checkov:latest
+        entrypoint: [""]
+      script:
+        - checkov --directory .
+  github: |
+    - name: Run Checkov
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" bridgecrew/checkov:latest checkov --directory .
+lastVerified: 2026-11-04

@@ -1,0 +1,15 @@
+id: prometheus
+name: 'Prometheus'
+kind: service
+layers: [observability]
+license: Apache-2.0
+homepage: https://prometheus.io
+verifiedAt: https://github.com/prometheus/prometheus
+logo: prometheus
+detect:
+  images: ['prom/prometheus']
+  scripts: ['\bpromtool\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

@@ -51,6 +51,15 @@ compilation.
 | `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | Les `needs` forment un cycle. Un diagnostic par composante fortement connexe ; `cycle` est le chemin, premier élément répété en dernier. |
 | `UNKNOWN_STAGE` | error | `validate` | `{ job, stage }` | Un job référence un stage non déclaré. |
 | `NEED_LATER_STAGE` | warning | `validate` | `{ job, stage, need, needStage }` | Un job a besoin d'un job situé dans un stage ultérieur. Non évalué quand le stage du job est lui-même inconnu. |
+| `LAYOUT_INVALID` | warning | `parseLayout` | `{ detail }` | `.devsecops/layout.json` n'est pas du JSON valide ou ne suit pas son schéma. Il est alors ignoré : la détection s'applique. |
+| `LAYOUT_UNKNOWN_LAYER` | warning | `parseLayout` | `{ job, layer }` | Une surcharge nomme une couche absente de la taxonomie. Cette couche est ignorée, les autres s'appliquent. |
+| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | Une surcharge nomme un job absent du pipeline. |
+| `COVERAGE_LAYER_MISSING` | error | `keelson coverage` | `{ layer, name }` | Une couche demandée par `--require` n'est pas couverte. |
+| `CATALOG_INVALID_TOOL` | error | `catalog lint` | `{ detail }` | Une fiche ne suit pas le schéma. `detail` vient de zod ou de `yaml`. |
+| `CATALOG_DUPLICATE_TOOL` | error | `catalog lint` | `{ tool }` | Deux fiches portent le même identifiant. |
+| `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | La fiche nomme un logo absent du catalogue embarqué. |
+| `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | Un outil de type `job` n'a aucun snippet. |
+| `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | La fiche n'a pas été vérifiée depuis plus de six mois. |
 
 ### Exemples
 

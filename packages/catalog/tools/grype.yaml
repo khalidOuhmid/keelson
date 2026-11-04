@@ -1,0 +1,17 @@
+id: grype
+name: 'Grype'
+kind: job
+layers: [sca, infrastructure]
+license: Apache-2.0
+homepage: https://github.com/anchore/grype
+verifiedAt: https://github.com/anchore/grype
+logo: null
+detect:
+  images: ['anchore/grype']
+  scripts: ['\bgrype\b']
+snippets:
+  gitlab: null
+  github: |
+    - name: Run Grype
+      run: docker run --rm -v "$PWD:/src" -w /src anchore/grype:latest dir:.
+lastVerified: 2026-11-04

@@ -1,0 +1,24 @@
+id: spectral
+name: 'Spectral'
+kind: job
+layers: [api]
+license: Apache-2.0
+homepage: https://github.com/stoplightio/spectral
+verifiedAt: https://github.com/stoplightio/spectral
+logo: null
+detect:
+  images: ['stoplight/spectral']
+  scripts: ['\bspectral\s+lint\b']
+snippets:
+  gitlab: |
+    spectral:
+      stage: test
+      image:
+        name: stoplight/spectral:latest
+        entrypoint: [""]
+      script:
+        - spectral lint openapi.yaml
+  github: |
+    - name: Run Spectral
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" stoplight/spectral:latest spectral lint openapi.yaml
+lastVerified: 2026-11-04

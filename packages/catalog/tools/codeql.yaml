@@ -1,0 +1,19 @@
+id: codeql
+name: 'CodeQL'
+kind: job
+layers: [sast]
+license: Proprietary
+homepage: https://codeql.github.com
+verifiedAt: https://github.com/github/codeql-action
+logo: null
+detect:
+  images: []
+  scripts: ['\bcodeql\s+(database|github)\b']
+snippets:
+  gitlab: null
+  github: |
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+    - name: Analyze
+      uses: github/codeql-action/analyze@v3
+lastVerified: 2026-11-04

@@ -1,0 +1,15 @@
+id: dongtai
+name: 'DongTai IAST'
+kind: service
+layers: [iast]
+license: Apache-2.0
+homepage: https://github.com/HXSecurity/DongTai
+verifiedAt: https://github.com/HXSecurity/DongTai
+logo: null
+detect:
+  images: []
+  scripts: ['\bdongtai\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

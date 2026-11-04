@@ -41,6 +41,18 @@ export const EN: Catalogue = {
     `job ${quoted(p.job)} references stage ${quoted(p.stage)}, which is not declared`,
   NEED_LATER_STAGE: (p) =>
     `job ${quoted(p.job)} (stage ${quoted(p.stage)}) needs ${quoted(p.need)}, which is in the later stage ${quoted(p.needStage)}`,
+  LAYOUT_INVALID: (p) => `.devsecops/layout.json is not usable: ${p.detail}`,
+  LAYOUT_UNKNOWN_LAYER: (p) =>
+    `layout.json assigns job ${quoted(p.job)} to unknown layer ${quoted(p.layer)}`,
+  LAYOUT_UNKNOWN_JOB: (p) => `layout.json names job ${quoted(p.job)}, which does not exist`,
+  COVERAGE_LAYER_MISSING: (p) => `required layer ${quoted(p.layer)} (${p.name}) is not covered`,
+  // `detail` vient de zod ou de `yaml`, en anglais.
+  CATALOG_INVALID_TOOL: (p) => `invalid tool file: ${p.detail}`,
+  CATALOG_DUPLICATE_TOOL: (p) => `tool id ${quoted(p.tool)} is declared twice`,
+  CATALOG_UNKNOWN_LOGO: (p) => `tool ${quoted(p.tool)} names unknown logo ${quoted(p.logo)}`,
+  CATALOG_MISSING_SNIPPET: (p) => `job tool ${quoted(p.tool)} has no snippet`,
+  CATALOG_STALE_TOOL: (p) =>
+    `tool ${quoted(p.tool)} was last verified on ${p.lastVerified}, more than six months ago`,
 
   STALE_DOCUMENT: () => "the document changed since the operation was computed",
   JOB_NOT_FOUND: (p) => `job ${quoted(p.job)} does not exist in this file`,
