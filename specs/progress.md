@@ -2,9 +2,8 @@
 
 Statut : EN COURS
 Lot courant : **L3 — taxonomie, catalogue, overlay OWASP**, à cadrer depuis `main`
-Prochaine action : L3, cadrage.
-À reprendre en tête de son cadrage : l'écart du 2026-11-04 sur `addNeed` et les needs non littéraux,
-qui écrit faux, et celui sur `setJobStage` et les formes rares de `!reference`.
+Prochaine action : sur `lot/l3-owasp`, traiter les retours de la revue et de `critique`/`audit`,
+contre-revue des correctifs, `polish`, `document`, vérification, fusion.
 Blocage : aucun
 
 
