@@ -150,7 +150,7 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "alpine:latest",
         "script": []
       },
       "range": {

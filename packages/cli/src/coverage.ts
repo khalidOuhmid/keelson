@@ -2,7 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type { Diagnostic } from "@keelson/core";
-import { COVERAGE_LAYER_MISSING } from "@keelson/core";
+import { COVERAGE_LAYER_MISSING, hasErrors, INVALID_YAML } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
 import { findLayer, isLayerId, type LayerId } from "@keelson/taxonomy";
 import { analyse } from "./analysis.ts";
@@ -59,6 +59,10 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
     return usage(`expected a single file, "${parsed.positionals[1]}" is one too many`);
   }
 
+  if (parsed.values.require?.trim() === "") {
+    return usage("--require names no layer");
+  }
+
   const requested = (parsed.values.require ?? "")
     .split(",")
     .map((entry) => entry.trim())
@@ -81,9 +85,15 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
   }
 
   const analysis = analyse(file, text);
-  const result = coverage(analysis.result.pipeline, loadCatalog().tools, analysis.layout.overrides);
+  const result = coverage(
+    analysis.result.pipeline,
+    loadCatalog().tools,
+    analysis.layout.overrides,
+    analysis.result.diagnostics,
+  );
   const missing = missingRequired(requested.filter(isLayerId), result);
-  const notes = [...analysis.layout.diagnostics, ...missing];
+  const unreadable = analysis.result.diagnostics.filter((entry) => entry.code === INVALID_YAML);
+  const notes = [...unreadable, ...analysis.layout.diagnostics, ...missing];
 
   return {
     stdout:
@@ -102,6 +112,6 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
             notes.map((entry) => `${entry.severity} ${entry.code} ${renderMessage(entry)}`),
           ),
     stderr: "",
-    exitCode: missing.length > 0 ? 1 : 0,
+    exitCode: hasErrors(notes) ? 1 : 0,
   };
 }

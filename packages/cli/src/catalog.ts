@@ -50,6 +50,10 @@ export function catalogCommand(argv: readonly string[], cwd: string, now: Date):
     return usage(`directory not found: ${directory}`);
   }
 
+  if (files.length === 0) {
+    return usage(`no .yaml tool file in ${directory}`);
+  }
+
   const diagnostics = lintCatalog(files, loadCatalog().logos, now);
   const lines = diagnostics.map(
     (entry) => `${entry.file} ${entry.severity} ${entry.code} ${renderMessage(entry)}\n`,

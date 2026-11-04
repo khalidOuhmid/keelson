@@ -704,3 +704,32 @@ describe("vues et couverture", () => {
     expect(failing.getState().error?.code).toBe("NETWORK_ERROR");
   });
 });
+
+describe("un changement de layout.json", () => {
+  const COVERED: Coverage = {
+    jobs: [],
+    layers: [{ layer: "sast", covered: true, jobs: ["a"] }],
+    partial: false,
+  };
+
+  /** Le YAML n'a pas bougé : effacer l'historique et dire « The file changed on disk » serait faux. */
+  test("repose la couverture sans toucher l'historique ni rien annoncer", async () => {
+    await addStageWith();
+    expect(state().canUndo()).toBe(true);
+
+    api.queueDocument({
+      ok: true,
+      value: { ...documentPayload(HASH_B), coverage: COVERED },
+    });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+
+    expect(state().coverage).toEqual(COVERED);
+    expect(state().canUndo()).toBe(true);
+    expect(state().notice).toBeNull();
+  });
+
+  async function addStageWith(): Promise<void> {
+    api.queue({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await addStage("livrer");
+  }
+});

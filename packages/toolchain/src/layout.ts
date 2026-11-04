@@ -40,7 +40,8 @@ export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayo
   const parsed = layoutSchema.safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    return invalid(`${issue?.path.join(".") ?? ""}: ${issue?.message ?? "invalid"}`);
+    const path = issue?.path.join(".") ?? "";
+    return invalid(`${path === "" ? "" : `${path}: `}${issue?.message ?? "invalid"}`);
   }
 
   const known = new Set(pipeline.jobs.map((job) => job.id));

@@ -7,7 +7,7 @@ homepage: https://portswigger.net/burp/dast
 verifiedAt: https://portswigger.net/burp/enterprise
 logo: null
 detect:
-  images: ['portswigger/']
+  images: []
   scripts: []
 snippets:
   gitlab: null

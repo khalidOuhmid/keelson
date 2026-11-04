@@ -54,8 +54,16 @@
         }
       ],
       "signals": {
-        "image": null,
-        "script": ["pip install ruff tox", "pip install --editable \".[test]\"", "tox -e py,ruff"]
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "pip install ruff tox",
+          "pip install --editable \".[test]\"",
+          "tox -e py,ruff"
+        ]
       },
       "range": {
         "start": 813,
@@ -93,8 +101,14 @@
         }
       ],
       "signals": {
-        "image": null,
-        "script": ["pip install ."]
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "pip install ."
+        ]
       },
       "range": {
         "start": 941,
@@ -140,8 +154,12 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "python:latest",
         "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
           "pip install sphinx sphinx-rtd-theme",
           "cd doc",
           "make html",
@@ -183,8 +201,14 @@
         }
       ],
       "signals": {
-        "image": null,
-        "script": ["echo \"Define your deployment script!\""]
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "echo \"Define your deployment script!\""
+        ]
       },
       "range": {
         "start": 1263,

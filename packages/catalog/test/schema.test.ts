@@ -58,7 +58,7 @@ describe("lint du catalogue", () => {
   test("un logo absent du catalogue est une erreur", () => {
     const text = VALID.replace("logo: null", "logo: inconnu");
     expect(codes(text)).toEqual(["CATALOG_UNKNOWN_LOGO"]);
-    expect(codes(text, { inconnu: { title: "x", path: "M0 0" } })).toEqual([]);
+    expect(codes(text, { inconnu: { path: "M0 0" } })).toEqual([]);
   });
 
   test("un outil job sans aucun snippet est une erreur, pas un service", () => {
@@ -100,5 +100,22 @@ describe("licences", () => {
     expect(of("BUSL-1.1")).toBe(false);
     expect(of("FSL-1.1-Apache-2.0")).toBe(false);
     expect(of("Proprietary")).toBe(false);
+  });
+});
+
+describe("les snippets sont vérifiés au parse", () => {
+  test.each([
+    ["un GitLab illisible", "gitlab: null", 'gitlab: "a: ["', "snippets.gitlab"],
+    ["un GitLab qui n'est pas une map", "gitlab: null", 'gitlab: "- a"', "snippets.gitlab"],
+    [
+      "un GitHub qui n'est pas une liste",
+      "github: |\n    - run: outil",
+      'github: "a: b"',
+      "snippets.github",
+    ],
+  ])("refuse %s", (_label, from, to, path) => {
+    const parsed = parseTool(VALID.replace(from, to));
+    expect(parsed.ok ? "" : parsed.detail).toContain(path);
+    expect(parsed.ok).toBe(false);
   });
 });

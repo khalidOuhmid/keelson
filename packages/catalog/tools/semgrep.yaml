@@ -8,7 +8,7 @@ verifiedAt: https://github.com/semgrep/semgrep
 logo: null
 detect:
   images: ['semgrep/semgrep', 'returntocorp/semgrep']
-  scripts: ['\bsemgrep\s+(ci|scan)\b']
+  scripts: ['(^|[\s/])semgrep\s']
 snippets:
   gitlab: |
     semgrep:

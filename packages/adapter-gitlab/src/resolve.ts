@@ -463,17 +463,68 @@ function scriptLines(node: AnyNode, file: string, context: ResolveContext): stri
 
 const SCRIPT_SECTIONS = ["before_script", "script", "after_script"] as const;
 
-export function resolveSignals(sources: readonly Source[], context: ResolveContext): JobSignals {
-  const found = matches(sources, "image").at(-1);
-  const resolved = found === undefined ? null : dereference(found.node, found.file, context).node;
-  const named = isMap(resolved) ? (localPair(resolved, "name")?.value as AnyNode) : resolved;
+/** Les clés que `inherit: default:` laisse passer : toutes, aucune, ou celles qu'il nomme. */
+function inheritedKeys(
+  sources: readonly Source[],
+  context: ResolveContext,
+): ReadonlySet<string> | null {
+  const inherit = matches(sources, "inherit").at(-1);
+  const map = inherit === undefined ? null : dereference(inherit.node, inherit.file, context).node;
+  const value = isMap(map) ? (localPair(map, "default")?.value as AnyNode) : null;
+  if (isScalar(value) && value.value === false) {
+    return new Set();
+  }
+  return isSeq(value) ? new Set(stringsOf(value)) : null;
+}
+
+/** Ce qui s'applique sous tous les jobs d'un fichier : `default:`, et les clés globales dépréciées
+ *  mais valides. Le script n'en fait pas partie : un `script` de premier niveau n'existe pas. */
+export function defaultSources(root: YAMLMap, file: string, context: ResolveContext): Source[] {
+  const document = documentOf(context, file);
+  const value = localPair(root, "default")?.value as AnyNode;
+  const target = isAlias(value) && document !== null ? value.resolve(document) : value;
+  const origin: Origin = { kind: "default" };
+  const merged =
+    isMap(target) && document !== null
+      ? anchorMerges(target, document)
+          .reverse()
+          .map((merge) => ({ map: merge.map, origin, file }))
+      : [];
+  return [
+    { map: root, origin, file },
+    ...merged,
+    ...(isMap(target) ? [{ map: target, origin, file }] : []),
+  ];
+}
+
+export function resolveSignals(
+  sources: readonly Source[],
+  defaults: readonly Source[],
+  context: ResolveContext,
+): JobSignals {
+  const inherited = inheritedKeys(sources, context);
+  const find = (key: string) =>
+    matches([...(inherited === null || inherited.has(key) ? defaults : []), ...sources], key).at(
+      -1,
+    );
+
+  const found = find("image");
+  const image = found === undefined ? null : dereference(found.node, found.file, context).node;
+  const document = found === undefined ? null : documentOf(context, found.file);
+  const named =
+    isMap(image) && found !== undefined && document !== null
+      ? dereference(entryAt(image, "name", document), found.file, context).node
+      : image;
+
+  const sections = SCRIPT_SECTIONS.map((key) =>
+    key === "script" ? matches(sources, key).at(-1) : find(key),
+  );
 
   return {
     image: isScalar(named) && typeof named.value === "string" ? named.value : null,
-    script: SCRIPT_SECTIONS.flatMap((key) => {
-      const section = matches(sources, key).at(-1);
-      return section === undefined ? [] : scriptLines(section.node, section.file, context);
-    }),
+    script: sections.flatMap((section) =>
+      section === undefined ? [] : scriptLines(section.node, section.file, context),
+    ),
   };
 }
 

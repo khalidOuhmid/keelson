@@ -54,7 +54,7 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "node:latest",
         "script": ["npm install", "node ./specs/start.js ./specs/async.spec.js"]
       },
       "range": {
@@ -85,7 +85,7 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "node:latest",
         "script": ["npm install", "node ./specs/start.js ./specs/db-postgres.spec.js"]
       },
       "range": {
@@ -123,7 +123,7 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "node:latest",
         "script": ["echo \"Define your deployment script!\""]
       },
       "range": {

@@ -55,3 +55,41 @@ describe("signaux d'un job", () => {
     expect(signals("job:\n  stage: test\n")).toEqual({ image: null, script: [] });
   });
 });
+
+describe("les valeurs effectives de D1", () => {
+  test("image et before_script globaux, dépréciés mais valides", () => {
+    const text = "image: aquasec/trivy\nbefore_script:\n  - a\n\njob:\n  script: b\n";
+    expect(signals(text)).toEqual({ image: "aquasec/trivy", script: ["a", "b"] });
+  });
+
+  test("un script global n'existe pas : seul celui du job compte", () => {
+    expect(signals("job:\n  stage: test\n")?.script).toEqual([]);
+  });
+
+  test("inherit: default: false coupe default et les clés globales", () => {
+    const text =
+      "default:\n  image: a/b\n  before_script:\n    - x\n\njob:\n  inherit:\n    default: false\n  script: y\n";
+    expect(signals(text)).toEqual({ image: null, script: ["y"] });
+  });
+
+  test("inherit: default: [liste] ne garde que ce qu'elle nomme", () => {
+    const text =
+      "default:\n  image: a/b\n  before_script:\n    - x\n\njob:\n  inherit:\n    default: [before_script]\n  script: y\n";
+    expect(signals(text)).toEqual({ image: null, script: ["x", "y"] });
+  });
+
+  test("default par alias et par clé de fusion", () => {
+    const base = ".d: &d\n  image: a/b\n\n";
+    expect(signals(`${base}default: *d\n\njob:\n  script: y\n`)?.image).toBe("a/b");
+    expect(signals(`${base}default:\n  <<: *d\n\njob:\n  script: y\n`)?.image).toBe("a/b");
+  });
+
+  test("le nom de l'image par alias, !reference ou clé de fusion", () => {
+    const cases = [
+      "x: &i a/b\n\njob:\n  image:\n    name: *i\n  script: y\n",
+      ".t:\n  name: a/b\n\njob:\n  image:\n    name: !reference [.t, name]\n  script: y\n",
+      ".t: &t\n  name: a/b\n\njob:\n  image:\n    <<: *t\n  script: y\n",
+    ];
+    expect(cases.map((text) => signals(text)?.image)).toEqual(["a/b", "a/b", "a/b"]);
+  });
+});

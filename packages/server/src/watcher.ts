@@ -9,7 +9,10 @@ export const DEBOUNCE_MS = 40;
 
 export type DocumentEvent =
   | { kind: "document.changed"; file: string; hash: string }
-  | { kind: "document.removed"; file: string };
+  | { kind: "document.removed"; file: string }
+  /** `layout.json` a changé, pas le pipeline : l'écran repose la couverture sans toucher à
+   *  l'historique d'annulation ni annoncer un fichier modifié. */
+  | { kind: "coverage.changed"; file: string };
 
 export type Watcher = {
   close(): void;
@@ -20,6 +23,8 @@ export type Watcher = {
 type Tracked = {
   file: string;
   main: string;
+  /** `.devsecops` ou son `layout.json` : ils décident de la couverture, pas du pipeline. */
+  companion: boolean;
 };
 
 export function watchDocuments(
@@ -74,6 +79,19 @@ export function watchDocuments(
     }
   };
 
+  const reloadCoverage = async (entry: Tracked, absolute: string): Promise<void> => {
+    // Un dossier supprimé garde son watcher, désormais mort : on le retire pour que le chargement
+    // en repose un si le dossier existe de nouveau.
+    if (entry.file === dirname(LAYOUT_FILE)) {
+      watchers.get(absolute)?.close();
+      watchers.delete(absolute);
+    }
+    await store.load(entry.main);
+    if (!closed) {
+      emit({ kind: "coverage.changed", file: entry.main });
+    }
+  };
+
   const schedule = (absolute: string, entry: Tracked): void => {
     const existing = timers.get(absolute);
     if (existing !== undefined) {
@@ -84,6 +102,10 @@ export function watchDocuments(
       setTimeout(() => {
         timers.delete(absolute);
         if (closed) {
+          return;
+        }
+        if (entry.companion) {
+          void reloadCoverage(entry, absolute);
           return;
         }
         void (entry.file === entry.main ? inspectMain(entry.main) : reloadMain(entry.main));
@@ -128,7 +150,7 @@ export function watchDocuments(
       const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE];
       for (const file of [main, ...store.includedFiles(main), ...companions]) {
         const absolute = resolve(root, file);
-        tracked.set(absolute, { file, main });
+        tracked.set(absolute, { file, main, companion: companions.includes(file) });
         watchDirectory(dirname(absolute));
       }
     }

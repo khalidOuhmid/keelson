@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { Coverage, Tool } from "@keelson/catalog";
 import type { Job, Pipeline } from "@keelson/core";
-import { LAYERS, type LayerId } from "@keelson/taxonomy";
+import { findLayer, LAYERS, type LayerId } from "@keelson/taxonomy";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -86,7 +86,9 @@ describe("panneau de couverture", () => {
     const rowOf = (name: string) => within(uncovered).getByText(name).closest("li") as HTMLElement;
 
     const link = within(rowOf("Dynamic testing")).getByRole("link", { name: "OWASP guideline" });
-    expect(link.getAttribute("href")).toContain("2-4-2-Dynamic-Application-Security-Testing.md");
+    expect(link.getAttribute("href")).toBe(
+      `https://github.com/OWASP/DevSecOpsGuideline/blob/master/${findLayer("dast").guideline}`,
+    );
     const platform = screen.getByRole("region", { name: "Platform categories not seen" });
     const row = within(platform).getByText("Source control").closest("li") as HTMLElement;
     expect(within(row).queryByRole("link")).toBeNull();
@@ -228,7 +230,7 @@ describe("catalogue", () => {
     }),
     tool("c", { layers: ["sast", "sca"], license: "BUSL-1.1", logo: "c" }),
   ];
-  const LOGOS = { c: { title: "C", path: "M0 0h24v24H0z" } };
+  const LOGOS = { c: { path: "M0 0h24v24H0z" } };
 
   const renderCatalog = (initialLayer: LayerId | null = null) =>
     render(
@@ -315,6 +317,23 @@ describe("catalogue", () => {
     expect(card.textContent).toContain("script: x");
     expect(card.textContent).toContain("No GitHub Actions snippet.");
     expect(card.querySelector('svg path[d="M0 0h24v24H0z"]')).not.toBeNull();
+  });
+
+  test("la fiche dit si l'outil tourne comme job ou comme service", async () => {
+    render(
+      <CatalogView
+        catalog={{
+          layers: [...LAYERS],
+          tools: [tool("s", { kind: "service", name: "Serveur" })],
+          logos: {},
+        }}
+        initialLayer={null}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Serveur" }));
+    expect(screen.getByRole("region", { name: "Tool detail" }).textContent).toContain(
+      "Runs as a service",
+    );
   });
 
   test("un outil sans logo porte la marque générique", async () => {

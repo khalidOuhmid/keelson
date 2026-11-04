@@ -348,6 +348,14 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           return;
         }
 
+        if (event.kind === "coverage.changed") {
+          const result = await dependencies.document(event.file);
+          if (result.ok) {
+            set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
+          }
+          return;
+        }
+
         await reload(event.file, {
           kind: "reloaded",
           message: "The file changed on disk and was reloaded.",

@@ -54,7 +54,7 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "rust:latest",
         "script": ["rustc --version && cargo --version", "cargo test --workspace --verbose"]
       },
       "range": {
@@ -92,7 +92,7 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "rust:latest",
         "script": ["echo \"Define your deployment script!\""]
       },
       "range": {

@@ -1,7 +1,7 @@
 import generated from "./generated/catalog.json" with { type: "json" };
 import type { Tool } from "./schema.ts";
 
-export type Logo = { title: string; path: string };
+export type Logo = { path: string };
 
 export type Catalog = {
   tools: readonly Tool[];

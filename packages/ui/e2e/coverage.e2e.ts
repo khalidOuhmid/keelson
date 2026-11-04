@@ -111,6 +111,49 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
+  test("un pipeline partiel se dit une fois, et la couverture devient une borne basse", async ({
+    page,
+  }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      ".gitlab-ci.yml": `include:\n  - /ci/scan.yml\n  - template: Jobs/SAST.gitlab-ci.yml\n\n${TREE[".gitlab-ci.yml"]?.split("\n").slice(2).join("\n")}`,
+    });
+    try {
+      await page.goto(keelson.url);
+      await expect(page.getByRole("group", { name: "Partial pipeline" })).toBeVisible();
+      await expect(page.getByText("INCLUDE_UNRESOLVED")).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await expect(page.getByTestId("coverage-lower-bound")).toContainText(
+        "Coverage is a lower bound",
+      );
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("changer layout.json garde l'historique et n'annonce rien", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("New stage name").fill("livrer");
+      await page.getByRole("button", { name: "Add stage" }).click();
+      await expect(page.getByRole("button", { name: /Undo/ })).toBeEnabled();
+
+      keelson.writeAt(".devsecops/layout.json", '{"version":1,"layers":{"compile":["iast"]}}');
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await expect(page.getByTestId("coverage-count")).toContainText("3 of 13", {
+        timeout: 10_000,
+      });
+      await expect(page.getByText("The file changed on disk")).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Pipeline" }).click();
+      await expect(page.getByRole("button", { name: /Undo/ })).toBeEnabled();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("la vue de lecture n'écrit rien, même à Ctrl+Z", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {

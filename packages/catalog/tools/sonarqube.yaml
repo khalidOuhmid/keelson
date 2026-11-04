@@ -8,7 +8,7 @@ verifiedAt: https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/
 logo: sonarqubeserver
 detect:
   images: ['sonarsource/sonar-scanner-cli']
-  scripts: ['\bsonar-scanner\b']
+  scripts: ['\bsonar-scanner\b', '\bsonar:sonar\b', '\bgradlew\s+sonar\b', '\bgradle\s+sonar\b', '\bsonarscanner\b']
 snippets:
   gitlab: |
     sonarqube:

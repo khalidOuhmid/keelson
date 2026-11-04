@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadCatalog } from "@keelson/catalog";
 import { run } from "../src/run.ts";
 
 let root = "";
@@ -121,6 +122,21 @@ describe("keelson coverage", () => {
     expect((await json(tree(main))).body.partial).toBe(true);
   });
 
+  /** Un fichier illisible ne dit rien des couches : les annoncer toutes manquantes, code 0, serait
+   *  un mensonge plus grave qu'une erreur. */
+  test("un YAML invalide est une erreur, et la couverture est partielle", async () => {
+    const { body, exitCode } = await json(tree("a:\n  - x\n bad: [1,\n"));
+    expect(exitCode).toBe(1);
+    expect(body.partial).toBe(true);
+    expect(body.diagnostics.map((entry: { code: string }) => entry.code)).toContain("INVALID_YAML");
+  });
+
+  test("--require vide est une erreur d'usage : une variable de CI vide ne désarme pas la barrière", async () => {
+    const result = await run(["coverage", "--require", ""], { cwd: tree(JOBS) });
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("--require");
+  });
+
   test("fichier absent : code 2", async () => {
     const result = await run(["coverage"], { cwd: root });
     expect(result.exitCode).toBe(2);
@@ -140,7 +156,7 @@ describe("keelson catalog lint", () => {
   test("le catalogue embarqué est propre", async () => {
     const result = await run(["catalog", "lint"], { now: NOW, cwd: root });
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toMatch(/^\d+ tools, no findings\n$/);
+    expect(result.stdout).toBe(`${loadCatalog().tools.length} tools, no findings\n`);
   });
 
   test("un an plus tard, la fraîcheur est signalée sans échouer", async () => {
@@ -158,6 +174,12 @@ describe("keelson catalog lint", () => {
     const result = await run(["catalog", "lint", directory], { now: NOW });
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("x.yaml error CATALOG_INVALID_TOOL");
+  });
+
+  test("un dossier sans fiche est une erreur d'usage, pas un catalogue propre", async () => {
+    const directory = mkdtempSync(join(root, "v-"));
+    writeFileSync(join(directory, "x.yml"), "id: X\n");
+    expect((await run(["catalog", "lint", directory], { now: NOW })).exitCode).toBe(2);
   });
 
   test("le dossier du dépôt est propre", async () => {

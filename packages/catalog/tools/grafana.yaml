@@ -8,7 +8,7 @@ verifiedAt: https://github.com/grafana/grafana
 logo: grafana
 detect:
   images: ['grafana/grafana']
-  scripts: ['\bgrafana\b']
+  scripts: ['\bgrafana-cli\b', '\bgrafanactl\b']
 snippets:
   gitlab: null
   github: null

@@ -13,6 +13,24 @@ const pattern = z.string().refine((source) => {
   }
 }, "not a valid regular expression");
 
+function yamlOf(text: string): unknown {
+  try {
+    return parseYaml(text);
+  } catch {
+    return null;
+  }
+}
+
+function isJobMap(text: string): boolean {
+  const value = yamlOf(text);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStepList(text: string): boolean {
+  const value = yamlOf(text);
+  return Array.isArray(value) && value.length > 0;
+}
+
 export const toolSchema = z.strictObject({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   name: z.string().min(1),
@@ -23,7 +41,10 @@ export const toolSchema = z.strictObject({
   verifiedAt: z.url(),
   logo: z.string().min(1).nullable(),
   detect: z.strictObject({ images: z.array(z.string().min(1)), scripts: z.array(pattern) }),
-  snippets: z.strictObject({ gitlab: z.string().nullable(), github: z.string().nullable() }),
+  snippets: z.strictObject({
+    gitlab: z.string().refine(isJobMap, "not a map of jobs").nullable(),
+    github: z.string().refine(isStepList, "not a list of steps").nullable(),
+  }),
   lastVerified: z.iso.date(),
 });
 

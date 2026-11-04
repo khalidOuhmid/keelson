@@ -50,20 +50,14 @@ function pipeline(jobs: Job[], unresolved: Pipeline["unresolved"] = []): Pipelin
 describe("détection", () => {
   test("sur l'image, sans tenir compte de la casse ni du tag", () => {
     expect(detectTools({ image: "Exemple/Outil:1.2", script: [] }, [tool("outil")])).toEqual([
-      { tool: "outil", layers: ["sast"], via: "image" },
+      { tool: "outil", layers: ["sast"] },
     ]);
   });
 
   test("sur le script", () => {
     expect(detectTools({ image: null, script: ["./run", "outil --x"] }, [tool("outil")])).toEqual([
-      { tool: "outil", layers: ["sast"], via: "script" },
+      { tool: "outil", layers: ["sast"] },
     ]);
-  });
-
-  test("l'image l'emporte sur le script", () => {
-    expect(
-      detectTools({ image: "exemple/outil", script: ["outil"] }, [tool("outil")])[0]?.via,
-    ).toBe("image");
   });
 
   test("un mot qui contient le nom ne correspond pas", () => {
@@ -73,6 +67,20 @@ describe("détection", () => {
   test("un job peut correspondre à plusieurs outils", () => {
     const found = detectTools({ image: null, script: ["a && b"] }, [tool("a"), tool("b")]);
     expect(found.map((entry) => entry.tool)).toEqual(["a", "b"]);
+  });
+
+  test("le script ne tient pas compte de la casse", () => {
+    expect(detectTools({ image: null, script: ["OUTIL --x"] }, [tool("outil")])).toHaveLength(1);
+  });
+
+  test("un miroir ou un registre privé reste la même image", () => {
+    const found = (image: string) =>
+      detectTools({ image, script: [] }, [
+        tool("trivy", { detect: { images: ["aquasec/trivy"], scripts: [] } }),
+      ]);
+    expect(found("ghcr.io/aquasecurity/trivy:0.5")).toHaveLength(1);
+    expect(found("registry.example.org:5000/mirror/trivy@sha256:abc")).toHaveLength(1);
+    expect(found("mycorp/trivy-report-uploader")).toEqual([]);
   });
 
   /** Sur le vrai catalogue, parce que les faux positifs viennent de ses regex et non du moteur. */
@@ -85,6 +93,21 @@ describe("détection", () => {
     ["semgrep ci", ["semgrep"]],
     ["vault kv get secret/x", ["vault"]],
     ["sonar-scanner", ["sonarqube"]],
+    ["mvn sonar:sonar", ["sonarqube"]],
+    ["./gradlew sonar", ["sonarqube"]],
+    ["dotnet sonarscanner begin /k:x", ["sonarqube"]],
+    ["semgrep --config auto .", ["semgrep"]],
+    ["trivy --cache-dir x image a", ["trivy"]],
+    ["trivy -q fs .", ["trivy"]],
+    ["make && trivy fs .", ["trivy"]],
+    ["sudo /usr/local/bin/trivy fs .", ["trivy"]],
+    ["cp renovate.json /tmp/", []],
+    ["rm -rf nexus-data", []],
+    ["kubectl get pods -n grafana", []],
+    ["# semgrep ci disabled", []],
+    ["echo 'skip trivy image scan'", []],
+    ["cat dongtai.log", []],
+    ["ls checkov-report.json", []],
   ])("%s", (line, expected) => {
     expect(detectTools({ image: null, script: [line] }, tools).map((d) => d.tool)).toEqual(
       expected,
@@ -135,6 +158,13 @@ describe("couverture", () => {
 
   test("une clé héritée d'Object n'est pas une surcharge", () => {
     expect(coverage(pipeline([job("constructor", null)]), CATALOG).jobs[0]?.overridden).toBe(false);
+  });
+
+  test("un fichier illisible rend aussi la couverture partielle", () => {
+    const broken = [
+      { code: "INVALID_YAML", severity: "error", params: { detail: "x" }, range: null, file: "a" },
+    ] as const;
+    expect(coverage(pipeline([]), CATALOG, {}, [...broken]).partial).toBe(true);
   });
 
   test("un pipeline partiel rend une couverture partielle", () => {

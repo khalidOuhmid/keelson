@@ -31,7 +31,7 @@ function analyse(root: string, parsing: readonly Diagnostic[], pipeline: Pipelin
   const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
   return {
     diagnostics: [...parsing, ...validate(pipeline), ...layout.diagnostics],
-    coverage: coverage(pipeline, loadCatalog().tools, layout.overrides),
+    coverage: coverage(pipeline, loadCatalog().tools, layout.overrides, parsing),
   };
 }
 

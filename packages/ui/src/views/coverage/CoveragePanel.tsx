@@ -3,7 +3,7 @@ import { findLayer, type LayerId, type LayerSource } from "@keelson/taxonomy";
 import { SECTION_HEADING } from "../../editing/controls.ts";
 import { LayerTag } from "./LayerTag.tsx";
 
-export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/main/";
+export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/master/";
 
 export const LOWER_BOUND_NOTE =
   "Coverage is a lower bound: some includes are not resolved, and a layer listed as uncovered may be covered by what Keelson cannot read.";

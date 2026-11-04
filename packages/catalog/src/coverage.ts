@@ -1,5 +1,5 @@
-import type { Pipeline } from "@keelson/core";
-import { isPartial } from "@keelson/core";
+import type { Diagnostic, Pipeline } from "@keelson/core";
+import { INVALID_YAML, isPartial } from "@keelson/core";
 import { LAYERS, type LayerId } from "@keelson/taxonomy";
 import { detectTools } from "./detect.ts";
 import type { Tool } from "./schema.ts";
@@ -49,6 +49,7 @@ export function coverage(
   pipeline: Pipeline,
   tools: readonly Tool[],
   overrides: LayerOverrides = {},
+  parsing: readonly Diagnostic[] = [],
 ): Coverage {
   const jobs = pipeline.jobs.map((job) => jobCoverage(job.id, job.signals, tools, overrides));
   return {
@@ -57,6 +58,7 @@ export function coverage(
       const covering = jobs.filter((job) => job.layers.includes(id)).map((job) => job.job);
       return { layer: id, covered: covering.length > 0, jobs: covering };
     }),
-    partial: isPartial(pipeline),
+    // Un fichier illisible rend un pipeline tronqué : ses couches manquantes ne prouvent rien.
+    partial: isPartial(pipeline) || parsing.some((entry) => entry.code === INVALID_YAML),
   };
 }

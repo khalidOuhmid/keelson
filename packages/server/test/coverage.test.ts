@@ -105,13 +105,25 @@ describe("surveillance de layout.json", () => {
 
     writeLayout('{"version":1,"layers":{"secrets":["iast"]}}');
 
-    expect((await waitForEvent(events)).kind).toBe("document.changed");
-    const deadline = Date.now() + 2500;
-    while (Date.now() < deadline && events.length < 1) {
-      await new Promise((settle) => setTimeout(settle, 25));
-    }
-    const loaded = await store.load(".gitlab-ci.yml");
-    expect(loaded === null ? null : layer(loaded, "iast")).toBe(true);
+    expect((await waitForEvent(events)).kind).toBe("coverage.changed");
+    expect(events[0]).toEqual({ kind: "coverage.changed", file: ".gitlab-ci.yml" });
+  });
+
+  test("supprimer puis recréer le dossier garde la surveillance", async () => {
+    writeLayout('{"version":1}');
+    const events: DocumentEvent[] = [];
+    await store.load(".gitlab-ci.yml");
+    watcher = watchDocuments(root, store, (event) => events.push(event));
+
+    rmSync(join(root, ".devsecops"), { recursive: true });
+    await waitForEvent(events);
+    await new Promise((settle) => setTimeout(settle, 120));
+    writeLayout('{"version":1}');
+    await new Promise((settle) => setTimeout(settle, 120));
+    events.length = 0;
+
+    writeLayout('{"version":1,"layers":{"secrets":["iast"]}}');
+    expect((await waitForEvent(events)).kind).toBe("coverage.changed");
   });
 
   test("le modifier ensuite émet document.changed", async () => {
@@ -121,7 +133,7 @@ describe("surveillance de layout.json", () => {
     watcher = watchDocuments(root, store, (event) => events.push(event));
 
     writeLayout('{"version":1,"layers":{"secrets":["iast"]}}');
-    expect((await waitForEvent(events)).kind).toBe("document.changed");
+    expect((await waitForEvent(events)).kind).toBe("coverage.changed");
   });
 });
 

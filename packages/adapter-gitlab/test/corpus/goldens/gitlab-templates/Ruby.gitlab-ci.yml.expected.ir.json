@@ -54,8 +54,14 @@
         }
       ],
       "signals": {
-        "image": null,
-        "script": ["rubocop"]
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "rubocop"
+        ]
       },
       "range": {
         "start": 1481,
@@ -85,8 +91,14 @@
         }
       ],
       "signals": {
-        "image": null,
-        "script": ["rspec spec"]
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "rspec spec"
+        ]
       },
       "range": {
         "start": 1515,
@@ -124,8 +136,16 @@
         }
       ],
       "signals": {
-        "image": null,
-        "script": ["rails db:migrate", "rails db:seed", "rails test"]
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "rails db:migrate",
+          "rails db:seed",
+          "rails test"
+        ]
       },
       "range": {
         "start": 1550,
@@ -162,8 +182,12 @@
         }
       ],
       "signals": {
-        "image": null,
+        "image": "ruby:latest",
         "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
           "gem install dpl",
           "dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_PRODUCTION_KEY"
         ]

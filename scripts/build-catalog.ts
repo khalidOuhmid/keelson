@@ -36,7 +36,7 @@ export function buildCatalog(): string {
       if (icon === undefined) {
         throw new Error(`no simple-icons logo named ${slug}`);
       }
-      return [slug, { title: icon.title, path: icon.path }];
+      return [slug, { path: icon.path }];
     }),
   );
 
