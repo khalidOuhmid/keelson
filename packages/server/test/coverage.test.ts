@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
@@ -189,6 +189,42 @@ describe("un fichier que le parseur ne sait pas lire", () => {
       process.off("unhandledRejection", record);
       watcher.close();
     }
+  });
+});
+
+describe("après un fichier que le parseur ne sait pas lire", () => {
+  const BROKEN = "job:\n  script: &s [a, *s]\n";
+  let watcher: Watcher;
+
+  afterEach(() => watcher.close());
+
+  async function broken(events: DocumentEvent[]): Promise<void> {
+    await store.load(".gitlab-ci.yml");
+    watcher = watchDocuments(root, store, (event) => events.push(event));
+    writeFileSync(join(root, ".gitlab-ci.yml"), BROKEN);
+    await new Promise((settle) => setTimeout(settle, 200));
+  }
+
+  test("une opération ne remplace pas le fichier par l'ancien texte", async () => {
+    await broken([]);
+    const attempt = store.applyOperation(
+      ".gitlab-ci.yml",
+      { v: 1, baseHash: hashText(MAIN), kind: "addStage", name: "verify" },
+      "op",
+    );
+    await attempt.catch(() => null);
+    expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(BROKEN);
+  });
+
+  test("restaurer le même texte est annoncé", async () => {
+    const events: DocumentEvent[] = [];
+    await broken(events);
+    writeFileSync(join(root, ".gitlab-ci.yml"), MAIN);
+    expect(await waitForEvent(events)).toEqual({
+      kind: "document.changed",
+      file: ".gitlab-ci.yml",
+      hash: hashText(MAIN),
+    });
   });
 });
 

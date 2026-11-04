@@ -122,8 +122,9 @@ export function watchDocuments(
             ? inspectMain(entry.main)
             : reloadMain(entry.main);
         // Un fichier que le parseur ne sait pas lire ne doit pas tuer le serveur : sous Node, un
-        // rejet non géré met fin au processus. L'écran garde le dernier état lisible.
-        inspected.catch(() => {});
+        // rejet non géré met fin au processus. Le store l'oublie : son ancien texte n'est plus celui
+        // du disque, et une opération fondée dessus l'écraserait.
+        inspected.catch(() => store.forget(entry.main));
       }, DEBOUNCE_MS),
     );
   };
