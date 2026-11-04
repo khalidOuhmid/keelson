@@ -53,6 +53,18 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "pip install ruff tox",
+          "pip install --editable \".[test]\"",
+          "tox -e py,ruff"
+        ]
+      },
       "range": {
         "start": 813,
         "end": 940
@@ -88,6 +100,16 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "pip install ."
+        ]
+      },
       "range": {
         "start": 941,
         "end": 1043
@@ -131,6 +153,19 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "pip install sphinx sphinx-rtd-theme",
+          "cd doc",
+          "make html",
+          "mv build/html/ ../public/"
+        ]
+      },
       "range": {
         "start": 1044,
         "end": 1262
@@ -165,6 +200,16 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "python:latest",
+        "script": [
+          "python --version ; pip --version",
+          "pip install virtualenv",
+          "virtualenv venv",
+          "source venv/bin/activate",
+          "echo \"Define your deployment script!\""
+        ]
+      },
       "range": {
         "start": 1263,
         "end": 1361

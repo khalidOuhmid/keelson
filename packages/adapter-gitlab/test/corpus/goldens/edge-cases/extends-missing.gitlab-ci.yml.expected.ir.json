@@ -32,6 +32,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo orphelin"]
+      },
       "range": {
         "start": 18,
         "end": 91

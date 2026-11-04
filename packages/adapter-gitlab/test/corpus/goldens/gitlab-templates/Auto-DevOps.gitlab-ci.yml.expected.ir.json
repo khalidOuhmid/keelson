@@ -149,6 +149,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "alpine:latest",
+        "script": []
+      },
       "range": {
         "start": 8070,
         "end": 8119

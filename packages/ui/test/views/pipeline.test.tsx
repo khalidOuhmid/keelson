@@ -57,6 +57,7 @@ function pipeline(stages: { name: string; implicit?: boolean }[], jobs: JobSpec[
           : { value: job.environment, origin: { kind: "local" } },
       extends: job.extends ?? [],
       opaque: [],
+      signals: { image: null, script: [] },
       range: { start: index * 100, end: index * 100 + 50 },
       file: MAIN,
     })),

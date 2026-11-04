@@ -1,0 +1,15 @@
+id: kyverno
+name: 'Kyverno'
+kind: service
+layers: [policy]
+license: Apache-2.0
+homepage: https://kyverno.io
+verifiedAt: https://github.com/kyverno/kyverno
+logo: null
+detect:
+  images: []
+  scripts: ['\bkyverno\s+apply\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

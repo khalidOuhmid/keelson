@@ -1,0 +1,24 @@
+id: dependency-check
+name: 'OWASP Dependency-Check'
+kind: job
+layers: [sca]
+license: Apache-2.0
+homepage: https://github.com/dependency-check/DependencyCheck
+verifiedAt: https://github.com/dependency-check/DependencyCheck
+logo: owasp
+detect:
+  images: ['owasp/dependency-check']
+  scripts: ['\bdependency-check(\.sh)?\b']
+snippets:
+  gitlab: |
+    dependency-check:
+      stage: test
+      image:
+        name: owasp/dependency-check:latest
+        entrypoint: [""]
+      script:
+        - dependency-check.sh --out report --scan .
+  github: |
+    - name: Run OWASP Dependency-Check
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" owasp/dependency-check:latest dependency-check.sh --out report --scan .
+lastVerified: 2026-11-04

@@ -50,6 +50,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo \"Compiling the code...\"", "echo \"Compile complete.\""]
+      },
       "range": {
         "start": 1049,
         "end": 1211
@@ -77,6 +81,14 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": [
+          "echo \"Running unit tests... This will take about 60 seconds.\"",
+          "sleep 60",
+          "echo \"Code coverage is 90%\""
+        ]
+      },
       "range": {
         "start": 1212,
         "end": 1481
@@ -104,6 +116,14 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": [
+          "echo \"Linting code... This will take about 10 seconds.\"",
+          "sleep 10",
+          "echo \"No lint issues found.\""
+        ]
+      },
       "range": {
         "start": 1482,
         "end": 1740
@@ -138,6 +158,13 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": [
+          "echo \"Deploying application...\"",
+          "echo \"Application successfully deployed.\""
+        ]
+      },
       "range": {
         "start": 1741,
         "end": 2007

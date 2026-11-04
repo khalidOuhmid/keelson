@@ -1,0 +1,15 @@
+id: openvas
+name: 'OpenVAS'
+kind: service
+layers: [infrastructure, continuous]
+license: GPL-2.0-only
+homepage: https://github.com/greenbone/openvas-scanner
+verifiedAt: https://github.com/greenbone/openvas-scanner
+logo: null
+detect:
+  images: ['greenbone/openvas']
+  scripts: ['\b(openvas|gvm-cli)\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

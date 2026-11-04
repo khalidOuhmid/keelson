@@ -1,4 +1,6 @@
+import type { JobCoverage } from "@keelson/catalog";
 import type { Job, Origin } from "@keelson/core";
+import { LayerTags } from "../views/coverage/LayerTag.tsx";
 import { ReadOnlyTag } from "../views/pipeline/JobNode.tsx";
 import { OriginBadge } from "../views/pipeline/OriginBadge.tsx";
 import { OpaqueBlockView } from "./OpaqueBlockView.tsx";
@@ -17,6 +19,8 @@ export type JobDetailPanelProps = {
   textOf: (file: string) => string;
   /** Le fichier principal, pour savoir si ce job est éditable. */
   main: string;
+  /** Sur la vue Coverage : ce qui a décidé des couches de ce job. */
+  coverage?: JobCoverage | null;
   onClose: () => void;
 };
 
@@ -56,7 +60,13 @@ function OpaqueContent({ blockKey, source }: { blockKey: string; source: string 
   return <OpaqueBlockView blockKey={blockKey} source={source} />;
 }
 
-export function JobDetailPanel({ job, textOf, main, onClose }: JobDetailPanelProps) {
+export function JobDetailPanel({
+  job,
+  textOf,
+  main,
+  coverage = null,
+  onClose,
+}: JobDetailPanelProps) {
   const needs = job.needs?.value ?? [];
   const environment = job.environment?.value ?? null;
   const included = job.file !== main;
@@ -98,6 +108,25 @@ export function JobDetailPanel({ job, textOf, main, onClose }: JobDetailPanelPro
           <span className="font-mono break-all">{job.file}</span>
         </Field>
       ) : null}
+
+      {coverage === null ? null : (
+        <Field label="Layers" testId="job-layers">
+          {coverage.layers.length === 0 ? (
+            <p className="text-text-muted">No layer detected.</p>
+          ) : (
+            <p className="flex flex-wrap items-center gap-1.5">
+              <LayerTags layers={coverage.layers} />
+            </p>
+          )}
+          <p data-testid="job-layers-source" className="mt-1 text-xs text-text-muted">
+            {coverage.overridden
+              ? "Set by .devsecops/layout.json."
+              : coverage.tools.length === 0
+                ? "Keelson recognised no tool in this job."
+                : `Detected from ${coverage.tools.join(", ")}.`}
+          </p>
+        </Field>
+      )}
 
       <Field label="Stage" testId="job-stage" origin={job.stage.origin} readOnly={included}>
         <span className="font-mono">{job.stage.value}</span>

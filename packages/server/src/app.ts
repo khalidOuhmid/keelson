@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { loadCatalog } from "@keelson/catalog";
 import type { MessageCode, Operation, ParamsOf } from "@keelson/core";
 import {
   FORBIDDEN_HOST,
@@ -8,6 +9,7 @@ import {
   NOT_FOUND,
   PAYLOAD_TOO_LARGE,
 } from "@keelson/core/messages";
+import { LAYERS } from "@keelson/taxonomy";
 import { isAllowedHost, TOKEN_HEADER, tokensMatch } from "./security.ts";
 import type { SseHub } from "./sse.ts";
 import type { StaticHandler } from "./static.ts";
@@ -103,6 +105,15 @@ export function createRequestHandler(context: AppContext) {
         return;
       }
       send(response, 200, { files: context.store.workspaceFiles() as unknown as Json[] });
+      return;
+    }
+
+    if (pathname === "/api/catalog") {
+      if (request.method !== "GET") {
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
+        return;
+      }
+      send(response, 200, { layers: LAYERS, ...loadCatalog() } as unknown as Json);
       return;
     }
 

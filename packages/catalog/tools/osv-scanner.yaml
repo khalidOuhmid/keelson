@@ -1,0 +1,24 @@
+id: osv-scanner
+name: 'OSV-Scanner'
+kind: job
+layers: [sca]
+license: Apache-2.0
+homepage: https://github.com/google/osv-scanner
+verifiedAt: https://github.com/google/osv-scanner
+logo: null
+detect:
+  images: ['osv-scanner']
+  scripts: ['\bosv-scanner\b']
+snippets:
+  gitlab: |
+    osv-scanner:
+      stage: test
+      image:
+        name: ghcr.io/google/osv-scanner:latest
+        entrypoint: [""]
+      script:
+        - osv-scanner scan source -r .
+  github: |
+    - name: Run OSV-Scanner
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/google/osv-scanner:latest osv-scanner scan source -r .
+lastVerified: 2026-11-04

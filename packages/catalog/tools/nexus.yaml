@@ -1,0 +1,15 @@
+id: nexus
+name: 'Sonatype Nexus Repository'
+kind: service
+layers: [registry]
+license: Proprietary
+homepage: https://www.sonatype.com/products/sonatype-nexus-repository
+verifiedAt: https://help.sonatype.com/en/ce-onboarding.html
+logo: sonatype
+detect:
+  images: []
+  scripts: ['\bnexus[.\-/]']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

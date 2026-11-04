@@ -1,0 +1,21 @@
+id: modelscan
+name: 'ModelScan'
+kind: job
+layers: [ai]
+license: Apache-2.0
+homepage: https://github.com/protectai/modelscan
+verifiedAt: https://github.com/protectai/modelscan
+logo: null
+detect:
+  images: []
+  scripts: ['\bmodelscan\s+-']
+snippets:
+  gitlab: |
+    modelscan:
+      stage: test
+      script:
+        - modelscan -p model.pkl
+  github: |
+    - name: Run ModelScan
+      run: modelscan -p model.pkl
+lastVerified: 2026-11-04

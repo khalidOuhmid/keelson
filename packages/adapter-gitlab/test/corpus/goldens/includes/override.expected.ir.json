@@ -49,6 +49,10 @@
           "file": "ci/jobs.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make"]
+      },
       "range": {
         "start": 50,
         "end": 73

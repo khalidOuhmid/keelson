@@ -1,0 +1,1582 @@
+{
+  "tools": [
+    {
+      "id": "42crunch",
+      "name": "42Crunch",
+      "kind": "service",
+      "layers": [
+        "api"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://42crunch.com",
+      "verifiedAt": "https://42crunch.com/",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\b42crunch\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "artifactory",
+      "name": "JFrog Artifactory",
+      "kind": "service",
+      "layers": [
+        "registry"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://jfrog.com/artifactory/",
+      "verifiedAt": "https://jfrog.com/artifactory/",
+      "logo": "jfrog",
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bjf\\s+rt\\b",
+          "\\bartifactory\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "bandit",
+      "name": "Bandit",
+      "kind": "job",
+      "layers": [
+        "sast"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/PyCQA/bandit",
+      "verifiedAt": "https://github.com/PyCQA/bandit",
+      "logo": null,
+      "detect": {
+        "images": [
+          "pycqa/bandit"
+        ],
+        "scripts": [
+          "\\bbandit\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "bandit:\n  stage: test\n  image:\n    name: ghcr.io/pycqa/bandit/bandit:latest\n    entrypoint: [\"\"]\n  script:\n    - bandit -r .\n",
+        "github": "- name: Run Bandit\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/pycqa/bandit/bandit:latest bandit -r .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "burp-dast",
+      "name": "Burp Suite DAST",
+      "kind": "service",
+      "layers": [
+        "dast"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://portswigger.net/burp/dast",
+      "verifiedAt": "https://portswigger.net/burp/enterprise",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": []
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "checkov",
+      "name": "Checkov",
+      "kind": "job",
+      "layers": [
+        "iac"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/bridgecrewio/checkov",
+      "verifiedAt": "https://github.com/bridgecrewio/checkov",
+      "logo": null,
+      "detect": {
+        "images": [
+          "bridgecrew/checkov"
+        ],
+        "scripts": [
+          "\\bcheckov\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "checkov:\n  stage: test\n  image:\n    name: bridgecrew/checkov:latest\n    entrypoint: [\"\"]\n  script:\n    - checkov --directory .\n",
+        "github": "- name: Run Checkov\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" bridgecrew/checkov:latest checkov --directory .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "codeql",
+      "name": "CodeQL",
+      "kind": "job",
+      "layers": [
+        "sast"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://codeql.github.com",
+      "verifiedAt": "https://github.com/github/codeql-action",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bcodeql\\s+(database|github)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": "- name: Initialize CodeQL\n  uses: github/codeql-action/init@v3\n- name: Analyze\n  uses: github/codeql-action/analyze@v3\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "conftest",
+      "name": "Conftest",
+      "kind": "job",
+      "layers": [
+        "policy",
+        "compliance"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/open-policy-agent/conftest",
+      "verifiedAt": "https://github.com/open-policy-agent/conftest",
+      "logo": null,
+      "detect": {
+        "images": [
+          "openpolicyagent/conftest"
+        ],
+        "scripts": [
+          "\\bconftest\\s+test\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "conftest:\n  stage: test\n  image:\n    name: openpolicyagent/conftest:latest\n    entrypoint: [\"\"]\n  script:\n    - conftest test deployment.yaml\n",
+        "github": "- name: Run Conftest\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" openpolicyagent/conftest:latest conftest test deployment.yaml\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "contrast-assess",
+      "name": "Contrast Assess",
+      "kind": "service",
+      "layers": [
+        "iast"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://www.contrastsecurity.com/contrast-assess",
+      "verifiedAt": "https://www.contrastsecurity.com/contrast-assess",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bcontrast(-agent|\\.jar)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "cosign",
+      "name": "Cosign",
+      "kind": "job",
+      "layers": [
+        "supply-chain"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/sigstore/cosign",
+      "verifiedAt": "https://github.com/sigstore/cosign",
+      "logo": null,
+      "detect": {
+        "images": [
+          "sigstore/cosign"
+        ],
+        "scripts": [
+          "\\bcosign\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": "- name: Run Cosign\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/sigstore/cosign/cosign:latest sign $IMAGE\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "cyclonedx-cli",
+      "name": "CycloneDX CLI",
+      "kind": "job",
+      "layers": [
+        "supply-chain"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/CycloneDX/cyclonedx-cli",
+      "verifiedAt": "https://github.com/CycloneDX/cyclonedx-cli",
+      "logo": null,
+      "detect": {
+        "images": [
+          "cyclonedx/cyclonedx-cli"
+        ],
+        "scripts": [
+          "\\bcyclonedx(-cli)?\\s+validate\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "cyclonedx-cli:\n  stage: build\n  image:\n    name: cyclonedx/cyclonedx-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - cyclonedx validate --input-file sbom.cdx.json --fail-on-errors\n",
+        "github": "- name: Run CycloneDX CLI\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" cyclonedx/cyclonedx-cli:latest cyclonedx validate --input-file sbom.cdx.json --fail-on-errors\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "defectdojo",
+      "name": "DefectDojo",
+      "kind": "service",
+      "layers": [
+        "vulnerability-aggregation"
+      ],
+      "license": "BSD-3-Clause",
+      "homepage": "https://www.defectdojo.org",
+      "verifiedAt": "https://github.com/DefectDojo/django-DefectDojo",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "/api/v2/(re)?import-scan/"
+        ]
+      },
+      "snippets": {
+        "gitlab": "defectdojo:\n  stage: deploy\n  script:\n    - |\n      curl -X POST \"$DOJO_URL/api/v2/import-scan/\" -H \"Authorization: Token $DOJO_TOKEN\" -F scan_type=\"Trivy Scan\" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT\n",
+        "github": "- name: Upload to DefectDojo\n  run: |\n    curl -X POST \"$DOJO_URL/api/v2/import-scan/\" -H \"Authorization: Token $DOJO_TOKEN\" -F scan_type=\"Trivy Scan\" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "dependency-check",
+      "name": "OWASP Dependency-Check",
+      "kind": "job",
+      "layers": [
+        "sca"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/dependency-check/DependencyCheck",
+      "verifiedAt": "https://github.com/dependency-check/DependencyCheck",
+      "logo": "owasp",
+      "detect": {
+        "images": [
+          "owasp/dependency-check"
+        ],
+        "scripts": [
+          "\\bdependency-check(\\.sh)?\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "dependency-check:\n  stage: test\n  image:\n    name: owasp/dependency-check:latest\n    entrypoint: [\"\"]\n  script:\n    - dependency-check.sh --out report --scan .\n",
+        "github": "- name: Run OWASP Dependency-Check\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" owasp/dependency-check:latest dependency-check.sh --out report --scan .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "dependency-track",
+      "name": "Dependency-Track",
+      "kind": "service",
+      "layers": [
+        "sca",
+        "continuous",
+        "vulnerability-aggregation"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://dependencytrack.org",
+      "verifiedAt": "https://docs.dependencytrack.org/usage/cicd/",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "/api/v1/bom\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "dependency-track:\n  stage: deploy\n  script:\n    - |\n      curl -X POST \"$DTRACK_URL/api/v1/bom\" -H \"X-Api-Key: $DTRACK_KEY\" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json\n",
+        "github": "- name: Upload the SBOM\n  run: |\n    curl -X POST \"$DTRACK_URL/api/v1/bom\" -H \"X-Api-Key: $DTRACK_KEY\" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "detect-secrets",
+      "name": "detect-secrets",
+      "kind": "job",
+      "layers": [
+        "secrets"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/Yelp/detect-secrets",
+      "verifiedAt": "https://github.com/Yelp/detect-secrets",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bdetect-secrets(-hook)?\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "detect-secrets:\n  stage: test\n  script:\n    - detect-secrets scan --baseline .secrets.baseline\n",
+        "github": "- name: Run detect-secrets\n  run: detect-secrets scan --baseline .secrets.baseline\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "dongtai",
+      "name": "DongTai IAST",
+      "kind": "service",
+      "layers": [
+        "iast"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/HXSecurity/DongTai",
+      "verifiedAt": "https://github.com/HXSecurity/DongTai",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bdongtai\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "falco",
+      "name": "Falco",
+      "kind": "service",
+      "layers": [
+        "runtime-security",
+        "cnapp"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://falco.org",
+      "verifiedAt": "https://github.com/falcosecurity/falco",
+      "logo": null,
+      "detect": {
+        "images": [
+          "falcosecurity/falco"
+        ],
+        "scripts": [
+          "\\bfalco(ctl)?\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "garak",
+      "name": "garak",
+      "kind": "job",
+      "layers": [
+        "ai"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/NVIDIA/garak",
+      "verifiedAt": "https://github.com/NVIDIA/garak",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bgarak\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "garak:\n  stage: test\n  script:\n    - python -m garak --target_type openai --target_name $MODEL\n",
+        "github": "- name: Run garak\n  run: python -m garak --target_type openai --target_name $MODEL\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "ggshield",
+      "name": "ggshield",
+      "kind": "job",
+      "layers": [
+        "secrets"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/GitGuardian/ggshield",
+      "verifiedAt": "https://github.com/GitGuardian/ggshield",
+      "logo": null,
+      "detect": {
+        "images": [
+          "ggshield"
+        ],
+        "scripts": [
+          "\\bggshield\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "ggshield:\n  stage: test\n  image:\n    name: gitguardian/ggshield:latest\n    entrypoint: [\"\"]\n  script:\n    - ggshield secret scan repo .\n",
+        "github": "- name: Run ggshield\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" gitguardian/ggshield:latest ggshield secret scan repo .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "gitea",
+      "name": "Gitea",
+      "kind": "service",
+      "layers": [
+        "scm"
+      ],
+      "license": "MIT",
+      "homepage": "https://about.gitea.com",
+      "verifiedAt": "https://github.com/go-gitea/gitea",
+      "logo": "gitea",
+      "detect": {
+        "images": [],
+        "scripts": []
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "kind": "service",
+      "layers": [
+        "scm"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://github.com",
+      "verifiedAt": "https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security",
+      "logo": "github",
+      "detect": {
+        "images": [],
+        "scripts": []
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "kind": "service",
+      "layers": [
+        "scm"
+      ],
+      "license": "MIT",
+      "homepage": "https://about.gitlab.com",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/master/LICENSE",
+      "logo": "gitlab",
+      "detect": {
+        "images": [],
+        "scripts": []
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "gitleaks",
+      "name": "Gitleaks",
+      "kind": "job",
+      "layers": [
+        "secrets"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/gitleaks/gitleaks",
+      "verifiedAt": "https://github.com/gitleaks/gitleaks",
+      "logo": null,
+      "detect": {
+        "images": [
+          "gitleaks"
+        ],
+        "scripts": [
+          "\\bgitleaks\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "gitleaks:\n  stage: test\n  image:\n    name: ghcr.io/gitleaks/gitleaks:latest\n    entrypoint: [\"\"]\n  script:\n    - gitleaks git --report-path gitleaks-report.json\n",
+        "github": "- name: Run Gitleaks\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/gitleaks/gitleaks:latest gitleaks git --report-path gitleaks-report.json\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "gosec",
+      "name": "gosec",
+      "kind": "job",
+      "layers": [
+        "sast"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/securego/gosec",
+      "verifiedAt": "https://github.com/securego/gosec",
+      "logo": null,
+      "detect": {
+        "images": [
+          "securego/gosec"
+        ],
+        "scripts": [
+          "\\bgosec\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "gosec:\n  stage: test\n  image:\n    name: ghcr.io/securego/gosec:latest\n    entrypoint: [\"\"]\n  script:\n    - gosec ./...\n",
+        "github": "- name: Run gosec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/securego/gosec:latest gosec ./...\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "kind": "service",
+      "layers": [
+        "observability"
+      ],
+      "license": "AGPL-3.0-only",
+      "homepage": "https://grafana.com",
+      "verifiedAt": "https://github.com/grafana/grafana",
+      "logo": "grafana",
+      "detect": {
+        "images": [
+          "grafana/grafana"
+        ],
+        "scripts": [
+          "\\bgrafana-cli\\b",
+          "\\bgrafanactl\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "grype",
+      "name": "Grype",
+      "kind": "job",
+      "layers": [
+        "sca",
+        "infrastructure"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/anchore/grype",
+      "verifiedAt": "https://github.com/anchore/grype",
+      "logo": null,
+      "detect": {
+        "images": [
+          "anchore/grype"
+        ],
+        "scripts": [
+          "\\bgrype\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": "- name: Run Grype\n  run: docker run --rm -v \"$PWD:/src\" -w /src anchore/grype:latest dir:.\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "harbor",
+      "name": "Harbor",
+      "kind": "service",
+      "layers": [
+        "registry"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://goharbor.io",
+      "verifiedAt": "https://github.com/goharbor/harbor",
+      "logo": "harbor",
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bharbor[.\\-/]"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "inspec",
+      "name": "Chef InSpec",
+      "kind": "job",
+      "layers": [
+        "compliance"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/inspec/inspec",
+      "verifiedAt": "https://github.com/inspec/inspec",
+      "logo": "chef",
+      "detect": {
+        "images": [
+          "chef/inspec"
+        ],
+        "scripts": [
+          "\\binspec\\s+exec\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "inspec:\n  stage: deploy\n  image:\n    name: chef/inspec:latest\n    entrypoint: [\"\"]\n  script:\n    - inspec exec test.rb\n",
+        "github": "- name: Run Chef InSpec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" chef/inspec:latest inspec exec test.rb\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "kics",
+      "name": "KICS",
+      "kind": "job",
+      "layers": [
+        "iac"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/Checkmarx/kics",
+      "verifiedAt": "https://github.com/Checkmarx/kics",
+      "logo": "checkmarx",
+      "detect": {
+        "images": [
+          "checkmarx/kics"
+        ],
+        "scripts": [
+          "\\bkics\\s+scan\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "kics:\n  stage: test\n  image:\n    name: checkmarx/kics:latest\n    entrypoint: [\"\"]\n  script:\n    - /app/bin/kics scan -p .\n",
+        "github": "- name: Run KICS\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" checkmarx/kics:latest /app/bin/kics scan -p .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "kube-bench",
+      "name": "kube-bench",
+      "kind": "job",
+      "layers": [
+        "infrastructure",
+        "compliance"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/aquasecurity/kube-bench",
+      "verifiedAt": "https://github.com/aquasecurity/kube-bench",
+      "logo": null,
+      "detect": {
+        "images": [
+          "aquasec/kube-bench"
+        ],
+        "scripts": [
+          "\\bkube-bench\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "kube-bench:\n  stage: test\n  image:\n    name: aquasec/kube-bench:latest\n    entrypoint: [\"\"]\n  script:\n    - kube-bench run\n",
+        "github": "- name: Run kube-bench\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" aquasec/kube-bench:latest kube-bench run\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "kubescape",
+      "name": "Kubescape",
+      "kind": "job",
+      "layers": [
+        "cnapp",
+        "compliance",
+        "continuous"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/kubescape/kubescape",
+      "verifiedAt": "https://github.com/kubescape/kubescape",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bkubescape\\s+scan\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "kubescape:\n  stage: test\n  script:\n    - kubescape scan .\n",
+        "github": "- name: Run Kubescape\n  run: kubescape scan .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "kyverno",
+      "name": "Kyverno",
+      "kind": "service",
+      "layers": [
+        "policy"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://kyverno.io",
+      "verifiedAt": "https://github.com/kyverno/kyverno",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bkyverno\\s+apply\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "lynis",
+      "name": "Lynis",
+      "kind": "job",
+      "layers": [
+        "infrastructure",
+        "compliance"
+      ],
+      "license": "GPL-3.0-only",
+      "homepage": "https://github.com/CISOfy/lynis",
+      "verifiedAt": "https://github.com/CISOfy/lynis",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\blynis\\s+audit\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "lynis:\n  stage: test\n  script:\n    - lynis audit system\n",
+        "github": "- name: Run Lynis\n  run: lynis audit system\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "modelscan",
+      "name": "ModelScan",
+      "kind": "job",
+      "layers": [
+        "ai"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/protectai/modelscan",
+      "verifiedAt": "https://github.com/protectai/modelscan",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bmodelscan\\s+-"
+        ]
+      },
+      "snippets": {
+        "gitlab": "modelscan:\n  stage: test\n  script:\n    - modelscan -p model.pkl\n",
+        "github": "- name: Run ModelScan\n  run: modelscan -p model.pkl\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "nexus",
+      "name": "Sonatype Nexus Repository",
+      "kind": "service",
+      "layers": [
+        "registry"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://www.sonatype.com/products/sonatype-nexus-repository",
+      "verifiedAt": "https://help.sonatype.com/en/ce-onboarding.html",
+      "logo": "sonatype",
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bnexus[.\\-/]"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "nikto",
+      "name": "Nikto",
+      "kind": "job",
+      "layers": [
+        "dast"
+      ],
+      "license": "GPL-3.0-only",
+      "homepage": "https://github.com/sullo/nikto",
+      "verifiedAt": "https://github.com/sullo/nikto",
+      "logo": null,
+      "detect": {
+        "images": [
+          "sullo/nikto",
+          "hackllc/nikto"
+        ],
+        "scripts": [
+          "\\bnikto(\\.pl)?\\s+-h\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "nikto:\n  stage: test\n  image:\n    name: ghcr.io/sullo/nikto:latest\n    entrypoint: [\"\"]\n  script:\n    - nikto.pl -h $TARGET_URL\n",
+        "github": "- name: Run Nikto\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/sullo/nikto:latest nikto.pl -h $TARGET_URL\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "nuclei",
+      "name": "Nuclei",
+      "kind": "job",
+      "layers": [
+        "dast",
+        "infrastructure"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/projectdiscovery/nuclei",
+      "verifiedAt": "https://github.com/projectdiscovery/nuclei",
+      "logo": null,
+      "detect": {
+        "images": [
+          "projectdiscovery/nuclei"
+        ],
+        "scripts": [
+          "\\bnuclei\\s+-"
+        ]
+      },
+      "snippets": {
+        "gitlab": "nuclei:\n  stage: test\n  image:\n    name: projectdiscovery/nuclei:latest\n    entrypoint: [\"\"]\n  script:\n    - nuclei -target $TARGET_URL\n",
+        "github": "- name: Run Nuclei\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" projectdiscovery/nuclei:latest nuclei -target $TARGET_URL\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "opa",
+      "name": "Open Policy Agent",
+      "kind": "job",
+      "layers": [
+        "policy"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://www.openpolicyagent.org",
+      "verifiedAt": "https://github.com/open-policy-agent/opa",
+      "logo": null,
+      "detect": {
+        "images": [
+          "openpolicyagent/opa"
+        ],
+        "scripts": [
+          "\\bopa\\s+(test|eval)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "opa:\n  stage: test\n  image:\n    name: openpolicyagent/opa:latest\n    entrypoint: [\"\"]\n  script:\n    - opa test policy/\n",
+        "github": "- name: Test policies\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" openpolicyagent/opa:latest test policy/\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "openbao",
+      "name": "OpenBao",
+      "kind": "service",
+      "layers": [
+        "secrets-management"
+      ],
+      "license": "MPL-2.0",
+      "homepage": "https://openbao.org",
+      "verifiedAt": "https://github.com/openbao/openbao",
+      "logo": null,
+      "detect": {
+        "images": [
+          "openbao/openbao"
+        ],
+        "scripts": [
+          "\\bbao\\s+(kv|read|login|write)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "openscap",
+      "name": "OpenSCAP",
+      "kind": "job",
+      "layers": [
+        "compliance"
+      ],
+      "license": "LGPL-2.1-only",
+      "homepage": "https://github.com/OpenSCAP/openscap",
+      "verifiedAt": "https://github.com/OpenSCAP/openscap",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\boscap\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "openscap:\n  stage: test\n  script:\n    - oscap oval eval --results oval-results.xml scap-oval.xml\n",
+        "github": "- name: Run OpenSCAP\n  run: oscap oval eval --results oval-results.xml scap-oval.xml\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "openvas",
+      "name": "OpenVAS",
+      "kind": "service",
+      "layers": [
+        "infrastructure",
+        "continuous"
+      ],
+      "license": "GPL-2.0-only",
+      "homepage": "https://github.com/greenbone/openvas-scanner",
+      "verifiedAt": "https://github.com/greenbone/openvas-scanner",
+      "logo": null,
+      "detect": {
+        "images": [
+          "greenbone/openvas"
+        ],
+        "scripts": [
+          "\\b(openvas|gvm-cli)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "osv-scanner",
+      "name": "OSV-Scanner",
+      "kind": "job",
+      "layers": [
+        "sca"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/google/osv-scanner",
+      "verifiedAt": "https://github.com/google/osv-scanner",
+      "logo": null,
+      "detect": {
+        "images": [
+          "osv-scanner"
+        ],
+        "scripts": [
+          "\\bosv-scanner\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "osv-scanner:\n  stage: test\n  image:\n    name: ghcr.io/google/osv-scanner:latest\n    entrypoint: [\"\"]\n  script:\n    - osv-scanner scan source -r .\n",
+        "github": "- name: Run OSV-Scanner\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/google/osv-scanner:latest osv-scanner scan source -r .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "kind": "service",
+      "layers": [
+        "observability"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://prometheus.io",
+      "verifiedAt": "https://github.com/prometheus/prometheus",
+      "logo": "prometheus",
+      "detect": {
+        "images": [
+          "prom/prometheus"
+        ],
+        "scripts": [
+          "\\bpromtool\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "promptfoo",
+      "name": "promptfoo",
+      "kind": "job",
+      "layers": [
+        "ai"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/promptfoo/promptfoo",
+      "verifiedAt": "https://github.com/promptfoo/promptfoo",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bpromptfoo\\s+(eval|redteam)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "promptfoo:\n  stage: test\n  script:\n    - npx promptfoo eval\n",
+        "github": "- name: Run promptfoo\n  run: npx promptfoo eval\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "prowler",
+      "name": "Prowler",
+      "kind": "job",
+      "layers": [
+        "cnapp",
+        "compliance"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://prowler.com",
+      "verifiedAt": "https://github.com/prowler-cloud/prowler",
+      "logo": null,
+      "detect": {
+        "images": [
+          "prowlercloud/prowler",
+          "toniblyx/prowler"
+        ],
+        "scripts": [
+          "\\bprowler\\s+(aws|azure|gcp|kubernetes)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "prowler:\n  stage: test\n  image:\n    name: prowlercloud/prowler:latest\n    entrypoint: [\"\"]\n  script:\n    - prowler aws\n",
+        "github": "- name: Run Prowler\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" prowlercloud/prowler:latest prowler aws\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "renovate",
+      "name": "Renovate",
+      "kind": "job",
+      "layers": [
+        "sca"
+      ],
+      "license": "AGPL-3.0-only",
+      "homepage": "https://github.com/renovatebot/renovate",
+      "verifiedAt": "https://github.com/renovatebot/renovate",
+      "logo": "renovate",
+      "detect": {
+        "images": [
+          "renovate/renovate"
+        ],
+        "scripts": [
+          "\\brenovate\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "renovate:\n  stage: build\n  image:\n    name: renovate/renovate:latest\n    entrypoint: [\"\"]\n  script:\n    - renovate --platform=gitlab\n",
+        "github": "- name: Run Renovate\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" renovate/renovate:latest renovate --platform=gitlab\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "schemathesis",
+      "name": "Schemathesis",
+      "kind": "job",
+      "layers": [
+        "api"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/schemathesis/schemathesis",
+      "verifiedAt": "https://github.com/schemathesis/schemathesis",
+      "logo": null,
+      "detect": {
+        "images": [
+          "schemathesis/schemathesis"
+        ],
+        "scripts": [
+          "\\b(schemathesis|st)\\s+run\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "schemathesis:\n  stage: test\n  image:\n    name: schemathesis/schemathesis:stable\n    entrypoint: [\"\"]\n  script:\n    - schemathesis run $API_URL/openapi.json\n",
+        "github": "- name: Run Schemathesis\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" schemathesis/schemathesis:stable schemathesis run $API_URL/openapi.json\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "scorecard",
+      "name": "OpenSSF Scorecard",
+      "kind": "job",
+      "layers": [
+        "supply-chain"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/ossf/scorecard",
+      "verifiedAt": "https://github.com/ossf/scorecard",
+      "logo": null,
+      "detect": {
+        "images": [
+          "ossf/scorecard"
+        ],
+        "scripts": [
+          "\\bscorecard\\s+--repo\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": "- name: Run OpenSSF Scorecard\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/ossf/scorecard:latest --repo=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "kind": "job",
+      "layers": [
+        "sast"
+      ],
+      "license": "LGPL-2.1-only",
+      "homepage": "https://github.com/semgrep/semgrep",
+      "verifiedAt": "https://github.com/semgrep/semgrep",
+      "logo": null,
+      "detect": {
+        "images": [
+          "semgrep/semgrep",
+          "returntocorp/semgrep"
+        ],
+        "scripts": [
+          "(^|[\\s/\"'(])semgrep\\s"
+        ]
+      },
+      "snippets": {
+        "gitlab": "semgrep:\n  stage: test\n  image:\n    name: semgrep/semgrep:latest\n    entrypoint: [\"\"]\n  script:\n    - semgrep scan --config auto --error\n",
+        "github": "- name: Run Semgrep\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" semgrep/semgrep:latest semgrep scan --config auto --error\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry",
+      "kind": "service",
+      "layers": [
+        "observability"
+      ],
+      "license": "FSL-1.1-Apache-2.0",
+      "homepage": "https://sentry.io",
+      "verifiedAt": "https://docs.sentry.io/cli/releases/",
+      "logo": "sentry",
+      "detect": {
+        "images": [
+          "getsentry/sentry-cli"
+        ],
+        "scripts": [
+          "\\bsentry-cli\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "sentry-release:\n  stage: deploy\n  image:\n    name: getsentry/sentry-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - sentry-cli releases new --finalize \"$CI_COMMIT_SHA\"\n",
+        "github": "- name: Create a Sentry release\n  run: sentry-cli releases new --finalize \"$GITHUB_SHA\"\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "snyk",
+      "name": "Snyk",
+      "kind": "job",
+      "layers": [
+        "sca",
+        "sast",
+        "iac"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://snyk.io",
+      "verifiedAt": "https://github.com/snyk/cli",
+      "logo": "snyk",
+      "detect": {
+        "images": [
+          "snyk/snyk"
+        ],
+        "scripts": [
+          "\\bsnyk\\s+(test|code|container|iac|monitor)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "snyk:\n  stage: test\n  script:\n    - npx snyk test\n",
+        "github": "- name: Run Snyk\n  run: npx snyk test\n  env:\n    SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "sonarqube",
+      "name": "SonarQube",
+      "kind": "service",
+      "layers": [
+        "code-quality",
+        "sast"
+      ],
+      "license": "LGPL-3.0-only",
+      "homepage": "https://www.sonarsource.com/products/sonarqube/",
+      "verifiedAt": "https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/sonarscanner",
+      "logo": "sonarqubeserver",
+      "detect": {
+        "images": [
+          "sonarsource/sonar-scanner-cli"
+        ],
+        "scripts": [
+          "\\bsonar-scanner\\b",
+          "\\bsonar:sonar\\b",
+          "\\bgradlew\\s+sonar\\b",
+          "\\bgradle\\s+sonar\\b",
+          "\\bsonarscanner\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "sonarqube:\n  stage: test\n  image:\n    name: sonarsource/sonar-scanner-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - sonar-scanner\n",
+        "github": "- name: Run SonarScanner\n  run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v \"$PWD:/usr/src\" sonarsource/sonar-scanner-cli\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "spectral",
+      "name": "Spectral",
+      "kind": "job",
+      "layers": [
+        "api"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/stoplightio/spectral",
+      "verifiedAt": "https://github.com/stoplightio/spectral",
+      "logo": null,
+      "detect": {
+        "images": [
+          "stoplight/spectral"
+        ],
+        "scripts": [
+          "\\bspectral\\s+lint\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "spectral:\n  stage: test\n  image:\n    name: stoplight/spectral:latest\n    entrypoint: [\"\"]\n  script:\n    - spectral lint openapi.yaml\n",
+        "github": "- name: Run Spectral\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" stoplight/spectral:latest spectral lint openapi.yaml\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "syft",
+      "name": "Syft",
+      "kind": "job",
+      "layers": [
+        "supply-chain"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/anchore/syft",
+      "verifiedAt": "https://github.com/anchore/syft",
+      "logo": null,
+      "detect": {
+        "images": [
+          "anchore/syft"
+        ],
+        "scripts": [
+          "\\bsyft\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": "- name: Run Syft\n  run: docker run --rm -v \"$PWD:/src\" -w /src anchore/syft:latest dir:. -o cyclonedx-json=sbom.cdx.json\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "tetragon",
+      "name": "Tetragon",
+      "kind": "service",
+      "layers": [
+        "runtime-security"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://tetragon.io",
+      "verifiedAt": "https://github.com/cilium/tetragon",
+      "logo": null,
+      "detect": {
+        "images": [
+          "cilium/tetragon"
+        ],
+        "scripts": [
+          "\\b(tetragon|tetra)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "tflint",
+      "name": "TFLint",
+      "kind": "job",
+      "layers": [
+        "iac"
+      ],
+      "license": "MPL-2.0",
+      "homepage": "https://github.com/terraform-linters/tflint",
+      "verifiedAt": "https://github.com/terraform-linters/tflint",
+      "logo": null,
+      "detect": {
+        "images": [
+          "terraform-linters/tflint"
+        ],
+        "scripts": [
+          "\\btflint\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "tflint:\n  stage: test\n  image:\n    name: ghcr.io/terraform-linters/tflint:latest\n    entrypoint: [\"\"]\n  script:\n    - tflint\n",
+        "github": "- name: Run TFLint\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/terraform-linters/tflint:latest tflint\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "trivy-operator",
+      "name": "Trivy Operator",
+      "kind": "service",
+      "layers": [
+        "continuous"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/aquasecurity/trivy-operator",
+      "verifiedAt": "https://github.com/aquasecurity/trivy-operator",
+      "logo": "trivy",
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\btrivy-operator\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "trivy",
+      "name": "Trivy",
+      "kind": "job",
+      "layers": [
+        "sca",
+        "iac",
+        "infrastructure"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/aquasecurity/trivy",
+      "verifiedAt": "https://github.com/aquasecurity/trivy",
+      "logo": "trivy",
+      "detect": {
+        "images": [
+          "aquasec/trivy"
+        ],
+        "scripts": [
+          "(^|[\\s/\"'(])trivy\\s"
+        ]
+      },
+      "snippets": {
+        "gitlab": "trivy:\n  stage: test\n  image:\n    name: aquasec/trivy:latest\n    entrypoint: [\"\"]\n  script:\n    - trivy fs --scanners vuln,secret,misconfig .\n",
+        "github": "- name: Run Trivy\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" aquasec/trivy:latest trivy fs --scanners vuln,secret,misconfig .\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "trufflehog",
+      "name": "TruffleHog",
+      "kind": "job",
+      "layers": [
+        "secrets"
+      ],
+      "license": "AGPL-3.0-only",
+      "homepage": "https://github.com/trufflesecurity/trufflehog",
+      "verifiedAt": "https://github.com/trufflesecurity/trufflehog",
+      "logo": null,
+      "detect": {
+        "images": [
+          "trufflehog"
+        ],
+        "scripts": [
+          "\\btrufflehog\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "trufflehog:\n  stage: test\n  image:\n    name: trufflesecurity/trufflehog:latest\n    entrypoint: [\"\"]\n  script:\n    - trufflehog git file://. --results=verified,unknown --fail\n",
+        "github": "- name: Run TruffleHog\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" trufflesecurity/trufflehog:latest trufflehog git file://. --results=verified,unknown --fail\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "vault",
+      "name": "HashiCorp Vault",
+      "kind": "service",
+      "layers": [
+        "secrets-management"
+      ],
+      "license": "BUSL-1.1",
+      "homepage": "https://www.vaultproject.io",
+      "verifiedAt": "https://github.com/hashicorp/vault/blob/main/LICENSE",
+      "logo": "vault",
+      "detect": {
+        "images": [
+          "hashicorp/vault"
+        ],
+        "scripts": [
+          "\\bvault\\s+(kv|read|login|write)\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "vault:\n  stage: build\n  image:\n    name: hashicorp/vault:latest\n    entrypoint: [\"\"]\n  script:\n    - vault kv get -mount=secret -field=passcode creds\n",
+        "github": "- name: Read a secret from Vault\n  run: vault kv get -mount=secret -field=passcode creds\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "witness",
+      "name": "Witness",
+      "kind": "job",
+      "layers": [
+        "supply-chain"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/in-toto/witness",
+      "verifiedAt": "https://github.com/in-toto/witness",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bwitness\\s+run\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "witness:\n  stage: build\n  script:\n    - witness run --step build --attestations environment -- make\n",
+        "github": "- name: Run Witness\n  run: witness run --step build --attestations environment -- make\n"
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "wiz",
+      "name": "Wiz",
+      "kind": "service",
+      "layers": [
+        "cnapp"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://www.wiz.io",
+      "verifiedAt": "https://www.wiz.io/",
+      "logo": null,
+      "detect": {
+        "images": [],
+        "scripts": [
+          "\\bwizcli\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": null,
+        "github": null
+      },
+      "lastVerified": "2026-11-04"
+    },
+    {
+      "id": "zap",
+      "name": "ZAP",
+      "kind": "job",
+      "layers": [
+        "dast",
+        "api"
+      ],
+      "license": "Apache-2.0",
+      "homepage": "https://www.zaproxy.org",
+      "verifiedAt": "https://www.zaproxy.org/docs/docker/about/",
+      "logo": null,
+      "detect": {
+        "images": [
+          "zaproxy/zap-stable",
+          "zaproxy/zap-weekly",
+          "zaproxy/zaproxy",
+          "owasp/zap2docker-stable",
+          "owasp/zap2docker-weekly"
+        ],
+        "scripts": [
+          "\\bzap-(baseline|full-scan|api-scan)\\.py\\b"
+        ]
+      },
+      "snippets": {
+        "gitlab": "zap:\n  stage: test\n  image:\n    name: zaproxy/zap-stable:latest\n    entrypoint: [\"\"]\n  script:\n    - zap-baseline.py -t $TARGET_URL\n",
+        "github": "- name: Run ZAP\n  run: docker run --rm -t zaproxy/zap-stable:latest zap-baseline.py -t ${{ vars.TARGET_URL }}\n"
+      },
+      "lastVerified": "2026-11-04"
+    }
+  ],
+  "logos": {
+    "checkmarx": {
+      "path": "M6.544.12A6.553 6.553 0 0 0 0 6.664v10.674a6.551 6.551 0 0 0 6.544 6.542h10.912A6.551 6.551 0 0 0 24 17.338v-.831a2.193 2.193 0 0 0-4.388 0v.83c0 1.19-.967 2.157-2.156 2.157H6.544a2.16 2.16 0 0 1-2.158-2.156V6.748c0-1.19.969-2.16 2.158-2.16 3.843.004 7.814-.009 11.612.001.556.138.892.445 1.058.848.193.47.343 1.118-.404 1.748l-6.26 4.596-1.892-2.441a2.191 2.191 0 0 0-3.075-.391 2.191 2.191 0 0 0-.391 3.076l3.198 4.133a2.197 2.197 0 0 0 3.035.424l7.252-5.301a56.68 56.68 0 0 0 1.22-.977c2.106-1.926 2.517-4.393 1.627-6.553C22.603 1.51 20.268.12 17.435.12Z"
+    },
+    "chef": {
+      "path": "M12.03 0C6.94 0 2.57 3.17.82 7.65l1.91.77a10 10 0 0 1 9.3-6.4c2.24 0 4.32.77 5.96 1.97l1.2-1.64A11.96 11.96 0 0 0 12.03 0zm0 2.3a9.76 9.76 0 0 0-9.08 6.23l1.91.7a7.62 7.62 0 0 1 7.17-4.91zm3.55.7l-.76 1.92a7.47 7.47 0 0 1 4.75 5.63h2.08a9.7 9.7 0 0 0-6.07-7.54zm-3.55 1.6a7.44 7.44 0 1 0 7.32 8.9h-2.08a5.5 5.5 0 0 1-5.24 3.94 5.39 5.39 0 0 1-5.42-5.41 5.39 5.39 0 0 1 5.42-5.41 5.4 5.4 0 0 1 5.2 3.93h2.07a7.35 7.35 0 0 0-7.27-5.96zm10.22 1.09L20.5 6.78a9.5 9.5 0 0 1 1.42 3.77H24a11.56 11.56 0 0 0-1.75-4.86zM11.97 6.83a5.22 5.22 0 0 0-4.7 7.27l1.97-.87a2.97 2.97 0 0 1-.27-1.2c0-1.64 1.36-3.01 3-3.01zm1.92.39l-.77 2.02c.66.27 1.15.7 1.53 1.31h2.3a5.04 5.04 0 0 0-3.06-3.33zM0 12.02c0 1.65.33 3.29 1.04 4.87l1.8-.82a10.49 10.49 0 0 1-.82-4.04zm2.3 0c0 4.1 2.51 7.6 6.12 9.03l.76-1.92a7.63 7.63 0 0 1-4.86-7.1zm12.3 1.48c-.33.6-.82 1.1-1.48 1.31l.77 2.03a5.04 5.04 0 0 0 3.06-3.34zm4.97 0a7.73 7.73 0 0 1-7.54 6.24v2.02a9.71 9.71 0 0 0 9.62-8.26zm2.35 0a10.1 10.1 0 0 1-9.9 8.53c-2.73 0-5.24-1.15-7.04-2.95L3.55 20.5c2.19 2.19 5.2 3.5 8.53 3.5A12 12 0 0 0 24 13.5zm-12.02.66l-1.53 1.53a5.21 5.21 0 0 0 3.66 1.53v-2.19a3.02 3.02 0 0 1-2.13-.87z"
+    },
+    "gitea": {
+      "path": "M4.209 4.603c-.247 0-.525.02-.84.088-.333.07-1.28.283-2.054 1.027C-.403 7.25.035 9.685.089 10.052c.065.446.263 1.687 1.21 2.768 1.749 2.141 5.513 2.092 5.513 2.092s.462 1.103 1.168 2.119c.955 1.263 1.936 2.248 2.89 2.367 2.406 0 7.212-.004 7.212-.004s.458.004 1.08-.394c.535-.324 1.013-.893 1.013-.893s.492-.527 1.18-1.73c.21-.37.385-.729.538-1.068 0 0 2.107-4.471 2.107-8.823-.042-1.318-.367-1.55-.443-1.627-.156-.156-.366-.153-.366-.153s-4.475.252-6.792.306c-.508.011-1.012.023-1.512.027v4.474l-.634-.301c0-1.39-.004-4.17-.004-4.17-1.107.016-3.405-.084-3.405-.084s-5.399-.27-5.987-.324c-.187-.011-.401-.032-.648-.032zm.354 1.832h.111s.271 2.269.6 3.597C5.549 11.147 6.22 13 6.22 13s-.996-.119-1.641-.348c-.99-.324-1.409-.714-1.409-.714s-.73-.511-1.096-1.52C1.444 8.73 2.021 7.7 2.021 7.7s.32-.859 1.47-1.145c.395-.106.863-.12 1.072-.12zm8.33 2.554c.26.003.509.127.509.127l.868.422-.529 1.075a.686.686 0 0 0-.614.359.685.685 0 0 0 .072.756l-.939 1.924a.69.69 0 0 0-.66.527.687.687 0 0 0 .347.763.686.686 0 0 0 .867-.206.688.688 0 0 0-.069-.882l.916-1.874a.667.667 0 0 0 .237-.02.657.657 0 0 0 .271-.137 8.826 8.826 0 0 1 1.016.512.761.761 0 0 1 .286.282c.073.21-.073.569-.073.569-.087.29-.702 1.55-.702 1.55a.692.692 0 0 0-.676.477.681.681 0 1 0 1.157-.252c.073-.141.141-.282.214-.431.19-.397.515-1.16.515-1.16.035-.066.218-.394.103-.814-.095-.435-.48-.638-.48-.638-.467-.301-1.116-.58-1.116-.58s0-.156-.042-.27a.688.688 0 0 0-.148-.241l.516-1.062 2.89 1.401s.48.218.583.619c.073.282-.019.534-.069.657-.24.587-2.1 4.317-2.1 4.317s-.232.554-.748.588a1.065 1.065 0 0 1-.393-.045l-.202-.08-4.31-2.1s-.417-.218-.49-.596c-.083-.31.104-.691.104-.691l2.073-4.272s.183-.37.466-.497a.855.855 0 0 1 .35-.077z"
+    },
+    "github": {
+      "path": "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+    },
+    "gitlab": {
+      "path": "m23.6004 9.5927-.0337-.0862L20.3.9814a.851.851 0 0 0-.3362-.405.8748.8748 0 0 0-.9997.0539.8748.8748 0 0 0-.29.4399l-2.2055 6.748H7.5375l-2.2057-6.748a.8573.8573 0 0 0-.29-.4412.8748.8748 0 0 0-.9997-.0537.8585.8585 0 0 0-.3362.4049L.4332 9.5015l-.0325.0862a6.0657 6.0657 0 0 0 2.0119 7.0105l.0113.0087.03.0213 4.976 3.7264 2.462 1.8633 1.4995 1.1321a1.0085 1.0085 0 0 0 1.2197 0l1.4995-1.1321 2.4619-1.8633 5.006-3.7489.0125-.01a6.0682 6.0682 0 0 0 2.0094-7.003z"
+    },
+    "grafana": {
+      "path": "M23.02 10.59a8.578 8.578 0 0 0-.862-3.034 8.911 8.911 0 0 0-1.789-2.445c.337-1.342-.413-2.505-.413-2.505-1.292-.08-2.113.4-2.416.62-.052-.02-.102-.044-.154-.064-.22-.089-.446-.172-.677-.247-.231-.073-.47-.14-.711-.197a9.867 9.867 0 0 0-.875-.161C14.557.753 12.94 0 12.94 0c-1.804 1.145-2.147 2.744-2.147 2.744l-.018.093c-.098.029-.2.057-.298.088-.138.042-.275.094-.413.143-.138.055-.275.107-.41.166a8.869 8.869 0 0 0-1.557.87l-.063-.029c-2.497-.955-4.716.195-4.716.195-.203 2.658.996 4.33 1.235 4.636a11.608 11.608 0 0 0-.607 2.635C1.636 12.677.953 15.014.953 15.014c1.926 2.214 4.171 2.351 4.171 2.351.003-.002.006-.002.006-.005.285.509.615.994.986 1.446.156.19.32.371.488.548-.704 2.009.099 3.68.099 3.68 2.144.08 3.553-.937 3.849-1.173a9.784 9.784 0 0 0 3.164.501h.08l.055-.003.107-.002.103-.005.003.002c1.01 1.44 2.788 1.646 2.788 1.646 1.264-1.332 1.337-2.653 1.337-2.94v-.058c0-.02-.003-.039-.003-.06.265-.187.52-.387.758-.6a7.875 7.875 0 0 0 1.415-1.7c1.43.083 2.437-.885 2.437-.885-.236-1.49-1.085-2.216-1.264-2.354l-.018-.013-.016-.013a.217.217 0 0 1-.031-.02c.008-.092.016-.18.02-.27.011-.162.016-.323.016-.48v-.253l-.005-.098-.008-.135a1.891 1.891 0 0 0-.01-.13c-.003-.042-.008-.083-.013-.125l-.016-.124-.018-.122a6.215 6.215 0 0 0-2.032-3.73 6.015 6.015 0 0 0-3.222-1.46 6.292 6.292 0 0 0-.85-.048l-.107.002h-.063l-.044.003-.104.008a4.777 4.777 0 0 0-3.335 1.695c-.332.4-.592.84-.768 1.297a4.594 4.594 0 0 0-.312 1.817l.003.091c.005.055.007.11.013.164a3.615 3.615 0 0 0 .698 1.82 3.53 3.53 0 0 0 1.827 1.282c.33.098.66.14.971.137.039 0 .078 0 .114-.002l.063-.003c.02 0 .041-.003.062-.003.034-.002.065-.007.099-.01.007 0 .018-.003.028-.003l.031-.005.06-.008a1.18 1.18 0 0 0 .112-.02c.036-.008.072-.013.109-.024a2.634 2.634 0 0 0 .914-.415c.028-.02.056-.041.085-.065a.248.248 0 0 0 .039-.35.244.244 0 0 0-.309-.06l-.078.042c-.09.044-.184.083-.283.116a2.476 2.476 0 0 1-.475.096c-.028.003-.054.006-.083.006l-.083.002c-.026 0-.054 0-.08-.002l-.102-.006h-.012l-.024.006c-.016-.003-.031-.003-.044-.006-.031-.002-.06-.007-.091-.01a2.59 2.59 0 0 1-.724-.213 2.557 2.557 0 0 1-.667-.438 2.52 2.52 0 0 1-.805-1.475 2.306 2.306 0 0 1-.029-.444l.006-.122v-.023l.002-.031c.003-.021.003-.04.005-.06a3.163 3.163 0 0 1 1.352-2.29 3.12 3.12 0 0 1 .937-.43 2.946 2.946 0 0 1 .776-.101h.06l.07.002.045.003h.026l.07.005a4.041 4.041 0 0 1 1.635.49 3.94 3.94 0 0 1 1.602 1.662 3.77 3.77 0 0 1 .397 1.414l.005.076.003.075c.002.026.002.05.002.075 0 .024.003.052 0 .07v.065l-.002.073-.008.174a6.195 6.195 0 0 1-.08.639 5.1 5.1 0 0 1-.267.927 5.31 5.31 0 0 1-.624 1.13 5.052 5.052 0 0 1-3.237 2.014 4.82 4.82 0 0 1-.649.066l-.039.003h-.287a6.607 6.607 0 0 1-1.716-.265 6.776 6.776 0 0 1-3.4-2.274 6.75 6.75 0 0 1-.746-1.15 6.616 6.616 0 0 1-.714-2.596l-.005-.083-.002-.02v-.056l-.003-.073v-.096l-.003-.104v-.07l.003-.163c.008-.22.026-.45.054-.678a8.707 8.707 0 0 1 .28-1.355c.128-.444.286-.872.473-1.277a7.04 7.04 0 0 1 1.456-2.1 5.925 5.925 0 0 1 .953-.763c.169-.111.343-.213.524-.306.089-.05.182-.091.273-.135.047-.02.093-.042.138-.062a7.177 7.177 0 0 1 .714-.267l.145-.045c.049-.015.098-.026.148-.041.098-.029.197-.052.296-.076.049-.013.1-.02.15-.033l.15-.032.151-.028.076-.013.075-.01.153-.024c.057-.01.114-.013.171-.023l.169-.021c.036-.003.073-.008.106-.01l.073-.008.036-.003.042-.002c.057-.003.114-.008.171-.01l.086-.006h.023l.037-.003.145-.007a7.999 7.999 0 0 1 1.708.125 7.917 7.917 0 0 1 2.048.68 8.253 8.253 0 0 1 1.672 1.09l.09.077.089.078c.06.052.114.107.171.159.057.052.112.106.166.16.052.055.107.107.159.164a8.671 8.671 0 0 1 1.41 1.978c.012.026.028.052.04.078l.04.078.075.156c.023.051.05.1.07.153l.065.15a8.848 8.848 0 0 1 .45 1.34.19.19 0 0 0 .201.142.186.186 0 0 0 .172-.184c.01-.246.002-.532-.024-.856z"
+    },
+    "harbor": {
+      "path": "m7.006 15.751 4.256 1.876.066.805-4.388-1.934.066-.747zm.304-3.435h-.605V11.21h.381V8.95h-.381v-.649l2.118-2.073v-.146c0-.11.09-.2.2-.2.11 0 .2.09.2.2v.146l2.12 2.073v.65h-.382v2.259h.381v1.106h-.514l.27 3.313L7.17 13.9l.14-1.583zm.39-1.106h.628v-.965c0-.383.313-.696.695-.696s.696.313.696.696v.965h.628V8.95H7.7v2.26zM6.89 17.05l-.066.747 4.618 2.035-.066-.805-4.486-1.977zm.23-2.6-.066.747 4.158 1.832-.065-.805-4.026-1.774zM24 12c0 6.617-5.383 12-12 12S0 18.617 0 12 5.383 0 12 0s12 5.383 12 12zm-2.43-.715a9.682 9.682 0 0 0-.223-1.523l-9.751.332 8.801-2.828-.019-.037A9.802 9.802 0 0 0 19.23 5.59l-7.786 4.03 5.712-5.941a9.675 9.675 0 0 0-5.14-1.474c-5.371 0-9.74 4.369-9.74 9.74 0 3.38 1.73 6.362 4.35 8.11l.151-1.704 4.715 2.078.102 1.246c.14.006.28.01.422.01 4.646 0 8.54-3.27 9.507-7.63l-10.08-3.497 10.128.727"
+    },
+    "jfrog": {
+      "path": "M10.655 15.631l-1.268.353c.11.32.2.893.2 1.665v3.795h1.421v-4.015c.265-.32.552-.474.86-.474.156 0 .277.033.409.11l.386-1.312a1.05 1.05 0 00-.53-.122 1.22 1.22 0 00-.463.09c-.265.131-.596.43-.805.715 0-.32-.077-.573-.21-.805zM5.76 13.757h-.154v7.676h1.477v-3.398h1.864v-1.268H7.082v-1.764H9.41l.088-.673c-1.4-.1-2.668-.32-3.738-.573zm-3.452 8.7l.684.796c.662-.265 1.49-.86 1.71-1.81.077-.308.1-.506.1-1.51v-6.165H3.308v6.33c0 .828-.032 1.136-.142 1.423-.144.32-.486.695-.86.938zm13.422-3.892c0 1.346-.264 1.92-.871 1.92a.782.782 0 01-.717-.464c-.11-.286-.176-.773-.176-1.434 0-.563.055-.96.143-1.268.11-.353.386-.574.728-.574.254 0 .474.11.606.298.199.265.287.76.287 1.522zm.87 2.206c.465-.551.674-1.225.674-2.195 0-.916-.187-1.544-.617-2.073-.464-.574-1.06-.85-1.831-.85-1.456 0-2.426 1.18-2.426 2.967 0 1.787.96 2.934 2.426 2.934.827.01 1.367-.297 1.775-.783zm4.038-3.177c0 .52-.31.805-.86.805-.497 0-.828-.23-.828-.805 0-.529.31-.838.838-.838.53 0 .85.31.85.838zm2.503-1.213l-.585-.937c-.33.31-.727.485-1.113.485-.177 0-.276-.022-.662-.12a3.282 3.282 0 00-.97-.145c-1.38 0-2.272.75-2.272 1.92 0 .837.375 1.367 1.158 1.576-.32.077-.662.243-.816.43a.79.79 0 00-.166.52c0 .176.044.33.11.463a.68.68 0 00.31.275c.253.1.66.166 1.29.177.33 0 .529.01.595.01.386.023.584.09.739.166.143.089.253.287.253.508 0 .22-.132.44-.341.573-.188.132-.497.188-.894.188-.65 0-1.014-.243-1.014-.695 0-.2.022-.243.066-.364h-1.301c-.055.11-.122.265-.122.573 0 .386.144.717.442 1.004.485.474 1.279.606 2.04.606.838 0 1.654-.198 2.128-.727.298-.331.43-.695.43-1.17 0-.507-.143-.893-.463-1.212-.375-.364-.805-.497-1.632-.508l-.761-.01c-.143 0-.232-.056-.232-.133 0-.154.199-.288.563-.464.11.01.143.01.21.01 1.146 0 1.984-.705 1.984-1.686 0-.375-.11-.662-.32-.927.177.022.232.033.364.033.375 0 .673-.12.982-.419zM5.384 7.085c-1.764.43-2.966 1.279-2.966 2.25 0 .606.463 1.157 1.224 1.587a2.155 2.155 0 01-.353-1.157c.01-1.004.794-1.941 2.095-2.68zM24 10.889c0-.64-.397-1.224-1.059-1.709.055.2.1.397.1.596 0 1.82-2.548 3.385-6.165 4.036.408.044.827.066 1.268.066 3.23-.01 5.856-1.345 5.856-2.989zm-2.084-.992c0-.673-.574-1.29-1.555-1.798.23.276.353.574.353.883 0 1.62-3.44 2.933-7.698 2.933-4.246 0-7.698-1.312-7.698-2.933 0-.21.055-.408.165-.596-.683.452-1.07.97-1.07 1.522 0 1.753 3.916 3.176 8.747 3.176 4.83 0 8.756-1.445 8.756-3.187zM18.1 9.81c-1.786 1.147-7.279 1.588-9.639.11-1.853-1.158-1.213-3-6.518-7.036-.694-.53.133-1.092.651-.728.518.364.044.453 1.092 1.5 2.117 2.118 2.095.21 2.426.938.706 1.51 2.25 3.032 2.25 3.032 1.555 1.015 2.79 1.235 5.084-.32 1.456-.981.86 1.566 4.423-.275 1.3-.673 1.246-.22 2.569-2.063.55-.76 1.6.585.408.772-.474.078-1.28.596-1.621 1.412-.496 1.224-.287 2.128-1.125 2.658zM8.196 6.7c-.44-.199-.904-.95-1.08-1.246.496-.486.297-1.29.01-1.732-.275-.44-.617-.32-.98-.727-.376-.41.142-1.467.617-.651 1.775 3.055 2.944 1.786 4.39 1.599 1.39-.177 2.624.584 3-1.566.065-.353.407-.43.44.143.033.585.254 1.996 1.015 2.173.76.187 1.378-.177 1.555-.375.176-.2.275-.177.353.33.077.497.275 1.192 1.345.42 2.195-1.566 1.566-2.173 2.426-2.58.485-.232 1.257.518.144 1.08-1.588.805-1.754 1.797-2.757 2.426-1.688 1.059-1.17.044-3.882-.342-1.048-.143-1.38 1.015-2.195.684-1.864-.772-3.177-.618-4.4.364zm5.879-5.657c.066.463.143.452.309.485.165.044.375-.22.375-.463.01-.254-.11-.408-.353-.397-.254.01-.342.132-.331.375zm8.16.827c.2.187.728.066.85-.078.32-.352.33-.562.165-.805-.165-.231-.507-.198-.85.056-.341.253-.275.727-.164.827zm-.143 2.338c-.165.22-.176.386-.055.507.132.132.397.242.585.1.187-.155.187-.376.033-.563-.166-.2-.386-.2-.563-.044zM5.352 1.45c.253.077.374.32.584.044.11-.133.12-.32-.023-.52-.088-.12-.507-.21-.683-.032-.177.177-.01.464.121.508zM.178 1.295c.463.287.76.717 1.114.33.121-.131.264-.363.01-.826C1.117.457.511.325.301.457c-.22.12-.485.618-.121.838zM4.447 3.49c.143.154.397.143.551.055.144-.088.121-.32-.022-.518-.088-.122-.353-.188-.53 0-.176.187-.098.352 0 .463z"
+    },
+    "owasp": {
+      "path": "M15.897 20.503c-.384 0-1.782-2.489-1.97-3.198-.393-1.486-.308-2.114-.285-2.314.072-.613.667-.92.703-1.748.01-.256.14-1.535.243-2.534a1.723 1.723 0 0 1-.733-.343c.676.908-.32 1.995-1.767 3.443-1.536 1.536-4.945 2.961-4.945 2.961s1.425-3.41 2.961-4.945c1.13-1.129 2.04-1.983 2.816-1.983.22 0 .427.067.627.216a1.722 1.722 0 0 1-.343-.733c-.999.103-2.278.232-2.534.244-.829.036-1.135.63-1.747.702-.07.008-.194.024-.388.024-.36 0-.963-.054-1.926-.31-.772-.203-3.648-1.84-3.14-2.045.26-.105 1.087-.176 2.175-.176 1.047 0 2.337.066 3.596.23 1.57.205 3.01.463 3.992.656.016-.053.035-.104.058-.154l-1.004-.48s-.8-.92-.715-.984a.02.02 0 0 1 .012-.003c.126 0 .767.733.829.816l.605.202-.284-.249s-.388-1.438-.287-1.472h.004c.106 0 .459 1.25.489 1.34.07.06.303.152.596.32l-.308-.79s.14-1.305.243-1.305h.003c.105.021-.02 1.089-.047 1.221l.51.783a1.31 1.31 0 0 1 .463-.082c.184 0 .374.036.558.107-.236-.502-.218-1.025.095-1.338a.84.84 0 0 1 .353-.209.462.462 0 0 1 .457-.383c.127 0 .254.05.352.148a.497.497 0 0 1 .147.335c.151-.311.329-.73.317-.867-.03-.307-.386-.852-.39-.857a.076.076 0 0 1 .064-.119c.025 0 .05.012.064.035.016.023.381.582.414.927.018.198-.21.696-.333.95a2.227 2.227 0 0 1 .873.874c.245-.12.715-.334.927-.334l.024.001c.345.033.904.399.927.414a.076.076 0 0 1-.084.128c-.005-.004-.55-.36-.857-.39h-.015c-.15 0-.552.171-.852.317.12.004.242.053.335.147a.482.482 0 0 1 .012.681.459.459 0 0 1-.247.128.845.845 0 0 1-.21.354.924.924 0 0 1-.67.255c-.212 0-.441-.055-.667-.16.132.343.142.708.025 1.02l.783.51c.095-.019.666-.088.993-.088.13 0 .222.011.228.04.02.106-1.305.247-1.305.247l-.79-.308c.168.293.26.527.32.596.091.03 1.374.392 1.34.493-.004.012-.026.017-.063.017-.283 0-1.41-.304-1.41-.304l-.248-.284.202.605c.087.065.876.755.813.841-.004.005-.009.007-.016.007-.139 0-.967-.722-.967-.722l-.481-1.004a1.18 1.18 0 0 1-.154.058c.193.982.451 2.422.656 3.992.335 2.569.26 5.261.054 5.77-.016.041-.042.06-.076.06M12 24C5.373 24 0 18.627 0 12S5.373 0 12 0s12 5.373 12 12-5.373 12-12 12m0-22.153C6.393 1.847 1.847 6.393 1.847 12S6.393 22.153 12 22.153 22.153 17.607 22.153 12 17.607 1.847 12 1.847Z"
+    },
+    "prometheus": {
+      "path": "M12 0C5.373 0 0 5.372 0 12c0 6.627 5.373 12 12 12s12-5.373 12-12c0-6.628-5.373-12-12-12zm0 22.46c-1.885 0-3.414-1.26-3.414-2.814h6.828c0 1.553-1.528 2.813-3.414 2.813zm5.64-3.745H6.36v-2.046h11.28v2.046zm-.04-3.098H6.391c-.037-.043-.075-.086-.111-.13-1.155-1.401-1.427-2.133-1.69-2.879-.005-.025 1.4.287 2.395.511 0 0 .513.119 1.262.255-.72-.843-1.147-1.915-1.147-3.01 0-2.406 1.845-4.508 1.18-6.207.648.053 1.34 1.367 1.387 3.422.689-.951.977-2.69.977-3.755 0-1.103.727-2.385 1.454-2.429-.648 1.069.168 1.984.894 4.256.272.854.237 2.29.447 3.201.07-1.892.395-4.652 1.595-5.605-.529 1.2.079 2.702.494 3.424.671 1.164 1.078 2.047 1.078 3.716a4.642 4.642 0 01-1.11 2.996c.792-.149 1.34-.283 1.34-.283l2.573-.502s-.374 1.538-1.81 3.019z"
+    },
+    "renovate": {
+      "path": "M7.598 0A1.7 1.7 0 0 0 6.37.465a1.71 1.71 0 0 0-.072 2.421l.002.002L8.91 5.65a.623.623 0 0 1-.025.891.625.625 0 0 1-.89-.027l-1.26-1.332a1.727 1.727 0 0 0-2.428-.073 1.71 1.71 0 0 0-.075 2.422v.002l1.88 1.988a.626.626 0 0 1-.026.891.623.623 0 0 1-.89-.027h-.003l-.685-.729-.014-.02a1.73 1.73 0 0 0-2.427-.073 1.71 1.71 0 0 0-.074 2.423l2.253 2.444.006.008.352.363q.004-.06.013-.117a1.75 1.75 0 0 0 .488 1.47l.141.143 1.29 1.28c.68.68 1.795.68 2.474 0l.523-.522 1.588-1.582 1.102-1.09 1.77-1.766 2.532-2.52v-.003a1.745 1.745 0 0 0 0-2.463l-.443-.442a1.295 1.295 0 0 1 1.576.202l1.057 1.054c.904.905.905 2.353.002 3.248v.002l-3.496 3.48h-.002c-.56.56-.56 1.477.004 2.03l.504.498-.676.674a.51.51 0 0 0-.031.69l.15.185h.008l2.488-2.49-.184-.15a.52.52 0 0 0-.357-.116.53.53 0 0 0-.334.15l-.648.647-.51-.504h-.002a.84.84 0 0 1 .004-1.201l3.494-3.48a2.88 2.88 0 0 0 .002-4.075l-1.06-1.056a1.88 1.88 0 0 0-1.33-.55c-.38 0-.76.116-1.083.343l-.564-.563a1.74 1.74 0 0 0-1.237-.508v-.002a2 2 0 0 0-.205.014l-.937-1.03-.008-.005-1.28-1.358L8.8.538A1.73 1.73 0 0 0 7.6.002ZM7.58.635a1.08 1.08 0 0 1 .756.344l2.63 2.778 1.278 1.353.744.82a1.7 1.7 0 0 0-.367.278l-3.91 3.895-3.606 3.587a1.8 1.8 0 0 0-.308.426l.01-.021-.094-.098-2.253-2.443-.004-.002a1.063 1.063 0 0 1 .042-1.522l.004-.002a1.08 1.08 0 0 1 1.527.041l.002.012.701.74a1.27 1.27 0 0 0 1.79.057 1.27 1.27 0 0 0 .056-1.79h-.002l-1.88-1.989v-.002a1.06 1.06 0 0 1 .042-1.522 1.08 1.08 0 0 1 1.533.045l1.256 1.33a1.27 1.27 0 0 0 1.791.057 1.27 1.27 0 0 0 .055-1.79h-.002l-2.61-2.763a1.06 1.06 0 0 1 .042-1.52A1.08 1.08 0 0 1 7.58.635m6.277 5.696c.143 0 .285.03.418.084a1.1 1.1 0 0 0-.418-.084m.44.096q.19.08.346.232a1.1 1.1 0 0 0-.346-.232m-9.52 7.732a1.8 1.8 0 0 0-.154.473 1.7 1.7 0 0 1 .154-.473m13.397 3.037-2.557 2.557 2.848 3.435q.065.075.14.15c.875.873 2.317.89 3.206 0a2.25 2.25 0 0 0-.152-3.33z"
+    },
+    "sentry": {
+      "path": "M13.91 2.505c-.873-1.448-2.972-1.448-3.844 0L6.904 7.92a15.478 15.478 0 0 1 8.53 12.811h-2.221A13.301 13.301 0 0 0 5.784 9.814l-2.926 5.06a7.65 7.65 0 0 1 4.435 5.848H2.194a.365.365 0 0 1-.298-.534l1.413-2.402a5.16 5.16 0 0 0-1.614-.913L.296 19.275a2.182 2.182 0 0 0 .812 2.999 2.24 2.24 0 0 0 1.086.288h6.983a9.322 9.322 0 0 0-3.845-8.318l1.11-1.922a11.47 11.47 0 0 1 4.95 10.24h5.915a17.242 17.242 0 0 0-7.885-15.28l2.244-3.845a.37.37 0 0 1 .504-.13c.255.14 9.75 16.708 9.928 16.9a.365.365 0 0 1-.327.543h-2.287c.029.612.029 1.223 0 1.831h2.297a2.206 2.206 0 0 0 1.922-3.31z"
+    },
+    "snyk": {
+      "path": "M17.097 13.344c.143-.37.06-2.117-.222-4.675l-.004-.04.904-2.431v-.05c0-1.06-1.374-3.9-2.186-5.41L15.192 0l-.84 5.854-.503.829-.125-.042c-.351-.118-1.042-.316-1.728-.316-.65 0-1.294.171-1.72.315l-.125.042-.504-.827L8.807 0l-.396.737c-.812 1.51-2.186 4.35-2.186 5.411v.05l.904 2.432-.004.039c-.283 2.558-.366 4.305-.222 4.674.13.332.642 1.041 1.072 1.605l-.619 5.724.617.442.576-5.329c.012.414.064 1.277.275 2.068l-.389 3.592L12 24l4.279-3.067.375-.268-.62-5.73c.428-.561.934-1.262 1.063-1.591zM15.59 2.298c.694 1.408 1.421 3.08 1.471 3.779l-.388 1.045c-.935-1.31-1.228-3.441-1.253-3.636zm-1.124 7.8c.84 0 .212.712.138.792h-1.587c.144-.18.69-.792 1.45-.792zm-.452 1.468a.178.178 0 0 1-.175.153.292.292 0 1 0 .441-.31h.504v.024a.662.662 0 0 1-1.325 0v-.025h.511l-.008.007c.039.038.06.093.052.15zM12.39 19.29c.097.064.2.115.306.156-.168.19-.399.287-.697.287-.299 0-.53-.097-.697-.288.107-.04.21-.092.306-.156a.573.573 0 0 0 .391.114c.103 0 .255 0 .391-.113zm-2.62-7.724a.178.178 0 0 1-.174.153.292.292 0 1 0 .441-.31h.504v.024a.662.662 0 0 1-1.326 0v-.025h.511l-.008.007c.039.038.06.093.052.15zm-.374-.676c-.074-.08-.702-.792.138-.792.759 0 1.305.612 1.45.792zM6.948 6.077c.05-.699.778-2.37 1.471-3.78l.185 1.29c-.07.48-.393 2.37-1.257 3.56zM9.473 18.09c-.373-1.02-.377-2.446-.377-2.507v-.097l-.06-.076c-.551-.683-1.477-1.9-1.616-2.257l-.005-.014c-.124-.43.1-2.997.268-4.513l.008-.066-.187-.502.07-.075c.476-.497.88-1.213 1.203-2.126L9 5.223l.118.82.807 1.326.22-.094c.009-.004.934-.4 1.851-.4H12v.44h-.004c-.812 0-1.669.36-1.677.363l-.571.246-.797-1.308c-.27.62-.585 1.137-.94 1.543l.129.347-.019.169c-.24 2.156-.348 4.044-.285 4.332.086.2.523.812 1 1.437l.748-.218 1.17-1.334.184 3.458c-.011.015-.28.393-.28.609 0 .235.344.541.685.786.005-.01.007-.02.013-.03.12-.212.275-.251.346-.087.04.092.028.369.028.369l.005.002v.328c-.013.027-.302.674-1.014.674-.275 0-.948-.089-1.248-.911zm2.536 2.409c-.527 0-1.297-.257-1.374-.952.029.001.057.003.086.003.06 0 .119-.003.177-.01.235.455.665.6 1.102.6.436 0 .865-.146 1.1-.6.059.007.119.01.18.01.029 0 .057-.002.085-.003-.076.695-.835.952-1.356.952zm2.956-5.09l-.061.077v.097c0 .06-.004 1.487-.377 2.507-.3.822-.973.91-1.248.91-.71 0-1.002-.658-1.014-.686V18l.005-.004s-.012-.276.028-.368c.07-.164.226-.126.346.088.006.009.009.02.013.03.34-.246.686-.552.686-.787 0-.216-.269-.593-.28-.61l.183-3.457 1.17 1.334 1.2.35c-.23.304-.463.6-.651.834zm-8.472-1.907c-.22-.563-.022-2.916.187-4.817l-.895-2.409v-.128c0-.312.095-.734.246-1.207-1.177.253-1.808.49-1.808.49v12.996l2.67 1.914.577-5.332c-.538-.718-.868-1.226-.977-1.507zm3.853-7.346c.446-.136 1.042-.27 1.65-.27.61 0 1.21.135 1.658.27l.276-.453.184-1.288s-1.288-.068-2.103-.068c-.759 0-1.467.026-2.125.07l.184 1.286zm7.623-1.217c.151.474.247.896.247 1.21v.127l-.895 2.409c.208 1.901.406 4.253.186 4.818-.109.279-.435.782-.968 1.493l.578 5.337 2.66-1.906V5.432s-.632-.24-1.808-.493Z"
+    },
+    "sonarqubeserver": {
+      "path": "M12 0a.774.774 0 0 0-.775.775c0 .43.346.776.775.776 5.762 0 10.45 4.687 10.45 10.449 0 .43.345.775.775.775A.774.774 0 0 0 24 12c0-6.616-5.384-12-12-12zm0 3.932a.774.774 0 0 0-.775.775c0 .43.346.775.775.775A6.524 6.524 0 0 1 18.518 12c0 .43.346.775.775.775.43 0 .775-.346.775-.775 0-4.448-3.62-8.068-8.068-8.068zm0 3.925a.774.774 0 0 0-.775.776c0 .43.346.775.775.775A2.597 2.597 0 0 1 14.592 12c0 .43.346.775.775.775.43 0 .776-.346.776-.775A4.145 4.145 0 0 0 12 7.857zM.775 11.225A.774.774 0 0 0 0 12c0 6.616 5.384 12 12 12 .43 0 .775-.346.775-.775a.774.774 0 0 0-.775-.776C6.238 22.45 1.55 17.762 1.55 12a.774.774 0 0 0-.775-.775zm3.932 0a.774.774 0 0 0-.775.775c0 4.448 3.62 8.068 8.068 8.068.43 0 .775-.346.775-.775a.774.774 0 0 0-.775-.775A6.524 6.524 0 0 1 5.482 12a.774.774 0 0 0-.775-.775zm3.926 0a.774.774 0 0 0-.776.775A4.145 4.145 0 0 0 12 16.143c.43 0 .775-.347.775-.776a.774.774 0 0 0-.775-.775A2.597 2.597 0 0 1 9.408 12a.774.774 0 0 0-.775-.775z"
+    },
+    "sonatype": {
+      "path": "M2.4568 20.5995c0 .5118-.4275.9032-1.2103.9032-.4938 0-.9454-.1565-1.2465-.4516l.289-.4577c.2048.2109.6082.4095.9876.4095.3794 0 .572-.1385.572-.3553 0-.2528-.307-.3432-.6624-.4215-.4997-.1083-1.0959-.2408-1.0959-.8912 0-.4756.4095-.8851 1.1441-.8851.4938 0 .8672.1745 1.1321.4095l-.265.4455c-.1745-.1987-.4998-.3492-.861-.3492-.3313 0-.542.1204-.542.3251 0 .2228.289.301.6323.3794.5058.1084 1.126.253 1.126.9394zm3.3115-.6263c0 .8371-.566 1.5295-1.4994 1.5295-.9214 0-1.4934-.6924-1.4934-1.5295 0-.831.572-1.5235 1.4934-1.5235.9334 0 1.4994.6926 1.4994 1.5235zm-.6564 0c0-.5118-.3011-.9634-.843-.9634-.536 0-.837.4516-.837.9634 0 .5179.301.9695.837.9695.5419 0 .843-.4516.843-.9695zm2.8117-1.5234c-.4577 0-.831.2408-1.0236.4696v-.3974h-.6323v2.9085H6.9v-2.0294c.1445-.1986.4215-.3913.7467-.3913.3553 0 .584.1505.584.6021v1.8186h.6323v-2.0474c0-.5962-.313-.9333-.9394-.9333zm4.0744 1.0537v1.927h-.6323v-.3132c-.2168.247-.554.3855-.9393.3855-.4757 0-1.0117-.3192-1.0117-.9635 0-.6685.536-.9454 1.0117-.9454.3913 0 .7286.1264.9393.3733v-.4336c0-.3371-.2769-.5419-.6804-.5419-.3251 0-.6082.1204-.861.3673l-.259-.4396c.3372-.3192.7587-.4697 1.2224-.4697.6443 0 1.2103.271 1.2103 1.0538zm-.6323.825c-.1444-.1987-.4154-.3011-.6924-.3011-.3553 0-.6203.2048-.6203.524 0 .313.265.5178.6203.5178.277 0 .548-.1024.6924-.3011v-.4395zm2.487.6142c-.1806 0-.277-.1445-.277-.3432V19.076h.5902v-.554h-.5902v-.7949h-.6322v.7949h-.4817v.554h.4817v1.68c0 .4817.259.7468.7467.7468.295 0 .4817-.0783.5961-.1867l-.1505-.4757c-.0482.0541-.1626.1023-.283.1023zm2.1175-.2409-.8491-2.1798h-.6744l1.1923 2.9446-.1445.3313c-.0843.1926-.2169.2528-.4155.2528-.0722 0-.1746-.018-.241-.0481l-.0962.566c.0903.0241.265.0422.3552.0422.4517-.006.801-.1626.9997-.6564l1.403-3.4324h-.6804l-.849 2.1798zm4.6887-.7286c0 .9575-.536 1.5295-1.2887 1.5295-.3674 0-.6986-.1626-.9334-.4757v1.5115h-.6323V18.522h.6323v.3974c.2168-.289.554-.4697.9334-.4697.7527 0 1.2887.566 1.2887 1.5235zm-.6565 0c0-.56-.3191-.9634-.819-.9634-.295 0-.608.1746-.7466.3913v1.1502c.1385.2108.4516.3914.7467.3914.4998 0 .819-.4034.819-.9695zM24 20.184h-2.2462c.0483.4396.3794.8009.9274.8009.283 0 .6203-.1144.825-.3192l.289.4155c-.289.277-.7165.4215-1.1802.4215-.8732 0-1.5234-.6081-1.5234-1.5295 0-.843.6141-1.5234 1.4752-1.5234.8732 0 1.4332.6684 1.4332 1.5836v.1506zm-.6142-.4457c-.012-.3432-.247-.7707-.819-.7707-.542 0-.7888.4155-.819.7707h1.638zm-5.4338-8.0399L12 15.1348l-5.952-3.4364V4.8256L12 1.3892l5.952 3.4364v6.8728zm-1.7072-5.8871L12 3.3607 7.7553 5.8113v4.9014L12 13.1635l4.2448-2.4506V5.8112z"
+    },
+    "trivy": {
+      "path": "M4.375 7.311 1.962 5.918a.1.1 0 0 1 0-.174L11.828.047a.343.343 0 0 1 .344 0l9.864 5.696a.1.1 0 0 1 0 .175L19.624 7.31a.962.962 0 0 1-.052-.074c-.914-1.478-2.124-2.592-3.596-3.31-4.088-1.994-9.164-.505-11.6 3.385ZM12.262 23.899v-3.14c5.693-2.087 9.01-7.766 7.588-12.985l2.436-1.42a.1.1 0 0 1 .151.088v11.645a.1.1 0 0 1-.05.087l-9.973 5.812a.1.1 0 0 1-.152-.087Zm-.559-3.141v3.14a.1.1 0 0 1-.151.086l-9.933-5.81a.114.114 0 0 1-.056-.099V6.436a.1.1 0 0 1 .15-.087l2.44 1.41c-1.455 5.307 1.846 10.993 7.55 13ZM7.013 8.834 4.807 7.561c2.306-3.665 7.094-5.066 10.95-3.186 1.385.676 2.526 1.727 3.39 3.124l.04.062-2.195 1.268a5.57 5.57 0 0 0-2.429-2.307c-2.603-1.27-5.901-.253-7.552 2.311Zm9.337 5.2c.813-1.371 1.088-2.99.798-4.685l2.255-1.314c1.245 4.86-1.864 10.169-7.14 12.192v-3.072c1.86-.67 3.272-1.747 4.087-3.12ZM4.6 8.018l2.27 1.31c-.225 1.571.112 3.204.951 4.606.919 1.536 2.225 2.629 3.881 3.25v3.045C6.327 18.25 3.297 13.042 4.601 8.017Zm5.303 2.486-2.459-1.42c1.52-2.34 4.53-3.268 6.9-2.112a5.075 5.075 0 0 1 2.216 2.108l-2.471 1.427a2.311 2.311 0 0 0-2.03-1.195c-.825 0-1.645.43-2.156 1.192Zm4.338.522 2.443-1.408c.22 1.51-.043 2.945-.765 4.162-.735 1.238-1.998 2.224-3.658 2.856v-2.631c1.25-.691 1.968-1.771 1.98-2.979ZM8.25 13.676A6.576 6.576 0 0 1 7.34 9.6l2.446 1.412c-.016 1.271.73 2.437 1.917 2.997v2.624a6.977 6.977 0 0 1-3.453-2.956Zm3.853-.148-.137.073-.157-.075c-1.023-.504-1.524-1.606-1.557-2.417a1.99 1.99 0 0 1 .004-.23 2.153 2.153 0 0 1 1.163-.957c.508-.178 1.034-.153 1.444.071.6.327.84.797.86.86.008.156.004.253.004.256-.038.981-.63 1.863-1.624 2.419Z"
+    },
+    "vault": {
+      "path": "M0 0l11.955 24L24 0zm13.366 4.827h1.393v1.38h-1.393zm-2.77 5.569H9.22V8.993h1.389zm0-2.087H9.22V6.906h1.389zm0-2.086H9.22V4.819h1.389zm2.087 6.263h-1.377V11.08h1.388zm0-2.09h-1.377V8.993h1.388zm0-2.087h-1.377V6.906h1.388zm0-2.086h-1.377V4.819h1.388zm.683.683h1.393v1.389h-1.393zm0 3.475V8.993h1.389v1.388Z"
+    }
+  }
+}

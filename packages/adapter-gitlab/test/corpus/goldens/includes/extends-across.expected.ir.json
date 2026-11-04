@@ -50,6 +50,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make ship"]
+      },
       "range": {
         "start": 57,
         "end": 124

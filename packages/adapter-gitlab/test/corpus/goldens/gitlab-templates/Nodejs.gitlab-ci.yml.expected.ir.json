@@ -53,6 +53,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "node:latest",
+        "script": ["npm install", "node ./specs/start.js ./specs/async.spec.js"]
+      },
       "range": {
         "start": 958,
         "end": 1048
@@ -80,6 +84,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "node:latest",
+        "script": ["npm install", "node ./specs/start.js ./specs/db-postgres.spec.js"]
+      },
       "range": {
         "start": 1049,
         "end": 1142
@@ -114,6 +122,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "node:latest",
+        "script": ["echo \"Define your deployment script!\""]
+      },
       "range": {
         "start": 1143,
         "end": 1241

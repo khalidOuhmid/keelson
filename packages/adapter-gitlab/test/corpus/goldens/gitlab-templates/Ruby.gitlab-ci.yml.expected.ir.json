@@ -53,6 +53,16 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "rubocop"
+        ]
+      },
       "range": {
         "start": 1481,
         "end": 1514
@@ -80,6 +90,16 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "rspec spec"
+        ]
+      },
       "range": {
         "start": 1515,
         "end": 1549
@@ -115,6 +135,18 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "rails db:migrate",
+          "rails db:seed",
+          "rails test"
+        ]
+      },
       "range": {
         "start": 1550,
         "end": 1718
@@ -149,6 +181,17 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "ruby:latest",
+        "script": [
+          "ruby -v",
+          "bundle config set --local deployment true",
+          "bundle config set --local path './vendor/ruby'",
+          "bundle install -j $(nproc)",
+          "gem install dpl",
+          "dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_PRODUCTION_KEY"
+        ]
+      },
       "range": {
         "start": 1872,
         "end": 2038

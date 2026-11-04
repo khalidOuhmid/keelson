@@ -1,4 +1,12 @@
-import type { Diagnostic, Environment, Need, Origin, SourceRange, Valued } from "@keelson/core";
+import type {
+  Diagnostic,
+  Environment,
+  JobSignals,
+  Need,
+  Origin,
+  SourceRange,
+  Valued,
+} from "@keelson/core";
 import { EXTENDS_CYCLE, EXTENDS_TARGET_NOT_FOUND } from "@keelson/core";
 import {
   type Document,
@@ -251,7 +259,12 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
 /** La valeur de `key` dans `node`, à travers les alias et les clés de fusion : `undefined` si la
  *  clé est absente, `null` si `node` n'est pas une map, c'est-à-dire si la valeur a remplacé toute
  *  map que les fichiers antérieurs auraient définie là. */
-function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode {
+function entryAt(
+  node: AnyNode,
+  key: string,
+  document: Document.Parsed,
+  visited: Set<YAMLMap> = new Set(),
+): AnyNode {
   const target = isAlias(node) ? node.resolve(document) : node;
   if (!isMap(target)) {
     return null;
@@ -262,8 +275,14 @@ function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode
     return pair.value as AnyNode;
   }
 
+  // `job: &a` suivi de `<<: *a` est du YAML valide : une map peut se fusionner sur elle-même. Une
+  // map déjà parcourue n'avait pas la clé : l'ensemble est partagé, un diamant reste linéaire.
+  visited.add(target);
   for (const merge of anchorMerges(target, document)) {
-    const merged = entryAt(merge.map, key, document);
+    if (visited.has(merge.map)) {
+      continue;
+    }
+    const merged = entryAt(merge.map, key, document, visited);
     if (merged !== undefined) {
       return merged;
     }
@@ -441,6 +460,109 @@ function environmentFrom(raw: Record<string, unknown>): Environment | null {
     environment.action = raw.action;
   }
   return environment;
+}
+
+function scriptLines(node: AnyNode, file: string, context: ResolveContext): string[] {
+  const { node: target } = dereference(node, file, context);
+  if (isScalar(target)) {
+    return typeof target.value === "string" ? [target.value] : [];
+  }
+  return isSeq(target)
+    ? target.items.flatMap((item) => scriptLines(item as AnyNode, file, context))
+    : [];
+}
+
+const SCRIPT_SECTIONS = ["before_script", "script", "after_script"] as const;
+
+/** Les clés que `inherit: default:` laisse passer : toutes, aucune, ou celles qu'il nomme. */
+function inheritedKeys(
+  sources: readonly Source[],
+  context: ResolveContext,
+): ReadonlySet<string> | null {
+  // GitLab fusionne `inherit` en profondeur à travers `extends` : le `default` le plus proche gagne,
+  // même si un `inherit` plus proche ne parle que de `variables`. `<<` ne fusionne pas en profondeur :
+  // `entryAt` lit donc l'`inherit` effectif de chaque définition, ancres comprises.
+  const value = sources
+    .filter((source) => source.origin.kind !== "anchor")
+    .toReversed()
+    .map((source) => {
+      const document = documentOf(context, source.file);
+      const entry = document === null ? undefined : entryAt(source.map, "inherit", document);
+      const map = entry === undefined ? null : dereference(entry, source.file, context).node;
+      return isMap(map) ? (localPair(map, "default")?.value as AnyNode) : undefined;
+    })
+    .find((entry) => entry !== undefined);
+  if (isScalar(value) && value.value === false) {
+    return new Set();
+  }
+  return isSeq(value) ? new Set(stringsOf(value)) : null;
+}
+
+/** Ce qui s'applique sous tous les jobs d'un fichier : `default:`, et les clés globales dépréciées
+ *  mais valides. Le script n'en fait pas partie : un `script` de premier niveau n'existe pas. */
+export function defaultSources(root: YAMLMap, file: string, context: ResolveContext): Source[] {
+  const document = documentOf(context, file);
+  const value = localPair(root, "default")?.value as AnyNode;
+  const target = isAlias(value) && document !== null ? value.resolve(document) : value;
+  const origin: Origin = { kind: "default" };
+  const merged =
+    isMap(target) && document !== null
+      ? anchorMerges(target, document)
+          .reverse()
+          .map((merge) => ({ map: merge.map, origin, file }))
+      : [];
+  return [
+    { map: root, origin, file },
+    ...merged,
+    ...(isMap(target) ? [{ map: target, origin, file }] : []),
+  ];
+}
+
+/** `extends` fusionne les maps : `image: { entrypoint }` garde le `name` du template. Un scalaire
+ *  arrête la remontée, et un `name` écrit aussi. */
+function imageOf(found: readonly Match[], context: ResolveContext): string | null {
+  for (const source of found.toReversed()) {
+    const image = dereference(source.node, source.file, context).node;
+    const document = documentOf(context, source.file);
+    const named =
+      isMap(image) && document !== null
+        ? dereference(entryAt(image, "name", document), source.file, context).node
+        : image;
+    if (isScalar(named) && named.value !== null) {
+      return typeof named.value === "string" ? named.value : null;
+    }
+    if (!isMap(image)) {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function resolveSignals(
+  sources: readonly Source[],
+  defaults: readonly Source[],
+  context: ResolveContext,
+): JobSignals {
+  // Un job `trigger` crée un pipeline : ni image ni script ne s'y exécutent, `default:` compris.
+  if (matches(sources, "trigger").length > 0) {
+    return { image: null, script: [] };
+  }
+
+  const inherited = inheritedKeys(sources, context);
+  const candidates = (key: string) =>
+    matches([...(inherited === null || inherited.has(key) ? defaults : []), ...sources], key);
+  const find = (key: string) => candidates(key).at(-1);
+
+  const sections = SCRIPT_SECTIONS.map((key) =>
+    key === "script" ? matches(sources, key).at(-1) : find(key),
+  );
+
+  return {
+    image: imageOf(candidates("image"), context),
+    script: sections.flatMap((section) =>
+      section === undefined ? [] : scriptLines(section.node, section.file, context),
+    ),
+  };
 }
 
 export function resolveEnvironment(

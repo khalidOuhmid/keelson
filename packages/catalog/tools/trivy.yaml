@@ -1,0 +1,24 @@
+id: trivy
+name: 'Trivy'
+kind: job
+layers: [sca, iac, infrastructure]
+license: Apache-2.0
+homepage: https://github.com/aquasecurity/trivy
+verifiedAt: https://github.com/aquasecurity/trivy
+logo: trivy
+detect:
+  images: ['aquasec/trivy']
+  scripts: ['(^|[\s/"''(])trivy\s']
+snippets:
+  gitlab: |
+    trivy:
+      stage: test
+      image:
+        name: aquasec/trivy:latest
+        entrypoint: [""]
+      script:
+        - trivy fs --scanners vuln,secret,misconfig .
+  github: |
+    - name: Run Trivy
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" aquasec/trivy:latest trivy fs --scanners vuln,secret,misconfig .
+lastVerified: 2026-11-04

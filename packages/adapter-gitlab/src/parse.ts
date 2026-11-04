@@ -29,6 +29,7 @@ import {
   type AnyNode,
   contentRange,
   type Definition,
+  defaultSources,
   definesKey,
   extendsOf,
   keyOf,
@@ -39,7 +40,9 @@ import {
   type ResolveContext,
   resolveEnvironment,
   resolveNeeds,
+  resolveSignals,
   resolveStage,
+  type Source,
   sourcesFor,
 } from "./resolve.ts";
 
@@ -277,6 +280,11 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     }
   }
 
+  const defaults = order.flatMap((parsed): Source[] => {
+    const root = parsed.yaml.contents;
+    return isMap(root) ? defaultSources(root, parsed.file, context) : [];
+  });
+
   const jobs: Job[] = jobEntries.map((entry) => {
     const owner = entry.definitions[entry.definitions.length - 1];
     const ownerFile = owner?.file ?? main;
@@ -307,6 +315,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       // ajouter un template sans retirer celui de l'include, et GitLab les applique tous les deux.
       extends: [...new Set(entry.definitions.flatMap((definition) => extendsOf(definition.map)))],
       opaque: jobOpaque,
+      signals: resolveSignals(sources, defaults, context),
       range: entry.range,
       file: ownerFile,
     };

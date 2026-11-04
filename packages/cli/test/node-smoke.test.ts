@@ -48,13 +48,13 @@ describe("binaire buildé exécuté par node", () => {
   test("--help liste les commandes prévues", () => {
     const result = keelson(["--help"]);
     expect(result.exitCode).toBe(0);
-    for (const command of ["start", "validate", "coverage", "export"]) {
+    for (const command of ["start", "validate", "coverage", "catalog", "export"]) {
       expect(result.stdout).toContain(command);
     }
   });
 
-  test("coverage sort en 2 avec le message « command not implemented yet »", () => {
-    const result = keelson(["coverage"]);
+  test("export sort en 2 avec le message « command not implemented yet »", () => {
+    const result = keelson(["export"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("not implemented yet");
   });

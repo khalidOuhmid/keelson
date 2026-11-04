@@ -1,0 +1,6 @@
+sast:
+  stage: test
+  needs:
+    - compile
+  script:
+    - semgrep ci

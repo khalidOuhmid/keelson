@@ -49,6 +49,14 @@ export type Stage = {
   file: string;
 };
 
+/** Ce qu'un job exécute, valeurs effectives : c'est sur quoi la détection des couches travaille.
+ *  Neutre vis-à-vis du fournisseur. `script` met bout à bout `before_script`, `script` et
+ *  `after_script`. */
+export type JobSignals = {
+  image: string | null;
+  script: string[];
+};
+
 export type Job = {
   id: string;
   stage: Valued<string>;
@@ -56,6 +64,7 @@ export type Job = {
   environment: Valued<Environment> | null;
   extends: string[];
   opaque: OpaqueBlock[];
+  signals: JobSignals;
   range: SourceRange;
   file: string;
 };

@@ -1,0 +1,17 @@
+id: syft
+name: 'Syft'
+kind: job
+layers: [supply-chain]
+license: Apache-2.0
+homepage: https://github.com/anchore/syft
+verifiedAt: https://github.com/anchore/syft
+logo: null
+detect:
+  images: ['anchore/syft']
+  scripts: ['\bsyft\b']
+snippets:
+  gitlab: null
+  github: |
+    - name: Run Syft
+      run: docker run --rm -v "$PWD:/src" -w /src anchore/syft:latest dir:. -o cyclonedx-json=sbom.cdx.json
+lastVerified: 2026-11-04

@@ -38,6 +38,11 @@
   --color-info: oklch(0.72 0.09 230);
   --color-info-muted: oklch(0.32 0.04 230);
 
+  /* Layer families on the coverage overlay. Colour groups, the word names the layer. */
+  --color-layer-build: oklch(0.8 0.1 165);
+  --color-layer-test: oklch(0.8 0.1 310);
+  --color-layer-operate: oklch(0.82 0.1 115);
+
   /* Typography. */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;

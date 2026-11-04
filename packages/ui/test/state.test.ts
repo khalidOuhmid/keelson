@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import type { Coverage } from "@keelson/catalog";
 import type { Operation, Pipeline } from "@keelson/core";
 import type { ApiResult, DocumentPayload, OperationPayload } from "../src/api/client.ts";
 import { createStore, type KeelsonStore } from "../src/state/store.ts";
@@ -8,6 +9,8 @@ const HASH_B = "b".repeat(64);
 const HASH_C = "c".repeat(64);
 
 const MAIN = ".gitlab-ci.yml";
+
+const NO_COVERAGE: Coverage = { jobs: [], layers: [], partial: false };
 
 function pipeline(jobs: string[] = ["compile"]): Pipeline {
   return {
@@ -19,6 +22,7 @@ function pipeline(jobs: string[] = ["compile"]): Pipeline {
       environment: null,
       extends: [],
       opaque: [],
+      signals: { image: null, script: [] },
       range: { start: 0, end: 10 },
       file: MAIN,
     })),
@@ -37,6 +41,7 @@ function documentPayload(hash = HASH_A): DocumentPayload {
     diagnostics: [],
     hash,
     included: {},
+    coverage: NO_COVERAGE,
   };
 }
 
@@ -47,6 +52,7 @@ function operationPayload(hash: string, inverseHash: string): OperationPayload {
     diagnostics: [],
     hash,
     included: {},
+    coverage: NO_COVERAGE,
     inverse: {
       v: 1,
       baseHash: inverseHash,
@@ -88,7 +94,7 @@ class FakeApi {
     );
   };
 
-  document = async (): Promise<ApiResult<DocumentPayload>> =>
+  document: () => Promise<ApiResult<DocumentPayload>> = async () =>
     this.documents.shift() ?? { ok: true, value: documentPayload(HASH_C) };
 }
 
@@ -108,6 +114,7 @@ beforeEach(() => {
   store = createStore({
     submit: api.submit,
     document: api.document,
+    catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
     newOpId: (() => {
       let counter = 0;
       return () => {
@@ -336,6 +343,110 @@ describe("événements du serveur", () => {
     await state().serverEvent({ kind: "document.removed", file: "autre.yml" });
     expect(state().status).toBe("ready");
     expect(state().canUndo()).toBe(true);
+  });
+});
+
+describe("coverage.changed", () => {
+  test("une réponse rendue périmée par une opération ne remplace pas la couverture", async () => {
+    let answer: (result: { ok: true; value: DocumentPayload }) => void = () => {};
+    const pending = new Promise<{ ok: true; value: DocumentPayload }>((settle) => {
+      answer = settle;
+    });
+    const late = createStore({
+      submit: api.submit,
+      document: () => pending,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    late.getState().documentLoaded(MAIN, documentPayload(HASH_A));
+    const handled = late.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    late.getState().documentLoaded(MAIN, {
+      ...documentPayload(HASH_B),
+      coverage: { ...NO_COVERAGE, partial: true },
+    });
+
+    answer({ ok: true, value: documentPayload(HASH_A) });
+    await handled;
+
+    expect(late.getState().coverage?.partial).toBe(true);
+  });
+});
+
+describe("coverage.changed sur un client en retard", () => {
+  test("le document est rechargé : aucun événement ne suivra", async () => {
+    api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
+    api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+    expect(state().hash).toBe(HASH_B);
+  });
+});
+
+describe("coverage.changed pendant une opération", () => {
+  function held() {
+    let settle: (result: ApiResult<OperationPayload>) => void = () => {};
+    const promise = new Promise<ApiResult<OperationPayload>>((resolve) => {
+      settle = resolve;
+    });
+    store = createStore({
+      submit: () => promise,
+      document: api.document,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    state().documentLoaded(MAIN, documentPayload());
+    return settle;
+  }
+
+  test("le fichier déjà écrit par cette opération ne passe pas pour une modification", async () => {
+    const settle = held();
+    const submitted = addStage("verify");
+    api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+    expect(state().notice).toBeNull();
+
+    settle({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await submitted;
+    expect(state().notice).toBeNull();
+    expect(state().canUndo()).toBe(true);
+  });
+
+  test("une opération qui échoue sans 409 laisse le rechargement dû se faire", async () => {
+    const settle = held();
+    const submitted = addStage("verify");
+    api.queueDocument({ ok: true, value: documentPayload(HASH_C) });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+    expect(state().hash).toBe(HASH_A);
+
+    api.queueDocument({ ok: true, value: documentPayload(HASH_C) });
+    const error = { status: 500, code: "INTERNAL_ERROR", params: {} } as const;
+    settle({ ok: false, error });
+    await submitted;
+
+    expect(state().hash).toBe(HASH_C);
+    expect(state().error).toEqual(error);
+  });
+
+  test("une couverture au hash déjà atteint s'applique", async () => {
+    let answer: (result: ApiResult<DocumentPayload>) => void = () => {};
+    api.document = () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      });
+    const late = createStore({
+      submit: () => Promise.resolve({ ok: true, value: operationPayload(HASH_B, HASH_A) }),
+      document: api.document,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    late.getState().documentLoaded(MAIN, documentPayload());
+    const handled = late.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    await late.getState().submit({ kind: "addStage", name: "verify" });
+    answer({
+      ok: true,
+      value: { ...documentPayload(HASH_B), coverage: { ...NO_COVERAGE, partial: true } },
+    });
+    await handled;
+    expect(late.getState().coverage?.partial).toBe(true);
   });
 });
 
@@ -571,6 +682,7 @@ describe("sélection par plage avec plusieurs fichiers", () => {
       diagnostics: [],
       hash: HASH_A,
       included: { "ci/jobs.yml": "compile:\n" },
+      coverage: NO_COVERAGE,
     });
 
     // `compile` occupe [0, 10[ dans le fichier principal. La même plage dans `ci/jobs.yml` ne
@@ -630,4 +742,98 @@ describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", 
     expect(state().textOf(MAIN)).toBe(payloadWithIncluded().text);
     expect(state().textOf("inconnu.yml")).toBe("");
   });
+});
+
+describe("vues et couverture", () => {
+  const COVERED: Coverage = {
+    jobs: [],
+    layers: [{ layer: "sast", covered: true, jobs: ["a"] }],
+    partial: false,
+  };
+
+  /** Même forme que `included` : un champ posé sur un seul des trois chemins qui l'alimentent. La
+   *  valeur change entre les deux appels, sans quoi le test passerait sans reposer le champ. */
+  test("documentLoaded pose la couverture", () => {
+    state().documentLoaded(MAIN, { ...documentPayload(), coverage: COVERED });
+    expect(state().coverage).toEqual(COVERED);
+  });
+
+  test("un rechargement la repose", async () => {
+    state().documentLoaded(MAIN, documentPayload());
+    api.queueDocument({ ok: true, value: { ...documentPayload(HASH_B), coverage: COVERED } });
+    await state().serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_B });
+    expect(state().coverage).toEqual(COVERED);
+  });
+
+  test("une opération la repose", async () => {
+    api.queue({ ok: true, value: { ...operationPayload(HASH_B, HASH_A), coverage: COVERED } });
+    await addStage("livrer");
+    expect(state().coverage).toEqual(COVERED);
+  });
+
+  test("changer de vue oublie la couche et la sélection", () => {
+    state().selectJob("compile");
+    state().selectLayer("sast");
+    state().setView("coverage");
+    expect(state().selectedLayer).toBeNull();
+    expect(state().selectedJobId).toBeNull();
+  });
+
+  test("rechoisir la même couche la libère", () => {
+    state().selectLayer("sast");
+    expect(state().selectedLayer).toBe("sast");
+    state().selectLayer("sast");
+    expect(state().selectedLayer).toBeNull();
+  });
+
+  test("See tools ouvre le catalogue et le charge une seule fois", async () => {
+    state().showTools("dast");
+    expect(state().view).toBe("catalog");
+    expect(state().catalogLayer).toBe("dast");
+    await new Promise((settle) => setTimeout(settle, 0));
+    expect(state().catalog).toEqual({ layers: [], tools: [], logos: {} });
+  });
+
+  test("un catalogue injoignable devient une erreur à l'écran", async () => {
+    const failing = createStore({
+      submit: api.submit,
+      document: api.document,
+      catalog: async () => ({
+        ok: false,
+        error: { status: 0, code: "NETWORK_ERROR", params: { detail: "x" } },
+      }),
+      newOpId: () => "op",
+    });
+    await failing.getState().loadCatalog();
+    expect(failing.getState().error?.code).toBe("NETWORK_ERROR");
+  });
+});
+
+describe("un changement de layout.json", () => {
+  const COVERED: Coverage = {
+    jobs: [],
+    layers: [{ layer: "sast", covered: true, jobs: ["a"] }],
+    partial: false,
+  };
+
+  /** Le YAML n'a pas bougé : effacer l'historique et dire « The file changed on disk » serait faux. */
+  test("repose la couverture sans toucher l'historique ni rien annoncer", async () => {
+    await addStageWith();
+    expect(state().canUndo()).toBe(true);
+
+    api.queueDocument({
+      ok: true,
+      value: { ...documentPayload(HASH_B), coverage: COVERED },
+    });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+
+    expect(state().coverage).toEqual(COVERED);
+    expect(state().canUndo()).toBe(true);
+    expect(state().notice).toBeNull();
+  });
+
+  async function addStageWith(): Promise<void> {
+    api.queue({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await addStage("livrer");
+  }
 });

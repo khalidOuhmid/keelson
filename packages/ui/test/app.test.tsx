@@ -1,13 +1,24 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { Coverage } from "@keelson/catalog";
 import type { Operation, Pipeline } from "@keelson/core";
+import { LAYERS } from "@keelson/taxonomy";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ApiResult, DocumentPayload, OperationPayload } from "../src/api/client.ts";
+import type {
+  ApiResult,
+  CatalogPayload,
+  DocumentPayload,
+  OperationPayload,
+} from "../src/api/client.ts";
 import type { ServerEvent } from "../src/api/events.ts";
 import { App, type AppDeps } from "../src/app.tsx";
 import { LAYOUT_TOKENS } from "../src/views/pipeline/metrics.ts";
 
 const MAIN = ".gitlab-ci.yml";
+
+const NO_COVERAGE: Coverage = { jobs: [], layers: [], partial: false };
+
+const CATALOG: CatalogPayload = { layers: [...LAYERS], tools: [], logos: {} };
 
 const HASH = "a".repeat(64);
 const NEXT = "b".repeat(64);
@@ -32,6 +43,7 @@ function pipeline(): Pipeline {
         environment: null,
         extends: [],
         opaque: [],
+        signals: { image: null, script: [] },
         range: { start: 0, end: 20 },
         file: MAIN,
       },
@@ -45,6 +57,7 @@ function pipeline(): Pipeline {
         environment: null,
         extends: [".base"],
         opaque: [],
+        signals: { image: null, script: [] },
         range: { start: 20, end: 60 },
         file: MAIN,
       },
@@ -65,6 +78,7 @@ const DOCUMENT: DocumentPayload = {
   diagnostics: [],
   hash: HASH,
   included: {},
+  coverage: NO_COVERAGE,
 };
 
 type Harness = {
@@ -92,6 +106,7 @@ function harness(
     diagnostics: [],
     hash: NEXT,
     included: {},
+    coverage: NO_COVERAGE,
     inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
     touched: [],
   };
@@ -113,6 +128,7 @@ function harness(
           ok: true,
           value: { files: options.files ?? [{ path: ".gitlab-ci.yml", adapter: "gitlab" }] },
         }),
+        catalog: async () => ({ ok: true, value: CATALOG }),
         document: async () =>
           documents.shift() ?? { ok: true, value: options.document ?? DOCUMENT },
         submit: async (_file, op, opId) => {
@@ -601,6 +617,7 @@ describe("suppression confirmée : focus et sélection", () => {
         diagnostics: [],
         hash: NEXT,
         included: {},
+        coverage: NO_COVERAGE,
         inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
         touched: [],
       },

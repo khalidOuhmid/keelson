@@ -91,7 +91,10 @@ d'édition sérialisables et inversables, `keelson validate` en texte et JSON.
 encore installées : `@xyflow/react` pour les graphes, CodeMirror 6 pour les blocs YAML opaques,
 Zustand pour l'état.
 
-**Pas encore livré** : taxonomie et catalogue (L3), toolchain (L4), propositions d'outils et
+**Livré au lot L3** : taxonomie, catalogue de 62 outils, vues Coverage et Catalog, `keelson coverage`
+et `keelson catalog lint`.
+
+**Pas encore livré** : toolchain (L4), propositions d'outils et
 insertion de jobs (L5), GitHub Actions (L6), packaging npm (L7), flotte (L8). Rien n'est utilisable
 par un utilisateur final à ce jour.
 

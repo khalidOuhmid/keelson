@@ -1,0 +1,15 @@
+id: gitlab
+name: 'GitLab'
+kind: service
+layers: [scm]
+license: MIT
+homepage: https://about.gitlab.com
+verifiedAt: https://gitlab.com/gitlab-org/gitlab/-/blob/master/LICENSE
+logo: gitlab
+detect:
+  images: []
+  scripts: []
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

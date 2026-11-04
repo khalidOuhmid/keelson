@@ -1,6 +1,7 @@
 export type ServerEvent =
   | { kind: "document.changed"; file: string; hash: string }
-  | { kind: "document.removed"; file: string };
+  | { kind: "document.removed"; file: string }
+  | { kind: "coverage.changed"; file: string };
 
 export type EventSourceFactory = (url: string) => EventSource;
 
@@ -40,6 +41,7 @@ export function subscribe(
 
   source.addEventListener("document.changed", handle("document.changed") as EventListener);
   source.addEventListener("document.removed", handle("document.removed") as EventListener);
+  source.addEventListener("coverage.changed", handle("coverage.changed") as EventListener);
 
   return {
     close() {

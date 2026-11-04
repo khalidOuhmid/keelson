@@ -1,7 +1,15 @@
+import type { Coverage } from "@keelson/catalog";
 import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
 import { INVALID_YAML } from "@keelson/core";
+import type { LayerId } from "@keelson/taxonomy";
 import { createStore as createZustandStore, type StoreApi } from "zustand/vanilla";
-import type { ApiFailure, ApiResult, DocumentPayload, OperationPayload } from "../api/client.ts";
+import type {
+  ApiFailure,
+  ApiResult,
+  CatalogPayload,
+  DocumentPayload,
+  OperationPayload,
+} from "../api/client.ts";
 import type { ServerEvent } from "../api/events.ts";
 
 export type Draft = Operation extends infer T
@@ -31,8 +39,11 @@ type HistoryEntry = {
 export type StoreDependencies = {
   submit: (file: string, op: Operation, opId: string) => Promise<ApiResult<OperationPayload>>;
   document: (file: string) => Promise<ApiResult<DocumentPayload>>;
+  catalog: () => Promise<ApiResult<CatalogPayload>>;
   newOpId: () => string;
 };
+
+export type View = "pipeline" | "coverage" | "catalog";
 
 export type KeelsonState = {
   file: string | null;
@@ -42,6 +53,13 @@ export type KeelsonState = {
    *  pris ailleurs. */
   included: Record<string, string>;
   pipeline: Pipeline | null;
+  coverage: Coverage | null;
+  catalog: CatalogPayload | null;
+  view: View;
+  /** La couche mise en avant sur l'overlay. */
+  selectedLayer: LayerId | null;
+  /** Le filtre de couche à l'ouverture du catalogue, posé par « See tools ». */
+  catalogLayer: LayerId | null;
   diagnostics: Diagnostic[];
   hash: string | null;
   status: Status;
@@ -53,6 +71,10 @@ export type KeelsonState = {
   documentLoaded(file: string, payload: DocumentPayload): void;
   workspaceEmpty(): void;
   selectJob(id: string | null): void;
+  setView(view: View): void;
+  selectLayer(layer: LayerId | null): void;
+  showTools(layer: LayerId): void;
+  loadCatalog(): Promise<void>;
   selectByRange(file: string, range: SourceRange | null): void;
   textOf(file: string): string;
   canEdit(): boolean;
@@ -67,6 +89,11 @@ export type KeelsonState = {
 };
 
 export type KeelsonStore = StoreApi<KeelsonState>;
+
+const RELOADED: Notice = {
+  kind: "reloaded",
+  message: "The file changed on disk and was reloaded.",
+};
 
 export function createStore(dependencies: StoreDependencies): KeelsonStore {
   let undoStack: HistoryEntry[] = [];
@@ -88,6 +115,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         // watcher tait les ecritures propres du serveur, donc aucun rechargement ne le reparerait.
         text: payload.text,
         included: payload.included,
+        coverage: payload.coverage,
         pipeline: payload.pipeline,
         diagnostics: payload.diagnostics,
         hash: payload.hash,
@@ -95,6 +123,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         error: null,
       });
     };
+
+    /** Un `coverage.changed` a vu un autre hash pendant une opération : c'est la réponse de celle-ci
+     *  qui tranche, et seul un échec sans 409 laisse le rechargement à faire. */
+    let reloadOwed = false;
 
     const reload = async (file: string, notice: Notice): Promise<void> => {
       const result = await dependencies.document(file);
@@ -109,6 +141,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       set({
         text: result.value.text,
         included: result.value.included,
+        coverage: result.value.coverage,
         pipeline: result.value.pipeline,
         diagnostics: result.value.diagnostics,
         hash: result.value.hash,
@@ -132,6 +165,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       set({ pending: true });
       const result = await dependencies.submit(file, op, dependencies.newOpId());
       set({ pending: false });
+      const owed = reloadOwed;
+      reloadOwed = false;
 
       if (result.ok) {
         applyPayload(result.value);
@@ -154,6 +189,9 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         return;
       }
 
+      if (owed) {
+        await reload(file, RELOADED);
+      }
       set({ error: result.error });
     };
 
@@ -161,6 +199,11 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       file: null,
       text: "",
       included: {},
+      coverage: null,
+      catalog: null,
+      view: "pipeline",
+      selectedLayer: null,
+      catalogLayer: null,
       pipeline: null,
       diagnostics: [],
       hash: null,
@@ -176,6 +219,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           file,
           text: payload.text,
           included: payload.included,
+          coverage: payload.coverage,
           pipeline: payload.pipeline,
           diagnostics: payload.diagnostics,
           hash: payload.hash,
@@ -193,6 +237,34 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       selectJob(id) {
         set({ selectedJobId: id });
+      },
+
+      setView(view) {
+        set({ view, selectedLayer: null, catalogLayer: null, selectedJobId: null });
+        if (view === "catalog") {
+          void get().loadCatalog();
+        }
+      },
+
+      selectLayer(layer) {
+        set({ selectedLayer: get().selectedLayer === layer ? null : layer });
+      },
+
+      showTools(layer) {
+        set({ view: "catalog", catalogLayer: layer, selectedLayer: null, selectedJobId: null });
+        void get().loadCatalog();
+      },
+
+      async loadCatalog() {
+        if (get().catalog !== null) {
+          return;
+        }
+        const result = await dependencies.catalog();
+        if (result.ok) {
+          set({ catalog: result.value });
+        } else {
+          set({ error: result.error });
+        }
       },
 
       /** Le fichier fait partie de la clé : deux fichiers ont chacun leurs offsets à partir de
@@ -290,10 +362,30 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           return;
         }
 
-        await reload(event.file, {
-          kind: "reloaded",
-          message: "The file changed on disk and was reloaded.",
-        });
+        if (event.kind === "coverage.changed") {
+          const known = get().hash;
+          const result = await dependencies.document(event.file);
+          if (!result.ok) {
+            return;
+          }
+          if (result.value.hash === get().hash) {
+            set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
+            return;
+          }
+          // Autre hash sans opération de ce client : le serveur ne diffuse pas ses écritures, aucun
+          // `document.changed` ne suivra. Avec une opération, c'est sa réponse qui fait foi.
+          if (get().hash !== known) {
+            return;
+          }
+          if (get().pending) {
+            reloadOwed = true;
+            return;
+          }
+          await reload(event.file, RELOADED);
+          return;
+        }
+
+        await reload(event.file, RELOADED);
       },
 
       dismissNotice() {

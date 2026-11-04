@@ -1,0 +1,24 @@
+id: schemathesis
+name: 'Schemathesis'
+kind: job
+layers: [api]
+license: MIT
+homepage: https://github.com/schemathesis/schemathesis
+verifiedAt: https://github.com/schemathesis/schemathesis
+logo: null
+detect:
+  images: ['schemathesis/schemathesis']
+  scripts: ['\b(schemathesis|st)\s+run\b']
+snippets:
+  gitlab: |
+    schemathesis:
+      stage: test
+      image:
+        name: schemathesis/schemathesis:stable
+        entrypoint: [""]
+      script:
+        - schemathesis run $API_URL/openapi.json
+  github: |
+    - name: Run Schemathesis
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" schemathesis/schemathesis:stable schemathesis run $API_URL/openapi.json
+lastVerified: 2026-11-04

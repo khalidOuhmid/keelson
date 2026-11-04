@@ -1,0 +1,24 @@
+id: zap
+name: 'ZAP'
+kind: job
+layers: [dast, api]
+license: Apache-2.0
+homepage: https://www.zaproxy.org
+verifiedAt: https://www.zaproxy.org/docs/docker/about/
+logo: null
+detect:
+  images: ['zaproxy/zap-stable', 'zaproxy/zap-weekly', 'zaproxy/zaproxy', 'owasp/zap2docker-stable', 'owasp/zap2docker-weekly']
+  scripts: ['\bzap-(baseline|full-scan|api-scan)\.py\b']
+snippets:
+  gitlab: |
+    zap:
+      stage: test
+      image:
+        name: zaproxy/zap-stable:latest
+        entrypoint: [""]
+      script:
+        - zap-baseline.py -t $TARGET_URL
+  github: |
+    - name: Run ZAP
+      run: docker run --rm -t zaproxy/zap-stable:latest zap-baseline.py -t ${{ vars.TARGET_URL }}
+lastVerified: 2026-11-04

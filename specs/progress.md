@@ -2,9 +2,7 @@
 
 Statut : EN COURS
 Lot courant : **L3 — taxonomie, catalogue, overlay OWASP**, à cadrer depuis `main`
-Prochaine action : L3, cadrage.
-À reprendre en tête de son cadrage : l'écart du 2026-11-04 sur `addNeed` et les needs non littéraux,
-qui écrit faux, et celui sur `setJobStage` et les formes rares de `!reference`.
+Prochaine action : sur `lot/l3-owasp`, vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -597,3 +595,60 @@ Vérification finale depuis un arbre sans `dist/`, `types/` ni `*.tsbuildinfo` :
 0 erreur, typecheck 0 erreur, **1236 pass / 0 fail**, build complet ; `bun run e2e` → **46 passed** ;
 `KEELSON_FC_RUNS=500` sur les propriétés → 18 pass ; binaire sous `node v22.16.0` : un include local
 cassé rend `INCLUDE_NOT_FOUND` et `EXTENDS_TARGET_NOT_FOUND` en `error`, sur le bon fichier, exit 1.
+
+### 2026-11-04 — L3
+
+**Livré.** `@keelson/taxonomy` (13 couches OWASP, 8 catégories plateforme) ; `@keelson/catalog`
+(62 fiches, compilées vers `catalog.json` commité, détection sur `image` et `script`, surcharge par
+`.devsecops/layout.json`) ; `Job.signals` ; `/api/catalog`, `coverage` dans les charges,
+`coverage.changed` ; vues Coverage et Catalog, posture de lecture, fiche outil ; `keelson coverage`
+et `keelson catalog lint`. ADR 0008. Onze écarts clos au lot, chacun avec sa preuve dans
+`specs/ecarts.md`.
+
+**Revue indépendante.** Huit constats rouvrants, tous corrigés (`ecf83e4`). `critique` et `audit` :
+un P0 (emphase invisible) et six P1, corrigés (`d22b63a`). Dix-sept preuves rouges ; seize tenues.
+
+**Test incapable d'échouer.** « Un script global n'existe pas » n'avait pas de clé `script` de
+premier niveau dans sa fixture : la mutation restait verte. Réécrit, prouvé rouge. Un test de
+surcharge `__proto__` était inerte car zod retire la clé : supprimé, le code retiré avec lui.
+
+**Limite de `catalog lint`.** Les 62 fiches portent `lastVerified: 2026-11-04` : la fraîcheur ne se
+déclenche que sur des fixtures de test à `now` fixé, jamais sur le vrai catalogue avant mai 2027.
+
+**`polish`.** Colonnes du catalogue nommées au défilement, E2E rouge puis vert.
+
+**`document`.** `DESIGN.md` et son sidecar à jour, écart clos. La passe a relevé que la grille de
+filtres contredisait l'ADR 0008 : corrigée sans point de rupture plutôt que d'élargir l'ADR.
+Sections de `CoveragePanel` passées en groupes, licence seule en monospace. Les liens accent
+`See tools` et `Homepage` sont acceptés dans l'Attention Accent Rule.
+
+**Contre-revue des correctifs.** Quatre rouvertures :
+1. `reloadCoverage` avalait `document.changed` et `document.removed`, régression de `ecf83e4` ;
+2. une réponse périmée à `coverage.changed` écrasait la couverture d'une opération ;
+3. `bash -c "trivy …"` et `(trivy …)` n'étaient plus détectés, régression de la même revue ;
+4. l'image du snippet de ZAP n'était pas reconnue par sa propre fiche. Cause de fond gardée par un
+   invariant sur tout le catalogue : chaque image de snippet GitLab est reconnue par sa fiche.
+
+Traités aussi, parce que la valeur effective est une promesse de D1 : `inherit` et `image` fusionnés
+à travers `extends`, job `trigger` sans signaux. Traités parce que faux : le message `partial` de la
+CLI, le `file` de `COVERAGE_LAYER_MISSING`, la colonne Tool à 48 px à 375 px. Six mutations
+rouges, `git diff` vide après chacune. Bornes de la détection shell et mineurs : `specs/ecarts.md`.
+
+**Deuxième et troisième contre-revues, chacune sur le correctif de la précédente.** Le bilan dit
+pourquoi la règle existe : `inherit` fusionné à tort à travers `<<` ; garde de `coverage.changed`
+qui laissait un second onglet en retard ; `entryAt`, désormais appelé sur tous les jobs, qui
+plantait sur `job: &a` + `<<: *a`, jusqu'à tuer le serveur sous Node ; fausse alerte et undo perdu
+pendant une opération en vol ; puis rechargement dû oublié si cette opération échouait sans 409.
+Chacun corrigé, prouvé rouge. Le watcher absorbe désormais les exceptions du parseur, et `entryAt`
+partage son ensemble de maps visitées, ce qui rend les diamants linéaires. Les cycles qui lèvent
+encore hors d'`entryAt` sont consignés.
+
+**Cinquième et sixième contre-revues.** La cinquième a montré que le `catch` du watcher laissait le
+store sur l'ancien texte : une opération remplaçait alors le fichier cassé. Le document illisible est
+désormais oublié, opération en 500 sans écriture, deux tests prouvés rouges. La sixième, sur ce seul
+changement et sur le binaire Node, ne rouvre rien.
+
+**Une erreur de méthode.** Le passage en `role="group"` a été commité sans lancer le lint ; c'est la
+vérification depuis un clone qui l'a attrapé. `bun run check` passe avant de considérer un correctif
+terminé.
+

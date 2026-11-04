@@ -1,0 +1,24 @@
+id: bandit
+name: 'Bandit'
+kind: job
+layers: [sast]
+license: Apache-2.0
+homepage: https://github.com/PyCQA/bandit
+verifiedAt: https://github.com/PyCQA/bandit
+logo: null
+detect:
+  images: ['pycqa/bandit']
+  scripts: ['\bbandit\b']
+snippets:
+  gitlab: |
+    bandit:
+      stage: test
+      image:
+        name: ghcr.io/pycqa/bandit/bandit:latest
+        entrypoint: [""]
+      script:
+        - bandit -r .
+  github: |
+    - name: Run Bandit
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/pycqa/bandit/bandit:latest bandit -r .
+lastVerified: 2026-11-04

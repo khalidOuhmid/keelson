@@ -1,0 +1,21 @@
+id: witness
+name: 'Witness'
+kind: job
+layers: [supply-chain]
+license: Apache-2.0
+homepage: https://github.com/in-toto/witness
+verifiedAt: https://github.com/in-toto/witness
+logo: null
+detect:
+  images: []
+  scripts: ['\bwitness\s+run\b']
+snippets:
+  gitlab: |
+    witness:
+      stage: build
+      script:
+        - witness run --step build --attestations environment -- make
+  github: |
+    - name: Run Witness
+      run: witness run --step build --attestations environment -- make
+lastVerified: 2026-11-04

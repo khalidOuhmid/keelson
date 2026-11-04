@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 import { createServer } from "@keelson/server";
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const fixture = join(repoRoot, "packages", "ui", "dev-fixture");
+/** `KEELSON_DEV_FIXTURE=includes` ouvre l'arbre multi-fichiers : la fixture par défaut, dont les E2E
+ *  comptent les jobs, n'exerce ni les jobs inclus ni la bande de pipeline partiel. */
+const fixtureName =
+  process.env.KEELSON_DEV_FIXTURE === "includes" ? "dev-fixture-includes" : "dev-fixture";
+const fixture = join(repoRoot, "packages", "ui", fixtureName);
 
 export const DEV_TOKEN = "keelson-dev-token";
 export const DEV_API_PORT = 5284;

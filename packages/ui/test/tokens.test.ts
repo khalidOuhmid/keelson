@@ -133,6 +133,16 @@ describe("contraste WCAG 2.1 AA", () => {
       });
     }
 
+    for (const family of ["build", "test", "operate"]) {
+      test(`la famille ${family} se lit jusqu'à surface-3`, () => {
+        // Le texte et la bordure d'une étiquette de couche portent cette teinte sur un nœud
+        // sélectionné : le seuil de texte est donc le plus exigeant des deux.
+        expect(contrast(`--color-layer-${family}`, "--color-surface-3")).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      });
+    }
+
     test("accent, qui porte la bordure d'un nœud sélectionné", () => {
       expect(contrast("--color-accent", "--color-surface-3")).toBeGreaterThanOrEqual(3);
     });

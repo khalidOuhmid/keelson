@@ -21,12 +21,21 @@ export type DiagnosticsPanelProps = {
   onSelectRange: (file: string, range: SourceRange | null) => void;
   /** Le fichier principal : les lignes qui viennent d'ailleurs le nomment, les autres non. */
   main: string;
+  /** La bande de pipeline partiel énonce déjà les informations : les redire ici ferait annoncer
+   *  deux fois le même fait. Filtré sur la sévérité, pas sur un code. */
+  omitInfo?: boolean;
 };
 
-export function DiagnosticsPanel({ diagnostics, onSelectRange, main }: DiagnosticsPanelProps) {
-  const sorted = [...diagnostics].sort(
-    (left, right) => ORDER[left.severity] - ORDER[right.severity],
-  );
+export function DiagnosticsPanel({
+  diagnostics,
+  onSelectRange,
+  main,
+  omitInfo = false,
+}: DiagnosticsPanelProps) {
+  const shown = omitInfo
+    ? diagnostics.filter((diagnostic) => diagnostic.severity !== "info")
+    : diagnostics;
+  const sorted = [...shown].sort((left, right) => ORDER[left.severity] - ORDER[right.severity]);
 
   return (
     <section

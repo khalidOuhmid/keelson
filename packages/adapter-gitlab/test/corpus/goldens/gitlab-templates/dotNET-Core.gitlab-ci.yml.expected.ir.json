@@ -53,6 +53,13 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "mcr.microsoft.com/dotnet/sdk:latest",
+        "script": [
+          "dotnet restore --packages $NUGET_PACKAGES_DIRECTORY",
+          "dotnet build --no-restore"
+        ]
+      },
       "range": {
         "start": 4068,
         "end": 4657
@@ -80,6 +87,13 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "mcr.microsoft.com/dotnet/sdk:latest",
+        "script": [
+          "dotnet restore --packages $NUGET_PACKAGES_DIRECTORY",
+          "dotnet test --no-restore"
+        ]
+      },
       "range": {
         "start": 4658,
         "end": 5135
@@ -114,6 +128,13 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "mcr.microsoft.com/dotnet/sdk:latest",
+        "script": [
+          "dotnet restore --packages $NUGET_PACKAGES_DIRECTORY",
+          "echo \"Define your deployment script!\""
+        ]
+      },
       "range": {
         "start": 5136,
         "end": 5234

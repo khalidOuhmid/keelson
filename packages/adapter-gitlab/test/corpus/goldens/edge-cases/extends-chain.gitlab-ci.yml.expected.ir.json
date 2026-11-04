@@ -41,6 +41,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo prepare"]
+      },
       "range": {
         "start": 303,
         "end": 356
@@ -90,6 +94,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "alpine:3",
+        "script": ["echo final"]
+      },
       "range": {
         "start": 357,
         "end": 411

@@ -1,0 +1,23 @@
+id: dependency-track
+name: 'Dependency-Track'
+kind: service
+layers: [sca, continuous, vulnerability-aggregation]
+license: Apache-2.0
+homepage: https://dependencytrack.org
+verifiedAt: https://docs.dependencytrack.org/usage/cicd/
+logo: null
+detect:
+  images: []
+  scripts: ['/api/v1/bom\b']
+snippets:
+  gitlab: |
+    dependency-track:
+      stage: deploy
+      script:
+        - |
+          curl -X POST "$DTRACK_URL/api/v1/bom" -H "X-Api-Key: $DTRACK_KEY" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json
+  github: |
+    - name: Upload the SBOM
+      run: |
+        curl -X POST "$DTRACK_URL/api/v1/bom" -H "X-Api-Key: $DTRACK_KEY" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json
+lastVerified: 2026-11-04

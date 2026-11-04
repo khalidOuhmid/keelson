@@ -1,0 +1,24 @@
+id: sonarqube
+name: 'SonarQube'
+kind: service
+layers: [code-quality, sast]
+license: LGPL-3.0-only
+homepage: https://www.sonarsource.com/products/sonarqube/
+verifiedAt: https://docs.sonarsource.com/sonarqube-server/analyzing-source-code/scanners/sonarscanner
+logo: sonarqubeserver
+detect:
+  images: ['sonarsource/sonar-scanner-cli']
+  scripts: ['\bsonar-scanner\b', '\bsonar:sonar\b', '\bgradlew\s+sonar\b', '\bgradle\s+sonar\b', '\bsonarscanner\b']
+snippets:
+  gitlab: |
+    sonarqube:
+      stage: test
+      image:
+        name: sonarsource/sonar-scanner-cli:latest
+        entrypoint: [""]
+      script:
+        - sonar-scanner
+  github: |
+    - name: Run SonarScanner
+      run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v "$PWD:/usr/src" sonarsource/sonar-scanner-cli
+lastVerified: 2026-11-04

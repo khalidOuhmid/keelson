@@ -1,0 +1,15 @@
+id: tetragon
+name: 'Tetragon'
+kind: service
+layers: [runtime-security]
+license: Apache-2.0
+homepage: https://tetragon.io
+verifiedAt: https://github.com/cilium/tetragon
+logo: null
+detect:
+  images: ['cilium/tetragon']
+  scripts: ['\b(tetragon|tetra)\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

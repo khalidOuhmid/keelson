@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import type { JobCoverage } from "@keelson/catalog";
 import type { Job, OpaqueBlock, Origin } from "@keelson/core";
 import { cleanup, render, screen } from "@testing-library/react";
 import { JobDetailPanel } from "../../src/panels/JobDetailPanel.tsx";
@@ -36,6 +37,7 @@ function job(overrides: Partial<Job> = {}): Job {
     environment: null,
     extends: [],
     opaque: [SCRIPT_BLOCK],
+    signals: { image: null, script: [] },
     range: { start: 0, end: TEXT.length },
     file: MAIN,
     ...overrides,
@@ -269,5 +271,43 @@ describe("bloc opaque dont la plage ne peut pas être lue", () => {
     const block = screen.getByRole("group", { name: "Opaque block script" });
     expect(block.textContent).toContain("Content unavailable");
     expect(block.textContent).toContain("still on disk");
+  });
+});
+
+describe("les couches d'un job, sur la vue Coverage", () => {
+  function renderWith(coverage: JobCoverage) {
+    render(
+      <JobDetailPanel
+        job={job()}
+        textOf={() => TEXT}
+        main={MAIN}
+        coverage={coverage}
+        onClose={() => undefined}
+      />,
+    );
+    return screen.getByTestId("job-layers-source").textContent;
+  }
+
+  test("nomme l'outil reconnu", () => {
+    expect(
+      renderWith({ job: "compile", layers: ["sast"], tools: ["semgrep"], overridden: false }),
+    ).toBe("Detected from semgrep.");
+  });
+
+  test("une surcharge se distingue d'une détection", () => {
+    expect(
+      renderWith({ job: "compile", layers: ["sast"], tools: ["semgrep"], overridden: true }),
+    ).toBe("Set by .devsecops/layout.json.");
+  });
+
+  test("sans outil, le dit", () => {
+    expect(renderWith({ job: "compile", layers: [], tools: [], overridden: false })).toBe(
+      "Keelson recognised no tool in this job.",
+    );
+  });
+
+  test("hors de la vue Coverage, rien", () => {
+    renderPanel(job());
+    expect(screen.queryByTestId("job-layers")).toBeNull();
   });
 });

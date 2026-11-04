@@ -70,9 +70,9 @@ test.describe("include locaux sur le binaire réel", () => {
     }
   });
 
-  /** Ce que ce test mesure : l'écran coupe l'édition d'un job inclus, et le fichier est intact
-   *  après le parcours. La relecture du disque est un **garde-fou**, pas la mesure principale —
-   *  les contrôles étant désactivés, aucune requête ne part, donc rien n'écrirait de toute façon.
+  /** Ce que ce test mesure : l'écran n'offre aucun contrôle sur un job inclus, et le fichier est
+   *  intact après le parcours. La relecture du disque est un **garde-fou**, pas la mesure
+   *  principale : aucun contrôle, donc aucune requête, donc rien n'écrirait de toute façon.
    *  La garantie sur les octets contre une requête réellement envoyée est mesurée dans
    *  `packages/server/test/includes.test.ts`, où le serveur écrit pour de vrai. */
   test("un job inclus ne peut pas être édité, et son fichier reste intact", async ({ page }) => {
@@ -83,19 +83,8 @@ test.describe("include locaux sur le binaire réel", () => {
 
       await expect(page.getByTestId("job-source-file")).toContainText(INCLUDED_PATH);
 
-      const editor = page.getByRole("group", { name: "Job editor" });
-      await expect(editor).toContainText("Editing is off for this job");
-      await expect(editor.getByRole("button", { name: /^Rename$/ })).toBeDisabled();
-      await expect(editor.getByRole("button", { name: /Delete job/ })).toBeDisabled();
-      await expect(editor.getByRole("button", { name: /Add need/ })).toBeDisabled();
-
-      // « Delete job » gardait sa bordure rouge sur un job qu'on ne peut pas supprimer. Comparé à
-      // un bouton neutre sur le style calculé : une classe présente ne prouve pas qu'elle gagne.
-      const border = (name: RegExp) =>
-        editor
-          .getByRole("button", { name })
-          .evaluate((node) => getComputedStyle(node).borderTopColor);
-      expect(await border(/Delete job/)).toBe(await border(/^Rename$/));
+      await expect(page.getByText("This job is defined in an included file.")).toBeVisible();
+      await expect(page.getByRole("group", { name: "Job editor" })).toHaveCount(0);
 
       expect(keelson.readAt(INCLUDED_PATH)).toBe(INCLUDED);
     } finally {
@@ -147,35 +136,6 @@ test.describe("include locaux sur le binaire réel", () => {
       await keelson.stop();
     }
   });
-});
-
-test("la raison du verrou reste visible quand on défile jusqu'aux contrôles", async ({ page }) => {
-  // Mesure de géométrie : `happy-dom` ne fait aucune mise en page, donc `sticky` ne se vérifie
-  // qu'ici. Sans lui, la note sort par le haut de la colonne pendant qu'on atteint les contrôles
-  // morts qu'elle explique.
-  const keelson = await startKeelson(TREE);
-  try {
-    await page.goto(keelson.url);
-    await page.locator('[data-job-id="sast"]').click();
-
-    const editor = page.getByRole("group", { name: "Job editor" });
-    const column = page.locator("aside", { has: editor });
-    await column.evaluate((node) => {
-      node.scrollTop = node.scrollHeight;
-    });
-    await expect.poll(() => column.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
-
-    const note = editor.getByText("Editing is off for this job");
-    const noteBox = await note.boundingBox();
-    const columnBox = await column.boundingBox();
-    if (noteBox === null || columnBox === null) {
-      throw new Error("note ou colonne sans géométrie");
-    }
-    expect(noteBox.y).toBeGreaterThanOrEqual(columnBox.y);
-    expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(columnBox.y + columnBox.height);
-  } finally {
-    await keelson.stop();
-  }
 });
 
 test("dépliée, la bande partielle ne dévore pas l'écran", async ({ page }) => {

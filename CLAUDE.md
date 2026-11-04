@@ -78,13 +78,14 @@ de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 
 | Dépendance      | Où                              | Usage                                        |
 | --------------- | ------------------------------- | -------------------------------------------- |
-| `yaml` (eemeli) | `adapter-gitlab`                | parsing, ranges des nœuds, anchors, merge     |
-| `zod` v4        | `core`, `adapter-gitlab`        | schémas des opérations                        |
+| `yaml` (eemeli) | `adapter-gitlab`, `catalog`     | parsing, ranges des nœuds, anchors, merge     |
+| `zod` v4        | `core`, `adapter-gitlab`, `catalog`, `toolchain` | schémas des opérations, fiches, layout |
 | `@xyflow/react` | `ui`                            | rendu du graphe pipeline                      |
 | `elkjs`         | `ui`                            | mise en page en couches, déterministe         |
 | `zustand`       | `ui`                            | état de l'UI, undo/redo                       |
 | CodeMirror 6    | `ui`                            | blocs YAML opaques en lecture seule           |
 | `fast-check`    | devDependency racine            | tests de propriétés                           |
+| `simple-icons`  | devDependency racine            | tracés CC0 compilés dans `catalog.json`       |
 
 Aucune dépendance n'est aujourd'hui en attente d'un lot futur.
 
@@ -103,6 +104,7 @@ tant que les commandes restent simples et évite une dépendance dans le bundle 
 | `bun run e2e`        | Playwright                                              |
 | `bun run check`      | lint + typecheck + build + test — ce que lance la CI    |
 | `bun run corpus:update` | régénère les goldens IR du corpus (diff à relire)   |
+| `bun run catalog:build` | compile `tools/*.yaml` vers `catalog.json` commité  |
 | `bun run dev`        | serveur local sur la fixture de dev + Vite sur 5283     |
 
 ## Développement du front
@@ -118,6 +120,9 @@ tant que les commandes restent simples et évite une dépendance dans le bundle 
 que le contrôle de `Host` du serveur exige. Un test
 (`packages/ui/test/devProxy.test.ts`) garde la cohérence du token, du port et de cette option entre
 le script et la configuration Vite.
+
+`KEELSON_DEV_FIXTURE=includes bun run dev` ouvre `packages/ui/dev-fixture-includes/`, un pipeline
+réparti sur plusieurs fichiers, pour les surfaces d'include.
 
 La fixture de dev est un pipeline volontairement riche : quatre stages, needs en forme objet et
 optionnels, `extends`, environnement. Les tests E2E en prennent une copie temporaire.
@@ -154,7 +159,7 @@ Le plugin [Impeccable](https://github.com/pbakaus/impeccable) juge et guide tout
 ```
 packages/core/            IR pipeline + toolchain
 packages/taxonomy/        couches OWASP + catégories plateforme
-packages/catalog/         tools/*.yaml, logos/, schéma
+packages/catalog/         tools/*.yaml, schéma, catalog.json compilé
 packages/adapter-gitlab/  GitLab CI ↔ IR
 packages/adapter-github/  GitHub Actions ↔ IR
 packages/toolchain/       .devsecops/toolchain.yaml, inférence des intégrations

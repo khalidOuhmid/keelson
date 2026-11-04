@@ -19,7 +19,8 @@
     "e2e": "bun run build && playwright test",
     "check": "bun run lint && bun run typecheck && bun run build && bun run test",
     "corpus:update": "bun run scripts/update-corpus-goldens.ts",
-    "dev": "bun run scripts/dev.ts & bun run --cwd packages/ui dev"
+    "dev": "bun run scripts/dev.ts & bun run --cwd packages/ui dev",
+    "catalog:build": "bun run scripts/build-catalog.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
@@ -28,6 +29,7 @@
     "@types/bun": "^1.4.3",
     "@types/node": "^26.6.5",
     "fast-check": "^4.10.2",
+    "simple-icons": "^16.36.0",
     "typescript": "^7.0.2"
   }
 }

@@ -1,0 +1,24 @@
+id: gosec
+name: 'gosec'
+kind: job
+layers: [sast]
+license: Apache-2.0
+homepage: https://github.com/securego/gosec
+verifiedAt: https://github.com/securego/gosec
+logo: null
+detect:
+  images: ['securego/gosec']
+  scripts: ['\bgosec\b']
+snippets:
+  gitlab: |
+    gosec:
+      stage: test
+      image:
+        name: ghcr.io/securego/gosec:latest
+        entrypoint: [""]
+      script:
+        - gosec ./...
+  github: |
+    - name: Run gosec
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/securego/gosec:latest gosec ./...
+lastVerified: 2026-11-04

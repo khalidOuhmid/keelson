@@ -1,0 +1,24 @@
+id: nuclei
+name: 'Nuclei'
+kind: job
+layers: [dast, infrastructure]
+license: MIT
+homepage: https://github.com/projectdiscovery/nuclei
+verifiedAt: https://github.com/projectdiscovery/nuclei
+logo: null
+detect:
+  images: ['projectdiscovery/nuclei']
+  scripts: ['\bnuclei\s+-']
+snippets:
+  gitlab: |
+    nuclei:
+      stage: test
+      image:
+        name: projectdiscovery/nuclei:latest
+        entrypoint: [""]
+      script:
+        - nuclei -target $TARGET_URL
+  github: |
+    - name: Run Nuclei
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" projectdiscovery/nuclei:latest nuclei -target $TARGET_URL
+lastVerified: 2026-11-04

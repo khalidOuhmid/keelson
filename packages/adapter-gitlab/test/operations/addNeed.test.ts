@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { INVALID_OPERATION } from "@keelson/core";
 import { expectOk, expectUnchanged, jobOf, roundTrip } from "../support/apply.ts";
 
 const trois = [
@@ -143,4 +144,26 @@ describe("addNeed", () => {
   test("CYCLE pour un auto-need", () => {
     expectUnchanged(trois, { kind: "addNeed", id: "unit", need: { job: "unit" } }, "CYCLE");
   });
+});
+
+describe("addNeed sur une liste partagée", () => {
+  /** `needs: *n` devenait `needs:\n  - c`, qui perdait a et b ; `!reference [.base, needs]` devenait
+   *  `!reference [.base, needs, c]`, un chemin faux. Aucun refus, aucun diagnostic. */
+  const HEAD = "stages:\n  - test\n\n.n: &n\n  - a\n  - b\n\n.base:\n  needs:\n    - a\n\n";
+  const JOBS = "a:\n  script: x\nb:\n  script: x\nc:\n  script: x\n";
+
+  for (const [label, value] of [
+    ["un alias d'anchor", "*n"],
+    ["un !reference", "!reference [.base, needs]"],
+  ] as const) {
+    test(`${label} est refusé et le texte ne change pas`, () => {
+      const text = `${HEAD}${JOBS}unit:\n  stage: test\n  needs: ${value}\n  script: x\n`;
+      const error = expectUnchanged(
+        text,
+        { kind: "addNeed", id: "unit", need: { job: "c" } },
+        INVALID_OPERATION,
+      );
+      expect(error.params).toEqual({ reason: "sharedValue", job: "unit", key: "needs" });
+    });
+  }
 });

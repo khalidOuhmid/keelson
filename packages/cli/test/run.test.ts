@@ -18,7 +18,7 @@ describe("--help", () => {
   test("liste les commandes prévues et sort en 0", async () => {
     const result = await run(["--help"]);
     expect(result.exitCode).toBe(0);
-    for (const command of ["start", "validate", "coverage", "export"]) {
+    for (const command of ["start", "validate", "coverage", "catalog", "export"]) {
       expect(result.stdout).toContain(command);
     }
   });
@@ -29,11 +29,11 @@ describe("--help", () => {
 });
 
 describe("commandes", () => {
-  test("COMMANDS déclare les quatre commandes prévues", () => {
-    expect(COMMANDS).toEqual(["start", "validate", "coverage", "export"]);
+  test("COMMANDS déclare les commandes prévues", () => {
+    expect(COMMANDS).toEqual(["start", "validate", "coverage", "catalog", "export"]);
   });
 
-  for (const command of ["coverage", "export"]) {
+  for (const command of ["export"]) {
     test(`${command} répond « command not implemented yet » et sort en 2`, async () => {
       const result = await run([command]);
       expect(result.exitCode).toBe(2);

@@ -102,6 +102,41 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'job "compile" (stage "build") needs "publish", which is in the later stage "deploy"',
     },
   ],
+  LAYOUT_INVALID: [
+    {
+      params: { detail: "layers: invalid" },
+      text: ".devsecops/layout.json is not usable: layers: invalid",
+    },
+  ],
+  LAYOUT_UNKNOWN_LAYER: [
+    {
+      params: { job: "unit", layer: "x" },
+      text: 'layout.json assigns job "unit" to unknown layer "x"',
+    },
+  ],
+  LAYOUT_UNKNOWN_JOB: [
+    { params: { job: "unit" }, text: 'layout.json names job "unit", which does not exist' },
+  ],
+  COVERAGE_LAYER_MISSING: [
+    {
+      params: { layer: "sast", name: "Static analysis" },
+      text: 'required layer "sast" (Static analysis) is not covered',
+    },
+  ],
+  CATALOG_INVALID_TOOL: [
+    { params: { detail: "id: invalid" }, text: "invalid tool file: id: invalid" },
+  ],
+  CATALOG_DUPLICATE_TOOL: [{ params: { tool: "x" }, text: 'tool id "x" is declared twice' }],
+  CATALOG_UNKNOWN_LOGO: [
+    { params: { tool: "x", logo: "y" }, text: 'tool "x" names unknown logo "y"' },
+  ],
+  CATALOG_MISSING_SNIPPET: [{ params: { tool: "x" }, text: 'job tool "x" has no snippet' }],
+  CATALOG_STALE_TOOL: [
+    {
+      params: { tool: "x", lastVerified: "2026-01-01" },
+      text: 'tool "x" was last verified on 2026-01-01, more than six months ago',
+    },
+  ],
 
   STALE_DOCUMENT: [
     {
@@ -163,6 +198,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     {
       params: { reason: "inheritedEnvironment", job: "deploy", origin: "extends" },
       text: 'the environment of "deploy" is inherited (extends) and cannot be removed locally',
+    },
+    {
+      params: { reason: "sharedValue", job: "unit", key: "needs" },
+      text: 'the needs of "unit" comes through an anchor or a !reference that Keelson cannot rewrite in place',
     },
     { params: { reason: "noRootMap" }, text: "this file has no YAML map at its root" },
     {

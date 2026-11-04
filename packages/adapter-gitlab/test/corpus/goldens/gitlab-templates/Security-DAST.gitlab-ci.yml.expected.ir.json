@@ -93,6 +93,15 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "$SECURE_ANALYZERS_PREFIX/dast:$DAST_VERSION$DAST_IMAGE_SUFFIX",
+        "script": [
+          "if [[ -f \"environment_url.txt\" ]]; then DAST_WEBSITE=\"${DAST_WEBSITE:-$(cat environment_url.txt)}\"; export DAST_WEBSITE; fi",
+          "/analyze",
+          "rm -f /zap/wrk/**/debug.log",
+          "cp -r /zap/wrk dast_artifacts"
+        ]
+      },
       "range": {
         "start": 1110,
         "end": 3920

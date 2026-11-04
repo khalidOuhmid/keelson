@@ -69,6 +69,14 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": [
+          "apk add --update cosign",
+          "IMAGE_DIGEST=\"$(docker inspect --format='{{index .RepoDigests 0}}' \"$DOCKER_IMAGE_NAME\")\"",
+          "cosign sign \"$IMAGE_DIGEST\""
+        ]
+      },
       "range": {
         "start": 586,
         "end": 995

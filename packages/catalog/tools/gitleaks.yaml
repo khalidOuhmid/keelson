@@ -1,0 +1,24 @@
+id: gitleaks
+name: 'Gitleaks'
+kind: job
+layers: [secrets]
+license: MIT
+homepage: https://github.com/gitleaks/gitleaks
+verifiedAt: https://github.com/gitleaks/gitleaks
+logo: null
+detect:
+  images: ['gitleaks']
+  scripts: ['\bgitleaks\b']
+snippets:
+  gitlab: |
+    gitleaks:
+      stage: test
+      image:
+        name: ghcr.io/gitleaks/gitleaks:latest
+        entrypoint: [""]
+      script:
+        - gitleaks git --report-path gitleaks-report.json
+  github: |
+    - name: Run Gitleaks
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/gitleaks/gitleaks:latest gitleaks git --report-path gitleaks-report.json
+lastVerified: 2026-11-04

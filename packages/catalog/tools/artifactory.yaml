@@ -1,0 +1,15 @@
+id: artifactory
+name: 'JFrog Artifactory'
+kind: service
+layers: [registry]
+license: Proprietary
+homepage: https://jfrog.com/artifactory/
+verifiedAt: https://jfrog.com/artifactory/
+logo: jfrog
+detect:
+  images: []
+  scripts: ['\bjf\s+rt\b', '\bartifactory\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

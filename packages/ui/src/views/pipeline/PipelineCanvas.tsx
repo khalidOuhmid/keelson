@@ -1,7 +1,13 @@
 import type { Pipeline } from "@keelson/core";
 import { Background, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COLUMN_NODE_TYPE, type FlowGraph, JOB_NODE_TYPE, toFlowGraph } from "./graph.ts";
+import {
+  COLUMN_NODE_TYPE,
+  type FlowGraph,
+  JOB_NODE_TYPE,
+  type LayerOverlay,
+  toFlowGraph,
+} from "./graph.ts";
 import { JobNode } from "./JobNode.tsx";
 import { type Layout, layoutPipeline } from "./layout.ts";
 import { readColumnHeaderHeight, readColumnPadding, readLayoutMetrics } from "./metrics.ts";
@@ -18,17 +24,18 @@ export type PipelineCanvasProps = {
   pipeline: Pipeline;
   selectedJobId: string | null;
   onSelectJob: (id: string | null) => void;
+  overlay?: LayerOverlay | null;
 };
 
 /** `fitView` de xyflow ne s'applique qu'au montage. Ouvrir le panneau de détail retire au canevas
  *  la largeur du panneau sans le recadrer, donc les colonnes de droite passent sous le panneau et sont
  *  tronquées. On réajuste quand la largeur disponible change. */
-function RefitOnResize() {
+function RefitOnResize({ container }: { container: React.RefObject<HTMLElement | null> }) {
   const flow = useReactFlow();
   const lastWidth = useRef<number | null>(null);
 
   useEffect(() => {
-    const viewport = document.querySelector(".react-flow");
+    const viewport = container.current;
     if (viewport === null || typeof ResizeObserver === "undefined") {
       return;
     }
@@ -44,13 +51,19 @@ function RefitOnResize() {
 
     observer.observe(viewport);
     return () => observer.disconnect();
-  }, [flow]);
+  }, [flow, container]);
 
   return null;
 }
 
-export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: PipelineCanvasProps) {
+export function PipelineCanvas({
+  pipeline,
+  selectedJobId,
+  onSelectJob,
+  overlay = null,
+}: PipelineCanvasProps) {
   const [layout, setLayout] = useState<Layout | null>(null);
+  const container = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -74,14 +87,16 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
             selectedJobId,
             readColumnHeaderHeight(),
             readColumnPadding(),
+            overlay,
           ),
-    [layout, pipeline, selectedJobId],
+    [layout, pipeline, selectedJobId, overlay],
   );
 
   const hasJobs = pipeline.jobs.length > 0;
 
   return (
     <section
+      ref={container}
       aria-label="Pipeline graph"
       // Cible de repli du focus quand le panneau de detail se ferme.
       tabIndex={-1}
@@ -118,7 +133,7 @@ export function PipelineCanvas({ pipeline, selectedJobId, onSelectJob }: Pipelin
           maxZoom={1.6}
         >
           <Background />
-          <RefitOnResize />
+          <RefitOnResize container={container} />
         </ReactFlow>
       </ReactFlowProvider>
 

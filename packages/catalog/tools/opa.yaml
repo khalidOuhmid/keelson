@@ -1,0 +1,24 @@
+id: opa
+name: 'Open Policy Agent'
+kind: job
+layers: [policy]
+license: Apache-2.0
+homepage: https://www.openpolicyagent.org
+verifiedAt: https://github.com/open-policy-agent/opa
+logo: null
+detect:
+  images: ['openpolicyagent/opa']
+  scripts: ['\bopa\s+(test|eval)\b']
+snippets:
+  gitlab: |
+    opa:
+      stage: test
+      image:
+        name: openpolicyagent/opa:latest
+        entrypoint: [""]
+      script:
+        - opa test policy/
+  github: |
+    - name: Test policies
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" openpolicyagent/opa:latest test policy/
+lastVerified: 2026-11-04

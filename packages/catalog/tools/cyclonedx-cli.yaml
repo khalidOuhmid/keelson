@@ -1,0 +1,24 @@
+id: cyclonedx-cli
+name: 'CycloneDX CLI'
+kind: job
+layers: [supply-chain]
+license: Apache-2.0
+homepage: https://github.com/CycloneDX/cyclonedx-cli
+verifiedAt: https://github.com/CycloneDX/cyclonedx-cli
+logo: null
+detect:
+  images: ['cyclonedx/cyclonedx-cli']
+  scripts: ['\bcyclonedx(-cli)?\s+validate\b']
+snippets:
+  gitlab: |
+    cyclonedx-cli:
+      stage: build
+      image:
+        name: cyclonedx/cyclonedx-cli:latest
+        entrypoint: [""]
+      script:
+        - cyclonedx validate --input-file sbom.cdx.json --fail-on-errors
+  github: |
+    - name: Run CycloneDX CLI
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" cyclonedx/cyclonedx-cli:latest cyclonedx validate --input-file sbom.cdx.json --fail-on-errors
+lastVerified: 2026-11-04

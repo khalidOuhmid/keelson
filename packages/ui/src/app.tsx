@@ -1,15 +1,16 @@
-import { emptyPipeline } from "@keelson/core";
+import { emptyPipeline, isPartial } from "@keelson/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
   type ApiResult,
+  type CatalogPayload,
   type DocumentPayload,
   KeelsonClient,
   type OperationPayload,
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
-import { SECTION_HEADING } from "./editing/controls.ts";
+import { BUTTON, SECTION_HEADING } from "./editing/controls.ts";
 import { ErrorBanner } from "./editing/ErrorBanner.tsx";
 import { HistoryControls } from "./editing/HistoryControls.tsx";
 import { JobEditor } from "./editing/JobEditor.tsx";
@@ -25,7 +26,15 @@ import { Loading } from "./states/Loading.tsx";
 import { NoCiFile } from "./states/NoCiFile.tsx";
 import { NoticeBar } from "./states/NoticeBar.tsx";
 import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
+import { CatalogView } from "./views/catalog/CatalogView.tsx";
+import { CoveragePanel } from "./views/coverage/CoveragePanel.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
+
+const VIEWS = [
+  { view: "pipeline", label: "Pipeline" },
+  { view: "coverage", label: "Coverage" },
+  { view: "catalog", label: "Catalog" },
+] as const;
 
 type ClientSurface = {
   workspace: () => Promise<ApiResult<{ files: { path: string; adapter: "gitlab" }[] }>>;
@@ -35,6 +44,7 @@ type ClientSurface = {
     op: Parameters<KeelsonClient["submit"]>[1],
     opId: string,
   ) => Promise<ApiResult<OperationPayload>>;
+  catalog: () => Promise<ApiResult<CatalogPayload>>;
   eventsUrl: () => string;
 };
 
@@ -76,6 +86,7 @@ export function App({ deps }: AppProps = {}) {
       createStore({
         submit: (file, op, opId) => resolved.client.submit(file, op, opId),
         document: (file) => resolved.client.document(file),
+        catalog: () => resolved.client.catalog(),
         newOpId: resolved.newOpId ?? (() => crypto.randomUUID()),
       }),
     [resolved],
@@ -83,6 +94,7 @@ export function App({ deps }: AppProps = {}) {
 
   const state = useStore(store);
   const [root, setRoot] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -150,7 +162,7 @@ export function App({ deps }: AppProps = {}) {
   const editable = state.canEdit() && !state.pending;
 
   useHistoryShortcuts({
-    enabled: editable,
+    enabled: editable && state.view === "pipeline",
     onUndo: () => void store.getState().undo(),
     onRedo: () => void store.getState().redo(),
   });
@@ -161,6 +173,18 @@ export function App({ deps }: AppProps = {}) {
       : (state.pipeline?.jobs.find((job) => job.id === state.selectedJobId) ?? null);
 
   const blocking = state.diagnostics.some(blocksEditing);
+
+  const reading = state.view === "coverage";
+  const overlay = useMemo(
+    () =>
+      reading
+        ? {
+            jobs: new Map(state.coverage?.jobs.map((job) => [job.job, job.layers]) ?? []),
+            selected: state.selectedLayer,
+          }
+        : null,
+    [reading, state.coverage, state.selectedLayer],
+  );
 
   const body = (() => {
     if (state.status === "loading") {
@@ -175,11 +199,23 @@ export function App({ deps }: AppProps = {}) {
     if (blocking) {
       return <InvalidDocument diagnostics={state.diagnostics} />;
     }
+    if (state.view === "catalog") {
+      return state.catalog === null ? (
+        <Loading />
+      ) : (
+        <CatalogView
+          key={state.catalogLayer ?? "any"}
+          catalog={state.catalog}
+          initialLayer={state.catalogLayer}
+        />
+      );
+    }
     return (
       <PipelineCanvas
         pipeline={state.pipeline ?? emptyPipeline(state.file ?? "")}
         selectedJobId={state.selectedJobId}
         onSelectJob={(id) => store.getState().selectJob(id)}
+        overlay={overlay}
       />
     );
   })();
@@ -199,7 +235,7 @@ export function App({ deps }: AppProps = {}) {
       <NoticeBar notice={state.notice} onDismiss={() => store.getState().dismissNotice()} />
       <ErrorBanner error={state.error} onDismiss={() => store.getState().dismissError()} />
 
-      <header className="flex h-[var(--keelson-header-height)] shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-3">
+      <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
         <span className="flex items-baseline gap-2 overflow-hidden">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
           {state.file === null ? null : (
@@ -219,7 +255,7 @@ export function App({ deps }: AppProps = {}) {
             </span>
           )}
         </span>
-        <span className="flex shrink-0 items-center gap-3">
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {state.pending ? (
             <span
               data-testid="pending-indicator"
@@ -230,57 +266,115 @@ export function App({ deps }: AppProps = {}) {
               Writing
             </span>
           ) : null}
-          <HistoryControls
-            canUndo={state.canUndo()}
-            canRedo={state.canRedo()}
-            onUndo={() => void store.getState().undo()}
-            onRedo={() => void store.getState().redo()}
-          />
+          {showSidebar && state.view !== "catalog" ? (
+            <button
+              type="button"
+              aria-expanded={sidebarOpen}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className={`lg:hidden ${BUTTON}`}
+            >
+              Panel
+            </button>
+          ) : null}
+          <nav aria-label="Views" className="flex items-center gap-1">
+            {VIEWS.map(({ view, label }) => (
+              <button
+                key={view}
+                type="button"
+                aria-current={state.view === view ? "page" : undefined}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  store.getState().setView(view);
+                }}
+                className={`${BUTTON} aria-[current=page]:border-accent aria-[current=page]:bg-surface-3 aria-[current=page]:font-semibold aria-[current=page]:text-text-primary`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          {state.view === "pipeline" ? (
+            <HistoryControls
+              canUndo={state.canUndo()}
+              canRedo={state.canRedo()}
+              onUndo={() => void store.getState().undo()}
+              onRedo={() => void store.getState().redo()}
+            />
+          ) : null}
         </span>
       </header>
 
       {state.pipeline === null ? null : <PartialPipelineBar pipeline={state.pipeline} />}
 
       <div className="flex min-h-0 flex-1 overflow-x-auto">
-        {showSidebar && state.pipeline !== null ? (
-          <aside className="flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3">
-            <Section title="Stages">
-              <StageControls
-                pipeline={state.pipeline}
-                onSubmit={(draft) => void store.getState().submit(draft)}
-                disabled={!editable}
+        {showSidebar && state.pipeline !== null && state.view !== "catalog" ? (
+          <aside
+            aria-label={reading ? "Coverage" : "Edit pipeline"}
+            className={`flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:w-full ${sidebarOpen ? "" : "max-lg:hidden"}`}
+          >
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className={`self-end lg:hidden ${BUTTON}`}
+            >
+              Close panel
+            </button>
+            {reading && state.coverage !== null ? (
+              <CoveragePanel
+                coverage={state.coverage}
+                selected={state.selectedLayer}
+                onSelect={(layer) => store.getState().selectLayer(layer)}
+                onShowTools={(layer) => {
+                  setSidebarOpen(false);
+                  store.getState().showTools(layer);
+                }}
               />
-            </Section>
-            <Section title="New job">
-              <NewJobForm
-                pipeline={state.pipeline}
-                onSubmit={(draft) => void store.getState().submit(draft)}
-                disabled={!editable}
-              />
-            </Section>
+            ) : (
+              <>
+                <Section title="Stages">
+                  <StageControls
+                    pipeline={state.pipeline}
+                    onSubmit={(draft) => void store.getState().submit(draft)}
+                    disabled={!editable}
+                  />
+                </Section>
+                <Section title="New job">
+                  <NewJobForm
+                    pipeline={state.pipeline}
+                    onSubmit={(draft) => void store.getState().submit(draft)}
+                    disabled={!editable}
+                  />
+                </Section>
+              </>
+            )}
           </aside>
         ) : null}
 
         <main className="min-w-[var(--keelson-canvas-min-width)] flex-1">{body}</main>
 
-        {selected === null || state.pipeline === null ? null : (
-          <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto">
+        {selected === null || state.pipeline === null || state.view === "catalog" ? null : (
+          <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1">
             <JobDetailPanel
               job={selected}
               textOf={(file) => state.textOf(file)}
               main={state.pipeline.main}
+              coverage={
+                reading
+                  ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)
+                  : null
+              }
               onClose={() => store.getState().selectJob(null)}
             />
-            <div className="border-l border-border-subtle bg-surface-1 p-3">
-              <JobEditor
-                key={selected.id}
-                job={selected}
-                pipeline={state.pipeline}
-                onSubmit={(draft) => void store.getState().submit(draft)}
-                disabled={!editable}
-                lockedTo={selected.file === state.pipeline.main ? null : selected.file}
-              />
-            </div>
+            {reading || selected.file !== state.pipeline.main ? null : (
+              <div className="border-l border-border-subtle bg-surface-1 p-3">
+                <JobEditor
+                  key={selected.id}
+                  job={selected}
+                  pipeline={state.pipeline}
+                  onSubmit={(draft) => void store.getState().submit(draft)}
+                  disabled={!editable}
+                />
+              </div>
+            )}
           </aside>
         )}
       </div>
@@ -289,6 +383,7 @@ export function App({ deps }: AppProps = {}) {
         <DiagnosticsPanel
           diagnostics={state.diagnostics}
           main={state.pipeline?.main ?? state.file ?? ""}
+          omitInfo={state.pipeline !== null && isPartial(state.pipeline)}
           onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
         />
       </div>

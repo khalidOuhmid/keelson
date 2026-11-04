@@ -1,0 +1,24 @@
+id: tflint
+name: 'TFLint'
+kind: job
+layers: [iac]
+license: MPL-2.0
+homepage: https://github.com/terraform-linters/tflint
+verifiedAt: https://github.com/terraform-linters/tflint
+logo: null
+detect:
+  images: ['terraform-linters/tflint']
+  scripts: ['\btflint\b']
+snippets:
+  gitlab: |
+    tflint:
+      stage: test
+      image:
+        name: ghcr.io/terraform-linters/tflint:latest
+        entrypoint: [""]
+      script:
+        - tflint
+  github: |
+    - name: Run TFLint
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/terraform-linters/tflint:latest tflint
+lastVerified: 2026-11-04

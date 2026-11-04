@@ -1,0 +1,24 @@
+id: ggshield
+name: 'ggshield'
+kind: job
+layers: [secrets]
+license: MIT
+homepage: https://github.com/GitGuardian/ggshield
+verifiedAt: https://github.com/GitGuardian/ggshield
+logo: null
+detect:
+  images: ['ggshield']
+  scripts: ['\bggshield\b']
+snippets:
+  gitlab: |
+    ggshield:
+      stage: test
+      image:
+        name: gitguardian/ggshield:latest
+        entrypoint: [""]
+      script:
+        - ggshield secret scan repo .
+  github: |
+    - name: Run ggshield
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" gitguardian/ggshield:latest ggshield secret scan repo .
+lastVerified: 2026-11-04

@@ -1,0 +1,24 @@
+id: prowler
+name: 'Prowler'
+kind: job
+layers: [cnapp, compliance]
+license: Apache-2.0
+homepage: https://prowler.com
+verifiedAt: https://github.com/prowler-cloud/prowler
+logo: null
+detect:
+  images: ['prowlercloud/prowler', 'toniblyx/prowler']
+  scripts: ['\bprowler\s+(aws|azure|gcp|kubernetes)\b']
+snippets:
+  gitlab: |
+    prowler:
+      stage: test
+      image:
+        name: prowlercloud/prowler:latest
+        entrypoint: [""]
+      script:
+        - prowler aws
+  github: |
+    - name: Run Prowler
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" prowlercloud/prowler:latest prowler aws
+lastVerified: 2026-11-04

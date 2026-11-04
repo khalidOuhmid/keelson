@@ -33,6 +33,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "node",
+        "script": ["echo boucle"]
+      },
       "range": {
         "start": 84,
         "end": 134

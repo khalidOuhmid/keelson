@@ -11,6 +11,7 @@
         "@types/bun": "^1.4.3",
         "@types/node": "^26.6.5",
         "fast-check": "^4.10.2",
+        "simple-icons": "^16.36.0",
         "typescript": "^7.0.2",
       },
     },
@@ -30,6 +31,12 @@
     "packages/catalog": {
       "name": "@keelson/catalog",
       "version": "0.0.0",
+      "dependencies": {
+        "@keelson/core": "workspace:*",
+        "@keelson/taxonomy": "workspace:*",
+        "yaml": "^2.9.1",
+        "zod": "^4.6.7",
+      },
     },
     "packages/cli": {
       "name": "keelson",
@@ -39,8 +46,11 @@
       },
       "dependencies": {
         "@keelson/adapter-gitlab": "workspace:*",
+        "@keelson/catalog": "workspace:*",
         "@keelson/core": "workspace:*",
         "@keelson/server": "workspace:*",
+        "@keelson/taxonomy": "workspace:*",
+        "@keelson/toolchain": "workspace:*",
       },
     },
     "packages/core": {
@@ -55,7 +65,10 @@
       "version": "0.0.0",
       "dependencies": {
         "@keelson/adapter-gitlab": "workspace:*",
+        "@keelson/catalog": "workspace:*",
         "@keelson/core": "workspace:*",
+        "@keelson/taxonomy": "workspace:*",
+        "@keelson/toolchain": "workspace:*",
       },
     },
     "packages/taxonomy": {
@@ -65,6 +78,11 @@
     "packages/toolchain": {
       "name": "@keelson/toolchain",
       "version": "0.0.0",
+      "dependencies": {
+        "@keelson/core": "workspace:*",
+        "@keelson/taxonomy": "workspace:*",
+        "zod": "^4.6.7",
+      },
     },
     "packages/ui": {
       "name": "@keelson/ui",
@@ -74,7 +92,9 @@
         "@codemirror/language": "^6.13.1",
         "@codemirror/state": "^6.7.6",
         "@codemirror/view": "^6.43.15",
+        "@keelson/catalog": "workspace:*",
         "@keelson/core": "workspace:*",
+        "@keelson/taxonomy": "workspace:*",
         "@lezer/highlight": "^1.2.5",
         "@xyflow/react": "^12.12.0",
         "elkjs": "^0.12.0",
@@ -428,6 +448,8 @@
     "rolldown": ["rolldown@1.2.14", "", { "dependencies": { "@oxc-project/types": "=0.154.0", "@rolldown/pluginutils": "^1.0.0" }, "optionalDependencies": { "@rolldown/binding-android-arm-eabi": "1.2.14", "@rolldown/binding-android-arm64": "1.2.14", "@rolldown/binding-darwin-arm64": "1.2.14", "@rolldown/binding-darwin-x64": "1.2.14", "@rolldown/binding-freebsd-x64": "1.2.14", "@rolldown/binding-linux-arm-gnueabihf": "1.2.14", "@rolldown/binding-linux-arm64-gnu": "1.2.14", "@rolldown/binding-linux-arm64-musl": "1.2.14", "@rolldown/binding-linux-ppc64-gnu": "1.2.14", "@rolldown/binding-linux-s390x-gnu": "1.2.14", "@rolldown/binding-linux-x64-gnu": "1.2.14", "@rolldown/binding-linux-x64-musl": "1.2.14", "@rolldown/binding-openharmony-arm64": "1.2.14", "@rolldown/binding-win32-arm64-msvc": "1.2.14", "@rolldown/binding-win32-x64-msvc": "1.2.14" }, "bin": { "rolldown": "./bin/cli.mjs" } }, "sha512-eTBTTqMR6uHKLgcUqpJP8ntzDI6V4LYA8negAMBEI7gkgVvOdrx6VsvS2Ym+83KhOPdLCHWJu0w7UQFJZhHKNw=="],
 
     "scheduler": ["scheduler@0.28.0", "", {}, "sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw=="],
+
+    "simple-icons": ["simple-icons@16.36.0", "", {}, "sha512-+VNPPkqSOLidFeSgBKUWX4n50WPpDC09hav+BgS26anIF1oQOlGBb8LvwGR+6fYRjo+B6CiKzNBceMPkSVXANQ=="],
 
     "source-map-js": ["source-map-js@1.2.2", "", {}, "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw=="],
 

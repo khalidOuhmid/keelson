@@ -1,0 +1,24 @@
+id: conftest
+name: 'Conftest'
+kind: job
+layers: [policy, compliance]
+license: Apache-2.0
+homepage: https://github.com/open-policy-agent/conftest
+verifiedAt: https://github.com/open-policy-agent/conftest
+logo: null
+detect:
+  images: ['openpolicyagent/conftest']
+  scripts: ['\bconftest\s+test\b']
+snippets:
+  gitlab: |
+    conftest:
+      stage: test
+      image:
+        name: openpolicyagent/conftest:latest
+        entrypoint: [""]
+      script:
+        - conftest test deployment.yaml
+  github: |
+    - name: Run Conftest
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" openpolicyagent/conftest:latest conftest test deployment.yaml
+lastVerified: 2026-11-04

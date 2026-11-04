@@ -1,0 +1,15 @@
+id: falco
+name: 'Falco'
+kind: service
+layers: [runtime-security, cnapp]
+license: Apache-2.0
+homepage: https://falco.org
+verifiedAt: https://github.com/falcosecurity/falco
+logo: null
+detect:
+  images: ['falcosecurity/falco']
+  scripts: ['\bfalco(ctl)?\b']
+snippets:
+  gitlab: null
+  github: null
+lastVerified: 2026-11-04

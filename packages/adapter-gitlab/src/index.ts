@@ -10,5 +10,5 @@ export {
   type ParsedFile,
 } from "./includes.ts";
 export { GITLAB_CI_FILE, type ParseOptions, type ParseResult, parse } from "./parse.ts";
-export { createFileReader } from "./reader.ts";
+export { createFileReader, readInsideRoot } from "./reader.ts";
 export type { ApplyError, ApplyOk } from "./result.ts";
