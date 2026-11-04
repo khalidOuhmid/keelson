@@ -1,0 +1,122 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 35,
+        "end": 40
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 45,
+        "end": 51
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "livrer",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "reference",
+          "path": [".base", "stage"]
+        }
+      },
+      "needs": {
+        "value": [
+          {
+            "job": "compile",
+            "optional": false,
+            "artifacts": true
+          }
+        ],
+        "origin": {
+          "kind": "reference",
+          "path": [".base", "needs"]
+        }
+      },
+      "environment": {
+        "value": {
+          "name": "production"
+        },
+        "origin": {
+          "kind": "reference",
+          "path": [".base", "environment"]
+        }
+      },
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 180,
+            "end": 204
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "range": {
+        "start": 53,
+        "end": 204
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 231,
+            "end": 250
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "range": {
+        "start": 205,
+        "end": 250
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "templates": [
+    {
+      "id": ".base",
+      "range": {
+        "start": 0,
+        "end": 82
+      },
+      "file": "ci/base.yml"
+    }
+  ],
+  "opaque": [
+    {
+      "key": "include",
+      "range": {
+        "start": 0,
+        "end": 22
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "main": ".gitlab-ci.yml",
+  "files": ["ci/base.yml", ".gitlab-ci.yml"],
+  "unresolved": []
+}

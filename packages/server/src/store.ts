@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { apply, createFileReader, type IncludeReader, parse } from "@keelson/adapter-gitlab";
 import type {
   Diagnostic,
@@ -105,10 +104,10 @@ export class DocumentStore {
       return null;
     }
 
-    let text: string;
-    try {
-      text = await readFile(absolute, "utf8");
-    } catch {
+    // Par le lecteur, comme les fichiers inclus : il tient seul la frontière de la racine, et un
+    // `.gitlab-ci.yml` lié hors du dépôt ne doit pas être la voie qui la contourne.
+    const text = this.reader.read(file);
+    if (text === null) {
       this.loaded.delete(file);
       return null;
     }

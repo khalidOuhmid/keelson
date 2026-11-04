@@ -45,7 +45,7 @@ import { DEFAULT_STAGES } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
 import { parse } from "./parse.ts";
-import { type AnyNode, localPair, localPairs, pairRange } from "./resolve.ts";
+import { type AnyNode, localPair, localPairs, pairRange, REFERENCE_TAG } from "./resolve.ts";
 import type { ApplyError, ApplyOk } from "./result.ts";
 import {
   afterLine,
@@ -399,7 +399,18 @@ function planSetJobStage(
     if (range === null) {
       return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageKey" });
     }
-    return ok([{ ...range, text: operation.stage }]);
+    // La plage d'un `!reference` commence après son tag : remplacer la valeur seule écrirait
+    // `stage: !reference test`. La clé est donc réécrite avec, et la surcharge est explicite.
+    // La fin d'une séquence en bloc emporte son saut de ligne et les commentaires qui suivent :
+    // on s'arrête donc à la fin de son dernier item.
+    const value = local.value as AnyNode;
+    const tagged = (value as { tag?: string }).tag === REFERENCE_TAG;
+    const keyStart = nodeRange(local.key as AnyNode)?.[0];
+    const end =
+      isSeq(value) && value.flow !== true ? nodeRange(seqItems(value).at(-1))?.[1] : range.end;
+    return tagged && keyStart !== undefined && end !== undefined
+      ? ok([{ start: keyStart, end, text: `stage: ${operation.stage}` }])
+      : ok([{ ...range, text: operation.stage }]);
   }
 
   const at = overrideInsertAt(geometry, located.value);

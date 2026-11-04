@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DocumentStore } from "../src/store.ts";
@@ -90,6 +90,60 @@ describe("chargement d'un document à includes", () => {
   });
 });
 
+describe("un lien symbolique qui sort de la racine", () => {
+  /** La conséquence réelle du défaut trouvé par la revue de L2b n'est pas qu'un `read()` rende une
+   *  valeur : c'est que le contenu d'un fichier arbitraire parte dans la charge envoyée au
+   *  navigateur. `reader.test.ts` garde le lecteur, ce test garde la charge. */
+  test("son contenu n'entre pas dans la charge du document", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-dehors-"));
+    try {
+      writeFileSync(join(outside, "secret.txt"), "SECRET-HORS-DEPOT\n");
+      symlinkSync(join(outside, "secret.txt"), join(root, "ci", "fuite.yml"));
+      write(".gitlab-ci.yml", MAIN.replace("/ci/jobs.yml", "/ci/fuite.yml"));
+
+      const loaded = await store.load(".gitlab-ci.yml");
+
+      expect(JSON.stringify(loaded)).not.toContain("SECRET-HORS-DEPOT");
+      expect(loaded?.included).toEqual({});
+      expect(loaded?.diagnostics.map((entry) => entry.code)).toContain("INCLUDE_NOT_FOUND");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("un fichier principal lié hors de la racine", () => {
+  /** Le fichier principal ne passait pas par le lecteur : `.gitlab-ci.yml` lié vers n'importe quel
+   *  fichier partait tel quel dans la charge, sans même de contrôle d'extension. Même scénario que
+   *  le lien inclus, par la seule voie que le correctif de L2b n'avait pas fermée. */
+  function linkMainOutside(): string {
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-main-"));
+    writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
+    rmSync(join(root, ".gitlab-ci.yml"));
+    symlinkSync(join(outside, "s.yml"), join(root, ".gitlab-ci.yml"));
+    return outside;
+  }
+
+  test("il n'est pas détecté comme fichier de l'espace de travail", () => {
+    const outside = linkMainOutside();
+    try {
+      expect(detectWorkspace(root)).toEqual([]);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test("le store ne le charge pas, même si la liste le nomme", async () => {
+    const outside = linkMainOutside();
+    try {
+      const forced = new DocumentStore(root, [{ path: ".gitlab-ci.yml", adapter: "gitlab" }]);
+      expect(await forced.load(".gitlab-ci.yml")).toBeNull();
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("écriture bornée au fichier principal", () => {
   test("une opération sur un job inclus est refusée en 422", async () => {
     await store.load(".gitlab-ci.yml");
@@ -164,6 +218,25 @@ describe("surveillance des fichiers inclus", () => {
 
     const event = await waitForEvent();
     expect(event.kind === "document.changed" ? event.file : "").toBe(".gitlab-ci.yml");
+  });
+
+  /** Le store purge le document, donc l'écran doit l'apprendre : sinon il reste sur un pipeline qui
+   *  n'existe plus, jusqu'au 404 de la prochaine opération. */
+  test("un fichier principal remplacé par un lien refusé émet document.removed", async () => {
+    await store.load(".gitlab-ci.yml");
+    watcher = watchDocuments(root, store, (event) => events.push(event));
+
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-devenu-"));
+    try {
+      writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
+      rmSync(join(root, ".gitlab-ci.yml"));
+      symlinkSync(join(outside, "s.yml"), join(root, ".gitlab-ci.yml"));
+
+      const event = await waitForEvent();
+      expect(event).toEqual({ kind: "document.removed", file: ".gitlab-ci.yml" });
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   test("un include ajouté après coup entre dans la surveillance", async () => {

@@ -89,6 +89,14 @@ test.describe("include locaux sur le binaire réel", () => {
       await expect(editor.getByRole("button", { name: /Delete job/ })).toBeDisabled();
       await expect(editor.getByRole("button", { name: /Add need/ })).toBeDisabled();
 
+      // « Delete job » gardait sa bordure rouge sur un job qu'on ne peut pas supprimer. Comparé à
+      // un bouton neutre sur le style calculé : une classe présente ne prouve pas qu'elle gagne.
+      const border = (name: RegExp) =>
+        editor
+          .getByRole("button", { name })
+          .evaluate((node) => getComputedStyle(node).borderTopColor);
+      expect(await border(/Delete job/)).toBe(await border(/^Rename$/));
+
       expect(keelson.readAt(INCLUDED_PATH)).toBe(INCLUDED);
     } finally {
       await keelson.stop();
@@ -139,6 +147,70 @@ test.describe("include locaux sur le binaire réel", () => {
       await keelson.stop();
     }
   });
+});
+
+test("la raison du verrou reste visible quand on défile jusqu'aux contrôles", async ({ page }) => {
+  // Mesure de géométrie : `happy-dom` ne fait aucune mise en page, donc `sticky` ne se vérifie
+  // qu'ici. Sans lui, la note sort par le haut de la colonne pendant qu'on atteint les contrôles
+  // morts qu'elle explique.
+  const keelson = await startKeelson(TREE);
+  try {
+    await page.goto(keelson.url);
+    await page.locator('[data-job-id="sast"]').click();
+
+    const editor = page.getByRole("group", { name: "Job editor" });
+    const column = page.locator("aside", { has: editor });
+    await column.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    await expect.poll(() => column.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+
+    const note = editor.getByText("Editing is off for this job");
+    const noteBox = await note.boundingBox();
+    const columnBox = await column.boundingBox();
+    if (noteBox === null || columnBox === null) {
+      throw new Error("note ou colonne sans géométrie");
+    }
+    expect(noteBox.y).toBeGreaterThanOrEqual(columnBox.y);
+    expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(columnBox.y + columnBox.height);
+  } finally {
+    await keelson.stop();
+  }
+});
+
+test("dépliée, la bande partielle ne dévore pas l'écran", async ({ page }) => {
+  // Mesuré pendant `polish` : avec 31 includes non résolus, 729 px sur 800, et 2751 px à 375 de
+  // large. Une borne en pourcentage ne vaut que sur un élément dont le parent a une hauteur.
+  const templates = Array.from(
+    { length: 40 },
+    (_, index) => `  - template: Jobs/Template-${index}.gitlab-ci.yml`,
+  );
+  const keelson = await startKeelson({
+    ".gitlab-ci.yml": [
+      "include:",
+      ...templates,
+      "",
+      "compile:",
+      "  script:",
+      "    - make",
+      "",
+    ].join("\n"),
+  });
+  try {
+    await page.goto(keelson.url);
+    await page.locator("summary").click();
+
+    const bar = page.getByRole("group", { name: "Partial pipeline" });
+    await expect(bar).toContainText("Jobs/Template-0.gitlab-ci.yml");
+    const box = await bar.boundingBox();
+    const viewport = page.viewportSize();
+    if (box === null || viewport === null) {
+      throw new Error("bande ou fenêtre sans géométrie");
+    }
+    expect(box.height).toBeLessThanOrEqual(viewport.height / 3 + 1);
+  } finally {
+    await keelson.stop();
+  }
 });
 
 test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {

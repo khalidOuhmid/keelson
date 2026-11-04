@@ -32,7 +32,7 @@ export const EN: Catalogue = {
   INCLUDE_LIMIT_EXCEEDED: (p) =>
     `more than ${p.limit} included files, include resolution stopped there`,
   EXTENDS_TARGET_NOT_FOUND: (p) =>
-    `extends target ${quoted(p.template)} does not exist in this file`,
+    `extends target ${quoted(p.template)} does not exist in any resolved file`,
   EXTENDS_CYCLE: (p) => `extends cycle: ${chain(p.trail)}`,
   JOB_WITHOUT_SCRIPT: (p) => `job ${quoted(p.job)} has no script, no run and no trigger`,
   UNKNOWN_NEED: (p) => `job ${quoted(p.job)} needs ${quoted(p.need)}, which does not exist`,

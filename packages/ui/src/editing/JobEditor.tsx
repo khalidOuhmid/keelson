@@ -105,7 +105,7 @@ export function JobEditor({
       {lockedTo === null ? null : (
         <p
           id={JOB_LOCK_ID}
-          className="sticky top-0 z-10 bg-surface-1 py-1 text-sm text-text-secondary"
+          className="sticky top-0 z-10 border-b border-border-subtle bg-surface-1 py-1 text-sm text-text-secondary"
         >
           {jobLockNote(lockedTo)}
         </p>

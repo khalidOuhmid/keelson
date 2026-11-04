@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,9 +54,34 @@ describe("la frontière de la racine", () => {
     expect(createFileReader(root).read("ci/alias.yml")).toContain("compile:");
   });
 
+  /** Le lien reste dans la racine, mais sa cible n'est pas un YAML : `.git/config` ou `.env`
+   *  partiraient vers le navigateur. L'extension se contrôle sur la cible, pas sur le nom du lien. */
+  test("un lien interne vers un fichier qui n'est pas du YAML est refusé", () => {
+    writeFileSync(join(root, ".env"), "API_KEY=x\n");
+    symlinkSync(join(root, ".env"), join(root, "ci", "env.yml"));
+    expect(createFileReader(root).read("ci/env.yml")).toBeNull();
+  });
+
+  /** Sans `realPrefix`, comparer un chemin réel à la racine écrite refuserait tout. */
+  test("une racine atteinte par un lien lit encore ses fichiers", () => {
+    const alias = `${root}-alias`;
+    symlinkSync(root, alias);
+    try {
+      expect(createFileReader(alias).read("ci/jobs.yml")).toContain("compile:");
+    } finally {
+      rmSync(alias);
+    }
+  });
+
   test("un chemin lexicalement sorti de la racine est refusé", () => {
     expect(createFileReader(root).read("../dehors.yml")).toBeNull();
     expect(createFileReader(root).read("/etc/passwd")).toBeNull();
+  });
+
+  /** Lire une FIFO bloque sans fin, et `detectWorkspace` figeait le démarrage du serveur. */
+  test("seul un fichier ordinaire est lu", () => {
+    spawnSync("mkfifo", [join(root, "ci", "tube.yml")]);
+    expect(createFileReader(root).read("ci/tube.yml")).toBeNull();
   });
 
   test("un fichier absent rend null plutôt que de lever", () => {

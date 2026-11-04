@@ -27,7 +27,7 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
     <div
       role="group"
       aria-label="Partial pipeline"
-      className="shrink-0 border-b border-border-subtle bg-surface-1 px-3 py-1.5"
+      className="max-h-1/3 shrink-0 overflow-y-auto border-b border-border-subtle bg-surface-1 px-3 py-1.5"
     >
       <details className="group">
         {/* `py-1.5` porte la hauteur de la cible de 20 px — mesurée — à 32 px. */}
@@ -41,7 +41,7 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
           </span>
           <span>{PARTIAL_HINT}</span>
         </summary>
-        <ul className="mt-1.5 flex max-h-1/3 flex-col gap-1 overflow-y-auto">
+        <ul className="mt-1.5 flex flex-col gap-1">
           {/* La clé porte la plage, pas l'index : GitLab ne dédoublonne pas les includes, donc le
               même fichier peut déclarer deux fois la même valeur, et seule la position les
               distingue. */}

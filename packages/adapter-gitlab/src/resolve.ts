@@ -120,6 +120,9 @@ export type Source = {
 
 export type ResolveContext = {
   documents: ReadonlyMap<string, Document.Parsed>;
+  /** Les documents dans l'ordre de fusion. Distinct de `documents`, qui ne garde d'un fichier inclus
+   *  deux fois que sa première position : GitLab retient la dernière. */
+  merged: readonly Document.Parsed[];
   lookup: ReadonlyMap<string, readonly Definition[]>;
   diagnostics: Diagnostic[];
   extendsSeverity: "error" | "warning";
@@ -245,9 +248,57 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
   return matches(sources, key).length > 0;
 }
 
-/** Un alias et un `!reference` ne traversent **pas** les fichiers : chez GitLab, un anchor est
- *  local au document qui le déclare. Chacun est donc résolu contre le document du fichier d'où
- *  vient la map qui le porte, et pas contre le fichier principal. */
+/** La valeur de `key` dans `node`, à travers les alias et les clés de fusion : `undefined` si la
+ *  clé est absente, `null` si `node` n'est pas une map, c'est-à-dire si la valeur a remplacé toute
+ *  map que les fichiers antérieurs auraient définie là. */
+function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode {
+  const target = isAlias(node) ? node.resolve(document) : node;
+  if (!isMap(target)) {
+    return null;
+  }
+
+  const pair = localPair(target, key);
+  if (pair !== undefined) {
+    return pair.value as AnyNode;
+  }
+
+  for (const merge of anchorMerges(target, document)) {
+    const merged = entryAt(merge.map, key, document);
+    if (merged !== undefined) {
+      return merged;
+    }
+  }
+  return undefined;
+}
+
+/** Le chemin dans un seul document, ou `undefined` s'il n'y figure pas. `Document.getIn` ne
+ *  traverse ni alias ni clé de fusion : il rendait « absent » pour le fichier gagnant. */
+function targetIn(path: readonly string[], document: Document.Parsed): AnyNode {
+  let node: AnyNode = document.contents as AnyNode;
+  for (const key of path) {
+    node = entryAt(node, key, document);
+    if (node === undefined || node === null) {
+      return node;
+    }
+  }
+  return isAlias(node) ? (node.resolve(document) ?? null) : node;
+}
+
+/** Un `!reference` vise la configuration fusionnée, donc il traverse les fichiers : on remonte
+ *  l'ordre de fusion et le premier fichier qui définit le chemin gagne, comme pour une valeur. */
+function referenceTarget(path: readonly string[], context: ResolveContext): AnyNode {
+  for (const document of [...context.merged].reverse()) {
+    const target = targetIn(path, document);
+    if (target !== undefined) {
+      return target;
+    }
+  }
+  return null;
+}
+
+/** Un alias ne traverse **pas** les fichiers : chez GitLab, un anchor est local au document qui le
+ *  déclare, donc il se résout contre le fichier d'où vient la map qui le porte. Un `!reference`,
+ *  lui, les traverse. */
 function dereference(
   node: AnyNode,
   file: string,
@@ -265,11 +316,7 @@ function dereference(
   const tagged = node as { tag?: string } | null | undefined;
   if (tagged?.tag === REFERENCE_TAG && isSeq(node)) {
     const path = stringsOf(node);
-    const target = document.getIn(path, true);
-    return {
-      node: (target ?? null) as AnyNode,
-      origin: { kind: "reference", path },
-    };
+    return { node: referenceTarget(path, context), origin: { kind: "reference", path } };
   }
 
   return { node, origin: null };

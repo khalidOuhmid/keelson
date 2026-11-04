@@ -1,0 +1,17 @@
+include: /ci/base.yml
+
+stages:
+  - build
+  - deploy
+
+livrer:
+  stage: !reference [.base, stage]
+  needs: !reference [.base, needs]
+  environment: !reference [.base, environment]
+  script:
+    - make ship
+
+compile:
+  stage: build
+  script:
+    - make

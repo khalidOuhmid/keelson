@@ -24,18 +24,20 @@ function Field({
   label,
   testId,
   origin,
+  readOnly = false,
   children,
 }: {
   label: string;
   testId?: string;
   origin?: Origin | null;
+  readOnly?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section data-testid={testId} className="flex flex-col gap-1">
       <h3 className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-text-muted uppercase">
         {label}
-        {origin == null ? null : <OriginBadge origin={origin} />}
+        {origin == null ? null : <OriginBadge origin={origin} readOnly={readOnly} />}
       </h3>
       <div className="text-sm text-text-secondary">{children}</div>
     </section>
@@ -97,11 +99,16 @@ export function JobDetailPanel({ job, textOf, main, onClose }: JobDetailPanelPro
         </Field>
       ) : null}
 
-      <Field label="Stage" testId="job-stage" origin={job.stage.origin}>
+      <Field label="Stage" testId="job-stage" origin={job.stage.origin} readOnly={included}>
         <span className="font-mono">{job.stage.value}</span>
       </Field>
 
-      <Field label="Needs" testId="job-needs" origin={job.needs?.origin ?? null}>
+      <Field
+        label="Needs"
+        testId="job-needs"
+        origin={job.needs?.origin ?? null}
+        readOnly={included}
+      >
         {needs.length === 0 ? (
           <p className="text-text-muted">No dependencies.</p>
         ) : (
@@ -117,7 +124,12 @@ export function JobDetailPanel({ job, textOf, main, onClose }: JobDetailPanelPro
         )}
       </Field>
 
-      <Field label="Environment" testId="job-environment" origin={job.environment?.origin ?? null}>
+      <Field
+        label="Environment"
+        testId="job-environment"
+        origin={job.environment?.origin ?? null}
+        readOnly={included}
+      >
         {environment === null ? (
           <p className="text-text-muted">None.</p>
         ) : (

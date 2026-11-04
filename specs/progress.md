@@ -2,11 +2,9 @@
 
 Statut : EN COURS
 Lot courant : **L3 — taxonomie, catalogue, overlay OWASP**, à cadrer depuis `main`
-Prochaine action : créer la branche `lot/l3-owasp` depuis `main`, puis écrire `specs/lots/l3.md`
-avant de coder. Quatre écarts lui sont déjà rattachés : la posture de lecture pour l'architecte
-sécurité (l'overlay apportera le contenu qui la justifie), le passage des panneaux en superposition
-sous un seuil de largeur, la `ref` de `RefitOnResize` au premier second canevas, et la redite de
-l'include non résolu sur deux surfaces, que l'overlay transformerait en trois.
+Prochaine action : L3, cadrage.
+À reprendre en tête de son cadrage : l'écart du 2026-11-04 sur `addNeed` et les needs non littéraux,
+qui écrit faux, et celui sur `setJobStage` et les formes rares de `!reference`.
 Blocage : aucun
 
 
@@ -17,6 +15,7 @@ Blocage : aucun
 | L2 — serveur, vue Pipeline, `keelson start` | TERMINÉ | `894464c` (`--no-ff`) |
 | L2c — messages : `code` + `params`, anglais unique, `details` fusionné | TERMINÉ | `82bcb79` (`--no-ff`) |
 | L2b — résolution des `include` locaux, origine par fichier, écriture bornée | TERMINÉ | `5a5b530` (`--no-ff`) |
+| L2b-fix — preuves rouges, sévérité, texte d'aide, polish | TERMINÉ | `FIX_SHA` (`--no-ff`) |
 | L3 — taxonomie, catalogue, overlay OWASP | **LOT COURANT** | — |
 | L4 — toolchain | À FAIRE | — |
 | L5 — propositions et insertion | À FAIRE | — |
@@ -524,3 +523,77 @@ sur le binaire réel ; binaire exécuté sous `node v22.16.0` — il résout un 
 nomme `ci/jobs.yml:6` pour un défaut qui y vit, et il **refuse** le lien symbolique qui sort de la
 racine sans jamais en lire le contenu. `grep` : **0 ligne de français hors commentaire** dans
 `packages/*/src`.
+
+### 2026-11-04 — L2b-fix
+
+**Pourquoi ce lot.** Le rapport de fin de L2b omettait quatre faits : `polish` n'avait pas tourné,
+un include local cassé dégradait `EXTENDS_TARGET_NOT_FOUND` en warning, le texte d'aide du badge
+était faux sur un job surchargé, et cinq correctifs post-revue n'avaient aucune preuve rouge. Le
+journal précédent annonçait donc L2b terminé sur une base plus faible qu'il ne le disait.
+
+**Méthode des preuves.** Script de mutation hors dépôt : défaut réintroduit, test lancé, fichier
+restauré par réécriture, `git diff` vérifié vide sur ce fichier. Ni `git stash` ni
+`git checkout-index`.
+
+**Les cinq preuves demandées, toutes rouges** : lien symbolique (2 tests, deux mutations, et 1 test
+de charge serveur ajouté, car aucun test ne gardait la charge elle-même) ; précédence d'`extends`
+(1) ; `isPartial` (4) ; blocs opaques (2) ; texte d'aide (1, puis remplacé).
+
+**Protections trouvées sans test en les sondant** : `Source file` conditionnel, badge retiré du nœud
+inclus, note de verrou collante. Ces correctifs de L2b ne rougissaient rien. Tests ajoutés, prouvés
+rouges, dont un E2E de géométrie pour `sticky`.
+
+**Sévérité** (ADR 0007, décidé par Khalid). `error` pour un include local cassé, `warning` pour un
+include qu'on n'a pas pu lire. `Pipeline.unresolved` ne décide plus de la sévérité.
+
+**Texte d'aide.** Il dépend du job et de l'origine, trois phrases. Mon premier correctif ne regardait
+que l'origine : il refusait une surcharge possible et en promettait une impossible sur un job inclus
+hérité d'un `extends`. La promesse de surcharge est tenue par un test sur `apply`.
+
+**`/impeccable polish`**, exécuté sur un arbre de stress, à 1280 et 375 px. Un vrai défaut : ma borne
+de la bande partielle ne valait rien, 729 px sur 800 et 2751 px sur mobile avec 31 includes. Bornée
+au tiers de l'écran. Aussi : bordure rouge de « Delete job » désactivé, filet sous la note collante,
+graisse du tag, et la phrase « does not exist in this file », fausse depuis les includes.
+
+**Revue indépendante : 5 constats rouvrants.** Tous reproduits par un test rouge avant correction.
+- Le fichier principal lié hors racine sortait sans contrôle, par la voie que `reader.ts` ne couvrait
+  pas : même exposition que le lien inclus, vérifiée sur le binaire. Il passe par le lecteur.
+- Une URL en forme courte était un chemin local cassé. **Régression créée par ce lot** : la nouvelle
+  règle la passait en `error`.
+- `setJobStage` écrivait `stage: !reference test`.
+- **Un `!reference` ne traversait pas les fichiers**, alors que la consigne de L2b l'exigeait et que
+  son cadrage annonçait la fixture `reference-across/`, jamais créée. Mon commentaire présentait
+  cette limite comme une règle de GitLab.
+- Le texte d'aide n'avait de test que sur Stage.
+Trois écarts corrigés au passage parce qu'ils contredisaient un commentaire ou une règle : ce que la
+limite de 150 coupe rend le pipeline partiel (mon commentaire disait le fichier lu) ; une cible de
+lien doit être du YAML ; la bordure de « Delete job » se vérifie sur le style calculé.
+
+**Contre-revue du correctif : 3 constats rouvrants et 2 régressions de ce même correctif.**
+`!reference` ne traversait ni alias ni clé de fusion et rendait la valeur perdante ; l'ordre était
+faux pour un fichier inclus deux fois ; `setJobStage` échouait sur la forme en bloc ; le watcher se
+taisait sur un fichier principal devenu lien refusé ; une FIFO figeait le démarrage. Corrigés et
+prouvés rouges. Sans cette seconde passe, le lot fusionnait ces défauts.
+
+**Tests trouvés incapables d'échouer : 6**, tous par les revues ou les sondes.
+1. à 3. `Source file`, badge du nœud, `sticky` : aucun test. Cause : *un correctif de revue fusionné
+   sans preuve rouge*.
+4. et 5. Texte d'aide sur Needs et Environment. Cause : *une fixture qui ne couvre qu'une branche*.
+6. Bordure de « Delete job » : assertion sur une chaîne de classe, remplacée par le style calculé.
+   Cause : *une assertion qui mesure le source et non le rendu*.
+Le faux négatif de mon script (`AUCUN ECHEC` affiché sur un test rouge, filtre trop strict) et un
+test commité sur une base rouge par import manquant ont été corrigés avant toute conclusion : les
+preuves concernées ont été refaites depuis une base verte.
+
+**ADR** : 0007. **Dettes datées** : aucune. **Écarts** : 12 nouveaux, dont deux écritures fausses à
+reprendre en tête de L3, et la ligne du 2026-10-20 sur les needs inter-projets corrigée, elle
+affirmait que l'édition ne réécrit jamais la liste entière. `specs/pilote.md` complété.
+
+**Ce qui reste volontairement non traité** : les formes rares de `setJobStage`, `keelson validate`
+sans le lecteur, et `writeAtomic` à travers un lien interne, tous consignés.
+
+Vérification finale depuis un arbre sans `dist/`, `types/` ni `*.tsbuildinfo` :
+`bun install --frozen-lockfile` (133 installs, no changes), `bun run check` → lint 248 fichiers
+0 erreur, typecheck 0 erreur, **1236 pass / 0 fail**, build complet ; `bun run e2e` → **46 passed** ;
+`KEELSON_FC_RUNS=500` sur les propriétés → 18 pass ; binaire sous `node v22.16.0` : un include local
+cassé rend `INCLUDE_NOT_FOUND` et `EXTENDS_TARGET_NOT_FOUND` en `error`, sur le bon fichier, exit 1.

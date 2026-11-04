@@ -13,6 +13,8 @@ export const MAX_INCLUDED_FILES = 150;
 
 const YAML_EXTENSIONS = [".yml", ".yaml"] as const;
 
+const REMOTE_URL = /^https?:\/\//i;
+
 /** Les formes d'include qui sortent du dépôt, et que Keelson ne résout donc pas. Le vocabulaire
  *  est celui de GitLab. */
 const REMOTE_KEYS = ["remote", "project", "template", "component"] as const;
@@ -105,7 +107,12 @@ function entryOf(node: AnyNode): Entry {
 
   const literal = stringOf(node);
   if (literal !== null) {
-    return { kind: "local", value: literal, range };
+    // La forme courte vaut `include:remote` pour une URL : « If the file is a remote file, it is
+    // the same as include:remote ». La traiter en chemin local la réécrivait et accusait à tort un
+    // fichier absent.
+    return REMOTE_URL.test(literal)
+      ? { kind: "remote", form: "remote", detail: literal, range }
+      : { kind: "local", value: literal, range };
   }
 
   if (!isMap(node)) {
@@ -230,9 +237,11 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
     }
 
     if (entry.kind === "malformed") {
-      notFound(state, parent.file, "an unreadable include entry", entry.range, {
-        reason: "malformed",
-      });
+      // `detail` est la valeur telle qu'elle est écrite, comme partout ailleurs. Une phrase ici
+      // serait du texte produit hors du module de messages, ce que l'ADR 0002 interdit.
+      const written =
+        entry.range === null ? "" : parent.text.slice(entry.range.start, entry.range.end);
+      notFound(state, parent.file, written.trim(), entry.range, { reason: "malformed" });
       continue;
     }
 
@@ -279,6 +288,14 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
           params: { limit: MAX_INCLUDED_FILES },
           range: entry.range,
           file: parent.file,
+        });
+        // Ce qu'on coupe ici n'a pas été lu : il manque au pipeline, et une cible `extends` absente
+        // peut s'y trouver. Seule la première entrée coupée est nommée : la suite n'a pas été vue.
+        state.unresolved.push({
+          form: "local",
+          detail: path,
+          from: parent.file,
+          range: entry.range,
         });
         state.stopped = true;
         return;

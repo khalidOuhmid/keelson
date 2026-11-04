@@ -77,7 +77,7 @@ export function JobNode({ data }: JobNodeProps) {
 
 export function ReadOnlyTag() {
   return (
-    <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase">
+    <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-normal tracking-label text-text-muted uppercase">
       {READ_ONLY_TAG}
     </span>
   );
