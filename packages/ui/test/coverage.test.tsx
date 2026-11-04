@@ -67,6 +67,18 @@ describe("panneau de couverture", () => {
     );
   });
 
+  test("une couche couverte par un service le nomme", () => {
+    const covered = coverage({});
+    renderPanel({
+      ...covered,
+      layers: covered.layers.map((entry) =>
+        entry.layer === "scm" ? { ...entry, covered: true, services: ["git"] } : entry,
+      ),
+    });
+    const group = screen.getByRole("group", { name: "Covered layers" });
+    expect(group.textContent).toContain("service git");
+  });
+
   test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {
     const { onShowTools } = renderPanel(coverage({ sast: ["a"] }));
     const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });
@@ -123,20 +135,6 @@ describe("panneau de couverture", () => {
   test("un pipeline complet ne le dit pas", () => {
     renderPanel(coverage({}));
     expect(screen.queryByTestId("coverage-lower-bound")).toBeNull();
-  });
-});
-
-describe("couverture par un service", () => {
-  test("une couche couverte par un service le nomme", () => {
-    const covered = coverage({});
-    renderPanel({
-      ...covered,
-      layers: covered.layers.map((entry) =>
-        entry.layer === "scm" ? { ...entry, covered: true, services: ["git"] } : entry,
-      ),
-    });
-    const group = screen.getByRole("group", { name: "Covered layers" });
-    expect(group.textContent).toContain("service git");
   });
 });
 

@@ -46,7 +46,7 @@ export function ServicePanel({
   return (
     <section
       aria-label="Service detail"
-      className="flex flex-col gap-4 border-l border-border-subtle bg-surface-1 p-3"
+      className="flex min-h-full flex-col gap-4 border-l border-border-subtle bg-surface-1 p-3"
     >
       <header className="flex items-start justify-between gap-2">
         <h2 className="min-w-0 truncate text-lg font-semibold text-text-primary">{service.id}</h2>

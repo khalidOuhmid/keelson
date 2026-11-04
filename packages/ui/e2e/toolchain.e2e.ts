@@ -36,7 +36,7 @@ test.describe("toolchain sur le binaire réel", () => {
         .filter({ hasText: "HashiCorp Vault" })
         .getByRole("button", { name: "Add service" })
         .click();
-      await expect(page.getByLabel("Tool", { exact: true })).toHaveValue("vault");
+      await expect(page.getByRole("combobox", { name: "Tool", exact: true })).toHaveValue("vault");
       await page
         .getByRole("group", { name: "New service" })
         .getByRole("button", { name: "Add service" })

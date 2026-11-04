@@ -6,9 +6,10 @@ import {
   ReactFlow,
   ReactFlowProvider,
 } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ToolchainPayload } from "../../api/client.ts";
 import { readLayoutMetrics } from "../pipeline/metrics.ts";
+import { RefitOnResize } from "../pipeline/PipelineCanvas.tsx";
 import { SERVICE_NODE, TOOLCHAIN_JOB_NODE, type ToolLabels, toolchainGraph } from "./graph.ts";
 import { ServiceNode, ToolchainJobNode } from "./nodes.tsx";
 
@@ -45,11 +46,13 @@ export function ToolchainCanvas({
     [payload, labels, selectedService],
   );
 
+  const container = useRef<HTMLElement>(null);
   const [nodes, setNodes] = useState<Node[]>(graph.nodes);
   useEffect(() => setNodes(graph.nodes), [graph]);
 
   return (
     <section
+      ref={container}
       aria-label="Toolchain graph"
       tabIndex={-1}
       className="relative h-full w-full bg-surface-0"
@@ -79,6 +82,7 @@ export function ToolchainCanvas({
           maxZoom={1.6}
         >
           <Background />
+          <RefitOnResize container={container} />
         </ReactFlow>
       </ReactFlowProvider>
 
