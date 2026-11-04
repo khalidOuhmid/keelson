@@ -2,8 +2,7 @@
 
 Statut : EN COURS
 Lot courant : **L3 — taxonomie, catalogue, overlay OWASP**, à cadrer depuis `main`
-Prochaine action : sur `lot/l3-owasp`, seconde contre-revue des correctifs, vérification depuis un
-clone, fusion.
+Prochaine action : sur `lot/l3-owasp`, vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -643,6 +642,11 @@ pendant une opération en vol ; puis rechargement dû oublié si cette opératio
 Chacun corrigé, prouvé rouge. Le watcher absorbe désormais les exceptions du parseur, et `entryAt`
 partage son ensemble de maps visitées, ce qui rend les diamants linéaires. Les cycles qui lèvent
 encore hors d'`entryAt` sont consignés.
+
+**Cinquième et sixième contre-revues.** La cinquième a montré que le `catch` du watcher laissait le
+store sur l'ancien texte : une opération remplaçait alors le fichier cassé. Le document illisible est
+désormais oublié, opération en 500 sans écriture, deux tests prouvés rouges. La sixième, sur ce seul
+changement et sur le binaire Node, ne rouvre rien.
 
 **Une erreur de méthode.** Le passage en `role="group"` a été commité sans lancer le lint ; c'est la
 vérification depuis un clone qui l'a attrapé. `bun run check` passe avant de considérer un correctif
