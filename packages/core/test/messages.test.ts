@@ -138,6 +138,33 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
   ],
 
+  TOOLCHAIN_INVALID: [
+    {
+      params: { detail: "version: Invalid input" },
+      text: ".devsecops/toolchain.yaml is not usable: version: Invalid input",
+    },
+  ],
+  TOOLCHAIN_UNKNOWN_TOOL: [
+    {
+      params: { service: "n", tool: "x" },
+      text: 'service "n" names "x", which is not in the catalog',
+    },
+  ],
+  TOOLCHAIN_UNKNOWN_SERVICE: [
+    {
+      params: { job: "b", service: "n" },
+      text: 'job "b" is integrated with "n", which is not a declared service',
+    },
+  ],
+  TOOLCHAIN_UNKNOWN_JOB: [
+    { params: { job: "b" }, text: 'toolchain.yaml names job "b", which does not exist' },
+  ],
+  TOOLCHAIN_DUPLICATE_INTEGRATION: [
+    {
+      params: { job: "b", service: "n", kind: "push" },
+      text: 'the push integration of "b" with "n" is listed twice',
+    },
+  ],
   STALE_DOCUMENT: [
     {
       params: { expected: "a".repeat(64), received: "b".repeat(64) },
@@ -155,6 +182,7 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   INVALID_NAME: [
     { params: { reason: "job", name: ".tpl" }, text: '".tpl" is not a usable job name' },
     { params: { reason: "stage" }, text: "a stage name cannot be empty" },
+    { params: { reason: "service", name: "A" }, text: '"A" is not a usable service name' },
   ],
   STAGE_NOT_FOUND: [{ params: { stage: "verify" }, text: 'stage "verify" is not declared' }],
   STAGE_EXISTS: [{ params: { stage: "build" }, text: 'stage "build" already exists' }],
@@ -198,6 +226,14 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     {
       params: { reason: "inheritedEnvironment", job: "deploy", origin: "extends" },
       text: 'the environment of "deploy" is inherited (extends) and cannot be removed locally',
+    },
+    {
+      params: { reason: "flowStyleToolchain", section: "services" },
+      text: "the services section is written in flow style, in-place editing is not supported",
+    },
+    {
+      params: { reason: "invalidToolchain" },
+      text: "toolchain.yaml is not usable, fix it before editing it here",
     },
     {
       params: { reason: "sharedValue", job: "unit", key: "needs" },
@@ -252,6 +288,25 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
   ],
 
+  SERVICE_NOT_FOUND: [{ params: { service: "n" }, text: 'service "n" is not declared' }],
+  SERVICE_REFERENCED: [
+    {
+      params: { service: "n", jobs: ["a", "b"] },
+      text: 'service "n" is integrated with a, b',
+    },
+  ],
+  INTEGRATION_EXISTS: [
+    {
+      params: { job: "b", target: "n", kind: "push" },
+      text: 'the push integration of "b" with "n" already exists',
+    },
+  ],
+  INTEGRATION_NOT_FOUND: [
+    {
+      params: { job: "b", target: "n", kind: "push" },
+      text: 'the push integration of "b" with "n" does not exist',
+    },
+  ],
   FORBIDDEN_HOST: [{ params: {}, text: "the local server refused the Host header" }],
   FORBIDDEN_TOKEN: [{ params: {}, text: "the session token is missing or invalid" }],
   METHOD_NOT_ALLOWED: [{ params: { method: "DELETE" }, text: "method DELETE is not allowed" }],

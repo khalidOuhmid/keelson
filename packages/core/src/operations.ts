@@ -13,6 +13,8 @@ export type { OperationErrorCode } from "./messages/codes.ts";
 export {
   CYCLE,
   FROM_INCLUDED_FILE,
+  INTEGRATION_EXISTS,
+  INTEGRATION_NOT_FOUND,
   INVALID_NAME,
   INVALID_OPERATION,
   JOB_NOT_FOUND,
@@ -22,6 +24,8 @@ export {
   NEED_NOT_FOUND,
   OPERATION_ERROR_CODES,
   RANGE_OUT_OF_BOUNDS,
+  SERVICE_NOT_FOUND,
+  SERVICE_REFERENCED,
   STAGE_EXISTS,
   STAGE_NOT_FOUND,
   STALE_DOCUMENT,
@@ -168,6 +172,14 @@ export type SpliceOperation = z.infer<typeof spliceSchema>;
 export type Operation = z.infer<typeof operationSchema>;
 
 export function parseOperation(input: unknown): Result<Operation, OperationError> {
+  return validatedOperation(input, operationSchema);
+}
+
+/** Le contrôle commun aux deux familles d'opérations : celles du CI et celles de la toolchain. */
+export function validatedOperation<T>(
+  input: unknown,
+  schema: z.ZodType<T>,
+): Result<T, OperationError> {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
     return err({ code: INVALID_OPERATION, params: { reason: "notAnObject" } });
   }
@@ -180,7 +192,7 @@ export function parseOperation(input: unknown): Result<Operation, OperationError
     });
   }
 
-  const parsed = operationSchema.safeParse(input);
+  const parsed = schema.safeParse(input);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return err({
