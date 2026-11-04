@@ -20,6 +20,9 @@ colors:
   warning-muted: "oklch(0.34 0.07 75)"
   info: "oklch(0.72 0.09 230)"
   info-muted: "oklch(0.32 0.04 230)"
+  layer-build: "oklch(0.8 0.1 165)"
+  layer-test: "oklch(0.8 0.1 310)"
+  layer-operate: "oklch(0.82 0.1 115)"
 typography:
   lg:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif"
@@ -75,6 +78,17 @@ components:
   job-node-selected:
     backgroundColor: "{colors.surface-3}"
     textColor: "{colors.text-primary}"
+  job-node-included:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.base}"
+    rounded: "{rounded.md}"
+    padding: "8px 10px"
+    width: "232px"
+    height: "64px"
+  job-node-included-selected:
+    backgroundColor: "{colors.surface-3}"
+    textColor: "{colors.text-primary}"
   stage-column:
     backgroundColor: "{colors.surface-1}"
     textColor: "{colors.text-primary}"
@@ -126,6 +140,30 @@ components:
     typography: "{typography.2xs}"
     rounded: "{rounded.sm}"
     padding: "0 4px"
+  layer-tag-build:
+    backgroundColor: "transparent"
+    textColor: "{colors.layer-build}"
+    typography: "{typography.2xs}"
+    rounded: "{rounded.sm}"
+    padding: "0 4px"
+  layer-tag-test:
+    backgroundColor: "transparent"
+    textColor: "{colors.layer-test}"
+    typography: "{typography.2xs}"
+    rounded: "{rounded.sm}"
+    padding: "0 4px"
+  layer-tag-operate:
+    backgroundColor: "transparent"
+    textColor: "{colors.layer-operate}"
+    typography: "{typography.2xs}"
+    rounded: "{rounded.sm}"
+    padding: "0 4px"
+  layer-tag-platform:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.2xs}"
+    rounded: "{rounded.sm}"
+    padding: "0 4px"
   notice-chip:
     backgroundColor: "transparent"
     typography: "{typography.2xs}"
@@ -155,6 +193,35 @@ components:
     typography: "{typography.sm}"
     padding: "0 12px"
     height: "44px"
+  view-button-current:
+    backgroundColor: "{colors.surface-3}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.xs}"
+    rounded: "{rounded.sm}"
+    padding: "4px 8px"
+  partial-pipeline-bar:
+    backgroundColor: "{colors.surface-1}"
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.sm}"
+    padding: "6px 12px"
+  coverage-row:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.sm}"
+    rounded: "{rounded.sm}"
+    padding: "4px"
+  coverage-row-hover:
+    backgroundColor: "{colors.surface-3}"
+  catalog-row:
+    backgroundColor: "transparent"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.sm}"
+    rounded: "{rounded.sm}"
+    padding: "4px"
+  catalog-row-hover:
+    backgroundColor: "{colors.surface-2}"
+  catalog-row-selected:
+    backgroundColor: "{colors.surface-3}"
 ---
 
 # Design System: Keelson
@@ -190,25 +257,30 @@ small on purpose: what is not in that file does not exist, and nothing in that f
 - Monospace for every string that came out of the user's YAML; sans-serif for everything Keelson
   wrote about it.
 - Icons are inline SVG inheriting `currentColor` at `1em`; no text character is ever used as a mark.
-- Every inherited value carries an origin badge naming where it came from.
+- Three layer-family hues, only on layer tags and always beside the word that names the layer.
+- One breakpoint, `lg`, below which three panels become full-screen overlays (ADR 0008).
+- An origin badge names where an inherited value came from, in the detail panel and on an editable
+  job node of the Pipeline view; an included node and the coverage overlay carry none.
 
 ## Colors
 
-A near-neutral blue-grey field (hue 265°, chroma at or under 0.012) with one cool-blue accent and
-three severity hues that appear only inside diagnostics, banners and the destructive path.
+A near-neutral blue-grey field (hue 265°, chroma at or under 0.012) with one cool-blue accent, three
+severity hues that appear only inside diagnostics, banners and the destructive path, and three
+layer-family hues that appear only on layer tags.
 
 ### Primary
 
-- **Signal Blue** (`accent`): the only accent in the product and the only non-severity hue. It marks
-  the selected job node's border, the dependency edges touching the selection, the global focus ring
-  on `:focus-visible`, the field border under focus, the in-flight write indicator, and the property
-  names in the read-only YAML viewer. It is never a fill behind text. It clears 3:1 against
+- **Signal Blue** (`accent`): the only accent in the product. It marks the selected job node's
+  border, the dependency edges touching the selection, the outline of the job nodes in the chosen
+  layer on the coverage overlay, the current view's button border, the pressed row of the
+  covered-layers list, the global focus ring on `:focus-visible`, the field border under focus, the
+  in-flight write indicator, the property names in the read-only YAML viewer, and the text of the
+  "See tools" and "Homepage" links. It is never a fill behind text. It clears 3:1 against
   `surface-3`, tested, because a selected node is a hovered node.
 
 ### Secondary
 
-The severity family. These are the only other hues, and each is paired with a word and a distinct
-SVG mark, never used alone.
+The severity family. Each hue is paired with a word and a distinct SVG mark, never used alone.
 
 - **Alert Red** (`danger`) and **Alert Red Deep** (`danger-muted`): error diagnostics, the error
   banner (muted at 20% as a fill, solid as a border), the destructive button's text and border, and
@@ -219,25 +291,42 @@ SVG mark, never used alone.
   reloaded notice bar. Held at 230° against the accent's 258° so an info row never reads as a
   selection.
 
+### Tertiary
+
+The layer families. With the accent and the severities these are the only hues in the product, and
+they appear only on layer tags, as border and text. Each colours the family of a layer; the word on
+the tag names the layer. Each clears 4.5:1 on `surface-3`, tested.
+
+- **Verdigris** (`layer-build`): the build family.
+- **Orchid** (`layer-test`): the test family.
+- **Lichen** (`layer-operate`): the operate family.
+
+The fourth family, `platform`, has no hue: its tags take `border-default` and `text-secondary`.
+
 ### Neutral
 
 - **Floor** (`surface-0`): the application background, the canvas behind the graph, and every
   full-bleed state screen.
-- **Plane** (`surface-1`): every chrome panel — left sidebar, job detail panel, job editor,
-  diagnostics strip, stage column body, state containers. One step up from the floor.
-- **Card** (`surface-2`): the job node at rest, the delete-confirmation dialog, the
-  content-unavailable notice, and the diagnostics row on hover.
-- **Card Raised** (`surface-3`): the job node on hover *and* when selected, and the hover fill of
-  every ghost button. Because it is both hover and selection, every text and border token that can
+- **Plane** (`surface-1`): every chrome panel — left sidebar, job detail panel, job editor, tool
+  panel, diagnostics strip, partial pipeline bar, stage column body, state containers — and the
+  fill of an included job node at rest. One step up from the floor.
+- **Card** (`surface-2`): the editable job node at rest, the delete-confirmation dialog, the
+  content-unavailable notice, and the diagnostics row and catalogue row on hover.
+- **Card Raised** (`surface-3`): an editable job node on hover, any job node when selected, the
+  current view's button, the pressed catalogue row, and the hover fill of every ghost button and
+  covered-layer row. Because it is both hover and selection, every text and border token that can
   land on it is contrast-tested against it.
 - **Well** (`surface-inset`): below the floor. Only input fields, the read-only YAML viewer and the
   blocking-diagnostic rows use it; it is how the system says "verbatim or editable text goes here".
 - **Rule Faint** (`border-subtle`): structural dividers only — header underline, panel edges,
-  section separators, diagnostics row separators, stage column outline. Decorative under WCAG 1.4.11
-  and deliberately exempt from the 3:1 floor.
+  section separators, diagnostics row separators, the partial pipeline bar's underline, catalogue
+  table rows, stage column outline. Decorative under WCAG 1.4.11 and deliberately exempt from the
+  3:1 floor. It closes a shape in one place only, the stage column, a backdrop behind its job nodes
+  and not a component; everywhere else it is a rule on one named edge, and
+  `packages/ui/test/tokens.test.ts` fails on any other closed shape.
 - **Rule** (`border-default`): the border of every interface component — fields, selects, buttons,
-  tags, the confirmation dialog, unselected job nodes. Lifted to L 0.56 so it clears 3:1 on
-  `surface-0` through `surface-3`.
+  tags, the confirmation dialog, the state card, the YAML viewer, unselected job nodes, included
+  ones too. Lifted to L 0.56 so it clears 3:1 on `surface-0` through `surface-3`.
 - **Rule Strong** (`border-strong`): the graph's connection handles and every dependency edge that
   is not highlighted.
 - **Paper White** (`text-primary`): headings, job ids, diagnostic messages, field values.
@@ -249,23 +338,29 @@ SVG mark, never used alone.
 ### Named Rules
 
 **The Attention Accent Rule.** The accent marks what is being acted on and nothing else: the
-selection and its edges, the focused control, the write in flight, and the key side of YAML in the
-viewer. It is never a fill behind text, never a button background, never a panel tint. There is no
-`text-on-accent` token, and that absence is the enforcement.
+selection and its edges, the chosen layer and its nodes, the current view, the focused control, the
+write in flight, a panel's primary link, and the key side of YAML in the viewer. It is never a fill
+behind text, never a button background, never a panel tint. There is no `text-on-accent` token, and
+that absence is the enforcement.
 
 **The Tested-Contrast Rule.** Every text-on-surface and component-border-on-surface pair the product
 can produce is recomputed by `packages/ui/test/tokens.test.ts` and fails below 4.5:1 (text) or 3:1
 (component boundary), with `surface-3` included because it is the hover *and* selected fill. A grey
-is never darkened back down because it "looked quieter".
+is never darkened back down because it "looked quieter". The layer hues are held to the 4.5:1 text
+threshold on `surface-3`, because a layer tag's text sits on a selected node.
 
 **The Never-Hue-Alone Rule.** A state is never carried by colour alone. Every severity ships with
 the severity word spelled out and a distinct SVG silhouette — cross, triangle, disc — and every
 notice bar carries a word chip ("Not applied", "Reloaded", "Deleted") that makes its colour
 redundant.
 
+**The Family-Colour Rule.** Colour groups a layer's family; the word names the layer. A layer is
+never read from its hue: every layer tag spells the layer's short name and carries its full name in
+`title`, and the `platform` family takes no hue at all.
+
 **The Grey Default Rule.** A new surface starts entirely in the neutral ramp. A hue has to be earned
-by selection, focus, a write in flight, or a diagnostic severity; "this feels important" is not a
-justification.
+by selection, focus, a write in flight, a diagnostic severity, or a layer family on a layer tag;
+"this feels important" is not a justification.
 
 ## Typography
 
@@ -287,7 +382,7 @@ text stops being legible at expert density. The steps were spread apart delibera
 (400, 500, 600); 500 is used once.
 
 - **lg** (semibold, 19px/26px): the top of the ramp and the only heading size — the job detail
-  panel's job id and every state-screen heading.
+  panel's job id, the tool panel's tool name and every state-screen heading.
 - **base** (regular 400, 15px/22px): the document default set on `body`, and the job node's job id
   at semibold. This is the largest type inside the graph.
 - **sm** (regular, 13px/20px): the product name in the header, sidebar section headings (semibold),
@@ -297,8 +392,8 @@ text stops being legible at expert density. The steps were spread apart delibera
   select, every button label, diagnostic codes, the open file path, opaque block keys, the
   confirmation question.
 - **2xs** (semibold, 11px/16px, tracking 0.06em, uppercase): the label voice. Field labels, section
-  labels inside the editor, tags, notice chips, severity words, counts, and the Keelson-side half of
-  the origin badge (at weight 500).
+  labels inside the editor, catalogue column headings, tags, layer tags, notice chips, severity
+  words, counts, and the Keelson-side half of the origin badge (at weight 500).
 
 ### Named Rules
 
@@ -307,11 +402,11 @@ text stops being legible at expert density. The steps were spread apart delibera
 
 **The Monospace-Means-File Rule.** Monospace is reserved for text that exists in the user's YAML —
 job ids as values, stage names, need targets, environment keys and values, diagnostic codes, file
-paths, template names, opaque blocks — plus tabular counts, where it buys numeral alignment. Prose
-Keelson wrote is set in the interface sans.
+paths, template names, opaque blocks — plus tabular counts, where it buys numeral alignment, and
+licence identifiers in the catalogue. Prose Keelson wrote is set in the interface sans.
 
-**The Small-Caps Label Rule.** A label naming a field, a section, a severity or a tag is 11px
-semibold uppercase at 0.06em tracking. Uppercase appears nowhere else: not on a heading, not on a
+**The Small-Caps Label Rule.** A label naming a field, a section, a table column, a severity or a
+tag is 11px semibold uppercase at 0.06em tracking. Uppercase appears nowhere else: not on a heading, not on a
 sentence-shaped button, and never as a standalone line of copy above a title.
 
 **The Two-Register Rule.** When Keelson's own wording and a string from the file sit in the same
@@ -326,22 +421,30 @@ below that comes from weight and colour, not from new sizes.
 
 The shell is a fixed full-height frame, never a scrolling page. Top to bottom: the notice and error
 banners (each a single row at 12px horizontal, 6px vertical padding, present only when there is
-something to say), a 44px header (`--keelson-header-height`) carrying the product name and the open
-file path on the left and the write indicator plus the undo/redo pair on the right, then the working
-row, then the diagnostics strip capped at one third of the viewport and scrolling internally.
+something to say), a header of at least 44px (`--keelson-header-height`) that wraps its controls,
+carrying the product name and the open file path on the left and the write indicator, the view
+switcher and the undo/redo pair on the right, then the partial pipeline bar when includes are
+unresolved, then the working row, then the diagnostics strip. The bar and the strip are each capped
+at one third of the viewport and scroll internally.
 
 The working row is three columns, each present only when it has content: a 352px left sidebar
-(`--keelson-panel-width`) of titled control sections, the elastic graph canvas, and a 352px right
-column holding the job detail panel above the job editor. Side columns scroll independently; the
-canvas never scrolls, it pans and zooms (0.3× to 1.6×) and refits whenever its available width
+(`--keelson-panel-width`) of titled control sections on the Pipeline view and of the coverage panel
+on the Coverage view, the elastic graph canvas, and a 352px right column holding the job detail
+panel. The job editor renders under that panel on the Pipeline view only, and never for a job from
+an included file. The Catalog view has neither side column: its main area holds the filter form,
+the tool table and, when a tool is selected, a 352px tool panel. Side columns scroll independently;
+the canvas never scrolls, it pans and zooms (0.3× to 1.6×) and refits whenever its available width
 changes, so opening the detail panel never pushes a column under it. Every column boundary is a
 one-pixel `border-subtle` rule, not a gap.
 
-There are no breakpoints. The layout is one desktop composition: below the point where the three
-columns fit, the working row scrolls horizontally rather than reflowing, and the canvas is floored at
-320px (`--keelson-canvas-min-width`) so two 352px panels can never crush the graph to zero — which is
-also what keeps 400% zoom on a 1280px laptop legible (WCAG 1.4.10). The mobile capture shows exactly
-this: the same frame, scrolled sideways.
+There is one breakpoint, `lg`: Tailwind's default 64rem (1024px), which `tokens.css` does not
+redeclare. From `lg` up the layout is one desktop composition, and the canvas is floored at 320px
+(`--keelson-canvas-min-width`) so two 352px panels can never crush the graph to zero. Below `lg`, and
+only there (ADR 0008), the job detail panel, the left sidebar and the tool panel leave the row and
+become full-screen overlays; the sidebar opens from a `Panel` button in the header and closes from
+its own `Close panel` button, and the graph keeps the viewport. Focus is not trapped in an overlay.
+The breakpoint changes where these three panels sit, never their content, and the desktop
+composition does not change.
 
 Spacing is a strict 4px base (`--spacing`). The steps in use are 2, 4, 6, 8, 10, 12, 16 and 24px:
 2–6px inside a control, 8–12px between controls and as panel padding, 16px between groups within a
@@ -363,8 +466,13 @@ never by a shadow. If two areas need distinguishing, draw the hairline.
 TypeScript; a metric that fails to parse throws rather than falling back to a literal.
 
 **The Conditional Column Rule.** Side columns are present or absent, never collapsed to a sliver. The
-sidebar appears only when a pipeline is loaded and editable; the detail column appears only when a
-job is selected, and closing it returns focus to the graph.
+sidebar appears only when a pipeline is loaded and no diagnostic blocks it; the detail column appears
+only when a job is selected, and closing it returns focus to the graph. Neither appears on the
+Catalog view, and below `lg` the sidebar stays closed until the `Panel` button opens it.
+
+**The One-Breakpoint Rule.** `lg` is the product's only breakpoint, and ADR 0008 is its only licence:
+below it the job detail panel, the left sidebar and the tool panel become full-screen overlays. It
+moves those three panels and touches nothing else.
 
 ## Elevation & Depth
 
@@ -376,7 +484,9 @@ would do. Even the destructive confirmation — the one place a design system us
 overlay — is a `surface-2` block with a `border-default` hairline, inline in the editor's flow.
 
 The only non-tonal depth cue is stacking inside the graph, where stage columns sit at z-index 0 and
-job nodes at z-index 1 so a card reads as lying on its column.
+job nodes at z-index 1 so a card reads as lying on its column. The full-screen overlays below `lg`
+sit at z-index 20, and they replace the frame rather than lift above it: a `surface-1` plane edge to
+edge, with no shadow.
 
 ### Named Rules
 
@@ -391,22 +501,26 @@ it without disturbing the panel behind it, and focus returns to the control that
 ## Shapes
 
 Everything is a rectangle with a small, considered radius, and the scale is semantic rather than
-decorative: 3px (`rounded.sm`) for small controls — inputs, buttons, tags, notice chips, severity
-marks, the YAML viewer; 5px (`rounded.md`) for the job node and the confirmation dialog, the two
-objects that read as discrete things rather than controls; 8px (`rounded.lg`) for the two large
+decorative: 3px (`rounded.sm`) for small controls — inputs, buttons, tags, layer tags, notice chips,
+severity marks, the YAML viewer, coverage and catalogue rows; 5px (`rounded.md`) for the job node and
+the confirmation dialog, the two objects that read as discrete things rather than controls; 8px (`rounded.lg`) for the two large
 containers, the stage column and the state card. Banners, headers, panels and the diagnostics strip
 have no radius at all: they are full-bleed bands bounded by their hairline.
 
 Every border is one pixel, including the one Tailwind draws for the bare `border` class, which reads
 `--default-border-width` from the token file rather than the framework default. There is no 2px
-border; the only 2px stroke is the focus ring, at 2px offset. Dependency edges are curves between
+border. The two 2px strokes are outlines in `accent`: the focus ring at 2px offset, and the emphasis
+on the job nodes of the chosen layer on the coverage overlay, with no offset, drawn outside the node's
+one-pixel border, which keeps its own colour. Dependency edges are curves between
 left/right handles and are the one place stroke weight carries meaning: 1.5px
 (`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
 `accent` when the edge touches the selection, dashed at 4px when the dependency is optional.
 
 Icons are inline SVG on a 16-unit viewBox, 1.75 stroke, sized `1em` and coloured `currentColor`, so
 a mark always matches the size and colour of the text beside it. Severity marks are distinguished by
-silhouette — cross, triangle, disc — not by an interior detail that vanishes at 11px.
+silhouette — cross, triangle, disc — not by an interior detail that vanishes at 11px. Tool logos
+are the one drawn exception: a filled path on a 24-unit viewBox, still `1em` and `currentColor`, so no
+brand colour enters the palette. A tool without a logo takes a neutral stroked square.
 
 ### Named Rules
 
@@ -438,14 +552,24 @@ Ghost by default. There is no filled button anywhere in the product.
   confirm button).
 - **Icon button:** the stage reorder pair is the same button with an SVG arrow in place of the label
   and an `aria-label`; it never shrinks below the standard padding.
+- **Current view:** the view switcher's button for the open view carries `aria-current="page"`, an
+  `accent` border, the `surface-3` fill and a semibold `text-primary` label.
+- **Text link:** no border and no fill, underlined at a 2px offset. `accent` for "See tools" and
+  "Homepage", `text-secondary` for the "OWASP guideline" and verification-date links.
 
 ### Chips
 
-Two kinds, both built from the label voice (11px uppercase, 0.06em tracking, 3px radius, one-pixel
+Three kinds, all built from the label voice (11px uppercase, 0.06em tracking, 3px radius, one-pixel
 border, 4px horizontal padding, transparent fill).
 
 - **Tag:** `border-default` outline, `text-muted` text. Marks a qualifier on a value — `optional`,
-  `no artifacts`, `read-only`, `implicit`.
+  `no artifacts`, `read-only`, `implicit`, the count of included files, the form of an unresolved
+  include.
+- **Layer tag:** border and text in the family's hue, or `border-default` and `text-secondary` for
+  the `platform` family, at regular weight. It spells the layer's short name, carries the full name
+  in `title`, and truncates. A job node or a catalogue row shows at most two, followed by a `+N`
+  count in 11px monospace `text-muted`, and on a node the chosen layer sorts first so the limit
+  cannot hide it. The coverage panel, the detail panel and the tool panel show every layer.
 - **Notice chip:** `border-current`, so it inherits the banner's severity colour, semibold. Carries
   the word that makes the banner's colour redundant.
 
@@ -454,22 +578,34 @@ border, 4px horizontal padding, transparent fill).
 - **Job node:** 232 × 64px, 5px radius, `surface-2` fill, one-pixel border that is `border-default`
   at rest and `accent` when selected; `surface-3` fill on hover and when selected. Padding 8px 10px.
   Two lines: the job id at 15px semibold `text-primary`, then the stage name in 12px monospace
-  `text-muted` followed by its origin badge. It is a `button` with `aria-pressed` and an off-screen
-  description naming its stage, dependencies, environment and templates.
+  `text-muted` followed by its origin badge. On the coverage overlay layer tags replace that second
+  line, and the nodes of the chosen layer take the 2px `accent` outline. It is a `button` with
+  `aria-pressed` and an off-screen description naming its stage, dependencies, environment and
+  templates, plus its layers on the overlay.
+- **Included job node:** the same geometry and the same button for a job from an included file, one
+  plane down: `surface-1` fill at rest, no hover response, `border-default` border, a `read-only` tag
+  beside the job id, no origin badge, and an off-screen description that opens by naming the file.
+  Selection still applies, with the `accent` border and the `surface-3` fill.
 - **Stage column:** 8px radius, `surface-1` fill, `border-subtle` outline, with a 32px header
   underlined by another hairline. The header carries the stage name (13px semibold monospace), an
   `implicit` tag when the stage is not declared in the file, and a right-aligned tabular job count.
   It is a `role="group"` with an accessible name, never a landmark.
 - **Panel:** `surface-1`, no radius, 12px padding, bounded by a hairline on the edge facing the
-  canvas, 16px between its sections.
+  canvas, 16px between its sections. For an included job the detail panel adds the `read-only` tag
+  beside the job id, a sentence saying why it cannot be edited here, and a Source file field, and
+  `JobEditor` is not rendered.
 - **Titled sidebar section:** a `role="group"` labelled by a 13px semibold `text-secondary` heading
   (`SECTION_HEADING`), 8px to its content, separated from the next section by a `border-subtle` rule
   and 16px of padding — suppressed on the last one. The section heading is deliberately a different
   voice from the 11px label that names a field: a section and a field cannot speak in the same voice
   or there is no hierarchy left.
 - **State card:** 8px radius, `surface-1` on the bare floor, 16px padding, prose capped at
-  `max-w-prose`, heading at 19px semibold. The alert tone swaps the `border-subtle` outline for
+  `max-w-prose`, heading at 19px semibold. The alert tone swaps the `border-default` outline for
   `warning-muted` (or `danger-muted` for an unparseable document) and adds `role="alert"`.
+
+**The Read-Only Object Rule.** A job Keelson will never write stays an object. It steps down one
+plane and loses its hover, but it keeps its `border-default` boundary, says `read-only` in words,
+and gets no editor.
 
 ### Inputs / Fields
 
@@ -484,11 +620,12 @@ border, 4px horizontal padding, transparent fill).
 
 ### Navigation
 
-Keelson has no navigation in the site sense. The 44px header is an identity-and-state bar: the
-product name at 13px semibold, the open file path beside it in 12px monospace `text-muted`
-truncating from the end, and on the right the write indicator and the undo/redo ghost pair with
-their shortcuts in the `title` attribute. It is underlined by a hairline and sits on the floor
-colour.
+The header is an identity-and-state bar of at least 44px holding the product's one navigation group:
+the product name at 13px semibold, the open file path beside it in 12px monospace `text-muted`
+truncating from the end, a tag counting the included files when there are any, and on the right the
+write indicator, the `Panel` button below `lg`, the `Views` navigation of three ghost buttons
+(Pipeline, Coverage, Catalog), and on the Pipeline view the undo/redo ghost pair with their shortcuts
+in the `title` attribute. It is underlined by a hairline and sits on the floor colour.
 
 ### Diagnostics Strip
 
@@ -514,25 +651,72 @@ not animate, and every control it affects is simultaneously disabled.
 Opaque blocks — the parts of the file Keelson preserves but does not model — render in a CodeMirror
 instance that is fully themed from the palette: the container owns the font, size, `surface-inset`
 fill, 3px radius and `border-subtle` outline, and the editor theme neutralises everything CodeMirror
-would otherwise impose. Its highlight style maps every tag to a token: keys in `accent`, keywords in
+would otherwise impose. The tool panel's CI snippets render in the same viewer. Its highlight style
+maps every tag to a token: keys in `accent`, keywords in
 `text-primary`, strings, numbers and booleans in `text-secondary`, comments and meta in `text-muted`
 and italic. Lines wrap, gutters are hidden, and the view is read-only with no focus outline of its
 own. When the range cannot be read back from the file, the block is replaced by an explicit
 "Content unavailable" notice on `surface-2` stating that the block is still on disk and untouched.
 
+### Partial Pipeline Bar
+
+A `surface-1` band under the header, on every view, present when the pipeline has unresolved
+includes. It is a hairline-ruled `role="group"` capped at one third of the viewport, 6px 12px padded
+like a banner, and holds one disclosure. The summary row, a 32px target, reads: an SVG chevron that
+rotates a quarter turn when open, "Partial pipeline" in the label voice, the unresolved count in 11px
+monospace `text-muted`, then one sentence in 13px `text-secondary`. Open, each entry shows a tag with
+the include's form, its value in 12px monospace, "declared in" in the label voice, and the declaring
+file in 12px monospace `text-muted`.
+
+It has no severity hue, no `Dismiss` button and no live region, and its entries are not clickable.
+
+### Coverage Panel
+
+The left sidebar's content on the Coverage view, with 16px between its blocks: a 13px `text-secondary`
+count of OWASP layers and platform categories, a lower-bound sentence when the pipeline is partial,
+then three sections under the 13px semibold section heading — "Uncovered OWASP layers", "Platform
+categories not seen", "Covered layers". Each section with nothing to list says so in one `text-muted`
+sentence.
+
+- **Uncovered entry:** a layer tag beside the layer's name in 13px `text-primary`, its summary in 13px
+  `text-secondary`, then a 12px row of text links, "See tools" and, for an OWASP layer, "OWASP
+  guideline".
+- **Covered entry:** a full-width `button` with `aria-pressed`, 3px radius, 4px padding and a
+  transparent one-pixel border that turns `accent` when pressed; `surface-3` fill on hover. A layer
+  tag sits beside the layer's name in 13px `text-secondary`, over its job ids in 11px monospace
+  `text-muted`. Pressing it emphasises that layer's job nodes on the graph.
+
+### Catalogue
+
+The Catalog view fills the main area. A wrapping filter form of three labelled selects (layer, license,
+adapter), each at least 160px wide, sits above a hairline, followed by a `role="status"` count in 12px `text-muted`.
+
+- **Tool table:** column headings in the label voice, rows ruled by `border-subtle`. The tool's name
+  is a full-width `button` in 13px `text-primary` with `aria-pressed`, 3px radius and 4px padding,
+  `surface-2` on hover, `surface-3` and semibold when pressed, with no accent. Beside it, layer tags
+  and the licence identifier in 11px monospace `text-muted`. With no match, the table gives way to
+  one `text-muted` sentence.
+- **Tool panel:** the 352px panel on the right, with a hairline on its left edge: the logo and tool
+  name at 19px semibold above a ghost `Close` button, every layer tag, a definition list in 13px with
+  `text-muted` sentence-case terms, the "Homepage" link, then each adapter's snippet in the YAML
+  viewer under a label, or a `text-muted` sentence when there is none.
+
 ### The Origin Badge (signature component)
 
-The product's signature. Any value a job inherited rather than declared carries a badge immediately
-after it: an inline SVG inheritance mark, then Keelson's own wording in the 11px small-caps label
-voice at weight 500 in `text-muted` ("inherited from", "from anchor", "from reference", "default"),
-then — where there is one — the source string from the file in monospace `normal-case`
-`text-secondary`. It truncates rather than wrapping, and its `title` states that editing the value
-writes an explicit override in this job and never touches the template.
+The product's signature. A value a job inherited rather than declared carries a badge immediately
+after it wherever the badge renders: an inline SVG inheritance mark, then Keelson's own wording in
+the 11px small-caps label voice at weight 500 in `text-muted` ("inherited from", "from anchor", "from
+reference", "from included file", "default"), then — where there is one — the source string from the
+file in monospace `normal-case` `text-secondary`. It truncates rather than wrapping, and its `title`
+states that editing the value writes an explicit override in this job and never touches the template
+or the included file. On an included job the `title` says instead that the value cannot be overridden
+here.
 
 The badge carries no fill, no border and no radius: it is pure type, because it appears many times
-per screen and must not accumulate into visual noise. It renders on the job node beside the stage
-name and in the detail panel beside each field label, and the two instances are the same component
-at the same size.
+per screen and must not accumulate into visual noise. It renders on an editable job node beside the
+stage name on the Pipeline view, and in the detail panel beside each field label on every view, and
+the two instances are the same component at the same size. An included job node and every node on
+the coverage overlay carry no badge; the detail panel keeps it for those jobs.
 
 ## Do's and Don'ts
 
@@ -555,6 +739,9 @@ at the same size.
   Rule).
 - **Do** pair every severity colour with the severity word and a distinct silhouette (The
   Never-Hue-Alone Rule).
+- **Do** let a layer's hue group its family and its word name it (The Family-Colour Rule).
+- **Do** keep a job from an included file an object: one plane down, no hover, `border-default`, the
+  word `read-only`, no editor (The Read-Only Object Rule).
 - **Do** give a destructive action a confirmation that owns focus: `role="alertdialog"`,
   `aria-modal`, focus into the confirm button, Escape cancels without closing the panel behind it,
   focus back to the trigger (The Inline-Modal Rule).
@@ -562,6 +749,7 @@ at the same size.
 - **Do** give an unreadable or missing region an explicit, worded state rather than an empty box.
 - **Do** animate only colour, only on hover and focus, only through `var(--duration-fast)` with
   `--ease-out`, so the reduced-motion collapse at the token layer keeps working without `!important`.
+  The partial pipeline bar's chevron rotation is the one transform, on the same two tokens.
 - **Do** give a container-like grouping `role="group"` with an `aria-label` rather than a `<section>`,
   so stage columns, opaque blocks and sidebar sections stay out of the landmark list.
 
@@ -578,6 +766,8 @@ at the same size.
 - **Don't** use `border-subtle` on `surface-3`: it is the same lightness as that plane and will
   disappear. It is a divider for `surface-0`/`surface-1`, and it is exempt from 3:1 precisely because
   it is never a component boundary.
+- **Don't** close a shape with `border-subtle` anywhere but the stage column. Every other use is a
+  rule on one named edge; `packages/ui/test/tokens.test.ts` fails otherwise.
 - **Don't** use uppercase outside the 11px label voice — no uppercase headings, no uppercase sentence
   buttons, and no uppercase standalone line of copy above a title (The Small-Caps Label Rule).
 - **Don't** upper-case, truncate-in-the-middle or otherwise restyle a string that came from the user's
@@ -585,14 +775,14 @@ at the same size.
 - **Don't** use a text character as an icon (The Drawn-Mark Rule).
 - **Don't** add a radius outside 3 / 5 / 8px, and don't give a full-bleed band a radius at all.
 - **Don't** thicken a border to signal importance; move along the border ramp instead. The only 2px
-  stroke is the focus ring, and the only weighted stroke is the dependency edge, whose two weights
-  are tokens.
+  strokes are the focus ring and the layer emphasis, both outlines, and the only weighted stroke is
+  the dependency edge, whose two weights are tokens.
 - **Don't** introduce a light theme or a second accent hue; `color-scheme: dark` is a commitment and
-  the severity hues are the only other colours.
+  the severity and layer-family hues are the only other colours.
 - **Don't** write a node size, column gap or row gap in TypeScript; it belongs in `tokens.css` and is
   read at runtime (The Tokenised Geometry Rule).
-- **Don't** add breakpoint-specific styling to make the shell reflow on a narrow viewport. The frame
-  scrolls horizontally by design and the canvas is floored at 320px; a reflow would be a new layout
-  decision, not a fix.
+- **Don't** add breakpoint-specific styling to make the shell reflow on a narrow viewport. The one
+  exception is ADR 0008: below `lg`, the job detail panel, the left sidebar and the tool panel become
+  full-screen overlays. Any other reflow would be a new layout decision, not a fix.
 - **Don't** smuggle in the rejected worlds: no revision bars or specification-sheet margins, no
   wiring-schematic ornament, no high-density Japanese grid, no transit-diagram line styling.

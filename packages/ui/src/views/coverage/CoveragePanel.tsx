@@ -76,7 +76,7 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         </p>
       ) : null}
 
-      <section aria-label="Uncovered OWASP layers" className="flex flex-col gap-2">
+      <div role="group" aria-label="Uncovered OWASP layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Uncovered OWASP layers</h2>
         {uncovered.length === 0 ? (
           <p className="text-sm text-text-muted">Every OWASP layer has at least one job.</p>
@@ -87,11 +87,11 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
             ))}
           </ul>
         )}
-      </section>
+      </div>
 
       {/* Une catégorie plateforme est un service autour du pipeline : ne pas la voir dans les jobs
           n'est pas une lacune de sécurité, et la mêler aux couches OWASP gonflait le manque. */}
-      <section aria-label="Platform categories not seen" className="flex flex-col gap-2">
+      <div role="group" aria-label="Platform categories not seen" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Platform categories not seen</h2>
         {unseen.length === 0 ? (
           <p className="text-sm text-text-muted">Every category appears in a job.</p>
@@ -102,9 +102,9 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
             ))}
           </ul>
         )}
-      </section>
+      </div>
 
-      <section aria-label="Covered layers" className="flex flex-col gap-2">
+      <div role="group" aria-label="Covered layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Covered layers</h2>
         {covered.length === 0 ? (
           <p className="text-sm text-text-muted">No job matches a layer yet.</p>
@@ -132,7 +132,7 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
             ))}
           </ul>
         )}
-      </section>
+      </div>
     </div>
   );
 }

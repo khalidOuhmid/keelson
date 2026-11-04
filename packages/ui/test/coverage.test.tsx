@@ -67,7 +67,7 @@ describe("panneau de couverture", () => {
 
   test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {
     const { onShowTools } = renderPanel(coverage({ sast: ["a"] }));
-    const uncovered = screen.getByRole("region", { name: "Uncovered OWASP layers" });
+    const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });
 
     expect(within(uncovered).getByText("Dynamic testing")).toBeDefined();
     expect(
@@ -82,14 +82,14 @@ describe("panneau de couverture", () => {
 
   test("une couche OWASP cite la Guideline, une catégorie plateforme non", () => {
     renderPanel(coverage({}));
-    const uncovered = screen.getByRole("region", { name: "Uncovered OWASP layers" });
+    const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });
     const rowOf = (name: string) => within(uncovered).getByText(name).closest("li") as HTMLElement;
 
     const link = within(rowOf("Dynamic testing")).getByRole("link", { name: "OWASP guideline" });
     expect(link.getAttribute("href")).toBe(
       `https://github.com/OWASP/DevSecOpsGuideline/blob/master/${findLayer("dast").guideline}`,
     );
-    const platform = screen.getByRole("region", { name: "Platform categories not seen" });
+    const platform = screen.getByRole("group", { name: "Platform categories not seen" });
     const row = within(platform).getByText("Source control").closest("li") as HTMLElement;
     expect(within(row).queryByRole("link")).toBeNull();
   });
@@ -107,8 +107,8 @@ describe("panneau de couverture", () => {
    *  pas une lacune de sécurité, et le compte unique mêlait les deux référentiels. */
   test("une catégorie plateforme non vue n'est pas une couche OWASP non couverte", () => {
     renderPanel(coverage({}));
-    const owasp = screen.getByRole("region", { name: "Uncovered OWASP layers" });
-    const platform = screen.getByRole("region", { name: "Platform categories not seen" });
+    const owasp = screen.getByRole("group", { name: "Uncovered OWASP layers" });
+    const platform = screen.getByRole("group", { name: "Platform categories not seen" });
     expect(within(owasp).queryByText("Source control")).toBeNull();
     expect(within(platform).getByText("Source control")).toBeDefined();
   });
@@ -310,6 +310,7 @@ describe("catalogue", () => {
 
     const card = screen.getByRole("region", { name: "Tool detail" });
     expect(within(card).getByTestId("tool-license").textContent).toBe("BUSL-1.1 · not open source");
+    expect(within(card).getByText("BUSL-1.1").className).toContain("font-mono");
     expect(within(card).getByRole("link", { name: "2026-11-04" }).getAttribute("href")).toBe(
       "https://exemple.org/verif",
     );

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-22T00:00:00.000Z",
+  "generatedAt": "2026-11-04T00:00:00.000Z",
   "title": "Design System: Keelson",
   "extensions": {
     "colorMeta": {
@@ -273,12 +273,57 @@
           "oklch(0.81 0.04 230)",
           "oklch(0.95 0.04 230)"
         ]
+      },
+      "layer-build": {
+        "role": "tertiary",
+        "displayName": "Verdigris",
+        "canonical": "oklch(0.8 0.1 165)",
+        "tonalRamp": [
+          "oklch(0.15 0.1 165)",
+          "oklch(0.26 0.1 165)",
+          "oklch(0.37 0.1 165)",
+          "oklch(0.48 0.1 165)",
+          "oklch(0.59 0.1 165)",
+          "oklch(0.70 0.1 165)",
+          "oklch(0.81 0.1 165)",
+          "oklch(0.95 0.1 165)"
+        ]
+      },
+      "layer-test": {
+        "role": "tertiary",
+        "displayName": "Orchid",
+        "canonical": "oklch(0.8 0.1 310)",
+        "tonalRamp": [
+          "oklch(0.15 0.1 310)",
+          "oklch(0.26 0.1 310)",
+          "oklch(0.37 0.1 310)",
+          "oklch(0.48 0.1 310)",
+          "oklch(0.59 0.1 310)",
+          "oklch(0.70 0.1 310)",
+          "oklch(0.81 0.1 310)",
+          "oklch(0.95 0.1 310)"
+        ]
+      },
+      "layer-operate": {
+        "role": "tertiary",
+        "displayName": "Lichen",
+        "canonical": "oklch(0.82 0.1 115)",
+        "tonalRamp": [
+          "oklch(0.15 0.1 115)",
+          "oklch(0.26 0.1 115)",
+          "oklch(0.37 0.1 115)",
+          "oklch(0.48 0.1 115)",
+          "oklch(0.59 0.1 115)",
+          "oklch(0.70 0.1 115)",
+          "oklch(0.81 0.1 115)",
+          "oklch(0.95 0.1 115)"
+        ]
       }
     },
     "typographyMeta": {
       "lg": {
         "displayName": "Heading",
-        "purpose": "The top of the ramp and the only heading size: the job detail panel's job id and every state-screen heading."
+        "purpose": "The top of the ramp and the only heading size: the job detail panel's job id, the tool panel's tool name and every state-screen heading."
       },
       "base": {
         "displayName": "Body",
@@ -294,19 +339,19 @@
       },
       "2xs": {
         "displayName": "Label Voice",
-        "purpose": "Uppercase labels at 0.06em: field labels, section labels, tags, notice chips, severity words, counts, and Keelson's half of the origin badge. The floor of the ramp; nothing functional goes below 11px."
+        "purpose": "Uppercase labels at 0.06em: field labels, section labels, catalogue column headings, tags, layer tags, notice chips, severity words, counts, and Keelson's half of the origin badge. The floor of the ramp; nothing functional goes below 11px."
       }
     },
     "motion": [
       {
         "name": "duration-fast",
         "value": "140ms",
-        "purpose": "The only duration in the system. Colour transitions on hover and focus; collapsed to 0ms at the token layer under prefers-reduced-motion, so no component carries an override."
+        "purpose": "The only duration in the system. Colour transitions on hover and focus, and the partial pipeline bar's chevron rotation; collapsed to 0ms at the token layer under prefers-reduced-motion, so no component carries an override."
       },
       {
         "name": "ease-out",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "The only easing curve, applied to colour only. There is no entrance, exit or layout animation in the product."
+        "purpose": "The only easing curve, applied to colour and to the partial pipeline bar's chevron rotation. There is no entrance, exit or layout animation in the product."
       }
     ],
     "graphMetrics": [
@@ -343,17 +388,17 @@
       {
         "name": "keelson-panel-width",
         "value": "352px",
-        "purpose": "Both side columns."
+        "purpose": "Both side columns and the tool panel."
       },
       {
         "name": "keelson-canvas-min-width",
         "value": "320px",
-        "purpose": "Floor on the graph canvas so two panels cannot crush it to zero; also what keeps 400% zoom legible on a 1280px laptop (WCAG 1.4.10)."
+        "purpose": "Floor on the graph canvas so two panels cannot crush it to zero."
       },
       {
         "name": "keelson-header-height",
         "value": "44px",
-        "purpose": "Application header."
+        "purpose": "Minimum height of the application header, which wraps its controls."
       },
       {
         "name": "keelson-focus-ring-width",
@@ -386,7 +431,12 @@
         "purpose": "Read by Tailwind for the bare `border` class. The one token with no direct component consumer, documented as such in the orphan-token test."
       }
     ],
-    "breakpoints": []
+    "breakpoints": [
+      {
+        "name": "lg",
+        "value": "64rem"
+      }
+    ]
   },
   "components": [
     {
@@ -417,15 +467,15 @@
       "name": "Job Node",
       "kind": "card",
       "refersTo": "job-node",
-      "description": "The graph's unit. A button with aria-pressed; selected state is an accent border plus the raised fill, which is also the hover fill.",
+      "description": "The graph's unit. A button with aria-pressed; selected state is an accent border plus the raised fill, which is also the hover fill. An included job steps down to surface-1, loses its hover, drops the origin badge and takes a read-only tag; on the coverage overlay layer tags replace the stage line and the chosen layer's nodes take a 2px accent outline.",
       "html": "<button class=\"ds-job-node\" aria-pressed=\"false\"><span class=\"ds-job-node__id\">deploy-production</span><span class=\"ds-job-node__meta\"><span class=\"ds-job-node__stage\">deploy</span><span class=\"ds-origin\"><svg class=\"ds-origin__mark\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4.5 3v5a2 2 0 0 0 2 2H12\"/><path d=\"M9.5 7.5l2.5 2.5-2.5 2.5\"/></svg><span class=\"ds-origin__label\">inherited from</span><span class=\"ds-origin__source\">.deploy-base</span></span></span></button>",
-      "css": ".ds-job-node { display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 232px; height: 64px; padding: 8px 10px; text-align: left; background: var(--color-surface-2); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); } .ds-job-node:hover { background: var(--color-surface-3); } .ds-job-node[aria-pressed=\"true\"] { background: var(--color-surface-3); border-color: var(--color-accent); } .ds-job-node:focus-visible { outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-job-node__id { font-family: var(--font-sans); font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-job-node__meta { display: flex; align-items: center; gap: 4px; overflow: hidden; } .ds-job-node__stage { font-family: var(--font-mono); font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--color-text-muted); }"
+      "css": ".ds-job-node { display: flex; flex-direction: column; justify-content: center; gap: 2px; width: 232px; height: 64px; padding: 8px 10px; text-align: left; background: var(--color-surface-2); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); } .ds-job-node:not([data-included=\"true\"]):hover { background: var(--color-surface-3); } .ds-job-node[aria-pressed=\"true\"] { background: var(--color-surface-3); border-color: var(--color-accent); } .ds-job-node[data-included=\"true\"] { background: var(--color-surface-1); } .ds-job-node[data-included=\"true\"][aria-pressed=\"true\"] { background: var(--color-surface-3); } .ds-job-node[data-emphasised=\"true\"] { outline: 2px solid var(--color-accent); } .ds-job-node:focus-visible { outline: var(--keelson-focus-ring-width) solid var(--color-accent); outline-offset: var(--keelson-focus-ring-offset); } .ds-job-node__id { font-family: var(--font-sans); font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-job-node__meta { display: flex; align-items: center; gap: 4px; overflow: hidden; } .ds-job-node__stage { font-family: var(--font-mono); font-size: var(--text-xs); line-height: var(--text-xs--line-height); color: var(--color-text-muted); }"
     },
     {
       "name": "Origin Badge",
       "kind": "custom",
       "refersTo": "origin-badge",
-      "description": "The signature component. Names where an inherited value came from, in two registers: Keelson's wording in small caps, the file's string in monospace with its original case preserved.",
+      "description": "The signature component. Names where an inherited value came from, in two registers: Keelson's wording in small caps, the file's string in monospace with its original case preserved. Rendered on an editable job node of the Pipeline view and in the detail panel; an included node and the coverage overlay carry none.",
       "html": "<span class=\"ds-origin\" title=\"This value is inherited. Changing it writes an explicit override in this job and never touches the template.\"><svg class=\"ds-origin__mark\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4.5 3v5a2 2 0 0 0 2 2H12\"/><path d=\"M9.5 7.5l2.5 2.5-2.5 2.5\"/></svg><span class=\"ds-origin__label\">inherited from</span><span class=\"ds-origin__source\">.deploy-base</span></span>",
       "css": ".ds-origin { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-medium); color: var(--color-text-muted); } .ds-origin__mark { width: 1em; height: 1em; flex-shrink: 0; } .ds-origin__label { flex-shrink: 0; letter-spacing: var(--tracking-label); text-transform: uppercase; } .ds-origin__source { font-family: var(--font-mono); text-transform: none; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }"
     },
@@ -433,9 +483,17 @@
       "name": "Tag",
       "kind": "chip",
       "refersTo": "tag",
-      "description": "Marks a qualifier on a value: optional, no artifacts, read-only, implicit. Transparent, outlined, in the label voice.",
+      "description": "Marks a qualifier on a value: optional, no artifacts, read-only, implicit, the count of included files, the form of an unresolved include. Transparent, outlined, in the label voice.",
       "html": "<span class=\"ds-tag\">optional</span>",
       "css": ".ds-tag { display: inline-block; background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; }"
+    },
+    {
+      "name": "Layer Tag",
+      "kind": "chip",
+      "refersTo": "layer-tag-build",
+      "description": "Colours the family of a layer while the word names the layer. The platform family takes no hue. Spells the short name, carries the full name in title, and truncates.",
+      "html": "<span class=\"ds-layer-row\"><span class=\"ds-layer ds-layer--build\" title=\"Software composition analysis\">SCA</span><span class=\"ds-layer ds-layer--test\" title=\"Dynamic testing\">DAST</span><span class=\"ds-layer ds-layer--operate\" title=\"Compliance\">Compliance</span><span class=\"ds-layer ds-layer--platform\" title=\"Artifact repositories and registries\">Registry</span><span class=\"ds-layer-more\">+2</span></span>",
+      "css": ".ds-layer-row { display: flex; align-items: center; gap: 4px; } .ds-layer { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: transparent; border: 1px solid; border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; } .ds-layer--build { border-color: var(--color-layer-build); color: var(--color-layer-build); } .ds-layer--test { border-color: var(--color-layer-test); color: var(--color-layer-test); } .ds-layer--operate { border-color: var(--color-layer-operate); color: var(--color-layer-operate); } .ds-layer--platform { border-color: var(--color-border-default); color: var(--color-text-secondary); } .ds-layer-more { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }"
     },
     {
       "name": "Diagnostics Row",
@@ -465,9 +523,17 @@
       "name": "Application Header",
       "kind": "nav",
       "refersTo": "app-header",
-      "description": "Not navigation: an identity-and-state bar. Product name, open file path, the in-flight write indicator (role=\"status\", a rounded-sm accent dot plus the label voice in the interface sans), and the undo/redo pair.",
-      "html": "<header class=\"ds-header\"><span class=\"ds-header__left\"><span class=\"ds-header__name\">Keelson</span><span class=\"ds-header__file\">.gitlab-ci.yml</span></span><span class=\"ds-header__right\"><span role=\"status\" class=\"ds-pending\"><span class=\"ds-pending__dot\" aria-hidden=\"true\"></span>Writing</span><button class=\"ds-btn\">Undo</button><button class=\"ds-btn\">Redo</button></span></header>",
-      "css": ".ds-header { display: flex; height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: var(--color-surface-0); border-bottom: 1px solid var(--color-border-subtle); } .ds-header__left { display: flex; align-items: baseline; gap: 8px; overflow: hidden; } .ds-header__name { font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); } .ds-header__file { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-header__right { display: flex; flex-shrink: 0; align-items: center; gap: 12px; } .ds-pending { display: flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-text-muted); } .ds-pending__dot { width: 6px; height: 6px; border-radius: var(--radius-sm); background: var(--color-accent); } .ds-header .ds-btn { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 4px 8px; font-family: var(--font-sans); font-size: var(--text-xs); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out); } .ds-header .ds-btn:hover { background: var(--color-surface-3); }"
+      "description": "An identity-and-state bar of at least 44px holding the product's one navigation group. Product name, open file path, the in-flight write indicator (role=\"status\", a rounded-sm accent dot plus the label voice in the interface sans), the Views navigation, and the undo/redo pair on the Pipeline view.",
+      "html": "<header class=\"ds-header\"><span class=\"ds-header__left\"><span class=\"ds-header__name\">Keelson</span><span class=\"ds-header__file\">.gitlab-ci.yml</span></span><span class=\"ds-header__right\"><span role=\"status\" class=\"ds-pending\"><span class=\"ds-pending__dot\" aria-hidden=\"true\"></span>Writing</span><nav aria-label=\"Views\" class=\"ds-views\"><button class=\"ds-btn\" aria-current=\"page\">Pipeline</button><button class=\"ds-btn\">Coverage</button><button class=\"ds-btn\">Catalog</button></nav><button class=\"ds-btn\">Undo</button><button class=\"ds-btn\">Redo</button></span></header>",
+      "css": ".ds-header { display: flex; flex-wrap: wrap; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: var(--color-surface-0); border-bottom: 1px solid var(--color-border-subtle); } .ds-header__left { display: flex; align-items: baseline; gap: 8px; overflow: hidden; } .ds-header__name { font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); } .ds-header__file { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-header__right { display: flex; flex-shrink: 0; align-items: center; gap: 12px; } .ds-pending { display: flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-text-muted); } .ds-pending__dot { width: 6px; height: 6px; border-radius: var(--radius-sm); background: var(--color-accent); } .ds-header .ds-btn { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 4px 8px; font-family: var(--font-sans); font-size: var(--text-xs); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out); } .ds-header .ds-btn:hover { background: var(--color-surface-3); } .ds-views { display: flex; align-items: center; gap: 4px; } .ds-header .ds-btn[aria-current=\"page\"] { background: var(--color-surface-3); border-color: var(--color-accent); color: var(--color-text-primary); font-weight: var(--font-weight-semibold); }"
+    },
+    {
+      "name": "Partial Pipeline Bar",
+      "kind": "custom",
+      "refersTo": "partial-pipeline-bar",
+      "description": "A hairline-ruled disclosure under the header, on every view, when includes are unresolved. No severity hue, no Dismiss button, no live region, and its entries are not clickable.",
+      "html": "<div role=\"group\" aria-label=\"Partial pipeline\" class=\"ds-partial\"><details open class=\"ds-partial__details\"><summary class=\"ds-partial__summary\"><svg class=\"ds-partial__chevron\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 4l4 4-4 4\"/></svg><span class=\"ds-partial__label\">Partial pipeline</span><span class=\"ds-partial__count\">1 unresolved include</span><span>Some includes are not resolved, so jobs may be missing from this view.</span></summary><ul class=\"ds-partial__list\"><li class=\"ds-partial__entry\"><span class=\"ds-partial__form\">remote</span><span class=\"ds-partial__detail\">https://example.com/ci.yml</span><span class=\"ds-partial__label ds-partial__label--plain\">declared in</span><span class=\"ds-partial__from\">.gitlab-ci.yml</span></li></ul></details></div>",
+      "css": ".ds-partial { padding: 6px 12px; background: var(--color-surface-1); border-bottom: 1px solid var(--color-border-subtle); } .ds-partial__summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; font-family: var(--font-sans); font-size: var(--text-sm); line-height: var(--text-sm--line-height); color: var(--color-text-secondary); } .ds-partial__chevron { width: 1em; height: 1em; transition: transform var(--duration-fast) var(--ease-out); } .ds-partial__details[open] .ds-partial__chevron { transform: rotate(90deg); } .ds-partial__label { font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); font-weight: var(--font-weight-semibold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-text-muted); } .ds-partial__label--plain { font-weight: normal; } .ds-partial__count { font-family: var(--font-mono); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; color: var(--color-text-muted); } .ds-partial__list { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; } .ds-partial__entry { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .ds-partial__form { border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); padding: 0 4px; font-family: var(--font-sans); font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-text-muted); } .ds-partial__detail { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-secondary); word-break: break-all; } .ds-partial__from { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); }"
     }
   ],
   "narrative": {
@@ -480,17 +546,19 @@
       "An 11 / 12 / 13 / 15 / 19px interface ramp, floored at 11px by test, on a 4px spacing base.",
       "Monospace for every string that came out of the user's YAML; sans-serif for everything Keelson wrote about it.",
       "Icons are inline SVG inheriting currentColor at 1em; no text character is ever used as a mark.",
-      "Every inherited value carries an origin badge naming where it came from."
+      "Three layer-family hues, only on layer tags and always beside the word that names the layer.",
+      "One breakpoint, lg, below which three panels become full-screen overlays (ADR 0008).",
+      "An origin badge names where an inherited value came from, in the detail panel and on an editable job node of the Pipeline view; an included node and the coverage overlay carry none."
     ],
     "rules": [
       {
         "name": "The Attention Accent Rule",
-        "body": "The accent marks what is being acted on and nothing else: the selection and its edges, the focused control, the write in flight, and the key side of YAML in the viewer. It is never a fill behind text, never a button background, never a panel tint. There is no text-on-accent token, and that absence is the enforcement.",
+        "body": "The accent marks what is being acted on and nothing else: the selection and its edges, the chosen layer and its nodes, the current view, the focused control, the write in flight, a panel's primary link, and the key side of YAML in the viewer. It is never a fill behind text, never a button background, never a panel tint. There is no text-on-accent token, and that absence is the enforcement.",
         "section": "colors"
       },
       {
         "name": "The Tested-Contrast Rule",
-        "body": "Every text-on-surface and component-border-on-surface pair the product can produce is recomputed by packages/ui/test/tokens.test.ts and fails below 4.5:1 (text) or 3:1 (component boundary), with surface-3 included because it is the hover and selected fill. A grey is never darkened back down because it \"looked quieter\".",
+        "body": "Every text-on-surface and component-border-on-surface pair the product can produce is recomputed by packages/ui/test/tokens.test.ts and fails below 4.5:1 (text) or 3:1 (component boundary), with surface-3 included because it is the hover and selected fill. A grey is never darkened back down because it \"looked quieter\". The layer hues are held to the 4.5:1 text threshold on surface-3, because a layer tag's text sits on a selected node.",
         "section": "colors"
       },
       {
@@ -499,8 +567,13 @@
         "section": "colors"
       },
       {
+        "name": "The Family-Colour Rule",
+        "body": "Colour groups a layer's family; the word names the layer. A layer is never read from its hue: every layer tag spells the layer's short name and carries its full name in title, and the platform family takes no hue at all.",
+        "section": "colors"
+      },
+      {
         "name": "The Grey Default Rule",
-        "body": "A new surface starts entirely in the neutral ramp. A hue has to be earned by selection, focus, a write in flight, or a diagnostic severity; \"this feels important\" is not a justification.",
+        "body": "A new surface starts entirely in the neutral ramp. A hue has to be earned by selection, focus, a write in flight, a diagnostic severity, or a layer family on a layer tag; \"this feels important\" is not a justification.",
         "section": "colors"
       },
       {
@@ -510,12 +583,12 @@
       },
       {
         "name": "The Monospace-Means-File Rule",
-        "body": "Monospace is reserved for text that exists in the user's YAML — job ids as values, stage names, need targets, environment keys and values, diagnostic codes, file paths, template names, opaque blocks — plus tabular counts, where it buys numeral alignment. Prose Keelson wrote is set in the interface sans.",
+        "body": "Monospace is reserved for text that exists in the user's YAML — job ids as values, stage names, need targets, environment keys and values, diagnostic codes, file paths, template names, opaque blocks — plus tabular counts, where it buys numeral alignment, and licence identifiers in the catalogue. Prose Keelson wrote is set in the interface sans.",
         "section": "typography"
       },
       {
         "name": "The Small-Caps Label Rule",
-        "body": "A label naming a field, a section, a severity or a tag is 11px semibold uppercase at 0.06em tracking. Uppercase appears nowhere else: not on a heading, not on a sentence-shaped button, and never as a standalone line of copy above a title.",
+        "body": "A label naming a field, a section, a table column, a severity or a tag is 11px semibold uppercase at 0.06em tracking. Uppercase appears nowhere else: not on a heading, not on a sentence-shaped button, and never as a standalone line of copy above a title.",
         "section": "typography"
       },
       {
@@ -540,7 +613,12 @@
       },
       {
         "name": "The Conditional Column Rule",
-        "body": "Side columns are present or absent, never collapsed to a sliver. The sidebar appears only when a pipeline is loaded and editable; the detail column appears only when a job is selected, and closing it returns focus to the graph.",
+        "body": "Side columns are present or absent, never collapsed to a sliver. The sidebar appears only when a pipeline is loaded and no diagnostic blocks it; the detail column appears only when a job is selected, and closing it returns focus to the graph. Neither appears on the Catalog view, and below lg the sidebar stays closed until the Panel button opens it.",
+        "section": "layout"
+      },
+      {
+        "name": "The One-Breakpoint Rule",
+        "body": "lg is the product's only breakpoint, and ADR 0008 is its only licence: below it the job detail panel, the left sidebar and the tool panel become full-screen overlays. It moves those three panels and touches nothing else.",
         "section": "layout"
       },
       {
@@ -567,6 +645,11 @@
         "name": "The Drawn-Mark Rule",
         "body": "Every mark is drawn as SVG. A text character is never used as an icon: ✕ ! i ↳ ← → rendered at the mercy of the reader's font stack, and the system does not accept a glyph whose shape it cannot guarantee.",
         "section": "shapes"
+      },
+      {
+        "name": "The Read-Only Object Rule",
+        "body": "A job Keelson will never write stays an object. It steps down one plane and loses its hover, but it keeps its border-default boundary, says read-only in words, and gets no editor.",
+        "section": "components"
       }
     ],
     "dos": [
@@ -579,10 +662,12 @@
       "Do keep Keelson's wording and the file's wording in different registers inside the same element, and leave file strings in their original case (The Two-Register Rule).",
       "Do draw every mark as inline SVG that inherits currentColor and sizes in em (The Drawn-Mark Rule).",
       "Do pair every severity colour with the severity word and a distinct silhouette (The Never-Hue-Alone Rule).",
+      "Do let a layer's hue group its family and its word name it (The Family-Colour Rule).",
+      "Do keep a job from an included file an object: one plane down, no hover, border-default, the word read-only, no editor (The Read-Only Object Rule).",
       "Do give a destructive action a confirmation that owns focus: role=\"alertdialog\", aria-modal, focus into the confirm button, Escape cancels without closing the panel behind it, focus back to the trigger (The Inline-Modal Rule).",
       "Do announce an in-flight write with role=\"status\" and disable the controls it affects.",
       "Do give an unreadable or missing region an explicit, worded state rather than an empty box.",
-      "Do animate only colour, only on hover and focus, only through var(--duration-fast) with --ease-out, so the reduced-motion collapse at the token layer keeps working without !important.",
+      "Do animate only colour, only on hover and focus, only through var(--duration-fast) with --ease-out, so the reduced-motion collapse at the token layer keeps working without !important. The partial pipeline bar's chevron rotation is the one transform, on the same two tokens.",
       "Do give a container-like grouping role=\"group\" with an aria-label rather than a <section>, so stage columns, opaque blocks and sidebar sections stay out of the landmark list."
     ],
     "donts": [
@@ -591,14 +676,15 @@
       "Don't set functional text below 11px, and don't add a size between the existing steps or above 19px (The Eleven-Pixel Floor Rule, The Nineteen-Pixel Ceiling Rule).",
       "Don't darken border-default, border-strong or text-muted back toward a quieter dark-theme grey; those three values are where they are because the contrast test put them there.",
       "Don't use border-subtle on surface-3: it is the same lightness as that plane and will disappear. It is a divider for surface-0/surface-1, and it is exempt from 3:1 precisely because it is never a component boundary.",
+      "Don't close a shape with border-subtle anywhere but the stage column. Every other use is a rule on one named edge; packages/ui/test/tokens.test.ts fails otherwise.",
       "Don't use uppercase outside the 11px label voice — no uppercase headings, no uppercase sentence buttons, and no uppercase standalone line of copy above a title (The Small-Caps Label Rule).",
       "Don't upper-case, truncate-in-the-middle or otherwise restyle a string that came from the user's file. It is data on screen.",
       "Don't use a text character as an icon (The Drawn-Mark Rule).",
       "Don't add a radius outside 3 / 5 / 8px, and don't give a full-bleed band a radius at all.",
-      "Don't thicken a border to signal importance; move along the border ramp instead. The only 2px stroke is the focus ring, and the only weighted stroke is the dependency edge, whose two weights are tokens.",
-      "Don't introduce a light theme or a second accent hue; color-scheme: dark is a commitment and the severity hues are the only other colours.",
+      "Don't thicken a border to signal importance; move along the border ramp instead. The only 2px strokes are the focus ring and the layer emphasis, both outlines, and the only weighted stroke is the dependency edge, whose two weights are tokens.",
+      "Don't introduce a light theme or a second accent hue; color-scheme: dark is a commitment and the severity and layer-family hues are the only other colours.",
       "Don't write a node size, column gap or row gap in TypeScript; it belongs in tokens.css and is read at runtime (The Tokenised Geometry Rule).",
-      "Don't add breakpoint-specific styling to make the shell reflow on a narrow viewport. The frame scrolls horizontally by design and the canvas is floored at 320px; a reflow would be a new layout decision, not a fix.",
+      "Don't add breakpoint-specific styling to make the shell reflow on a narrow viewport. The one exception is ADR 0008: below lg, the job detail panel, the left sidebar and the tool panel become full-screen overlays. Any other reflow would be a new layout decision, not a fix.",
       "Don't smuggle in the rejected worlds: no revision bars or specification-sheet margins, no wiring-schematic ornament, no high-density Japanese grid, no transit-diagram line styling."
     ]
   }

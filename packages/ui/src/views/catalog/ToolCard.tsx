@@ -47,8 +47,9 @@ export function ToolCard({ tool, logo, onClose }: ToolCardProps) {
       <dl className="flex flex-col gap-1 text-sm">
         <div className="flex gap-2">
           <dt className="text-text-muted">License</dt>
-          <dd data-testid="tool-license" className="font-mono text-xs text-text-secondary">
-            {tool.license} · {isOpenSource(tool) ? "open source" : "not open source"}
+          <dd data-testid="tool-license" className="text-text-secondary">
+            <span className="font-mono text-xs">{tool.license}</span> ·{" "}
+            {isOpenSource(tool) ? "open source" : "not open source"}
           </dd>
         </div>
         <div className="flex gap-2">

@@ -33,8 +33,8 @@ export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
   return (
     <div className="flex h-full min-h-0 max-lg:flex-col">
       <section aria-label="Tool catalogue" className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <form className="grid shrink-0 grid-cols-3 gap-2 border-b border-border-subtle p-3 max-lg:grid-cols-1">
-          <label className={GROUP}>
+        <form className="flex shrink-0 flex-wrap gap-2 border-b border-border-subtle p-3">
+          <label className={`${GROUP} min-w-40 flex-1`}>
             <span className={LABEL}>Layer</span>
             <select
               className={FIELD}
@@ -51,7 +51,7 @@ export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
               ))}
             </select>
           </label>
-          <label className={GROUP}>
+          <label className={`${GROUP} min-w-40 flex-1`}>
             <span className={LABEL}>License</span>
             <select
               className={FIELD}
@@ -65,7 +65,7 @@ export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
               <option value="other">Source-available or commercial</option>
             </select>
           </label>
-          <label className={GROUP}>
+          <label className={`${GROUP} min-w-40 flex-1`}>
             <span className={LABEL}>Adapter</span>
             <select
               className={FIELD}

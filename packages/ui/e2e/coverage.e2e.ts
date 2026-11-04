@@ -73,7 +73,7 @@ test.describe("couverture sur le binaire réel", () => {
       await page.getByRole("button", { name: "Coverage" }).click();
 
       const row = page
-        .getByRole("region", { name: "Uncovered OWASP layers" })
+        .getByRole("group", { name: "Uncovered OWASP layers" })
         .getByRole("listitem")
         .filter({ hasText: "Dynamic testing" });
       await row.getByRole("button", { name: "See tools" }).click();
@@ -205,6 +205,7 @@ test.describe("couverture sur le binaire réel", () => {
       await page.getByRole("button", { name: "Catalog" }).click();
       await page.getByRole("button", { name: /^ZAP/ }).scrollIntoViewIfNeeded();
       await expect(page.getByLabel("Layer")).toBeInViewport();
+      await expect(page.getByLabel("Adapter")).toBeInViewport();
     } finally {
       await keelson.stop();
     }
