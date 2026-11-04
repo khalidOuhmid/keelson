@@ -45,7 +45,7 @@ export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayo
 
   const known = new Set(pipeline.jobs.map((job) => job.id));
   const diagnostics: Diagnostic[] = [];
-  const overrides: Record<string, readonly LayerId[]> = Object.create(null);
+  const overrides: Record<string, readonly LayerId[]> = {};
 
   for (const [job, layers] of Object.entries(parsed.data.layers)) {
     if (!known.has(job)) {
