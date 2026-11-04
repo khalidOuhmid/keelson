@@ -410,6 +410,22 @@ describe("coverage.changed pendant une opération", () => {
     expect(state().canUndo()).toBe(true);
   });
 
+  test("une opération qui échoue sans 409 laisse le rechargement dû se faire", async () => {
+    const settle = held();
+    const submitted = addStage("verify");
+    api.queueDocument({ ok: true, value: documentPayload(HASH_C) });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+    expect(state().hash).toBe(HASH_A);
+
+    api.queueDocument({ ok: true, value: documentPayload(HASH_C) });
+    const error = { status: 500, code: "INTERNAL_ERROR", params: {} } as const;
+    settle({ ok: false, error });
+    await submitted;
+
+    expect(state().hash).toBe(HASH_C);
+    expect(state().error).toEqual(error);
+  });
+
   test("une couverture au hash déjà atteint s'applique", async () => {
     let answer: (result: ApiResult<DocumentPayload>) => void = () => {};
     api.document = () =>

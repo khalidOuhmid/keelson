@@ -143,4 +143,15 @@ describe("fusion d'extends et jobs sans exécution", () => {
   ])("une map fusionnée sur elle-même ne fait pas planter le parse : %s", (_label, text) => {
     expect(signals(`default:\n  image: d\n\n${text}`)?.image).toBe("d");
   });
+
+  test("des ancres en diamant se parcourent en temps linéaire", () => {
+    const levels = Array.from({ length: 20 }, (_, index) =>
+      index === 0
+        ? ".x0: &x0\n  a: 1\n"
+        : `.x${index}: &x${index}\n  <<: [*x${index - 1}, *x${index - 1}]\n`,
+    );
+    const started = performance.now();
+    signals(`${levels.join("")}job:\n  <<: *x19\n  script: a\n`);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
 });

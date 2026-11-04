@@ -116,11 +116,14 @@ export function watchDocuments(
         if (closed) {
           return;
         }
-        if (entry.companion) {
-          void reloadCoverage(entry, absolute);
-          return;
-        }
-        void (entry.file === entry.main ? inspectMain(entry.main) : reloadMain(entry.main));
+        const inspected = entry.companion
+          ? reloadCoverage(entry, absolute)
+          : entry.file === entry.main
+            ? inspectMain(entry.main)
+            : reloadMain(entry.main);
+        // Un fichier que le parseur ne sait pas lire ne doit pas tuer le serveur : sous Node, un
+        // rejet non géré met fin au processus. L'écran garde le dernier état lisible.
+        inspected.catch(() => {});
       }, DEBOUNCE_MS),
     );
   };

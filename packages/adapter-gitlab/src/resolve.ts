@@ -263,7 +263,7 @@ function entryAt(
   node: AnyNode,
   key: string,
   document: Document.Parsed,
-  visited: ReadonlySet<YAMLMap> = new Set(),
+  visited: Set<YAMLMap> = new Set(),
 ): AnyNode {
   const target = isAlias(node) ? node.resolve(document) : node;
   if (!isMap(target)) {
@@ -275,13 +275,14 @@ function entryAt(
     return pair.value as AnyNode;
   }
 
-  // `job: &a` suivi de `<<: *a` est du YAML valide : une map peut se fusionner sur elle-même.
-  const seen = new Set(visited).add(target);
+  // `job: &a` suivi de `<<: *a` est du YAML valide : une map peut se fusionner sur elle-même. Une
+  // map déjà parcourue n'avait pas la clé : l'ensemble est partagé, un diamant reste linéaire.
+  visited.add(target);
   for (const merge of anchorMerges(target, document)) {
-    if (seen.has(merge.map)) {
+    if (visited.has(merge.map)) {
       continue;
     }
-    const merged = entryAt(merge.map, key, document, seen);
+    const merged = entryAt(merge.map, key, document, visited);
     if (merged !== undefined) {
       return merged;
     }

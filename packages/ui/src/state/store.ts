@@ -90,6 +90,11 @@ export type KeelsonState = {
 
 export type KeelsonStore = StoreApi<KeelsonState>;
 
+const RELOADED: Notice = {
+  kind: "reloaded",
+  message: "The file changed on disk and was reloaded.",
+};
+
 export function createStore(dependencies: StoreDependencies): KeelsonStore {
   let undoStack: HistoryEntry[] = [];
   let redoStack: HistoryEntry[] = [];
@@ -118,6 +123,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         error: null,
       });
     };
+
+    /** Un `coverage.changed` a vu un autre hash pendant une opération : c'est la réponse de celle-ci
+     *  qui tranche, et seul un échec sans 409 laisse le rechargement à faire. */
+    let reloadOwed = false;
 
     const reload = async (file: string, notice: Notice): Promise<void> => {
       const result = await dependencies.document(file);
@@ -156,6 +165,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       set({ pending: true });
       const result = await dependencies.submit(file, op, dependencies.newOpId());
       set({ pending: false });
+      const owed = reloadOwed;
+      reloadOwed = false;
 
       if (result.ok) {
         applyPayload(result.value);
@@ -178,6 +189,9 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         return;
       }
 
+      if (owed) {
+        await reload(file, RELOADED);
+      }
       set({ error: result.error });
     };
 
@@ -360,19 +374,18 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           }
           // Autre hash sans opération de ce client : le serveur ne diffuse pas ses écritures, aucun
           // `document.changed` ne suivra. Avec une opération, c'est sa réponse qui fait foi.
-          if (get().hash === known && !get().pending) {
-            await reload(event.file, {
-              kind: "reloaded",
-              message: "The file changed on disk and was reloaded.",
-            });
+          if (get().hash !== known) {
+            return;
           }
+          if (get().pending) {
+            reloadOwed = true;
+            return;
+          }
+          await reload(event.file, RELOADED);
           return;
         }
 
-        await reload(event.file, {
-          kind: "reloaded",
-          message: "The file changed on disk and was reloaded.",
-        });
+        await reload(event.file, RELOADED);
       },
 
       dismissNotice() {

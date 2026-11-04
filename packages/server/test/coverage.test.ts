@@ -174,6 +174,24 @@ describe("layout.json et fichier principal changent ensemble", () => {
   });
 });
 
+describe("un fichier que le parseur ne sait pas lire", () => {
+  test("ne laisse aucun rejet non géré au watcher", async () => {
+    const rejections: unknown[] = [];
+    const record = (reason: unknown) => rejections.push(reason);
+    process.on("unhandledRejection", record);
+    await store.load(".gitlab-ci.yml");
+    const watcher = watchDocuments(root, store, () => {});
+    try {
+      writeFileSync(join(root, ".gitlab-ci.yml"), "job:\n  script: &s [a, *s]\n");
+      await new Promise((settle) => setTimeout(settle, 200));
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+      watcher.close();
+    }
+  });
+});
+
 describe("GET /api/catalog", () => {
   let harness: Harness;
 
