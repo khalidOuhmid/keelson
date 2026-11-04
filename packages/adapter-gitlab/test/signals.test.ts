@@ -63,7 +63,7 @@ describe("les valeurs effectives de D1", () => {
   });
 
   test("un script global n'existe pas : seul celui du job compte", () => {
-    expect(signals("job:\n  stage: test\n")?.script).toEqual([]);
+    expect(signals("script:\n  - global\n\njob:\n  stage: test\n")?.script).toEqual([]);
   });
 
   test("inherit: default: false coupe default et les clés globales", () => {
