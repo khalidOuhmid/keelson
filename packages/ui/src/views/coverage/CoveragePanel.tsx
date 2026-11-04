@@ -76,6 +76,7 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         </p>
       ) : null}
 
+      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
       <div role="group" aria-label="Uncovered OWASP layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Uncovered OWASP layers</h2>
         {uncovered.length === 0 ? (
@@ -91,6 +92,7 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
 
       {/* Une catégorie plateforme est un service autour du pipeline : ne pas la voir dans les jobs
           n'est pas une lacune de sécurité, et la mêler aux couches OWASP gonflait le manque. */}
+      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
       <div role="group" aria-label="Platform categories not seen" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Platform categories not seen</h2>
         {unseen.length === 0 ? (
@@ -104,6 +106,7 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         )}
       </div>
 
+      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
       <div role="group" aria-label="Covered layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Covered layers</h2>
         {covered.length === 0 ? (

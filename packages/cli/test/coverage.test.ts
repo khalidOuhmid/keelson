@@ -117,7 +117,7 @@ describe("keelson coverage", () => {
     const main = `include:\n  - template: Jobs/SAST.gitlab-ci.yml\n\n${JOBS.split("\n").slice(2).join("\n")}`;
     const { stdout } = await run(["coverage"], { cwd: tree(main) });
     expect(stdout).toContain(
-      "partial: some includes are not resolved, so coverage is a lower bound",
+      "partial: part of the pipeline could not be read, so coverage is a lower bound",
     );
     expect((await json(tree(main))).body.partial).toBe(true);
   });

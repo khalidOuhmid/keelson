@@ -121,7 +121,7 @@ export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
                       </button>
                     </td>
                     <td className="px-2 py-1">
-                      <span className="flex items-center gap-1">
+                      <span className="flex flex-wrap items-center gap-1">
                         <LayerTags layers={tool.layers} limit={2} />
                       </span>
                     </td>

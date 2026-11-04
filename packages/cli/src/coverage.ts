@@ -14,7 +14,11 @@ function usage(message: string): CliResult {
   return { stdout: "", stderr: `keelson coverage: ${message}\n`, exitCode: 2 };
 }
 
-function missingRequired(required: readonly LayerId[], result: Coverage): Diagnostic[] {
+function missingRequired(
+  required: readonly LayerId[],
+  result: Coverage,
+  file: string,
+): Diagnostic[] {
   return required.flatMap((layer): Diagnostic[] =>
     result.layers.some((entry) => entry.layer === layer && entry.covered)
       ? []
@@ -24,7 +28,7 @@ function missingRequired(required: readonly LayerId[], result: Coverage): Diagno
             severity: "error",
             params: { layer, name: findLayer(layer).name },
             range: null,
-            file: "",
+            file,
           },
         ],
   );
@@ -37,7 +41,7 @@ function renderText(result: Coverage, messages: readonly string[]): string {
     return `${state}  ${entry.layer.padEnd(26)}${findLayer(entry.layer).name}${jobs}`;
   });
   if (result.partial) {
-    lines.push("", "partial: some includes are not resolved, so coverage is a lower bound");
+    lines.push("", "partial: part of the pipeline could not be read, so coverage is a lower bound");
   }
   return `${[...lines, ...messages].join("\n")}\n`;
 }
@@ -91,7 +95,7 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
     analysis.layout.overrides,
     analysis.result.diagnostics,
   );
-  const missing = missingRequired(requested.filter(isLayerId), result);
+  const missing = missingRequired(requested.filter(isLayerId), result, file);
   const unreadable = analysis.result.diagnostics.filter((entry) => entry.code === INVALID_YAML);
   const notes = [...unreadable, ...analysis.layout.diagnostics, ...missing];
 

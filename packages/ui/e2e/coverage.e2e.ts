@@ -206,6 +206,8 @@ test.describe("couverture sur le binaire réel", () => {
       await page.getByRole("button", { name: /^ZAP/ }).scrollIntoViewIfNeeded();
       await expect(page.getByLabel("Layer")).toBeInViewport();
       await expect(page.getByLabel("Adapter")).toBeInViewport();
+      const name = await page.getByRole("button", { name: /^ZAP/ }).boundingBox();
+      expect(name?.width).toBeGreaterThanOrEqual(100);
     } finally {
       await keelson.stop();
     }
