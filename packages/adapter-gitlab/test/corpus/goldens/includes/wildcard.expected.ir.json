@@ -33,6 +33,10 @@
           "file": "configs/a.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make a"]
+      },
       "range": {
         "start": 0,
         "end": 41
@@ -61,6 +65,10 @@
           "file": "configs/b.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make b"]
+      },
       "range": {
         "start": 0,
         "end": 41

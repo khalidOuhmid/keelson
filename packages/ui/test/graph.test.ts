@@ -27,6 +27,7 @@ function pipeline(
       environment: null,
       extends: [],
       opaque: [],
+      signals: { image: null, script: [] },
       range: { start: index * 100, end: index * 100 + 50 },
       file: MAIN,
     })),

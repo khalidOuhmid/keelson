@@ -69,6 +69,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["./gradlew -Pci --console=plain :app:lintDebug -PbuildDir=lint"]
+      },
       "range": {
         "start": 2930,
         "end": 3175
@@ -112,6 +116,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["./gradlew assembleDebug"]
+      },
       "range": {
         "start": 3191,
         "end": 3334
@@ -163,6 +171,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["./gradlew -Pci --console=plain :app:testDebug"]
+      },
       "range": {
         "start": 3398,
         "end": 3544

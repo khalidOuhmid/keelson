@@ -1,4 +1,12 @@
-import type { Diagnostic, Environment, Need, Origin, SourceRange, Valued } from "@keelson/core";
+import type {
+  Diagnostic,
+  Environment,
+  JobSignals,
+  Need,
+  Origin,
+  SourceRange,
+  Valued,
+} from "@keelson/core";
 import { EXTENDS_CYCLE, EXTENDS_TARGET_NOT_FOUND } from "@keelson/core";
 import {
   type Document,
@@ -441,6 +449,32 @@ function environmentFrom(raw: Record<string, unknown>): Environment | null {
     environment.action = raw.action;
   }
   return environment;
+}
+
+function scriptLines(node: AnyNode, file: string, context: ResolveContext): string[] {
+  const { node: target } = dereference(node, file, context);
+  if (isScalar(target)) {
+    return typeof target.value === "string" ? [target.value] : [];
+  }
+  return isSeq(target)
+    ? target.items.flatMap((item) => scriptLines(item as AnyNode, file, context))
+    : [];
+}
+
+const SCRIPT_SECTIONS = ["before_script", "script", "after_script"] as const;
+
+export function resolveSignals(sources: readonly Source[], context: ResolveContext): JobSignals {
+  const found = matches(sources, "image").at(-1);
+  const resolved = found === undefined ? null : dereference(found.node, found.file, context).node;
+  const named = isMap(resolved) ? (localPair(resolved, "name")?.value as AnyNode) : resolved;
+
+  return {
+    image: isScalar(named) && typeof named.value === "string" ? named.value : null,
+    script: SCRIPT_SECTIONS.flatMap((key) => {
+      const section = matches(sources, key).at(-1);
+      return section === undefined ? [] : scriptLines(section.node, section.file, context);
+    }),
+  };
 }
 
 export function resolveEnvironment(

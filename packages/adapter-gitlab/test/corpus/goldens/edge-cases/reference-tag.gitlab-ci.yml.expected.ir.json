@@ -41,6 +41,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["npm ci", "npm run build"]
+      },
       "range": {
         "start": 132,
         "end": 221
@@ -80,6 +84,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["npm ci", "npm test", "rm -rf node_modules"]
+      },
       "range": {
         "start": 222,
         "end": 377

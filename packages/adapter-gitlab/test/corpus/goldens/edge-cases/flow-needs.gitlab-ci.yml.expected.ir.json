@@ -41,6 +41,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo a"]
+      },
       "range": {
         "start": 28,
         "end": 65
@@ -68,6 +72,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo b"]
+      },
       "range": {
         "start": 66,
         "end": 103
@@ -111,6 +119,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo c"]
+      },
       "range": {
         "start": 104,
         "end": 156

@@ -149,6 +149,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": []
+      },
       "range": {
         "start": 8070,
         "end": 8119

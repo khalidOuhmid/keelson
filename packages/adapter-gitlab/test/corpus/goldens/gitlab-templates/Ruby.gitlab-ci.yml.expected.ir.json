@@ -53,6 +53,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["rubocop"]
+      },
       "range": {
         "start": 1481,
         "end": 1514
@@ -80,6 +84,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["rspec spec"]
+      },
       "range": {
         "start": 1515,
         "end": 1549
@@ -115,6 +123,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["rails db:migrate", "rails db:seed", "rails test"]
+      },
       "range": {
         "start": 1550,
         "end": 1718
@@ -149,6 +161,13 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": [
+          "gem install dpl",
+          "dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_PRODUCTION_KEY"
+        ]
+      },
       "range": {
         "start": 1872,
         "end": 2038

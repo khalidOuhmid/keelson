@@ -32,6 +32,10 @@
       "environment": null,
       "extends": [],
       "opaque": [],
+      "signals": {
+        "image": null,
+        "script": []
+      },
       "range": {
         "start": 30,
         "end": 51
@@ -59,6 +63,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": []
+      },
       "range": {
         "start": 52,
         "end": 117
@@ -86,6 +94,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": []
+      },
       "range": {
         "start": 118,
         "end": 191

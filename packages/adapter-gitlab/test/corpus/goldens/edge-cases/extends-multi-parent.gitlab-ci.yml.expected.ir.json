@@ -51,6 +51,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["echo gagnant"]
+      },
       "range": {
         "start": 180,
         "end": 258

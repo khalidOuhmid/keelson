@@ -29,6 +29,7 @@ export function job(id: string, stage: string, needs?: readonly string[] | reado
     environment: null,
     extends: [],
     opaque: [],
+    signals: { image: null, script: [] },
     range: range(),
     file: MAIN,
   };

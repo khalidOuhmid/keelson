@@ -36,6 +36,7 @@ function job(overrides: Partial<Job> = {}): Job {
     environment: null,
     extends: [],
     opaque: [SCRIPT_BLOCK],
+    signals: { image: null, script: [] },
     range: { start: 0, end: TEXT.length },
     file: MAIN,
     ...overrides,

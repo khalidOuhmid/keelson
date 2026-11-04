@@ -41,6 +41,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make"]
+      },
       "range": {
         "start": 28,
         "end": 73
@@ -68,6 +72,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make package"]
+      },
       "range": {
         "start": 74,
         "end": 126
@@ -116,6 +124,10 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make check"]
+      },
       "range": {
         "start": 127,
         "end": 277

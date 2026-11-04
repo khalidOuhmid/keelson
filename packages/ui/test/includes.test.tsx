@@ -33,6 +33,7 @@ function job(id: string, file = MAIN, overrides: Partial<Job> = {}): Job {
     environment: null,
     extends: [],
     opaque: [],
+    signals: { image: null, script: [] },
     range: { start: 0, end: 10 },
     file,
     ...overrides,

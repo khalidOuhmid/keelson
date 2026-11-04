@@ -42,6 +42,10 @@
           "file": "ci/inner.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make"]
+      },
       "range": {
         "start": 0,
         "end": 45
@@ -82,6 +86,10 @@
           "file": "ci/outer.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make ship"]
+      },
       "range": {
         "start": 57,
         "end": 124

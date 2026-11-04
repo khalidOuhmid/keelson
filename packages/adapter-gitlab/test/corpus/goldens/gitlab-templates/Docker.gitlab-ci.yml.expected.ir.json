@@ -93,6 +93,15 @@
           "file": ".gitlab-ci.yml"
         }
       ],
+      "signals": {
+        "image": "docker:cli",
+        "script": [
+          "docker login -u \"$CI_REGISTRY_USER\" -p \"$CI_REGISTRY_PASSWORD\" $CI_REGISTRY",
+          "docker build --pull -t \"$DOCKER_IMAGE_NAME\" .",
+          "docker push \"$DOCKER_IMAGE_NAME\"",
+          "if [[ \"$CI_COMMIT_BRANCH\" == \"$CI_DEFAULT_BRANCH\" ]]; then\n  docker tag \"$DOCKER_IMAGE_NAME\" \"$CI_REGISTRY_IMAGE:latest\"\n  docker push \"$CI_REGISTRY_IMAGE:latest\"\nfi\n"
+        ]
+      },
       "range": {
         "start": 555,
         "end": 1399

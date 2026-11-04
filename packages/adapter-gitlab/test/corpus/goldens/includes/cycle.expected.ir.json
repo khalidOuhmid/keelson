@@ -54,6 +54,10 @@
           "file": "ci/a.yml"
         }
       ],
+      "signals": {
+        "image": null,
+        "script": ["make"]
+      },
       "range": {
         "start": 25,
         "end": 69
