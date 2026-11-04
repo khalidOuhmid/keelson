@@ -346,6 +346,32 @@ describe("événements du serveur", () => {
   });
 });
 
+describe("coverage.changed", () => {
+  test("une réponse rendue périmée par une opération ne remplace pas la couverture", async () => {
+    let answer: (result: { ok: true; value: DocumentPayload }) => void = () => {};
+    const pending = new Promise<{ ok: true; value: DocumentPayload }>((settle) => {
+      answer = settle;
+    });
+    const late = createStore({
+      submit: api.submit,
+      document: () => pending,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    late.getState().documentLoaded(MAIN, documentPayload(HASH_A));
+    const handled = late.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    late.getState().documentLoaded(MAIN, {
+      ...documentPayload(HASH_B),
+      coverage: { ...NO_COVERAGE, partial: true },
+    });
+
+    answer({ ok: true, value: documentPayload(HASH_A) });
+    await handled;
+
+    expect(late.getState().coverage?.partial).toBe(true);
+  });
+});
+
 describe("sélection", () => {
   test("un job peut être sélectionné puis désélectionné", () => {
     state().selectJob("compile");

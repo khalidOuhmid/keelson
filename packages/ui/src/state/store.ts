@@ -350,7 +350,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
         if (event.kind === "coverage.changed") {
           const result = await dependencies.document(event.file);
-          if (result.ok) {
+          // Une opération arrivée pendant le GET a déjà rendu sa couverture, plus récente.
+          if (result.ok && result.value.hash === get().hash) {
             set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
           }
           return;

@@ -86,9 +86,21 @@ export function watchDocuments(
       watchers.get(absolute)?.close();
       watchers.delete(absolute);
     }
-    await store.load(entry.main);
-    if (!closed) {
+    const known = store.currentHash(entry.main);
+    const loaded = await store.load(entry.main);
+    if (closed) {
+      return;
+    }
+    // Le chargement avance le hash du store : `inspectMain` ne verrait plus rien, et cet événement
+    // doit dire aussi ce qui est arrivé au fichier principal.
+    if (loaded === null) {
+      if (known !== undefined) {
+        emit({ kind: "document.removed", file: entry.main });
+      }
+    } else if (loaded.hash === known) {
       emit({ kind: "coverage.changed", file: entry.main });
+    } else {
+      emit({ kind: "document.changed", file: entry.main, hash: loaded.hash });
     }
   };
 

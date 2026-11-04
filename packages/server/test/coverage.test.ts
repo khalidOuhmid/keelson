@@ -38,6 +38,18 @@ function writeLayout(text: string): void {
   writeFileSync(join(root, ".devsecops", "layout.json"), text);
 }
 
+async function waitForEvent(events: DocumentEvent[]): Promise<DocumentEvent> {
+  const deadline = Date.now() + 2500;
+  while (Date.now() < deadline) {
+    const found = events[0];
+    if (found !== undefined) {
+      return found;
+    }
+    await new Promise((settle) => setTimeout(settle, 25));
+  }
+  throw new Error("aucun événement reçu");
+}
+
 describe("couverture dans la charge", () => {
   test("au chargement", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
@@ -86,18 +98,6 @@ describe("couverture dans la charge", () => {
 });
 
 describe("surveillance de layout.json", () => {
-  async function waitForEvent(events: DocumentEvent[]): Promise<DocumentEvent> {
-    const deadline = Date.now() + 2500;
-    while (Date.now() < deadline) {
-      const found = events[0];
-      if (found !== undefined) {
-        return found;
-      }
-      await new Promise((settle) => setTimeout(settle, 25));
-    }
-    throw new Error("aucun événement reçu");
-  }
-
   test("le créer alors que .devsecops n'existe pas met la couverture à jour", async () => {
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
@@ -134,6 +134,43 @@ describe("surveillance de layout.json", () => {
 
     writeLayout('{"version":1,"layers":{"secrets":["iast"]}}');
     expect((await waitForEvent(events)).kind).toBe("coverage.changed");
+  });
+});
+
+describe("layout.json et fichier principal changent ensemble", () => {
+  let watcher: Watcher;
+
+  afterEach(() => watcher.close());
+
+  test("le pipeline changé est annoncé, pas seulement la couverture", async () => {
+    const events: DocumentEvent[] = [];
+    await store.load(".gitlab-ci.yml");
+    watcher = watchDocuments(root, store, (event) => events.push(event));
+
+    const changed = `${MAIN}\nnext:\n  stage: test\n  script:\n    - make\n`;
+    writeLayout('{"version":1}');
+    writeFileSync(join(root, ".gitlab-ci.yml"), changed);
+
+    const first = await waitForEvent(events);
+    expect(first).toEqual({
+      kind: "document.changed",
+      file: ".gitlab-ci.yml",
+      hash: hashText(changed),
+    });
+  });
+
+  test("un fichier principal supprimé est annoncé", async () => {
+    const events: DocumentEvent[] = [];
+    await store.load(".gitlab-ci.yml");
+    watcher = watchDocuments(root, store, (event) => events.push(event));
+
+    rmSync(join(root, ".gitlab-ci.yml"));
+    writeLayout('{"version":1}');
+
+    expect(await waitForEvent(events)).toEqual({
+      kind: "document.removed",
+      file: ".gitlab-ci.yml",
+    });
   });
 });
 
