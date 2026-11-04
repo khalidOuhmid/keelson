@@ -417,6 +417,44 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
     ).toBe("warning");
   });
 
+  /** Un include local cassé ne cache rien d'inconnu : sa cause est déjà une erreur nommée, à
+   *  corriger. Le dégrader remplacerait un fait par une hypothèse. Ce n'est vrai que parce que la
+   *  sévérité suit les includes **non cherchés ou hors de portée**, et non `Pipeline.unresolved`,
+   *  qui compte aussi les cassés parce qu'ils manquent à l'écran. */
+  test("un include local cassé, seul : erreur", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: `include: /ci/absent.yml\n\n${MAIN_WITH_ORPHAN}`,
+    });
+
+    expect(isPartial(parsed.pipeline)).toBe(true);
+    expect(
+      parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
+    ).toBe("error");
+  });
+
+  test("un include local cassé à côté d'un distant : avertissement, le distant reste inconnu", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include:",
+        "  - /ci/absent.yml",
+        "  - template: Jobs/SAST.gitlab-ci.yml",
+        "",
+        MAIN_WITH_ORPHAN,
+      ].join("\n"),
+    });
+
+    expect(
+      parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
+    ).toBe("warning");
+  });
+
+  test("sans lecteur : avertissement, le local n'est pas cassé, il n'a pas été cherché", () => {
+    const parsed = parse(`include: /ci/jobs.yml\n\n${MAIN_WITH_ORPHAN}`);
+    expect(
+      parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
+    ).toBe("warning");
+  });
+
   test("aucun include du tout : erreur, comme avant ce lot", () => {
     const parsed = parseTree({ [GITLAB_CI_FILE]: MAIN_WITH_ORPHAN });
     expect(

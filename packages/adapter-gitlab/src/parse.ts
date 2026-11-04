@@ -252,10 +252,11 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     documents,
     lookup,
     diagnostics,
-    /** Dégradé en avertissement **seulement** si un include non résolu peut expliquer l'absence.
-     *  La présence d'une clé `include` ne suffit plus : un `include: local` résolu ne cache rien,
-     *  et dégrader pour lui masquait de vraies erreurs. */
-    extendsSeverity: unresolved.length === 0 ? "error" : "warning",
+    /** Dégradé en avertissement **seulement** si un include qu'on n'a pas pu lire peut expliquer
+     *  l'absence : une forme distante, ou un `local` sans lecteur. Un `local` cassé n'en est pas
+     *  un, sa cause est déjà une erreur nommée. D'où `resolution.unresolved` et non `unresolved`,
+     *  qui compte aussi les cassés parce qu'ils manquent à l'écran (ADR 0007). */
+    extendsSeverity: resolution.unresolved.length === 0 ? "error" : "warning",
     main,
   };
 

@@ -122,6 +122,7 @@ un ordre non spécifié est un résultat non spécifié.
 d'une clé `include`.** Aujourd'hui elle est dégradée dès qu'une clé `include` existe. Après ce lot,
 elle reste `error` si tous les includes sont résolus — même s'il y en a — et ne tombe en `warning`
 que si au moins un include non résolu peut expliquer l'absence.
+*Précisé le 2026-11-04 par l'ADR 0007 : un include local cassé ne dégrade pas.*
 
 ## 4. Codes de diagnostic et d'erreur ajoutés
 
