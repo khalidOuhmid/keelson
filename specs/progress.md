@@ -635,6 +635,15 @@ Traités aussi, parce que la valeur effective est une promesse de D1 : `inherit`
 CLI, le `file` de `COVERAGE_LAYER_MISSING`, la colonne Tool à 48 px à 375 px. Six mutations
 rouges, `git diff` vide après chacune. Bornes de la détection shell et mineurs : `specs/ecarts.md`.
 
+**Deuxième et troisième contre-revues, chacune sur le correctif de la précédente.** Le bilan dit
+pourquoi la règle existe : `inherit` fusionné à tort à travers `<<` ; garde de `coverage.changed`
+qui laissait un second onglet en retard ; `entryAt`, désormais appelé sur tous les jobs, qui
+plantait sur `job: &a` + `<<: *a`, jusqu'à tuer le serveur sous Node ; fausse alerte et undo perdu
+pendant une opération en vol ; puis rechargement dû oublié si cette opération échouait sans 409.
+Chacun corrigé, prouvé rouge. Le watcher absorbe désormais les exceptions du parseur, et `entryAt`
+partage son ensemble de maps visitées, ce qui rend les diamants linéaires. Les cycles qui lèvent
+encore hors d'`entryAt` sont consignés.
+
 **Une erreur de méthode.** Le passage en `role="group"` a été commité sans lancer le lint ; c'est la
 vérification depuis un clone qui l'a attrapé. `bun run check` passe avant de considérer un correctif
 terminé.
