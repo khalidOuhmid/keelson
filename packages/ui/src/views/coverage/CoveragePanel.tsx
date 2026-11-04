@@ -127,7 +127,10 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
                       {findLayer(entry.layer).name}
                     </span>
                     <span className="truncate font-mono text-2xs text-text-muted">
-                      {entry.jobs.join(", ")}
+                      {[
+                        ...entry.jobs,
+                        ...entry.services.map((service) => `service ${service}`),
+                      ].join(", ")}
                     </span>
                   </span>
                 </button>

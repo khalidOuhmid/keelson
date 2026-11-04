@@ -7,9 +7,12 @@ import type {
   Pipeline,
   SourceRange,
   SpliceOperation,
+  Toolchain,
+  ToolchainOperation,
 } from "@keelson/core";
 import { MESSAGE_CODES, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "@keelson/core/messages";
 import type { Layer } from "@keelson/taxonomy";
+import type { Positions, ProposedIntegration } from "@keelson/toolchain";
 
 export type AdapterName = "gitlab";
 
@@ -42,6 +45,17 @@ export type OperationPayload = {
 };
 
 export type CatalogPayload = Catalog & { layers: readonly Layer[] };
+
+export type ToolchainPayload = {
+  text: string;
+  hash: string;
+  toolchain: Toolchain;
+  diagnostics: Diagnostic[];
+  proposed: ProposedIntegration[];
+  positions: Positions;
+};
+
+export type ToolchainOperationPayload = ToolchainPayload & { inverse: SpliceOperation };
 
 /** Pas de `message` : il n'est plus sur le fil. Le texte se rend par `renderMessage(failure)`,
  *  que cette forme rend directement possible. */
@@ -142,6 +156,27 @@ export class KeelsonClient {
 
   catalog(): Promise<ApiResult<CatalogPayload>> {
     return this.call("/api/catalog");
+  }
+
+  toolchain(): Promise<ApiResult<ToolchainPayload>> {
+    return this.call("/api/toolchain");
+  }
+
+  submitToolchain(
+    op: ToolchainOperation,
+    opId: string,
+  ): Promise<ApiResult<ToolchainOperationPayload>> {
+    return this.call("/api/toolchain/operations", {
+      method: "POST",
+      body: JSON.stringify({ op, opId }),
+    });
+  }
+
+  savePositions(positions: Positions): Promise<ApiResult<{ positions: Positions }>> {
+    return this.call("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions }),
+    });
   }
 
   submit(file: string, op: Operation, opId: string): Promise<ApiResult<OperationPayload>> {

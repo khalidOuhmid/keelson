@@ -126,6 +126,20 @@ describe("panneau de couverture", () => {
   });
 });
 
+describe("couverture par un service", () => {
+  test("une couche couverte par un service le nomme", () => {
+    const covered = coverage({});
+    renderPanel({
+      ...covered,
+      layers: covered.layers.map((entry) =>
+        entry.layer === "scm" ? { ...entry, covered: true, services: ["git"] } : entry,
+      ),
+    });
+    const group = screen.getByRole("group", { name: "Covered layers" });
+    expect(group.textContent).toContain("service git");
+  });
+});
+
 describe("étiquettes de couche sur un nœud", () => {
   const JOB = {
     id: "scan",

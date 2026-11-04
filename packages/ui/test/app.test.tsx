@@ -9,6 +9,7 @@ import type {
   CatalogPayload,
   DocumentPayload,
   OperationPayload,
+  ToolchainPayload,
 } from "../src/api/client.ts";
 import type { ServerEvent } from "../src/api/events.ts";
 import { App, type AppDeps } from "../src/app.tsx";
@@ -17,6 +18,24 @@ import { LAYOUT_TOKENS } from "../src/views/pipeline/metrics.ts";
 const MAIN = ".gitlab-ci.yml";
 
 const NO_COVERAGE: Coverage = { jobs: [], layers: [], partial: false };
+
+const TOOLCHAIN: ToolchainPayload = {
+  text: "",
+  hash: "a".repeat(64),
+  toolchain: { services: [], integrations: [], dismissed: [] },
+  diagnostics: [],
+  proposed: [],
+  positions: {},
+};
+
+const INVERSE = {
+  v: 1,
+  baseHash: "a".repeat(64),
+  kind: "splice",
+  start: 0,
+  end: 0,
+  text: "",
+} as const;
 
 const CATALOG: CatalogPayload = { layers: [...LAYERS], tools: [], logos: {} };
 
@@ -135,6 +154,9 @@ function harness(
           submitted.push({ op, opId });
           return submits.shift() ?? { ok: true, value: ok };
         },
+        toolchain: async () => ({ ok: true, value: TOOLCHAIN }),
+        submitToolchain: async () => ({ ok: true, value: { ...TOOLCHAIN, inverse: INVERSE } }),
+        savePositions: async (positions) => ({ ok: true, value: { positions } }),
         eventsUrl: () => "/api/events?token=x",
       },
       subscribe: (_url, onEvent) => {
