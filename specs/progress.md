@@ -1,8 +1,8 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L3 — taxonomie, catalogue, overlay OWASP**, à cadrer depuis `main`
-Prochaine action : sur `lot/l3-owasp`, vérification depuis un clone, fusion.
+Lot courant : **L4 — toolchain**, à cadrer depuis `main`
+Prochaine action : cadrage de L4, `specs/lots/l4.md`, branche `lot/l4-toolchain`.
 Blocage : aucun
 
 
@@ -14,8 +14,8 @@ Blocage : aucun
 | L2c — messages : `code` + `params`, anglais unique, `details` fusionné | TERMINÉ | `82bcb79` (`--no-ff`) |
 | L2b — résolution des `include` locaux, origine par fichier, écriture bornée | TERMINÉ | `5a5b530` (`--no-ff`) |
 | L2b-fix — preuves rouges, sévérité, texte d'aide, polish | TERMINÉ | `a88faf2` (`--no-ff`) |
-| L3 — taxonomie, catalogue, overlay OWASP | **LOT COURANT** | — |
-| L4 — toolchain | À FAIRE | — |
+| L3 — taxonomie, catalogue, overlay OWASP | TERMINÉ | `36caaa1` (`--no-ff`) |
+| L4 — toolchain | **LOT COURANT** | — |
 | L5 — propositions et insertion | À FAIRE | — |
 | L6 — adaptateur GitHub Actions | À FAIRE | — |
 | L7 — packaging open source | À FAIRE | — |
@@ -652,3 +652,6 @@ changement et sur le binaire Node, ne rouvre rien.
 vérification depuis un clone qui l'a attrapé. `bun run check` passe avant de considérer un correctif
 terminé.
 
+**Clôture.** Fusion `36caaa1`. Depuis un clone sans `dist/` : `bun run check` 1443 tests, propriétés à
+500 runs, 56 E2E, smoke test Node (`validate`, `coverage`, `catalog lint`, `start`). `check` vert sur
+`main`.
