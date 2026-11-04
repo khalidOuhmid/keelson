@@ -6,6 +6,9 @@
   "include": ["src", "package.json"],
   "references": [
     {
+      "path": "../catalog"
+    },
+    {
       "path": "../core"
     },
     {

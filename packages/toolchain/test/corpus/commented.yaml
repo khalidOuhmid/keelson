@@ -1,0 +1,29 @@
+# La plateforme de l'équipe.
+version: 1
+
+services:
+  # le dépôt d'images
+  nexus-prod:
+    tool: nexus # interne
+    url: https://nexus.example.org
+    environment: production
+
+  vault:
+    tool: vault
+
+# Confirmées à la main le 3 novembre.
+integrations:
+  - job: build
+    service: nexus-prod
+    kind: push
+  # le secret du déploiement
+  - job: deploy
+    service: vault
+    kind: fetch-secret
+
+dismissed:
+  - job: scan
+    tool: sentry
+    kind: notify
+
+# fin
