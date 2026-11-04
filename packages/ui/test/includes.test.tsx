@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Job, Pipeline, Stage, UnresolvedInclude } from "@keelson/core";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { ReactFlowProvider } from "@xyflow/react";
 import { JobEditor } from "../src/editing/JobEditor.tsx";
 import { StageControls } from "../src/editing/StageControls.tsx";
@@ -224,42 +223,19 @@ describe("les contrôles d'édition d'un job inclus", () => {
     return drafts;
   }
 
-  test("tous les contrôles sont désactivés, aucun n'est retiré", () => {
-    renderEditor(job("sast", INCLUDED), INCLUDED);
-
-    const group = screen.getByRole("group", { name: "Job editor" });
-    const controls = [...group.querySelectorAll("input, select, button")];
-    expect(controls.length).toBeGreaterThan(5);
-    expect(controls.filter((control) => !control.hasAttribute("disabled"))).toEqual([]);
-  });
-
-  /** Ce que ce test mesure, exactement : `disabled` coupe les boutons d'action, et le seul
-   *  formulaire du composant — le renommage — ne soumet rien.
-   *
-   *  Ce qu'il ne mesure **pas** : `guard()`, la seconde barrière. Aucun test d'ici ne peut
-   *  l'isoler, parce que tous les chemins qui y mènent passent par un contrôle désactivé —
-   *  neutraliser `guard()` seul laisse donc la suite verte, vérifié. C'est de la défense en
-   *  profondeur, pas une protection testée, et le dire autrement serait surestimer.
-   *
-   *  On ne peut pas non plus taper un nouveau nom puis soumettre : un champ désactivé n'accepte
-   *  rien, donc un tel test ne dirait rien du verrou. */
-  test("aucun clic sur un bouton d'action ne produit de brouillon", async () => {
-    const drafts = renderEditor(job("sast", INCLUDED), INCLUDED);
-
-    await userEvent.click(screen.getByRole("button", { name: /add need/i }));
-    await userEvent.click(screen.getByRole("button", { name: /delete job/i }));
-    await userEvent.click(screen.getByRole("button", { name: /^rename$/i }));
-
-    expect(drafts).toEqual([]);
-  });
-
-  test("la raison est portée par le groupe et présente dans le DOM", () => {
-    renderEditor(job("sast", INCLUDED), INCLUDED);
-
-    const described = screen
-      .getByRole("group", { name: "Job editor" })
-      .getAttribute("aria-describedby");
-    expect(document.getElementById(described ?? "")?.textContent).toBe(
+  /** Le formulaire entier disparaît : des champs vides et des cases cochées par défaut se liraient
+   *  comme l'état d'un job qu'on ne peut de toute façon pas écrire. */
+  test("un job inclus ne rend aucun contrôle, seulement la raison", () => {
+    const { container } = render(
+      <JobEditor
+        job={job("sast", INCLUDED)}
+        pipeline={pipeline()}
+        onSubmit={() => undefined}
+        lockedTo={INCLUDED}
+      />,
+    );
+    expect(container.querySelectorAll("input, select, button, form")).toHaveLength(0);
+    expect(container.textContent).toBe(
       `Editing is off for this job. It is defined in ${INCLUDED}, and Keelson never writes to included files.`,
     );
   });
@@ -268,7 +244,6 @@ describe("les contrôles d'édition d'un job inclus", () => {
     renderEditor(job("local-job"), null);
 
     const group = screen.getByRole("group", { name: "Job editor" });
-    expect(group.getAttribute("aria-describedby")).toBeNull();
     expect([...group.querySelectorAll("button")].some((b) => !b.hasAttribute("disabled"))).toBe(
       true,
     );

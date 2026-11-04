@@ -1,4 +1,6 @@
+import { findLayer } from "@keelson/taxonomy";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
+import { LayerTags } from "../coverage/LayerTag.tsx";
 import type { JobNodeData, NeedSummary } from "./graph.ts";
 import { OriginBadge } from "./OriginBadge.tsx";
 
@@ -22,6 +24,9 @@ export function JobNode({ data }: JobNodeProps) {
   const descriptionId = `job-${data.id}-description`;
   const description = [
     data.included ? `From included file ${data.file}. Read-only.` : "",
+    data.layers === null || data.layers.length === 0
+      ? ""
+      : `Layers: ${data.layers.map((id) => findLayer(id).name).join(", ")}.`,
     `Stage ${data.stage}.`,
     describeNeeds(data.needs),
     data.environment === null ? "" : `Environment ${data.environment}.`,
@@ -53,7 +58,8 @@ export function JobNode({ data }: JobNodeProps) {
         data-job-id={data.id}
         data-selected={data.selected}
         data-included={data.included}
-        className={`group flex h-full w-full cursor-pointer flex-col justify-center gap-0.5 rounded-md border px-2.5 py-2 text-left transition-colors duration-fast ease-out data-[selected=true]:border-accent data-[selected=true]:bg-surface-3 ${surface}`}
+        data-emphasised={data.emphasised}
+        className={`group flex h-full w-full cursor-pointer flex-col justify-center gap-0.5 rounded-md border px-2.5 py-2 text-left transition-colors duration-fast ease-out data-[emphasised=true]:border-accent data-[selected=true]:border-accent data-[selected=true]:bg-surface-3 ${surface}`}
       >
         <span className="flex items-center gap-1.5 overflow-hidden">
           <span className="truncate text-base font-semibold text-text-primary">{data.id}</span>
@@ -64,7 +70,11 @@ export function JobNode({ data }: JobNodeProps) {
           {/* Pas de badge d'origine sur un nœud inclus : mesuré, il occupait 178 px d'une ligne de
               205 et réduisait le stage à 23 px tronqués, en coupant 55 % du chemin qu'il était
               censé porter. Le tag `read-only` dit déjà le fait, et le panneau le détaille. */}
-          {data.included ? null : <OriginBadge origin={data.stageOrigin} />}
+          {data.layers !== null ? (
+            <LayerTags layers={data.layers} limit={2} />
+          ) : data.included ? null : (
+            <OriginBadge origin={data.stageOrigin} />
+          )}
         </span>
       </button>
       <span id={descriptionId} className="sr-only">

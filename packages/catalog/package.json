@@ -6,7 +6,8 @@
   "main": "./src/index.ts",
   "types": "./types/src/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./licenses": "./src/licenses.ts"
   },
   "scripts": {
     "build": "bun build ./src/index.ts --target=node --format=esm --outdir ./dist"

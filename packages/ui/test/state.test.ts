@@ -114,6 +114,7 @@ beforeEach(() => {
   store = createStore({
     submit: api.submit,
     document: api.document,
+    catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
     newOpId: (() => {
       let counter = 0;
       return () => {
@@ -636,5 +637,70 @@ describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", 
     state().documentLoaded(MAIN, payloadWithIncluded());
     expect(state().textOf(MAIN)).toBe(payloadWithIncluded().text);
     expect(state().textOf("inconnu.yml")).toBe("");
+  });
+});
+
+describe("vues et couverture", () => {
+  const COVERED: Coverage = {
+    jobs: [],
+    layers: [{ layer: "sast", covered: true, jobs: ["a"] }],
+    partial: false,
+  };
+
+  /** Même forme que `included` : un champ posé sur un seul des trois chemins qui l'alimentent. La
+   *  valeur change entre les deux appels, sans quoi le test passerait sans reposer le champ. */
+  test("documentLoaded pose la couverture", () => {
+    state().documentLoaded(MAIN, { ...documentPayload(), coverage: COVERED });
+    expect(state().coverage).toEqual(COVERED);
+  });
+
+  test("un rechargement la repose", async () => {
+    state().documentLoaded(MAIN, documentPayload());
+    api.queueDocument({ ok: true, value: { ...documentPayload(HASH_B), coverage: COVERED } });
+    await state().serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_B });
+    expect(state().coverage).toEqual(COVERED);
+  });
+
+  test("une opération la repose", async () => {
+    api.queue({ ok: true, value: { ...operationPayload(HASH_B, HASH_A), coverage: COVERED } });
+    await addStage("livrer");
+    expect(state().coverage).toEqual(COVERED);
+  });
+
+  test("changer de vue oublie la couche et la sélection", () => {
+    state().selectJob("compile");
+    state().selectLayer("sast");
+    state().setView("coverage");
+    expect(state().selectedLayer).toBeNull();
+    expect(state().selectedJobId).toBeNull();
+  });
+
+  test("rechoisir la même couche la libère", () => {
+    state().selectLayer("sast");
+    expect(state().selectedLayer).toBe("sast");
+    state().selectLayer("sast");
+    expect(state().selectedLayer).toBeNull();
+  });
+
+  test("See tools ouvre le catalogue et le charge une seule fois", async () => {
+    state().showTools("dast");
+    expect(state().view).toBe("catalog");
+    expect(state().catalogLayer).toBe("dast");
+    await new Promise((settle) => setTimeout(settle, 0));
+    expect(state().catalog).toEqual({ layers: [], tools: [], logos: {} });
+  });
+
+  test("un catalogue injoignable devient une erreur à l'écran", async () => {
+    const failing = createStore({
+      submit: api.submit,
+      document: api.document,
+      catalog: async () => ({
+        ok: false,
+        error: { status: 0, code: "NETWORK_ERROR", params: { detail: "x" } },
+      }),
+      newOpId: () => "op",
+    });
+    await failing.getState().loadCatalog();
+    expect(failing.getState().error?.code).toBe("NETWORK_ERROR");
   });
 });

@@ -1,4 +1,5 @@
 import type { Origin, Pipeline } from "@keelson/core";
+import type { LayerId } from "@keelson/taxonomy";
 import type { Edge, Node } from "@xyflow/react";
 import type { Layout } from "./layout.ts";
 
@@ -23,6 +24,15 @@ export type JobNodeData = {
    *  l'utilisateur ne clique. */
   file: string;
   included: boolean;
+  /** Sur l'overlay seulement : `null` hors de la vue Coverage. */
+  layers: readonly LayerId[] | null;
+  /** Le job porte la couche choisie dans le panneau. */
+  emphasised: boolean;
+};
+
+export type LayerOverlay = {
+  jobs: ReadonlyMap<string, readonly LayerId[]>;
+  selected: LayerId | null;
 };
 
 export type ColumnNodeData = {
@@ -54,6 +64,7 @@ export function toFlowGraph(
   selectedJobId: string | null,
   headerHeight = 0,
   columnPadding = 0,
+  overlay: LayerOverlay | null = null,
 ): FlowGraph {
   const positions = new Map(layout.nodes.map((node) => [node.id, node]));
   const jobs = new Map(pipeline.jobs.map((job) => [job.id, job]));
@@ -101,6 +112,10 @@ export function toFlowGraph(
           selected: job.id === selectedJobId,
           file: job.file,
           included: job.file !== pipeline.main,
+          layers: overlay === null ? null : (overlay.jobs.get(job.id) ?? []),
+          emphasised:
+            overlay?.selected != null &&
+            (overlay.jobs.get(job.id) ?? []).includes(overlay.selected),
         } satisfies JobNodeData,
         width: placed.width,
         height: placed.height,

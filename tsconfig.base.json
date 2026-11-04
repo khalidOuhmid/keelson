@@ -25,6 +25,7 @@
       "@keelson/adapter-github": ["./packages/adapter-github/src/index.ts"],
       "@keelson/adapter-gitlab": ["./packages/adapter-gitlab/src/index.ts"],
       "@keelson/catalog": ["./packages/catalog/src/index.ts"],
+      "@keelson/catalog/licenses": ["./packages/catalog/src/licenses.ts"],
       "@keelson/core": ["./packages/core/src/index.ts"],
       "@keelson/core/messages": ["./packages/core/src/messages/index.ts"],
       "@keelson/server": ["./packages/server/src/index.ts"],

@@ -1,7 +1,15 @@
+import type { Coverage } from "@keelson/catalog";
 import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
 import { INVALID_YAML } from "@keelson/core";
+import type { LayerId } from "@keelson/taxonomy";
 import { createStore as createZustandStore, type StoreApi } from "zustand/vanilla";
-import type { ApiFailure, ApiResult, DocumentPayload, OperationPayload } from "../api/client.ts";
+import type {
+  ApiFailure,
+  ApiResult,
+  CatalogPayload,
+  DocumentPayload,
+  OperationPayload,
+} from "../api/client.ts";
 import type { ServerEvent } from "../api/events.ts";
 
 export type Draft = Operation extends infer T
@@ -31,8 +39,11 @@ type HistoryEntry = {
 export type StoreDependencies = {
   submit: (file: string, op: Operation, opId: string) => Promise<ApiResult<OperationPayload>>;
   document: (file: string) => Promise<ApiResult<DocumentPayload>>;
+  catalog: () => Promise<ApiResult<CatalogPayload>>;
   newOpId: () => string;
 };
+
+export type View = "pipeline" | "coverage" | "catalog";
 
 export type KeelsonState = {
   file: string | null;
@@ -42,6 +53,13 @@ export type KeelsonState = {
    *  pris ailleurs. */
   included: Record<string, string>;
   pipeline: Pipeline | null;
+  coverage: Coverage | null;
+  catalog: CatalogPayload | null;
+  view: View;
+  /** La couche mise en avant sur l'overlay. */
+  selectedLayer: LayerId | null;
+  /** Le filtre de couche à l'ouverture du catalogue, posé par « See tools ». */
+  catalogLayer: LayerId | null;
   diagnostics: Diagnostic[];
   hash: string | null;
   status: Status;
@@ -53,6 +71,10 @@ export type KeelsonState = {
   documentLoaded(file: string, payload: DocumentPayload): void;
   workspaceEmpty(): void;
   selectJob(id: string | null): void;
+  setView(view: View): void;
+  selectLayer(layer: LayerId | null): void;
+  showTools(layer: LayerId): void;
+  loadCatalog(): Promise<void>;
   selectByRange(file: string, range: SourceRange | null): void;
   textOf(file: string): string;
   canEdit(): boolean;
@@ -88,6 +110,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         // watcher tait les ecritures propres du serveur, donc aucun rechargement ne le reparerait.
         text: payload.text,
         included: payload.included,
+        coverage: payload.coverage,
         pipeline: payload.pipeline,
         diagnostics: payload.diagnostics,
         hash: payload.hash,
@@ -109,6 +132,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       set({
         text: result.value.text,
         included: result.value.included,
+        coverage: result.value.coverage,
         pipeline: result.value.pipeline,
         diagnostics: result.value.diagnostics,
         hash: result.value.hash,
@@ -161,6 +185,11 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       file: null,
       text: "",
       included: {},
+      coverage: null,
+      catalog: null,
+      view: "pipeline",
+      selectedLayer: null,
+      catalogLayer: null,
       pipeline: null,
       diagnostics: [],
       hash: null,
@@ -176,6 +205,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           file,
           text: payload.text,
           included: payload.included,
+          coverage: payload.coverage,
           pipeline: payload.pipeline,
           diagnostics: payload.diagnostics,
           hash: payload.hash,
@@ -193,6 +223,34 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       selectJob(id) {
         set({ selectedJobId: id });
+      },
+
+      setView(view) {
+        set({ view, selectedLayer: null, catalogLayer: null, selectedJobId: null });
+        if (view === "catalog") {
+          void get().loadCatalog();
+        }
+      },
+
+      selectLayer(layer) {
+        set({ selectedLayer: get().selectedLayer === layer ? null : layer });
+      },
+
+      showTools(layer) {
+        set({ view: "catalog", catalogLayer: layer, selectedLayer: null, selectedJobId: null });
+        void get().loadCatalog();
+      },
+
+      async loadCatalog() {
+        if (get().catalog !== null) {
+          return;
+        }
+        const result = await dependencies.catalog();
+        if (result.ok) {
+          set({ catalog: result.value });
+        } else {
+          set({ error: result.error });
+        }
       },
 
       /** Le fichier fait partie de la clé : deux fichiers ont chacun leurs offsets à partir de

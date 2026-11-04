@@ -1,20 +1,7 @@
 import { LAYER_IDS } from "@keelson/taxonomy";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-
-const OPEN_SOURCE = [
-  "AGPL-3.0-only",
-  "Apache-2.0",
-  "BSD-3-Clause",
-  "GPL-2.0-only",
-  "GPL-3.0-only",
-  "LGPL-2.1-only",
-  "LGPL-3.0-only",
-  "MIT",
-  "MPL-2.0",
-] as const;
-
-const NOT_OPEN_SOURCE = ["BUSL-1.1", "FSL-1.1-Apache-2.0", "Proprietary"] as const;
+import { OPEN_SOURCE_LICENSES, OTHER_LICENSES } from "./licenses.ts";
 
 /** Compile à la validation : une regex invalide doit échouer ici, pas au moment de détecter. */
 const pattern = z.string().refine((source) => {
@@ -31,7 +18,7 @@ export const toolSchema = z.strictObject({
   name: z.string().min(1),
   kind: z.enum(["job", "service"]),
   layers: z.array(z.enum(LAYER_IDS)).min(1),
-  license: z.enum([...OPEN_SOURCE, ...NOT_OPEN_SOURCE]),
+  license: z.enum([...OPEN_SOURCE_LICENSES, ...OTHER_LICENSES]),
   homepage: z.url(),
   verifiedAt: z.url(),
   logo: z.string().min(1).nullable(),
@@ -41,10 +28,6 @@ export const toolSchema = z.strictObject({
 });
 
 export type Tool = z.infer<typeof toolSchema>;
-
-export function isOpenSource(tool: Pick<Tool, "license">): boolean {
-  return (OPEN_SOURCE as readonly string[]).includes(tool.license);
-}
 
 export type ParsedTool = { ok: true; tool: Tool } | { ok: false; detail: string };
 

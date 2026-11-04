@@ -90,3 +90,20 @@ export function ChevronRightIcon(props: IconProps) {
     </Glyph>
   );
 }
+
+/** Un logo de `simple-icons` : un tracé plein sur une grille de 24. Il hérite de `currentColor`,
+ *  donc il reste dans la palette du produit et n'importe aucune couleur de marque. */
+export function LogoGlyph({ path }: { path: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-[1em] shrink-0">
+      <path d={path} />
+    </svg>
+  );
+}
+
+/** Quand aucun logo n'est autorisé : une marque neutre, jamais un logo approché. */
+export const LAYER_GENERIC_GLYPH = (
+  <Glyph>
+    <path d="M4 3h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+  </Glyph>
+);
