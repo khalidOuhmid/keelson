@@ -54,9 +54,13 @@ describe("layout.json", () => {
     expect(result.diagnostics[0]?.code).toBe("LAYOUT_UNKNOWN_JOB");
   });
 
-  test("une clé __proto__ ne pollue rien", () => {
-    const result = parseLayout('{"version":1,"layers":{"__proto__":["sast"]}}', pipeline([]));
-    expect(Object.keys(result.overrides)).toEqual([]);
-    expect(({} as Record<string, unknown>).sast).toBeUndefined();
+  /** Un job peut s'appeler `__proto__` : sur un objet ordinaire, l'affectation changerait le
+   *  prototype au lieu d'écrire une surcharge, qui disparaîtrait sans bruit. */
+  test("un job nommé __proto__ garde sa surcharge", () => {
+    const result = parseLayout(
+      '{"version":1,"layers":{"__proto__":["sast"]}}',
+      pipeline(["__proto__"]),
+    );
+    expect(Object.keys(result.overrides)).toEqual(["__proto__"]);
   });
 });

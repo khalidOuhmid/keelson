@@ -14,7 +14,10 @@ let root = "";
 let store: DocumentStore;
 let watcher: Watcher | undefined;
 
-function layer(body: { coverage: { layers: { layer: string; covered: boolean }[] } }, id: string) {
+function layer(
+  body: { coverage: { layers: readonly { layer: string; covered: boolean }[] } },
+  id: string,
+) {
   return body.coverage.layers.find((entry) => entry.layer === id)?.covered;
 }
 
