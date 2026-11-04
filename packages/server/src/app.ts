@@ -14,11 +14,13 @@ import { isAllowedHost, TOKEN_HEADER, tokensMatch } from "./security.ts";
 import type { SseHub } from "./sse.ts";
 import type { StaticHandler } from "./static.ts";
 import type { DocumentStore } from "./store.ts";
+import type { ToolchainStore } from "./toolchain.ts";
 
 export const MAX_BODY_BYTES = 1_048_576;
 
 export type AppContext = {
   store: DocumentStore;
+  toolchain: ToolchainStore;
   hub: SseHub;
   token: string;
   port: () => number;
@@ -65,6 +67,35 @@ async function readBody(request: IncomingMessage): Promise<string | "too-large">
   }
 
   return Buffer.concat(chunks).toString("utf8");
+}
+
+/** Le corps JSON d'une requête, ou `null` si la réponse d'erreur est déjà partie. */
+async function readEnvelope(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<unknown | null> {
+  const raw = await readBody(request);
+  if (raw === "too-large") {
+    const payload = JSON.stringify({
+      code: PAYLOAD_TOO_LARGE,
+      params: { limitBytes: MAX_BODY_BYTES },
+    });
+    response.writeHead(413, {
+      "content-type": "application/json; charset=utf-8",
+      "content-length": Buffer.byteLength(payload),
+      connection: "close",
+    });
+    response.on("finish", () => request.destroy());
+    response.end(payload);
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    fail(response, 400, INVALID_OPERATION, { reason: "unreadableBody" });
+    return null;
+  }
 }
 
 function decodeFile(segment: string): string | null {
@@ -117,6 +148,55 @@ export function createRequestHandler(context: AppContext) {
       return;
     }
 
+    if (pathname === "/api/toolchain") {
+      if (request.method !== "GET") {
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
+        return;
+      }
+      send(response, 200, (await context.toolchain.load()) as unknown as Json);
+      return;
+    }
+
+    if (pathname === "/api/toolchain/operations") {
+      if (request.method !== "POST") {
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
+        return;
+      }
+      const envelope = await readEnvelope(request, response);
+      if (envelope === null) {
+        return;
+      }
+      const opId = (envelope as { opId?: unknown }).opId;
+      const op = (envelope as { op?: unknown }).op;
+      if (typeof opId !== "string" || opId === "") {
+        fail(response, 400, INVALID_OPERATION, { reason: "missingOpId" });
+        return;
+      }
+      if (typeof op !== "object" || op === null) {
+        fail(response, 400, INVALID_OPERATION, { reason: "missingOp" });
+        return;
+      }
+      const result = await context.toolchain.apply(op, opId);
+      send(response, result.status, result.body as unknown as Json);
+      return;
+    }
+
+    if (pathname === "/api/layout/positions") {
+      if (request.method !== "PUT") {
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
+        return;
+      }
+      const envelope = await readEnvelope(request, response);
+      if (envelope === null) {
+        return;
+      }
+      const result = await context.toolchain.savePositions(
+        (envelope as { positions?: unknown }).positions,
+      );
+      send(response, result.status, result.body as unknown as Json);
+      return;
+    }
+
     if (pathname === "/api/events") {
       if (request.method !== "GET") {
         fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
@@ -139,27 +219,8 @@ export function createRequestHandler(context: AppContext) {
         return;
       }
 
-      const raw = await readBody(request);
-      if (raw === "too-large") {
-        const payload = JSON.stringify({
-          code: PAYLOAD_TOO_LARGE,
-          params: { limitBytes: MAX_BODY_BYTES },
-        });
-        response.writeHead(413, {
-          "content-type": "application/json; charset=utf-8",
-          "content-length": Buffer.byteLength(payload),
-          connection: "close",
-        });
-        response.on("finish", () => request.destroy());
-        response.end(payload);
-        return;
-      }
-
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        fail(response, 400, INVALID_OPERATION, { reason: "unreadableBody" });
+      const parsed = await readEnvelope(request, response);
+      if (parsed === null) {
         return;
       }
 

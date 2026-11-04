@@ -234,6 +234,8 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `sharedValue` | `job`, `key` | La valeur vient d'un alias d'anchor ou d'un `!reference` et l'écrire en place perdrait quelque chose : `addNeed` sur une liste partagée, ou `setJobStage` sur un `!reference` portant une ancre, un commentaire ou une clé explicite `?`. |
 | `flowStyleToolchain` | `section` | Une section de `toolchain.yaml` est écrite en flow style et n'est pas vide. |
 | `invalidToolchain` | — | `toolchain.yaml` porte un `TOOLCHAIN_INVALID` : Keelson n'édite pas un fichier qu'il ne comprend pas. |
+| `invalidLayout` | — | **Serveur** : `layout.json` n'est pas lisible. Keelson n'écrase pas ce qu'il ne comprend pas. |
+| `outsideRoot` | `path` | **Serveur** : `.devsecops` mène hors du dépôt. Rien n'est écrit. |
 | `noRootMap` | — | Le fichier n'a pas de map YAML à la racine, et l'opération n'est pas un `splice`. |
 | `wouldBreakYaml` | `operation` | Le texte résultant serait un YAML invalide ; rien n'a été écrit. |
 | `unreadableBody` | — | **Serveur** : le corps de la requête n'est pas du JSON lisible. |

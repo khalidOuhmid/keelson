@@ -52,6 +52,7 @@ describe("lecture de toolchain.yaml", () => {
 
   test.each([
     ["YAML cassé", "version: 1\nservices: [\n"],
+    ["alias sans ancre", "*x\n"],
     ["clé dupliquée", "version: 1\nversion: 1\n"],
     ["version absente", "services: {}\n"],
     ["version inconnue", "version: 2\n"],

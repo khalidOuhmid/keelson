@@ -15,9 +15,8 @@ type Options = {
 };
 
 function payloadOf(event: DocumentEvent): string {
-  return event.kind === "document.changed"
-    ? JSON.stringify({ file: event.file, hash: event.hash })
-    : JSON.stringify({ file: event.file });
+  const { kind: _kind, ...payload } = event;
+  return JSON.stringify(payload);
 }
 
 export function createSseHub(options: Options = {}): SseHub {

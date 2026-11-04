@@ -230,6 +230,7 @@ describe("couverture", () => {
       layer: "sast",
       covered: true,
       jobs: ["x", "y"],
+      services: [],
     });
     expect(result.layers.find((entry) => entry.layer === "dast")?.covered).toBe(false);
     expect(result.layers).toHaveLength(21);

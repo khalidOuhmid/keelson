@@ -192,3 +192,41 @@ describe("keelson catalog lint", () => {
     expect((await run(["catalog", "lint", join(root, "absent")], { now: NOW })).exitCode).toBe(2);
   });
 });
+
+describe("la toolchain en ligne de commande", () => {
+  function repo(toolchain: string): string {
+    const root = mkdtempSync(join(tmpdir(), "keelson-cli-tc-"));
+    mkdirSync(join(root, ".git"));
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(
+      join(root, ".gitlab-ci.yml"),
+      "stages:\n  - build\n\nbuild:\n  stage: build\n  script:\n    - make\n",
+    );
+    writeFileSync(join(root, ".devsecops", "toolchain.yaml"), toolchain);
+    return root;
+  }
+
+  test("validate signale un service inconnu et rend 1", async () => {
+    const root = repo(
+      "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: fantome\n    service: absent\n    kind: push\n",
+    );
+    const result = await run(["validate"], { cwd: root });
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("TOOLCHAIN_UNKNOWN_SERVICE");
+    expect(result.stdout).toContain("TOOLCHAIN_UNKNOWN_JOB");
+  });
+
+  test("validate rend 0 sur une toolchain cohérente", async () => {
+    const root = repo(
+      "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: build\n    service: n\n    kind: push\n",
+    );
+    expect((await run(["validate"], { cwd: root })).exitCode).toBe(0);
+  });
+
+  test("coverage --require scm est satisfait par un service déclaré, et le dit", async () => {
+    const root = repo("version: 1\nservices:\n  git:\n    tool: gitlab\n");
+    const result = await run(["coverage", "--require", "scm"], { cwd: root });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/covered {2}scm .*service git/);
+  });
+});

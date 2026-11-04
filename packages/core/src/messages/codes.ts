@@ -194,6 +194,8 @@ export type MessageParams = {
     | { reason: "sharedValue"; job: string; key: string }
     | { reason: "flowStyleToolchain"; section: string }
     | { reason: "invalidToolchain" }
+    | { reason: "invalidLayout" }
+    | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }
     | { reason: "unreadableBody" }

@@ -1,9 +1,16 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, join, sep } from "node:path";
 import { createFileReader, type ParseResult, parse, readInsideRoot } from "@keelson/adapter-gitlab";
+import { loadCatalog } from "@keelson/catalog";
 import type { Diagnostic } from "@keelson/core";
-import { validate } from "@keelson/core";
-import { LAYOUT_FILE, type ParsedLayout, parseLayout } from "@keelson/toolchain";
+import { TOOLCHAIN_FILE, validate } from "@keelson/core";
+import {
+  analyseToolchain,
+  LAYOUT_FILE,
+  type ParsedLayout,
+  parseLayout,
+  type ToolchainAnalysis,
+} from "@keelson/toolchain";
 
 /** La racine depuis laquelle GitLab résout les `include: local`. On remonte jusqu'au premier
  *  dossier qui contient un `.git`, parce que c'est la racine du dépôt que GitLab utilise. Sans
@@ -35,6 +42,7 @@ export type Analysis = {
   main: string;
   result: ParseResult;
   layout: ParsedLayout;
+  toolchain: ToolchainAnalysis;
   diagnostics: Diagnostic[];
 };
 
@@ -44,11 +52,22 @@ export function analyse(file: string, text: string): Analysis {
   const main = relativeTo(root, file);
   const result = parse(text, { file: main, read: createFileReader(root) });
   const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), result.pipeline);
+  const toolchain = analyseToolchain(
+    readInsideRoot(root, TOOLCHAIN_FILE),
+    result.pipeline,
+    loadCatalog().tools,
+  );
   return {
     root,
     main,
     result,
     layout,
-    diagnostics: [...result.diagnostics, ...validate(result.pipeline), ...layout.diagnostics],
+    toolchain,
+    diagnostics: [
+      ...result.diagnostics,
+      ...validate(result.pipeline),
+      ...layout.diagnostics,
+      ...toolchain.diagnostics,
+    ],
   };
 }

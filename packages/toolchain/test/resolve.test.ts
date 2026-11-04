@@ -24,11 +24,11 @@ const TOOLS = [tool("nexus", "push"), tool("vault", "fetch-secret")];
 
 function pipeline(jobs: Record<string, string[]>, partial = false): Pipeline {
   return {
-    ...emptyPipeline(),
+    ...emptyPipeline(".gitlab-ci.yml"),
     jobs: Object.entries(jobs).map(
       ([id, script]) => ({ id, signals: { image: null, script } }) as unknown as Job,
     ),
-    unresolved: partial ? [{ form: "remote", detail: "x", file: "m" }] : [],
+    unresolved: partial ? ([{ form: "remote", value: "x" }] as never) : [],
   } as Pipeline;
 }
 

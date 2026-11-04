@@ -1,7 +1,8 @@
 import { type FSWatcher, watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { hashText } from "@keelson/core";
+import { readInsideRoot } from "@keelson/adapter-gitlab";
+import { hashText, TOOLCHAIN_FILE } from "@keelson/core";
 import { LAYOUT_FILE } from "@keelson/toolchain";
 import type { DocumentStore } from "./store.ts";
 
@@ -12,7 +13,8 @@ export type DocumentEvent =
   | { kind: "document.removed"; file: string }
   /** `layout.json` a changé, pas le pipeline : l'écran repose la couverture sans toucher à
    *  l'historique d'annulation ni annoncer un fichier modifié. */
-  | { kind: "coverage.changed"; file: string };
+  | { kind: "coverage.changed"; file: string }
+  | { kind: "toolchain.changed"; hash: string };
 
 export type Watcher = {
   close(): void;
@@ -23,7 +25,8 @@ export type Watcher = {
 type Tracked = {
   file: string;
   main: string;
-  /** `.devsecops` ou son `layout.json` : ils décident de la couverture, pas du pipeline. */
+  /** `.devsecops`, `layout.json` ou `toolchain.yaml` : ils décident de la couverture et de la
+   *  toolchain, pas du pipeline. */
   companion: boolean;
 };
 
@@ -36,6 +39,8 @@ export function watchDocuments(
   const timers = new Map<string, NodeJS.Timeout>();
   const tracked = new Map<string, Tracked>();
   let closed = false;
+  const toolchainHash = (): string => hashText(readInsideRoot(root, TOOLCHAIN_FILE) ?? "");
+  let knownToolchain = toolchainHash();
 
   const inspectMain = async (file: string): Promise<void> => {
     const absolute = resolve(root, file);
@@ -102,6 +107,12 @@ export function watchDocuments(
     } else {
       emit({ kind: "document.changed", file: entry.main, hash: loaded.hash });
     }
+
+    const toolchain = toolchainHash();
+    if (toolchain !== knownToolchain) {
+      knownToolchain = toolchain;
+      emit({ kind: "toolchain.changed", hash: toolchain });
+    }
   };
 
   const schedule = (absolute: string, entry: Tracked): void => {
@@ -163,7 +174,7 @@ export function watchDocuments(
       const main = entry.path;
       // `.devsecops` figure aussi pour lui-même : tant qu'il n'existe pas, seul le dossier parent
       // peut voir sa création, et donc faire poser la surveillance de `layout.json`.
-      const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE];
+      const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE, TOOLCHAIN_FILE];
       for (const file of [main, ...store.includedFiles(main), ...companions]) {
         const absolute = resolve(root, file);
         tracked.set(absolute, { file, main, companion: companions.includes(file) });

@@ -61,7 +61,7 @@ describe("modification externe", () => {
   test("une écriture extérieure émet document.changed avec le nouveau hash", async () => {
     writeFileSync(path(), `${BASE}\nautre:\n  stage: build\n  script:\n    - echo\n`);
     const event = await waitForEvent("document.changed");
-    expect(event.file).toBe(".gitlab-ci.yml");
+    expect(event).toMatchObject({ file: ".gitlab-ci.yml" });
     expect(event.kind).toBe("document.changed");
     if (event.kind === "document.changed") {
       expect(store.currentHash(".gitlab-ci.yml")).toBe(event.hash);
@@ -85,7 +85,7 @@ describe("modification externe", () => {
   test("la suppression du fichier émet document.removed", async () => {
     rmSync(path());
     const event = await waitForEvent("document.removed");
-    expect(event.file).toBe(".gitlab-ci.yml");
+    expect(event).toMatchObject({ file: ".gitlab-ci.yml" });
   });
 });
 

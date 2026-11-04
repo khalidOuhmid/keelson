@@ -236,6 +236,14 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: "toolchain.yaml is not usable, fix it before editing it here",
     },
     {
+      params: { reason: "invalidLayout" },
+      text: "layout.json is not usable, fix it before moving nodes",
+    },
+    {
+      params: { reason: "outsideRoot", path: ".devsecops/toolchain.yaml" },
+      text: '".devsecops/toolchain.yaml" leads outside the repository, nothing was written',
+    },
+    {
       params: { reason: "sharedValue", job: "unit", key: "needs" },
       text: 'the needs of "unit" comes through an anchor or a !reference that Keelson cannot rewrite in place',
     },

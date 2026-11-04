@@ -79,7 +79,15 @@ export function parseToolchain(text: string | null): ParsedToolchain {
     return invalid(`services: ${String(illegal.key)} is not a usable service id`);
   }
 
-  const parsed = schema.safeParse(document.toJS({ mapAsMap: false }));
+  // `toJS` lève sur un alias sans ancre : `parseDocument` ne le voit pas comme une erreur.
+  let raw: unknown;
+  try {
+    raw = document.toJS({ mapAsMap: false });
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "unreadable YAML");
+  }
+
+  const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const path = issue?.path.join(".") ?? "";

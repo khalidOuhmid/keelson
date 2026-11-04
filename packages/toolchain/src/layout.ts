@@ -9,11 +9,30 @@ export type Position = { x: number; y: number };
 
 export type Positions = Readonly<Record<string, Position>>;
 
+const positionsSchema = z.record(z.string(), z.strictObject({ x: z.number(), y: z.number() }));
+
 const layoutSchema = z.object({
   version: z.literal(1),
   layers: z.record(z.string(), z.array(z.string())).default({}),
-  positions: z.record(z.string(), z.strictObject({ x: z.number(), y: z.number() })).default({}),
+  positions: positionsSchema.default({}),
 });
+
+export type ParsedPositions =
+  | { ok: true; positions: Positions }
+  | { ok: false; path: string; detail: string };
+
+export function parsePositions(raw: unknown): ParsedPositions {
+  const parsed = positionsSchema.safeParse(raw);
+  if (parsed.success) {
+    return { ok: true, positions: parsed.data };
+  }
+  const issue = parsed.error.issues[0];
+  return {
+    ok: false,
+    path: issue?.path.join(".") ?? "",
+    detail: issue?.message ?? "invalid shape",
+  };
+}
 
 export type ParsedLayout = {
   overrides: Readonly<Record<string, readonly LayerId[]>>;
