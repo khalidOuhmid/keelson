@@ -13,6 +13,9 @@
   },
   "dependencies": {
     "@keelson/adapter-gitlab": "workspace:*",
-    "@keelson/core": "workspace:*"
+    "@keelson/core": "workspace:*",
+    "@keelson/catalog": "workspace:*",
+    "@keelson/taxonomy": "workspace:*",
+    "@keelson/toolchain": "workspace:*"
   }
 }

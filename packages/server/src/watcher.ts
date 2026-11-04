@@ -2,6 +2,7 @@ import { type FSWatcher, watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { hashText } from "@keelson/core";
+import { LAYOUT_FILE } from "@keelson/toolchain";
 import type { DocumentStore } from "./store.ts";
 
 export const DEBOUNCE_MS = 40;
@@ -122,7 +123,10 @@ export function watchDocuments(
 
     for (const entry of store.workspaceFiles()) {
       const main = entry.path;
-      for (const file of [main, ...store.includedFiles(main)]) {
+      // `.devsecops` figure aussi pour lui-même : tant qu'il n'existe pas, seul le dossier parent
+      // peut voir sa création, et donc faire poser la surveillance de `layout.json`.
+      const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE];
+      for (const file of [main, ...store.includedFiles(main), ...companions]) {
         const absolute = resolve(root, file);
         tracked.set(absolute, { file, main });
         watchDirectory(dirname(absolute));

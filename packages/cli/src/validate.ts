@@ -1,9 +1,9 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
-import { createFileReader, parse } from "@keelson/adapter-gitlab";
+import { readFileSync, statSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
 import type { Diagnostic } from "@keelson/core";
-import { hasErrors, validate as validatePipeline } from "@keelson/core";
+import { hasErrors } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
+import { analyse } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
 
@@ -46,31 +46,6 @@ function parseArguments(argv: readonly string[], cwd: string): Options | CliResu
     file: isAbsolute(target) ? target : resolve(cwd, target),
     format: (requested ?? "text") as Format,
   };
-}
-
-/** La racine depuis laquelle GitLab résout les `include: local`. On remonte jusqu'au premier
- *  dossier qui contient un `.git`, parce que c'est la racine du dépôt que GitLab utilise. Sans
- *  dépôt — un fichier isolé, un test — c'est le dossier du fichier, ce qui revient au cas normal
- *  où `.gitlab-ci.yml` est à la racine. */
-function repositoryRoot(file: string): string {
-  let current = dirname(file);
-  while (true) {
-    if (existsSync(join(current, ".git"))) {
-      return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) {
-      return dirname(file);
-    }
-    current = parent;
-  }
-}
-
-/** Le chemin du fichier relatif à la racine, en séparateurs `/` : c'est la forme qu'attendent les
- *  `include` et celle que portent les diagnostics. */
-function relativeTo(root: string, file: string): string {
-  const prefix = root.endsWith(sep) ? root : root + sep;
-  return file.startsWith(prefix) ? file.slice(prefix.length).split(sep).join("/") : basename(file);
 }
 
 function positionOf(text: string, offset: number): { line: number; column: number } {
@@ -148,10 +123,7 @@ export function validateCommand(argv: readonly string[], cwd: string): CliResult
     return usage(`file not found: ${parsed.file}`);
   }
 
-  const root = repositoryRoot(parsed.file);
-  const main = relativeTo(root, parsed.file);
-  const result = parse(text, { file: main, read: createFileReader(root) });
-  const diagnostics = [...result.diagnostics, ...validatePipeline(result.pipeline)];
+  const { root, main, result, diagnostics } = analyse(parsed.file, text);
   const texts = new Map<string, string>([[main, text], ...Object.entries(result.included)]);
   const reported = report(root, texts, diagnostics);
 

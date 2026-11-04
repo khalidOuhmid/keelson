@@ -51,7 +51,8 @@ function walk(root: string): string[] {
  *
  *  `candidates()` est mémoïsé et n'est calculé qu'au premier joker : un dépôt sans `include` à
  *  joker ne paie jamais le parcours. */
-export function createFileReader(root: string): IncludeReader {
+/** Le chemin réel de `path` s'il reste sous `root`, sinon `null`. */
+function boundary(root: string): (path: string) => string | null {
   const absoluteRoot = resolve(root);
   const prefix = absoluteRoot.endsWith(sep) ? absoluteRoot : absoluteRoot + sep;
   /** La racine résolue : la racine elle-même peut être atteinte par un lien — un dossier de test
@@ -62,34 +63,50 @@ export function createFileReader(root: string): IncludeReader {
     realRoot = realpathSync(absoluteRoot);
   } catch {}
   const realPrefix = realRoot.endsWith(sep) ? realRoot : realRoot + sep;
+
+  return (path) => {
+    const absolute = resolve(absoluteRoot, path);
+    // Premier contrôle, lexical, après celui de `normaliseIncludePath`.
+    if (!absolute.startsWith(prefix)) {
+      return null;
+    }
+
+    // Second contrôle, **sur le chemin réel**. Les contrôles lexicaux ne voient pas les liens
+    // symboliques : `ci/fuite.yml → /etc/passwd` passait, et le contenu du fichier visé partait
+    // dans la charge envoyée au navigateur. Trouvé par la revue indépendante du 2026-10-23.
+    try {
+      const real = realpathSync(absolute);
+      return real.startsWith(realPrefix) ? real : null;
+    } catch {
+      return null;
+    }
+  };
+}
+
+/** Lit un fichier du dépôt qui n'est pas du YAML, comme `.devsecops/layout.json`, derrière la même
+ *  frontière : un message d'erreur de `JSON.parse` cite le texte lu, donc un lien vers un fichier
+ *  extérieur le ferait sortir par un diagnostic. */
+export function readInsideRoot(root: string, path: string): string | null {
+  const real = boundary(root)(path);
+  if (real === null) {
+    return null;
+  }
+  try {
+    return statSync(real).isFile() ? readFileSync(real, "utf8") : null;
+  } catch {
+    return null;
+  }
+}
+
+export function createFileReader(root: string): IncludeReader {
+  const absoluteRoot = resolve(root);
+  const realInside = boundary(root);
   let listed: string[] | null = null;
 
   return {
     read(path) {
-      const absolute = resolve(absoluteRoot, path);
-      // Premier contrôle, lexical, après celui de `normaliseIncludePath`.
-      if (!absolute.startsWith(prefix)) {
-        return null;
-      }
-
-      // Second contrôle, **sur le chemin réel**. Les deux contrôles lexicaux ne voyaient pas les
-      // liens symboliques : `ci/fuite.yml → /etc/passwd` passait les deux, et le contenu du
-      // fichier visé partait dans la charge envoyée au navigateur. Trouvé par la revue
-      // indépendante du 2026-10-23.
-      //
-      // Un lien reste permis si sa **cible** reste sous la racine et reste du YAML : sans ce
-      // second point, un lien interne vers `.git/config` ou `.env` passait, l'extension n'étant
-      // contrôlée que sur le nom du lien.
-      let real: string;
-      try {
-        real = realpathSync(absolute);
-      } catch {
-        return null;
-      }
-      if (
-        !real.startsWith(realPrefix) ||
-        !YAML_EXTENSIONS.some((extension) => real.endsWith(extension))
-      ) {
+      const real = realInside(path);
+      if (real === null || !YAML_EXTENSIONS.some((extension) => real.endsWith(extension))) {
         return null;
       }
 

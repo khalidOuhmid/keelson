@@ -1,4 +1,11 @@
-import { apply, createFileReader, type IncludeReader, parse } from "@keelson/adapter-gitlab";
+import {
+  apply,
+  createFileReader,
+  type IncludeReader,
+  parse,
+  readInsideRoot,
+} from "@keelson/adapter-gitlab";
+import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type {
   Diagnostic,
   MessageCode,
@@ -10,13 +17,22 @@ import type {
 } from "@keelson/core";
 import { parseOperation, validate } from "@keelson/core";
 import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
+import { LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
 export const OPID_HISTORY = 100;
 
-function allDiagnostics(parsing: readonly Diagnostic[], pipeline: Pipeline): Diagnostic[] {
-  return [...parsing, ...validate(pipeline)];
+type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
+
+/** Ce que l'écran sait d'un pipeline, calculé au même endroit au chargement et après une opération :
+ *  la CLI fait le même calcul, et les deux doivent dire la même chose. */
+function analyse(root: string, parsing: readonly Diagnostic[], pipeline: Pipeline): Analysis {
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
+  return {
+    diagnostics: [...parsing, ...validate(pipeline), ...layout.diagnostics],
+    coverage: coverage(pipeline, loadCatalog().tools, layout.overrides),
+  };
 }
 
 export type DocumentBody = {
@@ -29,6 +45,7 @@ export type DocumentBody = {
    *  des offsets dans ces textes, et une route séparée les laisserait se désaligner entre deux
    *  requêtes — en plus d'ouvrir une seconde surface de lecture du disque à borner. */
   included: Record<string, string>;
+  coverage: Coverage;
 };
 
 export type OperationBody = {
@@ -43,6 +60,7 @@ export type OperationBody = {
   inverse: SpliceOperation;
   touched: SourceRange[];
   included: Record<string, string>;
+  coverage: Coverage;
 };
 
 /** Pas de `message` : le texte est rendu côté client par `@keelson/core/messages`. `hash` n'est
@@ -63,6 +81,7 @@ type Loaded = {
   diagnostics: Diagnostic[];
   hash: string;
   included: Record<string, string>;
+  coverage: Coverage;
 };
 
 export class DocumentStore {
@@ -113,7 +132,11 @@ export class DocumentStore {
     }
 
     const parsed = parse(text, { file, read: this.reader });
-    const diagnostics = allDiagnostics(parsed.diagnostics, parsed.pipeline);
+    const { diagnostics, coverage: covered } = analyse(
+      this.root,
+      parsed.diagnostics,
+      parsed.pipeline,
+    );
     this.loaded.set(file, {
       absolute,
       text,
@@ -121,6 +144,7 @@ export class DocumentStore {
       diagnostics,
       hash: parsed.hash,
       included: parsed.included,
+      coverage: covered,
     });
 
     for (const listener of this.loadedListeners) {
@@ -133,6 +157,7 @@ export class DocumentStore {
       diagnostics,
       hash: parsed.hash,
       included: parsed.included,
+      coverage: covered,
     };
   }
 
@@ -242,13 +267,18 @@ export class DocumentStore {
 
     await writeAtomic(current.absolute, result.value.text);
 
-    const diagnostics = allDiagnostics(result.value.diagnostics, result.value.pipeline);
+    const { diagnostics, coverage: covered } = analyse(
+      this.root,
+      result.value.diagnostics,
+      result.value.pipeline,
+    );
 
     this.loaded.set(file, {
       absolute: current.absolute,
       text: result.value.text,
       pipeline: result.value.pipeline,
       included: result.value.included,
+      coverage: covered,
       diagnostics,
       // `apply` rend `parse(texte).hash`, donc le hash du texte qu'il vient d'écrire. Le recalculer
       // ici donnait deux expressions pour une seule vérité : si elles divergeaient, le cache
@@ -266,6 +296,7 @@ export class DocumentStore {
         inverse: result.value.inverse,
         touched: result.value.touched,
         included: result.value.included,
+        coverage: covered,
       },
     };
   }

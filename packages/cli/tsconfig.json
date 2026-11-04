@@ -13,6 +13,15 @@
     },
     {
       "path": "../server"
+    },
+    {
+      "path": "../catalog"
+    },
+    {
+      "path": "../taxonomy"
+    },
+    {
+      "path": "../toolchain"
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import type { Coverage } from "@keelson/catalog";
 import type { Operation, Pipeline } from "@keelson/core";
 import type { ApiResult, DocumentPayload, OperationPayload } from "../src/api/client.ts";
 import { createStore, type KeelsonStore } from "../src/state/store.ts";
@@ -8,6 +9,8 @@ const HASH_B = "b".repeat(64);
 const HASH_C = "c".repeat(64);
 
 const MAIN = ".gitlab-ci.yml";
+
+const NO_COVERAGE: Coverage = { jobs: [], layers: [], partial: false };
 
 function pipeline(jobs: string[] = ["compile"]): Pipeline {
   return {
@@ -38,6 +41,7 @@ function documentPayload(hash = HASH_A): DocumentPayload {
     diagnostics: [],
     hash,
     included: {},
+    coverage: NO_COVERAGE,
   };
 }
 
@@ -48,6 +52,7 @@ function operationPayload(hash: string, inverseHash: string): OperationPayload {
     diagnostics: [],
     hash,
     included: {},
+    coverage: NO_COVERAGE,
     inverse: {
       v: 1,
       baseHash: inverseHash,
@@ -572,6 +577,7 @@ describe("sélection par plage avec plusieurs fichiers", () => {
       diagnostics: [],
       hash: HASH_A,
       included: { "ci/jobs.yml": "compile:\n" },
+      coverage: NO_COVERAGE,
     });
 
     // `compile` occupe [0, 10[ dans le fichier principal. La même plage dans `ci/jobs.yml` ne

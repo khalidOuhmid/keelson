@@ -4,5 +4,21 @@
     "types": ["node"]
   },
   "include": ["src", "package.json"],
-  "references": [{ "path": "../adapter-gitlab" }, { "path": "../core" }]
+  "references": [
+    {
+      "path": "../adapter-gitlab"
+    },
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../catalog"
+    },
+    {
+      "path": "../taxonomy"
+    },
+    {
+      "path": "../toolchain"
+    }
+  ]
 }

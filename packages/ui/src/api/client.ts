@@ -1,3 +1,4 @@
+import type { Catalog, Coverage } from "@keelson/catalog";
 import type {
   Diagnostic,
   MessageCode,
@@ -8,6 +9,7 @@ import type {
   SpliceOperation,
 } from "@keelson/core";
 import { MESSAGE_CODES, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "@keelson/core/messages";
+import type { Layer } from "@keelson/taxonomy";
 
 export type AdapterName = "gitlab";
 
@@ -25,6 +27,7 @@ export type DocumentPayload = {
    *  offsets dedans : les découper dans le texte du fichier principal afficherait des octets pris
    *  ailleurs, sous la seule promesse du produit qui dit « ceci est verbatim ». */
   included: Record<string, string>;
+  coverage: Coverage;
 };
 
 export type OperationPayload = {
@@ -35,7 +38,10 @@ export type OperationPayload = {
   inverse: SpliceOperation;
   touched: SourceRange[];
   included: Record<string, string>;
+  coverage: Coverage;
 };
+
+export type CatalogPayload = Catalog & { layers: readonly Layer[] };
 
 /** Pas de `message` : il n'est plus sur le fil. Le texte se rend par `renderMessage(failure)`,
  *  que cette forme rend directement possible. */
@@ -132,6 +138,10 @@ export class KeelsonClient {
 
   document(file: string): Promise<ApiResult<DocumentPayload>> {
     return this.call(`/api/documents/${encodeURIComponent(file)}`);
+  }
+
+  catalog(): Promise<ApiResult<CatalogPayload>> {
+    return this.call("/api/catalog");
   }
 
   submit(file: string, op: Operation, opId: string): Promise<ApiResult<OperationPayload>> {
