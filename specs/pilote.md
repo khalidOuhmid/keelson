@@ -50,4 +50,4 @@ README complet avec captures, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, templates
 `keelson apply ops.json` (opérations sérialisées sur un dépôt, simulation par défaut, écriture sur option). `keelson fleet coverage <manifeste>` : couverture agrégée de N dépôts locaux, cache par hash de fichier, mise à jour incrémentale, sortie JSON et Markdown.
 
 ## Fin
-Quand L8 est fusionné : `Statut : TERMINÉ` dans `progress.md`, et un rapport final
+Quand L8 est fusionné : `Statut : TERMINÉ` dans `progress.md`, et un rapport final : lots fusionnés, ADR créés, écarts les plus structurants, commandes de publication en attente.
