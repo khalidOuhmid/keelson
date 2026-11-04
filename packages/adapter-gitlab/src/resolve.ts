@@ -469,11 +469,15 @@ function inheritedKeys(
   context: ResolveContext,
 ): ReadonlySet<string> | null {
   // GitLab fusionne `inherit` en profondeur à travers `extends` : le `default` le plus proche gagne,
-  // même si un `inherit` plus proche ne parle que de `variables`.
-  const value = matches(sources, "inherit")
-    .reverse()
-    .map((entry) => {
-      const map = dereference(entry.node, entry.file, context).node;
+  // même si un `inherit` plus proche ne parle que de `variables`. `<<` ne fusionne pas en profondeur :
+  // `entryAt` lit donc l'`inherit` effectif de chaque définition, ancres comprises.
+  const value = sources
+    .filter((source) => source.origin.kind !== "anchor")
+    .toReversed()
+    .map((source) => {
+      const document = documentOf(context, source.file);
+      const entry = document === null ? undefined : entryAt(source.map, "inherit", document);
+      const map = entry === undefined ? null : dereference(entry, source.file, context).node;
       return isMap(map) ? (localPair(map, "default")?.value as AnyNode) : undefined;
     })
     .find((entry) => entry !== undefined);

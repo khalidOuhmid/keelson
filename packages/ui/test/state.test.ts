@@ -372,6 +372,15 @@ describe("coverage.changed", () => {
   });
 });
 
+describe("coverage.changed sur un client en retard", () => {
+  test("le document est rechargé : aucun événement ne suivra", async () => {
+    api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
+    api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
+    await state().serverEvent({ kind: "coverage.changed", file: MAIN });
+    expect(state().hash).toBe(HASH_B);
+  });
+});
+
 describe("sélection", () => {
   test("un job peut être sélectionné puis désélectionné", () => {
     state().selectJob("compile");

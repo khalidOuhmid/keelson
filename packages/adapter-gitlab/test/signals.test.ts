@@ -101,6 +101,24 @@ describe("fusion d'extends et jobs sans exécution", () => {
     expect(signals(text)?.image).toBeNull();
   });
 
+  test("<< n'est pas extends : l'inherit du job remplace celui de l'ancre", () => {
+    const text =
+      "default:\n  image: d\n\n.t: &t\n  inherit:\n    default: false\n  script: a\n\njob:\n  <<: *t\n  inherit:\n    variables: false\n";
+    expect(signals(text)?.image).toBe("d");
+  });
+
+  test("un inherit venu seulement d'une ancre s'applique", () => {
+    const text =
+      "default:\n  image: d\n\n.t: &t\n  inherit:\n    default: false\n  script: a\n\njob:\n  <<: *t\n";
+    expect(signals(text)?.image).toBeNull();
+  });
+
+  test("un inherit dans l'ancre d'un template se fusionne à travers extends", () => {
+    const text =
+      "default:\n  image: d\n\n.a: &a\n  inherit:\n    default: false\n\n.t:\n  <<: *a\n\njob:\n  extends: .t\n  inherit:\n    variables: false\n  script: a\n";
+    expect(signals(text)?.image).toBeNull();
+  });
+
   test("une image objet se fusionne : le nom vient du template, l'entrypoint du job", () => {
     const text =
       ".t:\n  image:\n    name: aquasec/trivy\n\njob:\n  extends: .t\n  image:\n    entrypoint: ['']\n  script: a\n";
