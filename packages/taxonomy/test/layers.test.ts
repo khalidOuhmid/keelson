@@ -35,6 +35,20 @@ describe("taxonomie", () => {
     expect(summaries.every((summary) => summary.endsWith("."))).toBe(true);
   });
 
+  test("un libellé court unique par couche : il est le mot qui nomme la couleur", () => {
+    const shorts = LAYERS.map((layer) => layer.short);
+    expect(new Set(shorts).size).toBe(LAYERS.length);
+  });
+
+  test("la famille plateforme est exactement la source plateforme", () => {
+    for (const layer of LAYERS) {
+      expect({ id: layer.id, platform: layer.family === "platform" }).toEqual({
+        id: layer.id,
+        platform: layer.source === "platform",
+      });
+    }
+  });
+
   test("isLayerId et findLayer", () => {
     expect(isLayerId("sast")).toBe(true);
     expect(isLayerId("inventee")).toBe(false);

@@ -126,7 +126,7 @@ describe("surveillance de layout.json", () => {
     expect((await waitForEvent(events)).kind).toBe("coverage.changed");
   });
 
-  test("le modifier ensuite émet document.changed", async () => {
+  test("le modifier ensuite émet coverage.changed", async () => {
     writeLayout('{"version":1}');
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
