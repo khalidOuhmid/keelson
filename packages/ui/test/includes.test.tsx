@@ -11,8 +11,7 @@ import { PartialPipelineBar } from "../src/states/PartialPipelineBar.tsx";
 import { type JobNodeData, toFlowGraph } from "../src/views/pipeline/graph.ts";
 import { JobNode, type JobNodeProps } from "../src/views/pipeline/JobNode.tsx";
 import type { Layout } from "../src/views/pipeline/layout.ts";
-import { OriginBadge } from "../src/views/pipeline/OriginBadge.tsx";
-import { INCLUDE_ORIGIN_HINT, ORIGIN_HINT } from "../src/views/pipeline/origin.ts";
+import { ORIGIN_HINT, READ_ONLY_ORIGIN_HINT } from "../src/views/pipeline/origin.ts";
 
 const MAIN = ".gitlab-ci.yml";
 const INCLUDED = "ci/jobs.yml";
@@ -385,22 +384,44 @@ describe("l'indicateur de pipeline partiel", () => {
   });
 });
 
-describe("le texte d'aide du badge d'origine", () => {
-  /** `ORIGIN_HINT` promet « Changing it writes an explicit override in this job ». C'est vrai d'un
-   *  `extends` ou d'un anchor ; c'est **faux** d'une valeur venue d'un fichier inclus sur un job
-   *  qu'on ne peut pas écrire, et le dire là contredisait la garantie centrale du lot au moment
-   *  précis où l'utilisateur cherche à savoir ce qu'il peut toucher. */
-  test("une origine include ne promet pas de surcharge", () => {
-    render(<OriginBadge origin={{ kind: "include", file: INCLUDED }} />);
-    expect(screen.getByTestId("origin-badge").getAttribute("title")).toBe(INCLUDE_ORIGIN_HINT);
+describe("le texte d'aide du badge d'origine, dans le panneau de détail", () => {
+  /** Le texte dépend du job **et** de l'origine. Le premier correctif ne regardait que l'origine, et
+   *  disait « cannot be overridden here » sur un job surchargé dans le fichier principal, qui reste
+   *  éditable : l'erreur avait changé de côté. Ces tests passent par le panneau parce que c'est lui
+   *  qui sait si le job est éditable, et qu'un test sur le badge seul ne verrait pas l'oubli. */
+  function hintOn(target: Job): string | null {
+    render(<JobDetailPanel job={target} textOf={() => ""} main={MAIN} onClose={() => undefined} />);
+    return screen.getByTestId("origin-badge").getAttribute("title");
+  }
+
+  const includeOrigin = { kind: "include", file: INCLUDED } as const;
+  const extendsOrigin = { kind: "extends", template: ".base" } as const;
+
+  test("job du fichier principal, valeur venue d'un include : la surcharge s'écrit ici", () => {
+    const hint = hintOn(job("compile", MAIN, { stage: { value: "build", origin: includeOrigin } }));
+    expect(hint).toBe(
+      "This value comes from an included file. Changing it writes an explicit override in this job and never touches that file.",
+    );
   });
 
-  test("une origine extends promet toujours la surcharge, elle est vraie", () => {
-    render(<OriginBadge origin={{ kind: "extends", template: ".base" }} />);
-    expect(screen.getByTestId("origin-badge").getAttribute("title")).toBe(ORIGIN_HINT);
+  test("job du fichier principal, valeur héritée d'un template : le texte d'origine", () => {
+    const hint = hintOn(job("compile", MAIN, { stage: { value: "build", origin: extendsOrigin } }));
+    expect(hint).toBe(ORIGIN_HINT);
   });
 
-  test("les deux phrases sont distinctes", () => {
-    expect(INCLUDE_ORIGIN_HINT).not.toBe(ORIGIN_HINT);
+  test("job inclus, valeur venue d'un include : rien ne se surcharge", () => {
+    const hint = hintOn(job("sast", INCLUDED));
+    expect(hint).toBe(
+      "This job is defined in an included file. Keelson never writes to included files, so this value cannot be overridden here.",
+    );
+  });
+
+  /** Le cas que regarder l'origine seule ne pouvait pas voir : un job inclus dont la valeur vient
+   *  d'un `extends` portait `ORIGIN_HINT`, qui promet une surcharge impossible. */
+  test("job inclus, valeur héritée d'un template : rien ne se surcharge non plus", () => {
+    const hint = hintOn(
+      job("sast", INCLUDED, { stage: { value: "build", origin: extendsOrigin } }),
+    );
+    expect(hint).toBe(READ_ONLY_ORIGIN_HINT);
   });
 });

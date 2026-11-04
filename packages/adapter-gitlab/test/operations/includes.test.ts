@@ -90,6 +90,36 @@ describe("toute opération visant un job inclus est refusée", () => {
     expect(result.ok).toBe(true);
   });
 
+  /** La promesse que le badge d'origine fait à l'écran : sur un job du fichier principal, changer
+   *  une valeur venue d'un include écrit une surcharge **dans ce job**. Sans ce test, le texte
+   *  d'aide affirmerait un comportement qu'aucun test ne tient. */
+  test("changer une valeur venue d'un include écrit la surcharge dans le fichier principal", () => {
+    const overridden: Tree = {
+      ...TREE,
+      [GITLAB_CI_FILE]: `${TREE[GITLAB_CI_FILE]}\ncompile:\n  script:\n    - make autre\n`,
+    };
+    const before = parse(overridden[GITLAB_CI_FILE] ?? "", {
+      file: GITLAB_CI_FILE,
+      read: reader(overridden),
+    });
+    expect(before.pipeline.jobs.find((job) => job.id === "compile")?.stage.origin).toEqual({
+      kind: "include",
+      file: "ci/jobs.yml",
+    });
+
+    const { result } = run(overridden, { kind: "setJobStage", id: "compile", stage: "test" });
+    if (!result.ok) {
+      throw new Error(`opération refusée : ${result.error.code}`);
+    }
+
+    expect(result.value.text).toContain("compile:\n  stage: test\n");
+    expect(result.value.included["ci/jobs.yml"]).toBe(overridden["ci/jobs.yml"]);
+    expect(result.value.pipeline.jobs.find((job) => job.id === "compile")?.stage).toEqual({
+      value: "test",
+      origin: { kind: "local" },
+    });
+  });
+
   test("un job qui n'existe nulle part reste JOB_NOT_FOUND, pas FROM_INCLUDED_FILE", () => {
     const { result } = run(TREE, { kind: "removeJob", id: "fantome" });
     expect(result.ok ? null : result.error.code).toBe("JOB_NOT_FOUND");

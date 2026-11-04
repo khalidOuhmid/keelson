@@ -4,9 +4,11 @@ import { describeOrigin, hintFor } from "./origin.ts";
 
 export type OriginBadgeProps = {
   origin: Origin;
+  /** Le job vit dans un fichier inclus : la valeur ne peut pas être surchargée ici. */
+  readOnly?: boolean;
 };
 
-export function OriginBadge({ origin }: OriginBadgeProps) {
+export function OriginBadge({ origin, readOnly = false }: OriginBadgeProps) {
   const described = describeOrigin(origin);
   if (described === null) {
     return null;
@@ -15,7 +17,7 @@ export function OriginBadge({ origin }: OriginBadgeProps) {
   return (
     <span
       data-testid="origin-badge"
-      title={hintFor(origin)}
+      title={hintFor(origin, readOnly)}
       className="inline-flex min-w-0 max-w-full items-center gap-1 text-2xs font-medium text-text-muted"
     >
       <InheritedIcon />

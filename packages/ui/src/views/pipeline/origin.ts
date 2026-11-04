@@ -29,13 +29,21 @@ export function describeOrigin(origin: Origin): OriginLabel | null {
 export const ORIGIN_HINT =
   "This value is inherited. Changing it writes an explicit override in this job and never touches the template.";
 
-/** La phrase ci-dessus promet une surcharge possible, ce qui est faux sur un job venu d'un fichier
- *  inclus : il n'y a rien à surcharger ici, puisque Keelson n'écrit pas ce fichier. L'afficher là
- *  contredisait la garantie centrale du lot, au moment précis où l'utilisateur cherche à savoir ce
- *  qu'il peut toucher. Relevé par la passe `critique` du 2026-10-23. */
+/** Une valeur venue d'un fichier inclus, sur un job du fichier principal : `setJobStage` y écrit
+ *  bien une surcharge, et le fichier inclus n'est pas touché. */
 export const INCLUDE_ORIGIN_HINT =
-  "This value comes from an included file. Keelson never writes to included files, so it cannot be overridden here.";
+  "This value comes from an included file. Changing it writes an explicit override in this job and never touches that file.";
 
-export function hintFor(origin: Origin): string {
+/** Sur un job inclus, aucune valeur ne se surcharge, quelle que soit son origine : Keelson n'écrit
+ *  pas ce fichier. */
+export const READ_ONLY_ORIGIN_HINT =
+  "This job is defined in an included file. Keelson never writes to included files, so this value cannot be overridden here.";
+
+/** Le texte dépend du job **et** de l'origine : regarder l'origine seule promettait une surcharge
+ *  impossible sur un job inclus, ou la refusait sur un job surchargé dans le fichier principal. */
+export function hintFor(origin: Origin, readOnly: boolean): string {
+  if (readOnly) {
+    return READ_ONLY_ORIGIN_HINT;
+  }
   return origin.kind === "include" ? INCLUDE_ORIGIN_HINT : ORIGIN_HINT;
 }
