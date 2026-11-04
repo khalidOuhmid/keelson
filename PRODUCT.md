@@ -94,7 +94,10 @@ Zustand pour l'état.
 **Livré au lot L3** : taxonomie, catalogue de 62 outils, vues Coverage et Catalog, `keelson coverage`
 et `keelson catalog lint`.
 
-**Pas encore livré** : toolchain (L4), propositions d'outils et
+**Livré au lot L4** : `.devsecops/toolchain.yaml` édité par opérations, inférence des intégrations
+confirmée ou écartée, vue Toolchain à positions libres.
+
+**Pas encore livré** : propositions d'outils et
 insertion de jobs (L5), GitHub Actions (L6), packaging npm (L7), flotte (L8). Rien n'est utilisable
 par un utilisateur final à ce jour.
 

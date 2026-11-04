@@ -78,7 +78,7 @@ de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 
 | Dépendance      | Où                              | Usage                                        |
 | --------------- | ------------------------------- | -------------------------------------------- |
-| `yaml` (eemeli) | `adapter-gitlab`, `catalog`     | parsing, ranges des nœuds, anchors, merge     |
+| `yaml` (eemeli) | `adapter-gitlab`, `catalog`, `toolchain` | parsing, ranges des nœuds, anchors, merge |
 | `zod` v4        | `core`, `adapter-gitlab`, `catalog`, `toolchain` | schémas des opérations, fiches, layout |
 | `@xyflow/react` | `ui`                            | rendu du graphe pipeline                      |
 | `elkjs`         | `ui`                            | mise en page en couches, déterministe         |
@@ -138,6 +138,9 @@ l'aller-retour, l'inversabilité, le déterminisme et la localité des éditions
   reproductibles ; en local il est aléatoire, et fast-check affiche le seed et le contre-exemple
   minimal en cas d'échec.
 
+`packages/toolchain/test/properties/` vérifie les quatre mêmes propriétés sur `toolchain.yaml`, avec
+son propre corpus dans `packages/toolchain/test/corpus/`.
+
 Le corpus est dans `packages/adapter-gitlab/test/corpus/` : `gitlab-templates/` (20 templates
 officiels MIT, provenance et SHA dans `LICENSES.md`, intégrité dans `CHECKSUMS.txt`), `edge-cases/`
 (fixtures maison) et `goldens/` (IR attendue). **Ne jamais ajouter de fichier de CI venant d'un
@@ -162,7 +165,7 @@ packages/taxonomy/        couches OWASP + catégories plateforme
 packages/catalog/         tools/*.yaml, schéma, catalog.json compilé
 packages/adapter-gitlab/  GitLab CI ↔ IR
 packages/adapter-github/  GitHub Actions ↔ IR
-packages/toolchain/       .devsecops/toolchain.yaml, inférence des intégrations
+packages/toolchain/       .devsecops/toolchain.yaml, layout.json, propositions d'intégration
 packages/ui/              React + Vite + Tailwind
 packages/cli/             binaire `keelson`
 scripts/                  outillage de dev (garde-fou runtime, preload des tests)

@@ -84,7 +84,8 @@ de code serveur · observabilité runtime · sécurité runtime · policy-as-cod
 ## 6. Intégrations
 
 Inférées depuis les scripts des jobs via les motifs de détection du catalogue, puis **confirmées ou
-corrigées** dans `.devsecops/toolchain.yaml`. L'inférence propose, le fichier décide.
+corrigées** dans `.devsecops/toolchain.yaml`. L'inférence propose, le fichier décide (ADR 0010). Une
+fiche `service` déclare son type d'intégration, et `dismissed` garde ce que l'utilisateur écarte.
 
 ## 7. Vues
 
@@ -125,7 +126,10 @@ et écrit.
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
 | POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
-| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `coverage.changed { file }`, heartbeat toutes les 15 s |
+| GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
+| POST | `/api/toolchain/operations` | corps `{ op, opId }` → 200 le même corps plus `inverse` · 400 · 409 avec le `hash` courant · 422 |
+| PUT | `/api/layout/positions` | corps `{ positions }` → 200 · 400 · 422 si `layout.json` est illisible |
+| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `coverage.changed { file }`, `toolchain.changed { hash }`, heartbeat toutes les 15 s |
 | GET | `/*` | bundle de l'UI, repli SPA sur `index.html` |
 
 Les `diagnostics` de ces réponses combinent ceux de `parse` **et** ceux de `validate`, comme le fait
