@@ -120,7 +120,7 @@ function hasAnchor(node: Node | null): boolean {
 }
 
 function pairOf(map: YAMLMap, key: string): Pair | undefined {
-  return map.items.find((pair) => isScalar(pair.key) && pair.key.value === key);
+  return map.items.find((pair) => isScalar(pair.key) && String(pair.key.value) === key);
 }
 
 /** `stringify` plie les longues chaînes et laisse passer `---` : seul ce qui se relit à l'identique

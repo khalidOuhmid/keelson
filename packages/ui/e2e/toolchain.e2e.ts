@@ -202,6 +202,25 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
+  test("un service retiré de l'extérieur ne vole pas le focus d'une saisie", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const name = page.getByRole("textbox", { name: "Name" });
+      await name.fill("mon-depot");
+      keelson.writeAt(TOOLCHAIN, "version: 1\n");
+      await expect(page.getByRole("region", { name: "Service detail" })).toHaveCount(0);
+      await expect(name).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("retirer le service sélectionné rend le focus au graphe", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,

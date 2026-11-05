@@ -37,7 +37,9 @@ export function ServicePanel({
 }: ServicePanelProps) {
   const [url, setUrl] = useState(service.url ?? "");
   const [environment, setEnvironment] = useState(service.environment ?? "");
-  const [job, setJob] = useState(jobs[0] ?? "");
+  const [picked, setPicked] = useState(jobs[0] ?? "");
+  // Un job peut quitter le pipeline, panneau ouvert : il ne doit pas être écrit pour autant.
+  const job = jobs.includes(picked) ? picked : (jobs[0] ?? "");
   const [kind, setKind] = useState<IntegrationKind>(tool?.integration ?? "push");
 
   const linked = toolchain.integrations.filter((entry) => entry.service === service.id);
@@ -152,7 +154,7 @@ export function ServicePanel({
                 className={FIELD}
                 value={job}
                 disabled={disabled}
-                onChange={(event) => setJob(event.target.value)}
+                onChange={(event) => setPicked(event.target.value)}
               >
                 {jobs.map((id) => (
                   <option key={id} value={id}>

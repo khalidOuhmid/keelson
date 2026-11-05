@@ -58,14 +58,16 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
   /** Le hash annoncé pendant une opération : celle-ci finie, seul ce hash dit si le disque a bougé
    *  ailleurs. Aucun autre événement ne suivra. */
   let announced: string | null = null;
-  /** Les hash que ce client a écrits : l'écho d'une écriture peut arriver après la suivante. */
-  const written = new Set<string>();
+  /** Les hash que ce client a écrits et dont l'écho n'est pas encore arrivé, du plus ancien au plus
+   *  récent. Un écho consomme son entrée et les précédentes, que le debounce du serveur a pu
+   *  regrouper : passé l'écho, ce même hash vient de quelqu'un d'autre. */
+  let awaitingEcho: string[] = [];
 
   return createStore<ToolchainState>((set, get) => {
     const reload = async (): Promise<void> => {
       undoStack = [];
       redoStack = [];
-      written.clear();
+      awaitingEcho = [];
       const result = await dependencies.load();
       if (result.ok) {
         set({ payload: result.value });
@@ -86,7 +88,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
 
       if (result.ok) {
         const { inverse, ...payload } = result.value;
-        written.add(payload.hash);
+        awaitingEcho.push(payload.hash);
         onSuccess(inverse);
         set({ payload });
         if (heard !== null && heard !== payload.hash) {
@@ -153,7 +155,12 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       canRedo: () => redoStack.length > 0,
 
       async changed(hash) {
-        if (written.has(hash) || hash === get().payload?.hash) {
+        const echo = awaitingEcho.indexOf(hash);
+        if (echo !== -1) {
+          awaitingEcho = awaitingEcho.slice(echo + 1);
+          return;
+        }
+        if (hash === get().payload?.hash) {
           return;
         }
         if (get().pending) {

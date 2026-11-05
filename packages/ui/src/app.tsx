@@ -202,7 +202,8 @@ export function App({ deps }: AppProps = {}) {
       false);
   const hadService = useRef(false);
   useEffect(() => {
-    if (hadService.current && !serviceOpen) {
+    const typing = document.activeElement?.matches("input, select, textarea") ?? false;
+    if (hadService.current && !serviceOpen && !typing) {
       document.querySelector<HTMLElement>('[aria-label="Toolchain graph"]')?.focus();
     }
     hadService.current = serviceOpen;

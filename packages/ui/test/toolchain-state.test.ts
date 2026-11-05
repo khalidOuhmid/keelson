@@ -189,6 +189,28 @@ describe("store de toolchain", () => {
     expect(state().canUndo()).toBe(true);
   });
 
+  test("un retour externe à un texte déjà écrit se voit, une fois l'écho passé", async () => {
+    await state().submit(draft);
+    answers.push(applied("c"));
+    await state().submit(draft);
+    await state().changed("b");
+    await state().changed("c");
+    loaded = payload("b");
+    await state().changed("b");
+    expect(state().payload?.hash).toBe("b");
+    expect(state().notice?.kind).toBe("reloaded");
+  });
+
+  test("des échos regroupés par le debounce ne laissent pas de trace", async () => {
+    await state().submit(draft);
+    answers.push(applied("c"));
+    await state().submit(draft);
+    await state().changed("c");
+    loaded = payload("b");
+    await state().changed("b");
+    expect(state().payload?.hash).toBe("b");
+  });
+
   test("une écriture externe rechargée le dit", async () => {
     loaded = payload("z");
     await state().changed("z");

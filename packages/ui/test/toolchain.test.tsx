@@ -268,6 +268,22 @@ describe("panneau de service", () => {
     });
   });
 
+  test("un job disparu du pipeline n'est jamais écrit", async () => {
+    const onSubmit = mock(() => {});
+    const props = {
+      service: NEXUS,
+      toolchain: { services: [NEXUS], integrations: [], dismissed: [] },
+      tool: TOOLS[0],
+      disabled: false,
+      onSubmit,
+      onClose: () => {},
+    };
+    const { rerender } = render(<ServicePanel {...props} jobs={["build", "deploy"]} />);
+    rerender(<ServicePanel {...props} jobs={["deploy"]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Add integration" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ job: "deploy" }));
+  });
+
   test("retirer une intégration", async () => {
     const onSubmit = service(true);
     await userEvent.click(screen.getByRole("button", { name: "Remove push from build" }));

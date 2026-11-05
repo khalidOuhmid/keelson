@@ -90,6 +90,17 @@ describe("services", () => {
     expect(parseToolchain(text).toolchain.services.map((service) => service.id)).toContain("8080");
   });
 
+  test("une clé entière écrite à la main s'édite et se retire", () => {
+    const text = "version: 1\nservices:\n  8080:\n    tool: x\n";
+    expect(
+      parseToolchain(edited(text, { kind: "updateService", id: "8080", url: "u" })).toolchain
+        .services[0]?.url,
+    ).toBe("u");
+    expect(
+      parseToolchain(edited(text, { kind: "removeService", id: "8080" })).toolchain.services,
+    ).toEqual([]);
+  });
+
   test("un identifiant déjà pris ou illégal est refusé", () => {
     expect(code(BASE, { ...add, id: "nexus" })).toBe("NAME_CONFLICT");
     expect(code(BASE, { ...add, id: "Bad Name" })).toBe("INVALID_NAME");
