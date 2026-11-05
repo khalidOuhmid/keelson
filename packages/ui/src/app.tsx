@@ -16,10 +16,11 @@ import {
   type OperationPayload,
   type ToolchainOperationPayload,
   type ToolchainPayload,
+  type WorkspaceFile,
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
-import { BUTTON, SECTION_HEADING } from "./editing/controls.ts";
+import { BUTTON, FIELD, SECTION_HEADING } from "./editing/controls.ts";
 import { ErrorBanner } from "./editing/ErrorBanner.tsx";
 import { HistoryControls } from "./editing/HistoryControls.tsx";
 import { JobEditor } from "./editing/JobEditor.tsx";
@@ -51,7 +52,7 @@ const VIEWS = [
 ] as const;
 
 type ClientSurface = {
-  workspace: () => Promise<ApiResult<{ files: { path: string; adapter: "gitlab" }[] }>>;
+  workspace: () => Promise<ApiResult<{ files: WorkspaceFile[] }>>;
   document: (file: string) => Promise<ApiResult<DocumentPayload>>;
   submit: (
     file: string,
@@ -148,7 +149,15 @@ export function App({ deps }: AppProps = {}) {
   }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
+
+  const openFile = async (path: string): Promise<void> => {
+    const document = await resolved.client.document(path);
+    if (document.ok) {
+      store.getState().documentLoaded(path, document.value);
+    }
+  };
 
   useEffect(() => {
     if (loaded.current) {
@@ -170,6 +179,7 @@ export function App({ deps }: AppProps = {}) {
       }
 
       setRoot(first.path);
+      setFiles(workspace.value.files);
       const document = await resolved.client.document(first.path);
       if (document.ok) {
         store.getState().documentLoaded(first.path, document.value);
@@ -400,7 +410,20 @@ export function App({ deps }: AppProps = {}) {
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
         <span className="flex items-baseline gap-2 overflow-hidden">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
-          {state.file === null ? null : (
+          {state.file === null ? null : files.length > 1 ? (
+            <select
+              aria-label="Pipeline file"
+              className={`${FIELD} w-auto min-w-0`}
+              value={state.file}
+              onChange={(event) => void openFile(event.target.value)}
+            >
+              {files.map((entry) => (
+                <option key={entry.path} value={entry.path}>
+                  {entry.path}
+                </option>
+              ))}
+            </select>
+          ) : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
           )}
           {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
@@ -517,13 +540,15 @@ export function App({ deps }: AppProps = {}) {
               />
             ) : (
               <>
-                <Section title="Stages">
-                  <StageControls
-                    pipeline={state.pipeline}
-                    onSubmit={(draft) => void store.getState().submit(draft)}
-                    disabled={!editable}
-                  />
-                </Section>
+                {state.pipeline.provider === "github" ? null : (
+                  <Section title="Stages">
+                    <StageControls
+                      pipeline={state.pipeline}
+                      onSubmit={(draft) => void store.getState().submit(draft)}
+                      disabled={!editable}
+                    />
+                  </Section>
+                )}
                 <Section title="New job">
                   <NewJobForm
                     pipeline={state.pipeline}

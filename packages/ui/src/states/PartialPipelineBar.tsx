@@ -5,9 +5,15 @@ import { ChevronRightIcon } from "../icons.tsx";
 export const PARTIAL_HINT =
   "Some includes are not resolved, so jobs may be missing from this view.";
 
+export const PARTIAL_WORKFLOW_HINT =
+  "Some reusable workflows are not read, so jobs may be missing from this view.";
+
 export function unresolvedCount(count: number): string {
   return `${count} unresolved ${count === 1 ? "include" : "includes"}`;
 }
+
+const workflowCount = (count: number): string =>
+  `${count} reusable ${count === 1 ? "workflow" : "workflows"}`;
 
 export type PartialPipelineBarProps = {
   pipeline: Pipeline;
@@ -21,6 +27,7 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
   if (!isPartial(pipeline)) {
     return null;
   }
+  const github = pipeline.provider === "github";
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: un landmark de plus noierait la liste des repères ; ce bloc est un groupe nommé
@@ -37,9 +44,9 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
             Partial pipeline
           </span>
           <span className="font-mono text-2xs text-text-muted tabular-nums">
-            {unresolvedCount(pipeline.unresolved.length)}
+            {(github ? workflowCount : unresolvedCount)(pipeline.unresolved.length)}
           </span>
-          <span>{PARTIAL_HINT}</span>
+          <span>{github ? PARTIAL_WORKFLOW_HINT : PARTIAL_HINT}</span>
         </summary>
         <ul className="mt-1.5 flex flex-col gap-1">
           {/* La clé porte la plage, pas l'index : GitLab ne dédoublonne pas les includes, donc le

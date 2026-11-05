@@ -629,6 +629,12 @@ write indicator, the `Panel` button below `lg`, the `Views` navigation of four g
 (Pipeline, Toolchain, Coverage, Catalog), and on the Pipeline and Toolchain views the undo/redo ghost pair with their shortcuts
 in the `title` attribute. It is underlined by a hairline and sits on the floor colour.
 
+### Provider
+
+On a GitHub workflow, stage columns read `level N`, derived from `needs`, and every control that would
+write a stage or a need option is absent rather than disabled: nothing in the file could hold it. When
+a repository has several pipeline files the header path becomes a compact select named `Pipeline file`.
+
 ### Diff
 
 The insertion form shows what will be written before anything is. A monospace block on

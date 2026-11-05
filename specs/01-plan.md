@@ -122,7 +122,7 @@ et écrit.
 
 | Méthode | Route | Réponses |
 |---|---|---|
-| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }` |
+| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }`, `adapter` valant `gitlab` ou `github` |
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
 | POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |

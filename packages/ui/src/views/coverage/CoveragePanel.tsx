@@ -6,7 +6,7 @@ import { LayerTag } from "./LayerTag.tsx";
 export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/master/";
 
 export const LOWER_BOUND_NOTE =
-  "Coverage is a lower bound: some includes are not resolved, and a layer listed as uncovered may be covered by what Keelson cannot read.";
+  "Coverage is a lower bound: part of the pipeline could not be read, and a layer listed as uncovered may be covered by what Keelson cannot read.";
 
 export type CoveragePanelProps = {
   coverage: Coverage;

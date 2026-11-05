@@ -81,6 +81,7 @@ de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 | `yaml` (eemeli) | `adapter-gitlab`, `catalog`, `toolchain` | parsing, ranges des nœuds, anchors, merge |
 | `zod` v4        | `core`, `adapter-gitlab`, `catalog`, `toolchain` | schémas des opérations, fiches, layout |
 | `@xyflow/react` | `ui`                            | rendu du graphe pipeline                      |
+| `yaml` (eemeli) | `adapter-github`                | workflows, même patch en place que GitLab     |
 | `elkjs`         | `ui`                            | mise en page en couches, déterministe         |
 | `zustand`       | `ui`                            | état de l'UI, undo/redo                       |
 | CodeMirror 6    | `ui`                            | blocs YAML opaques en lecture seule           |
@@ -140,6 +141,8 @@ l'aller-retour, l'inversabilité, le déterminisme et la localité des éditions
 
 `packages/toolchain/test/properties/` vérifie les quatre mêmes propriétés sur `toolchain.yaml`, avec
 son propre corpus dans `packages/toolchain/test/corpus/`.
+
+`packages/adapter-github/test/properties/` fait de même sur les workflows, avec 22 fichiers MIT d'`actions/starter-workflows` (SHA et notice dans `LICENSES.md`) ; `KEELSON_UPDATE_GOLDENS=1 bun test packages/adapter-github/test/corpus.test.ts` régénère ses goldens, diff à relire.
 
 Le corpus est dans `packages/adapter-gitlab/test/corpus/` : `gitlab-templates/` (20 templates
 officiels MIT, provenance et SHA dans `LICENSES.md`, intégrité dans `CHECKSUMS.txt`), `edge-cases/`

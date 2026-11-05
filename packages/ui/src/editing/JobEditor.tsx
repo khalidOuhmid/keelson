@@ -31,6 +31,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   // apres un ajout, la cible choisie quitte la liste et le navigateur affiche l'option 0 pendant
   // que l'etat garde l'ancienne. On soumet donc ce que le selecteur montre, jamais autre chose.
   const effectiveNeed = candidates.includes(needTarget) ? needTarget : (candidates[0] ?? "");
+  const github = pipeline.provider === "github";
   const [optional, setOptional] = useState(false);
   const [artifacts, setArtifacts] = useState(true);
   const referencedBy = pipeline.jobs
@@ -94,35 +95,37 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         </button>
       </form>
 
-      <div className={GROUP}>
-        <label className={GROUP}>
-          <span className={LABEL}>Stage</span>
-          <select
-            className={FIELD}
-            value={stage}
-            disabled={disabled}
-            onChange={(event) => setStage(event.target.value)}
+      {github ? null : (
+        <div className={GROUP}>
+          <label className={GROUP}>
+            <span className={LABEL}>Stage</span>
+            <select
+              className={FIELD}
+              value={stage}
+              disabled={disabled}
+              onChange={(event) => setStage(event.target.value)}
+            >
+              {pipeline.stages.map((candidate) => (
+                <option key={candidate.name} value={candidate.name}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={BUTTON}
+            disabled={disabled || stage === job.stage.value}
+            onClick={() => {
+              if (stage !== job.stage.value) {
+                guard(setJobStage(job.id, stage));
+              }
+            }}
           >
-            {pipeline.stages.map((candidate) => (
-              <option key={candidate.name} value={candidate.name}>
-                {candidate.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className={BUTTON}
-          disabled={disabled || stage === job.stage.value}
-          onClick={() => {
-            if (stage !== job.stage.value) {
-              guard(setJobStage(job.id, stage));
-            }
-          }}
-        >
-          Move to stage
-        </button>
-      </div>
+            Move to stage
+          </button>
+        </div>
+      )}
 
       <div className={GROUP}>
         <span className={LABEL}>Needs</span>
@@ -161,25 +164,29 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-          <input
-            type="checkbox"
-            checked={optional}
-            disabled={disabled}
-            onChange={(event) => setOptional(event.target.checked)}
-          />
-          Optional
-        </label>
+        {github ? null : (
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+            <input
+              type="checkbox"
+              checked={optional}
+              disabled={disabled}
+              onChange={(event) => setOptional(event.target.checked)}
+            />
+            Optional
+          </label>
+        )}
 
-        <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-          <input
-            type="checkbox"
-            checked={artifacts}
-            disabled={disabled}
-            onChange={(event) => setArtifacts(event.target.checked)}
-          />
-          Artifacts
-        </label>
+        {github ? null : (
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+            <input
+              type="checkbox"
+              checked={artifacts}
+              disabled={disabled}
+              onChange={(event) => setArtifacts(event.target.checked)}
+            />
+            Artifacts
+          </label>
+        )}
 
         <button
           type="button"
