@@ -2,7 +2,7 @@
 
 Statut : EN COURS
 Lot courant : **L6 — adaptateur GitHub Actions**, sur `lot/l6-github`
-Prochaine action : UI de L6 (choix de fichier, `provider` dans `app.tsx`, `NewJobForm`, `JobEditor`, `InsertTool`, `PartialPipelineBar`, `NoCiFile`), E2E, puis `critique`, `audit`, revue, contre-revue, fusion.
+Prochaine action : contre-revue des correctifs, vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -755,4 +755,26 @@ rouvre rien.
 
 **Clôture.** Fusion `971ae5b`. Depuis un clone sans `dist/` : `bun run check`, propriétés à 500 runs,
 71 E2E, smoke test Node, `export` compris. `check` vert sur `main`.
+
+### 2026-11-05 — L6
+
+**Livré.** `adapter-github` : lecture et écriture des workflows, stages dérivés de `needs` (ADR 0013),
+`uses:` signalé par `WORKFLOW_UNRESOLVED`, corpus de 22 fichiers d'`actions/starter-workflows` au SHA
+épinglé, licence lue dans le `LICENSE` du commit (MIT avec une phrase sur les marques) ; `detect.actions`
+sur treize fiches, dépôts vérifiés ; `adapterFor`, workspace multi-fichiers, `mergePipelines` pour la
+toolchain et la CLI ; choix du fichier, surfaces sans stages, snippets `github`.
+
+**Revue indépendante : treize rouvertures.** Les plus lourdes : `renameJob` laissait `if: needs.build`
+pointer dans le vide, un dossier sans `.git` lisait les workflows avec l'adaptateur GitLab, un job de
+même nom dans deux workflows effaçait une couverture, `upload-sarif` comptait comme CodeQL, le watcher
+ne prévenait que le dernier fichier, changer de fichier pendant une écriture mêlait deux documents, et
+`level 1` pouvait partir dans `.gitlab-ci.yml`. La relecture couvre désormais tout ce que l'opération
+ne vise pas : `|+` raccourci, alias qui change de cible, clé ancrée sont refusés.
+
+**`critique` et `audit`.** Cinq P1, tous traités : select actif pendant une écriture, formulaire survivant
+au changement de fournisseur, couverture d'un seul fichier sans le dire, `NoCiFile` qui promettait un
+rechargement, badge `implicit` faux sur GitHub.
+
+**Une erreur de méthode.** Le commit `feat(adapter-github)` est parti avec une erreur de typage de test,
+lue après le `git commit`. Corrigée au commit suivant.
 
