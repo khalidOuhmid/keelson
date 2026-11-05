@@ -3,12 +3,14 @@ import type { Notice } from "../state/store.ts";
 const LABEL: Record<Notice["kind"], string> = {
   stale: "Not applied",
   reloaded: "Reloaded",
+  written: "Written",
   removed: "Deleted",
 };
 
 const TONE: Record<Notice["kind"], string> = {
   stale: "border-warning-muted bg-warning-muted/20 text-warning",
   reloaded: "border-info-muted bg-info-muted/20 text-info",
+  written: "border-info-muted bg-info-muted/20 text-info",
   removed: "border-danger-muted bg-danger-muted/20 text-danger",
 };
 
@@ -22,7 +24,7 @@ export function NoticeBar({ notice, onDismiss }: NoticeBarProps) {
     return null;
   }
 
-  const consequential = notice.kind !== "reloaded";
+  const consequential = notice.kind !== "reloaded" && notice.kind !== "written";
 
   return (
     <div

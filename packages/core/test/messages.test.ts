@@ -236,6 +236,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: "toolchain.yaml is not usable, fix it before editing it here",
     },
     {
+      params: { reason: "invalidSnippet" },
+      text: "this snippet is not a single job Keelson can copy as it is",
+    },
+    {
       params: { reason: "invalidLayout" },
       text: "layout.json is not usable, fix it before moving nodes",
     },

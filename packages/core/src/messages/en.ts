@@ -100,6 +100,7 @@ export const EN: Catalogue = {
     flowStyleToolchain: (p) =>
       `the ${p.section} section is written in flow style, in-place editing is not supported`,
     invalidToolchain: () => "toolchain.yaml is not usable, fix it before editing it here",
+    invalidSnippet: () => "this snippet is not a single job Keelson can copy as it is",
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,
     noRootMap: () => "this file has no YAML map at its root",

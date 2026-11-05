@@ -126,6 +126,7 @@ et écrit.
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
 | POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
+| POST | `/api/documents/:file/preview` | corps `{ op }` → 200 le résultat sans écrire · mêmes refus qu'une opération |
 | GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
 | POST | `/api/toolchain/operations` | corps `{ op, opId }` → 200 le même corps plus `inverse` · 400 · 409 avec le `hash` courant · 422 |
 | PUT | `/api/layout/positions` | corps `{ positions }`, fusionnées dans le fichier → 200 avec la carte complète · 400 · 422 si `layout.json` est illisible |
@@ -188,7 +189,7 @@ navigateur. Il doit donc se défendre contre elles.
 | `keelson start`                 | ouvre l'UI web locale                                        |
 | `keelson validate`              | valide pipeline et toolchain                                  |
 | `keelson coverage [--require <couches>] [--format json]` | 1 si une couche requise manque, 2 si une couche demandée n'existe pas |
-| `keelson export`                | exporte le modèle                                             |
+| `keelson export [--format markdown\|mermaid\|json]` | exporte le modèle, formats dans [export.md](export.md) |
 | `keelson catalog lint [dossier]` | 1 sur une erreur, 0 sur un simple signalement de fraîcheur    |
 | `keelson apply ops.json`        | applique une séquence d'opérations (lot L8)                   |
 

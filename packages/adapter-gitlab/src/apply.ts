@@ -1,7 +1,9 @@
 import type {
   AddJobOperation,
   AddNeedOperation,
+  AddSnippetOperation,
   AddStageOperation,
+  CompositeOperation,
   MoveStageOperation,
   Need,
   Operation,
@@ -40,7 +42,20 @@ import {
   STALE_DOCUMENT,
   validate,
 } from "@keelson/core";
-import { isAlias, isMap, isSeq, type Node, type Pair, YAMLMap, type YAMLSeq } from "yaml";
+import {
+  isAlias,
+  isMap,
+  isNode,
+  isScalar,
+  isSeq,
+  type Node,
+  type Pair,
+  parseDocument,
+  stringify,
+  visit,
+  YAMLMap,
+  type YAMLSeq,
+} from "yaml";
 import { DEFAULT_STAGES } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
@@ -430,6 +445,28 @@ function planSetJobStage(
   ]);
 }
 
+/** Le début de ligne d'un item, sans son ancre ni son tag : les recopier sur un nouvel item
+ *  déplacerait l'ancre, et tout alias changerait de valeur sans un mot. */
+function itemPrefix(text: string, offset: number): string {
+  const here = linePrefix(text, offset).replace(/[&!][^\s]*[ \t]+/g, "");
+  if (here.includes("-")) {
+    return here;
+  }
+  // Un item peut commencer sur la ligne d'avant : `- # note` puis sa valeur.
+  const lines = text.slice(0, lineStart(text, offset)).split("\n");
+  const dash = lines.toReversed().find((line) => /^\s*-(\s|$)/.test(line));
+  return dash === undefined ? here : `${/^\s*/.exec(dash)?.[0] ?? ""}- `;
+}
+
+function rewritesUnmodelled(pipeline: Pipeline, id: string): boolean {
+  return pipeline.jobs.find((job) => job.id === id)?.unmodelledNeeds === true;
+}
+
+/** L'IR ne porte pas ces items : réécrire la liste les perdrait sans un mot. */
+function unmodelledRefusal(job: string): Planned {
+  return fail(INVALID_OPERATION, { reason: "sharedValue", job, key: "needs" });
+}
+
 function planAddNeed(
   operation: AddNeedOperation,
   geometry: Geometry,
@@ -456,6 +493,9 @@ function planAddNeed(
   const local = localPair(located.value.map, "needs");
 
   if (local === undefined) {
+    if (rewritesUnmodelled(pipeline, operation.id)) {
+      return unmodelledRefusal(operation.id);
+    }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
       {
@@ -509,8 +549,15 @@ function planAddNeed(
   if (lastRange === undefined) {
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" });
   }
-  const prefix = linePrefix(text, lastRange[0]);
-  return ok([{ start: lastRange[2], end: lastRange[2], text: renderNeedItem(added, prefix, eol) }]);
+  const prefix = itemPrefix(text, lastRange[0]);
+  const atEnd = lastRange[2] === text.length && !text.endsWith("\n");
+  return ok([
+    {
+      start: lastRange[2],
+      end: lastRange[2],
+      text: `${atEnd ? eol : ""}${renderNeedItem(added, prefix, eol)}`,
+    },
+  ]);
 }
 
 function planRemoveNeed(
@@ -531,6 +578,13 @@ function planRemoveNeed(
 
   const remaining = current.filter((need) => need.job !== operation.job);
   const local = localPair(located.value.map, "needs");
+
+  if (
+    (local === undefined || remaining.length === 0) &&
+    rewritesUnmodelled(pipeline, operation.id)
+  ) {
+    return unmodelledRefusal(operation.id);
+  }
 
   if (local === undefined) {
     const at = overrideInsertAt(geometry, located.value);
@@ -711,7 +765,7 @@ function planAddStage(
     }
     const at = lineStart(text, anchorStart);
     return ok([
-      { start: at, end: at, text: `${linePrefix(text, anchorStart)}${operation.name}${eol}` },
+      { start: at, end: at, text: `${itemPrefix(text, anchorStart)}${operation.name}${eol}` },
     ]);
   }
 
@@ -724,7 +778,7 @@ function planAddStage(
     {
       start: lastRange[2],
       end: lastRange[2],
-      text: `${linePrefix(text, lastRange[0])}${operation.name}${eol}`,
+      text: `${itemPrefix(text, lastRange[0])}${operation.name}${eol}`,
     },
   ]);
 }
@@ -808,8 +862,114 @@ function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
   return ok([{ start: operation.start, end: operation.end, text: operation.text }]);
 }
 
+function jobKeyText(value: string): string {
+  const plain = stringify(value, { lineWidth: 0 }).replace(/\r?\n$/, "");
+  return plain.includes("\n") ? JSON.stringify(value) : plain;
+}
+
+/** Un job en bloc, sans ancre ni alias : recopié dans un autre fichier, un alias n'aurait plus de
+ *  cible, et une ancre pourrait entrer en collision avec celles de l'utilisateur. */
+function snippetJob(snippet: string): { key: AnyNode; map: YAMLMap } | null {
+  const document = parseDocument(snippet);
+  const root = document.contents as AnyNode;
+  if (document.errors.length > 0 || !isMap(root) || root.flow === true || root.items.length !== 1) {
+    return null;
+  }
+  const [pair] = root.items;
+  const map = pair?.value as AnyNode;
+  if (
+    pair === undefined ||
+    !isScalar(pair.key) ||
+    typeof pair.key.value !== "string" ||
+    !isLegalJobName(pair.key.value) ||
+    !isMap(map) ||
+    map.flow === true ||
+    map.items.length === 0
+  ) {
+    return null;
+  }
+
+  let shared = false;
+  visit(document, {
+    Alias() {
+      shared = true;
+    },
+    Node(_key, node) {
+      if (isNode(node) && (node as { anchor?: string }).anchor !== undefined) {
+        shared = true;
+      }
+    },
+  });
+  return shared ? null : { key: pair.key as AnyNode, map };
+}
+
+function planAddSnippet(
+  operation: AddSnippetOperation,
+  geometry: Geometry,
+  root: YAMLMap,
+  pipeline: Pipeline,
+): Planned {
+  const { id, stage, snippet } = operation;
+  if (!isLegalJobName(id)) {
+    return fail(INVALID_NAME, { reason: "job", name: id });
+  }
+  if (localPair(root, id) !== undefined) {
+    return fail(NAME_CONFLICT, { name: id });
+  }
+  const taken = takenByInclude(pipeline, id);
+  if (taken !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "nameTaken", name: id, file: taken });
+  }
+  if (!pipeline.stages.some((entry) => entry.name === stage)) {
+    return fail(STAGE_NOT_FOUND, { stage });
+  }
+
+  const job = snippetJob(snippet);
+  if (job === null) {
+    return fail(INVALID_OPERATION, { reason: "invalidSnippet" });
+  }
+
+  const keyRange = nodeRange(job.key);
+  const stagePair = localPair(job.map, "stage");
+  const stageValue = stagePair?.value as AnyNode;
+  const stageRange =
+    isScalar(stageValue) && typeof stageValue.value === "string" && stageValue.value !== ""
+      ? nodeRange(stageValue)
+      : null;
+  const preamble = keyRange === undefined ? "" : snippet.slice(0, keyRange[0]);
+  // Une clé ou un commentaire indentés s'accrocheraient au dernier job du fichier.
+  const indented = /^[ \t]+\S/m.test(preamble) || !/(^|\n)$/.test(preamble);
+  if (keyRange === undefined || indented || (stagePair !== undefined && !stageRange)) {
+    return fail(INVALID_OPERATION, { reason: "invalidSnippet" });
+  }
+
+  const firstKey = nodeRange(job.map.items[0]?.key as AnyNode);
+  const indent = " ".repeat(
+    (firstKey?.[0] ?? 2) - (snippet.lastIndexOf("\n", firstKey?.[0] ?? 0) + 1),
+  );
+  const edits = [
+    { start: keyRange[0], end: keyRange[1], text: jobKeyText(id) },
+    stageRange
+      ? { start: stageRange[0], end: stageRange[1], text: jobKeyText(stage) }
+      : {
+          start: snippet.indexOf("\n", keyRange[1]) + 1,
+          end: snippet.indexOf("\n", keyRange[1]) + 1,
+          text: `${indent}stage: ${jobKeyText(stage)}\n`,
+        },
+  ].sort((left, right) => right.start - left.start);
+  const rewritten = edits.reduce(
+    (text, edit) => `${text.slice(0, edit.start)}${edit.text}${text.slice(edit.end)}`,
+    snippet,
+  );
+
+  const { text, eol } = geometry;
+  const body = `${rewritten.trimEnd().replace(/\r?\n/g, eol)}${eol}`;
+  const glue = text.length > 0 && !text.endsWith(eol) ? eol : "";
+  return ok([{ start: text.length, end: text.length, text: `${glue}${eol}${body}` }]);
+}
+
 function planFor(
-  operation: Operation,
+  operation: Exclude<Operation, CompositeOperation>,
   geometry: Geometry,
   root: YAMLMap,
   pipeline: Pipeline,
@@ -835,7 +995,108 @@ function planFor(
       return planMoveStage(operation, geometry, root, pipeline);
     case "splice":
       return planSplice(operation, geometry);
+    case "addSnippet":
+      return planAddSnippet(operation, geometry, root, pipeline);
   }
+}
+
+/** Les étapes s'appliquent en mémoire : rien n'existe avant que toutes aient passé. L'inverse se
+ *  calcule sur le texte final, du premier au dernier octet différent (ADR 0012). */
+function applyComposite(
+  document: GitlabDocument,
+  operation: CompositeOperation,
+): Result<ApplyOk, ApplyError> {
+  let current = document;
+  let last: ApplyOk | null = null;
+  for (const step of operation.steps) {
+    const result = apply(current, { v: 1, baseHash: current.hash, ...step });
+    if (!result.ok) {
+      return result;
+    }
+    last = result.value;
+    current = result.value.document;
+  }
+  if (last === null) {
+    return fail(INVALID_OPERATION, { reason: "schema", path: "steps", detail: "empty" });
+  }
+
+  const before = document.text;
+  const after = last.text;
+  let prefix = 0;
+  while (prefix < before.length && before[prefix] === after[prefix]) {
+    prefix += 1;
+  }
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  ) {
+    suffix += 1;
+  }
+
+  const end = after.length - suffix;
+  return ok({
+    ...last,
+    inverse: {
+      v: 1,
+      baseHash: last.hash,
+      kind: "splice",
+      start: prefix,
+      end,
+      text: before.slice(prefix, before.length - suffix),
+    },
+    touched: [{ start: prefix, end }],
+  });
+}
+
+function danglingAliases(text: string): number {
+  const anchors = new Set<string>();
+  let count = 0;
+  visit(parseDocument(text), {
+    Alias(_key, node) {
+      if (!anchors.has(node.source)) {
+        count += 1;
+      }
+    },
+    Node(_key, node) {
+      const { anchor } = node as { anchor?: string };
+      if (anchor !== undefined) {
+        anchors.add(anchor);
+      }
+    },
+  });
+  return count;
+}
+
+/** La liste relue doit être celle demandée : l'hérité qui ressort, ou une liste partagée mal lue,
+ *  se voient ici quelle que soit la forme écrite à la main. */
+function needsAsExpected(
+  operation: AddNeedOperation | RemoveNeedOperation,
+  before: { pipeline: Pipeline },
+  after: { pipeline: Pipeline },
+): boolean {
+  const listed = (pipeline: Pipeline): Need[] =>
+    pipeline.jobs.find((job) => job.id === operation.id)?.needs?.value ?? [];
+  const sorted = (needs: readonly Need[]): string =>
+    JSON.stringify(
+      needs
+        .map(({ job, optional, artifacts }) => [job, optional, artifacts])
+        .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
+    );
+  const current = listed(before.pipeline);
+  const expected =
+    operation.kind === "addNeed"
+      ? [
+          ...current,
+          {
+            job: operation.need.job,
+            optional: operation.need.optional ?? false,
+            artifacts: operation.need.artifacts ?? true,
+          },
+        ]
+      : current.filter((need) => need.job !== operation.job);
+  return sorted(listed(after.pipeline)) === sorted(expected);
 }
 
 /** Toute relecture dans `apply` passe par ici : un `parse(texte)` nu perdrait le nom du fichier et
@@ -857,6 +1118,10 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
 
   if (op.baseHash !== document.hash) {
     return fail(STALE_DOCUMENT, { expected: document.hash, received: op.baseHash });
+  }
+
+  if (op.kind === "composite") {
+    return applyComposite(document, op);
   }
 
   const before = reparse(document, document.text);
@@ -889,6 +1154,15 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     !before.diagnostics.some((diagnostic) => diagnostic.code === INVALID_YAML);
   if (brokeYaml) {
     return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
+  }
+
+  // Une ancre retirée laisse un alias pendant, que `parse` ne signale pas.
+  if (op.kind !== "splice" && danglingAliases(spliced.text) > danglingAliases(document.text)) {
+    return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
+  }
+
+  if ((op.kind === "addNeed" || op.kind === "removeNeed") && !needsAsExpected(op, before, after)) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: op.id, key: "needs" });
   }
 
   if (op.kind !== "splice" && cycleCount(after.pipeline) > cycleCount(before.pipeline)) {

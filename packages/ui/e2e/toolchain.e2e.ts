@@ -40,8 +40,10 @@ test.describe("toolchain sur le binaire réel", () => {
         .click();
 
       await page.getByRole("button", { name: "Confirm fetch-secret from deploy to vault" }).click();
+      await expect
+        .poll(() => keelson.readAt(TOOLCHAIN))
+        .toContain("  - job: deploy\n    service: vault\n");
       await expect(page.locator(".react-flow__edge")).toHaveCount(1);
-      expect(keelson.readAt(TOOLCHAIN)).toContain("  - job: deploy\n    service: vault\n");
       await expect(proposals.getByText("HashiCorp Vault")).toHaveCount(0);
 
       await page.getByRole("button", { name: "Undo" }).click();

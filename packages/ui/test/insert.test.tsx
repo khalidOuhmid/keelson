@@ -1,0 +1,293 @@
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import type { Tool } from "@keelson/catalog";
+import { emptyPipeline, type Job, type Pipeline } from "@keelson/core";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+import type { ApiFailure, ApiResult, OperationPayload } from "../src/api/client.ts";
+import { diffRows, visibleRows } from "../src/editing/diff.ts";
+import { InsertTool, type InsertToolProps } from "../src/views/catalog/InsertTool.tsx";
+
+const SNIPPET = "trivy:\n  stage: test\n  script:\n    - trivy fs .\n";
+
+const TOOL = {
+  id: "trivy",
+  name: "Trivy",
+  snippets: { gitlab: SNIPPET, github: null },
+} as unknown as Tool;
+
+const PIPELINE: Pipeline = {
+  ...emptyPipeline(".gitlab-ci.yml"),
+  stages: [{ name: "build" }, { name: "test" }] as Pipeline["stages"],
+  jobs: [{ id: "compile" } as Job],
+};
+
+const BEFORE = "stages:\n  - test\n";
+const AFTER = `${BEFORE}\ntrivy:\n  stage: test\n`;
+
+function payload(text = AFTER, layers: string[] = ["sca"]): ApiResult<OperationPayload> {
+  return {
+    ok: true,
+    value: {
+      text,
+      coverage: { jobs: [{ job: "trivy", layers, tools: [], overridden: false }] },
+    } as unknown as OperationPayload,
+  };
+}
+
+function Harness(props: InsertToolProps) {
+  const [open, setOpen] = useState(false);
+  return <InsertTool {...props} open={open} onOpen={setOpen} />;
+}
+
+function setup(preview = mock(async () => payload()), pipeline = PIPELINE, disabled = false) {
+  const onInsert = mock(async () => null);
+  render(
+    <Harness
+      tool={TOOL}
+      pipeline={pipeline}
+      text={BEFORE}
+      disabled={disabled}
+      preview={preview}
+      onInsert={onInsert}
+    />,
+  );
+  return { preview, onInsert };
+}
+
+afterEach(cleanup);
+
+describe("diff par lignes", () => {
+  test("les lignes communes restent, les autres sont marquées", () => {
+    expect(diffRows("a\nb\nc\n", "a\nx\nc\n")).toEqual([
+      { kind: "same", text: "a" },
+      { kind: "remove", text: "b" },
+      { kind: "add", text: "x" },
+      { kind: "same", text: "c" },
+    ]);
+  });
+
+  test("deux régions éloignées restent deux régions", () => {
+    const middle = Array.from({ length: 20 }, (_, index) => `l${index}`).join("\n");
+    const rows = diffRows(`a\n${middle}\nz\n`, `A\n${middle}\nZ\n`);
+    expect(rows.filter((row) => row.kind !== "same")).toHaveLength(4);
+    const visible = visibleRows(rows, 2);
+    expect(visible.some((row) => row.kind === "gap")).toBe(true);
+    expect(visible.filter((row) => row.kind === "same")).toHaveLength(4);
+  });
+
+  test("un fichier énorme ne bloque pas : tout le milieu change", () => {
+    const left = Array.from({ length: 5000 }, (_, index) => `a${index}`).join("\n");
+    const right = Array.from({ length: 5000 }, (_, index) => `b${index}`).join("\n");
+    const started = performance.now();
+    expect(diffRows(left, right).length).toBe(10000);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe("insertion depuis la fiche", () => {
+  test("rien ne part avant d'ouvrir", () => {
+    const { preview } = setup();
+    expect(preview).not.toHaveBeenCalled();
+  });
+
+  async function open() {
+    await userEvent.click(screen.getByRole("button", { name: "Add to pipeline" }));
+  }
+
+  test("le diff et la couche couverte s'affichent avant toute écriture", async () => {
+    const { onInsert } = setup();
+    await open();
+    await screen.findByText("trivy:");
+    expect(screen.getByTestId("insert-diff").textContent).toContain("+trivy:");
+    expect(screen.getByTestId("insert-layers").textContent).toContain("SCA");
+    expect(onInsert).not.toHaveBeenCalled();
+  });
+
+  test("le stage du snippet est repris, le nom est libre", async () => {
+    const { preview } = setup();
+    await open();
+    await waitFor(() => expect(preview).toHaveBeenCalled());
+    expect(preview).toHaveBeenCalledWith({
+      kind: "addSnippet",
+      id: "trivy",
+      stage: "test",
+      snippet: SNIPPET,
+    });
+  });
+
+  test("un nom pris reçoit un suffixe", async () => {
+    const { preview } = setup(
+      mock(async () => payload()),
+      {
+        ...PIPELINE,
+        jobs: [{ id: "trivy" } as Job],
+      },
+    );
+    await open();
+    await waitFor(() =>
+      expect(preview).toHaveBeenCalledWith(expect.objectContaining({ id: "trivy-2" })),
+    );
+  });
+
+  test("un stage absent s'annonce, et l'opération devient composite", async () => {
+    const { preview } = setup(
+      mock(async () => payload()),
+      {
+        ...PIPELINE,
+        stages: [{ name: "build" }] as Pipeline["stages"],
+      },
+    );
+    await open();
+    expect(screen.getByRole("option", { name: "test (new stage)" })).toBeDefined();
+    await waitFor(() =>
+      expect(preview).toHaveBeenCalledWith({
+        kind: "composite",
+        steps: [
+          { kind: "addStage", name: "test" },
+          { kind: "addSnippet", id: "trivy", stage: "test", snippet: SNIPPET },
+        ],
+      }),
+    );
+  });
+
+  test("insérer envoie la même opération", async () => {
+    const { onInsert } = setup();
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
+    expect(onInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "addSnippet", id: "trivy" }),
+      "trivy",
+    );
+  });
+
+  test("un refus se dit en clair et coupe Insert", async () => {
+    setup(
+      mock(
+        async () =>
+          ({
+            ok: false,
+            error: { status: 422, code: "NAME_CONFLICT", params: { name: "trivy" } },
+          }) as ApiResult<OperationPayload>,
+      ),
+    );
+    await open();
+    await screen.findByText(/already exists/);
+    expect(
+      (screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  test("une réponse d'un ancien nom ne remplace pas la dernière", async () => {
+    let first: (value: ApiResult<OperationPayload>) => void = () => {};
+    const preview = mock((op: { id?: string }) =>
+      op.id === "trivy"
+        ? new Promise<ApiResult<OperationPayload>>((resolve) => {
+            first = resolve;
+          })
+        : Promise.resolve(payload(`${BEFORE}\nlast:\n`)),
+    );
+    setup(preview as never);
+    await open();
+    await userEvent.type(screen.getByLabelText("Job name"), "x");
+    await screen.findByText("last:");
+    first(payload(`${BEFORE}\nold:\n`));
+    await new Promise((settle) => setTimeout(settle, 20));
+    expect(screen.queryByText("old:")).toBeNull();
+  });
+
+  test("le focus entre dans le formulaire à l'ouverture", async () => {
+    setup();
+    await open();
+    expect(document.activeElement).toBe(screen.getByLabelText("Job name"));
+  });
+
+  test("Cancel referme sans rien écrire", async () => {
+    const { onInsert } = setup();
+    await open();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Add to pipeline" })).toBeDefined();
+    expect(onInsert).not.toHaveBeenCalled();
+  });
+
+  test("Entrée insère", async () => {
+    const { onInsert } = setup();
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.type(screen.getByLabelText("Job name"), "{Enter}");
+    expect(onInsert).toHaveBeenCalledTimes(1);
+  });
+
+  test("un diff périmé coupe Insert jusqu'à la réponse suivante", async () => {
+    const preview = mock((op: { id?: string }) =>
+      op.id === "trivy" ? Promise.resolve(payload()) : new Promise<never>(() => {}),
+    );
+    setup(preview as never);
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.type(screen.getByLabelText("Job name"), "x");
+    const insert = screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" });
+    expect((insert as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  test("une écriture refusée se dit dans le formulaire", async () => {
+    const onInsert = mock(async () => ({
+      status: 0,
+      code: "NETWORK_ERROR" as const,
+      params: { detail: "coupé" },
+    }));
+    render(
+      <Harness
+        tool={TOOL}
+        pipeline={PIPELINE}
+        text={BEFORE}
+        disabled={false}
+        preview={async () => payload()}
+        onInsert={onInsert}
+      />,
+    );
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("coupé");
+  });
+
+  test("le document change pendant une écriture refusée : la prévisualisation reprend", async () => {
+    const preview = mock(async () => payload());
+    let refuse: (failure: ApiFailure) => void = () => {};
+    const onInsert = mock(
+      () =>
+        new Promise<ApiFailure>((resolve) => {
+          refuse = resolve;
+        }),
+    );
+    const props = { tool: TOOL, disabled: false, preview, onInsert };
+    const { rerender } = render(<Harness {...props} pipeline={PIPELINE} text={BEFORE} />);
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
+    rerender(<Harness {...props} pipeline={{ ...PIPELINE }} text={`${BEFORE}# x\n`} />);
+    await new Promise((settle) => setTimeout(settle, 10));
+    preview.mockClear();
+    refuse({ status: 409, code: "NETWORK_ERROR", params: { detail: "coupé" } });
+    await waitFor(() => expect(preview).toHaveBeenCalled());
+  });
+
+  test("le diff est sémantique : ins, del, et le sens en toutes lettres", async () => {
+    setup(mock(async () => payload("stages:\n  - deploy\n")));
+    await open();
+    await screen.findByText("Changes to .gitlab-ci.yml");
+    const figure = document.querySelector("figure");
+    expect(figure?.querySelector("ins")?.textContent).toContain("added");
+    expect(figure?.querySelector("del")?.textContent).toContain("removed");
+  });
+
+  test("une édition coupée coupe le bouton", () => {
+    setup(undefined, PIPELINE, true);
+    expect(
+      (screen.getByRole("button", { name: "Add to pipeline" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+});

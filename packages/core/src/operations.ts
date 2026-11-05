@@ -146,6 +146,32 @@ export const spliceSchema = z
   })
   .strict();
 
+/** Le YAML d'un seul job, recopié tel quel : seules sa clé et son `stage` sont remplacés. */
+export const addSnippetSchema = z
+  .object({
+    ...base,
+    kind: z.literal("addSnippet"),
+    id: z.string(),
+    stage: z.string(),
+    snippet: z.string(),
+  })
+  .strict();
+
+const WITHOUT_ANCHOR = { v: true, baseHash: true } as const;
+
+/** Seules les étapes qui ajoutent : une composite annule d'un coup, donc elle ne doit rien
+ *  pouvoir perdre qu'un seul `splice` ne rende (ADR 0012). */
+const stepSchema = z.discriminatedUnion("kind", [
+  addStageSchema.omit(WITHOUT_ANCHOR),
+  addJobSchema.omit(WITHOUT_ANCHOR),
+  addNeedSchema.omit(WITHOUT_ANCHOR),
+  addSnippetSchema.omit(WITHOUT_ANCHOR),
+]);
+
+export const compositeSchema = z
+  .object({ ...base, kind: z.literal("composite"), steps: z.array(stepSchema).min(1) })
+  .strict();
+
 export const operationSchema = z.discriminatedUnion("kind", [
   addJobSchema,
   removeJobSchema,
@@ -157,6 +183,8 @@ export const operationSchema = z.discriminatedUnion("kind", [
   addStageSchema,
   moveStageSchema,
   spliceSchema,
+  addSnippetSchema,
+  compositeSchema,
 ]);
 
 export type AddJobOperation = z.infer<typeof addJobSchema>;
@@ -169,6 +197,8 @@ export type SetEnvironmentOperation = z.infer<typeof setEnvironmentSchema>;
 export type AddStageOperation = z.infer<typeof addStageSchema>;
 export type MoveStageOperation = z.infer<typeof moveStageSchema>;
 export type SpliceOperation = z.infer<typeof spliceSchema>;
+export type AddSnippetOperation = z.infer<typeof addSnippetSchema>;
+export type CompositeOperation = z.infer<typeof compositeSchema>;
 export type Operation = z.infer<typeof operationSchema>;
 
 export function parseOperation(input: unknown): Result<Operation, OperationError> {

@@ -1,6 +1,7 @@
 import type { IntegrationKind, JobSignals } from "@keelson/core";
 import type { LayerId } from "@keelson/taxonomy";
 import type { Tool } from "./schema.ts";
+import { executedCommands } from "./shell.ts";
 
 export type Detection = {
   tool: string;
@@ -20,42 +21,13 @@ function onImage(tool: Tool, image: string | null): boolean {
   return name !== null && tool.detect.images.some((candidate) => imageName(candidate) === name);
 }
 
-/** Commandes qui nomment un fichier ou un mot sans rien exécuter : `cp renovate.json /tmp`, un
- *  `echo` ou un commentaire ne prouvent pas qu'un outil tourne. */
-const INERT = new Set([
-  "cat",
-  "cd",
-  "chmod",
-  "chown",
-  "cp",
-  "echo",
-  "export",
-  "grep",
-  "kubectl",
-  "ls",
-  "mkdir",
-  "mv",
-  "printf",
-  "rm",
-  "sed",
-  "tee",
-  "touch",
-]);
-
-function commands(script: readonly string[]): string[] {
-  return script
-    .flatMap((line) => line.split(/\n|&&|\|\||;|\|/))
-    .map((command) => command.trim())
-    .filter((command) => {
-      const first = command.split(/\s+/)[0] ?? "";
-      return command !== "" && !first.startsWith("#") && !INERT.has(first);
-    });
-}
-
-function onScript(tool: Tool, script: readonly string[]): boolean {
+function onScript(tool: Tool, commands: readonly string[]): boolean {
   const patterns = tool.detect.scripts.map((source) => new RegExp(source, "i"));
-  return commands(script).some((command) => patterns.some((pattern) => pattern.test(command)));
+  return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
+
+const commandsOf = (signals: JobSignals): string[] =>
+  signals.script.flatMap((line) => executedCommands(line));
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };
 
@@ -64,8 +36,9 @@ export function detectIntegrations(
   signals: JobSignals,
   tools: readonly Tool[],
 ): DetectedIntegration[] {
+  const commands = commandsOf(signals);
   return tools.flatMap((tool): DetectedIntegration[] =>
-    tool.integration !== null && onScript(tool, signals.script)
+    tool.integration !== null && onScript(tool, commands)
       ? [{ tool: tool.id, kind: tool.integration }]
       : [],
   );
@@ -73,8 +46,9 @@ export function detectIntegrations(
 
 /** Un job peut correspondre à plusieurs outils. */
 export function detectTools(signals: JobSignals, tools: readonly Tool[]): Detection[] {
+  const commands = commandsOf(signals);
   return tools.flatMap((tool): Detection[] =>
-    onImage(tool, signals.image) || onScript(tool, signals.script)
+    onImage(tool, signals.image) || onScript(tool, commands)
       ? [{ tool: tool.id, layers: tool.layers }]
       : [],
   );

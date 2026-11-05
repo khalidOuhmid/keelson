@@ -1,8 +1,8 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L5 — propositions et insertion**, à cadrer depuis `main`
-Prochaine action : cadrage de L5, `specs/lots/l5.md`, branche `lot/l5-propositions`.
+Lot courant : **L5 — propositions et insertion**, sur `lot/l5-propositions`
+Prochaine action : vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -707,4 +707,49 @@ focus n'avait pas de code de sortie fiable : refait avec un script qui rend celu
 
 **Clôture.** Fusion `fd63570`. Depuis un clone sans `dist/` : `bun run check`, propriétés à 500 runs,
 68 E2E, smoke test Node. `check` vert sur `main`.
+
+### 2026-11-05 — L5
+
+**Livré.** `addSnippet` et `composite` à inverse unique (ADR 0012), propriétés étendues ;
+`POST /api/documents/:file/preview`, sans effet ; `Add to pipeline` dans la fiche outil, diff
+sémantique avant écriture, couches couvertes, annulation d'un coup ; `keelson export`, `markdown`,
+`mermaid`, `json`, documentés dans `specs/export.md` ; découpage shell de la détection. Écarts clos :
+needs inter-projets, découpage du script.
+
+**Laissés ouverts, avec leur raison.** Exécuter les snippets dans un conteneur : aucun runner ici.
+Variantes `:debug` des quatre images : non vérifiées sur pièces. Analyseurs GitLab Secure : aucune
+fiche ne les porte.
+
+**`critique` et `audit`, cette fois avec un navigateur.** Un P0 : `scan_type="Trivy Scan"` dans le
+snippet DefectDojo faisait compter SCA, IaC et Infrastructure, et `coverage --require sca` sortait en
+0 sans aucun scanner. Corrigé, et gardé par un invariant sur tout le catalogue : un snippet ne
+revendique que les couches de sa fiche. Sept P1 corrigés : diff tronqué, action principale illisible,
+aucun retour après écriture, focus perdu, Undo couvert sous `lg`, échec d'écriture invisible, diff
+sans sémantique.
+
+**Un retour en arrière.** Le défilement des snippets, livré pour clore un écart, les rendait
+inatteignables au clavier et contredisait `DESIGN.md` : retiré, écart rouvert.
+
+**Revue indépendante.** Neuf rouvertures : `Insert` écrivait un nom que le diff ne montrait pas, la
+preview avalait `document.changed` en avançant le hash, un snippet indenté s'écrivait dans le job
+précédent, un `stage` vide donnait `test# c`, les needs inter-projets derrière une ancre restaient
+perdus (l'écart avait été déclaré clos à tort), `addStage` recopiait une ancre, Mermaid perdait les
+jobs d'un stage non déclaré et laissait passer `%%{init}%%`, et 6 Ko de `$(` faisaient planter la CLI.
+Elle a aussi trouvé la cause de l'instabilité E2E : une assertion déjà vraie avant l'action.
+
+**Trois erreurs de méthode.** `pkill -f` a tué mon propre shell, ce que le journal de L2b notait déjà.
+Un premier correctif de `unmodelledNeeds` a marqué tous les jobs à `needs` : `entryAt` rend `null`
+hors d'une map, et les goldens l'ont attrapé sans être régénérés.
+
+La troisième : la preuve rouge de la borne du découpage shell bloquait, comme prévu, et son `timeout`
+a tué le script avant la restauration. Le fichier muté est parti dans le commit de journal `5db58c3`
+par `git add -A`, repéré à la relecture et corrigé au commit suivant. Une mutation qui peut ne pas
+finir se lance sans `timeout` extérieur au script, et `git add -A` ne suit jamais une mutation sans
+contrôle de l'arbre.
+
+**Contre-revues.** Six passes. Les premières ont trouvé un formulaire bloqué après un 409, des faux
+positifs et une explosion de regex introduits par le correctif du shell, puis une explosion du parcours
+de `needs`. Le mot à mot a remplacé la regex, et une liste blanche a remplacé le parcours : seul ce que
+l'IR rend à l'identique est réécrit, et la liste relue est comparée à la liste attendue. La dernière ne
+rouvre rien.
 

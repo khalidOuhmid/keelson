@@ -1205,7 +1205,7 @@
           "returntocorp/semgrep"
         ],
         "scripts": [
-          "(^|[\\s/\"'(])semgrep\\s"
+          "(^|[\\s/])semgrep\\s"
         ]
       },
       "snippets": {
@@ -1446,7 +1446,7 @@
           "aquasec/trivy"
         ],
         "scripts": [
-          "(^|[\\s/\"'(])trivy\\s"
+          "(^|[\\s/])trivy\\s"
         ]
       },
       "snippets": {

@@ -30,6 +30,10 @@ export function assertOptions(): fc.Parameters<unknown> {
 }
 
 const SCRIPT_LINES = ["echo hi", "make", "npm test", "./deploy.sh", "bun run check"] as const;
+const SNIPPETS = [
+  'scan:\n  stage: test\n  image:\n    name: aquasec/trivy:latest\n    entrypoint: [""]\n  script:\n    - trivy fs .\n',
+  "scan:\n  script:\n    - |\n      multi\n      ligne\n  allow_failure: true\n",
+] as const;
 const SUFFIXES = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta"] as const;
 const ENVIRONMENTS = ["production", "staging", "review", "integration"] as const;
 
@@ -99,6 +103,25 @@ export function operationArb(text: string, given?: Pipeline): fc.Arbitrary<Draft
       fc
         .tuple(fc.constantFrom(...stageNames), fc.nat(stageNames.length - 1))
         .map(([name, toIndex]) => ({ kind: "moveStage", name, toIndex }) as Draft),
+    );
+  }
+
+  if (stageNames.length > 0) {
+    const snippet = fc.constantFrom(...SNIPPETS);
+    candidates.push(
+      fc
+        .tuple(freshName("outil", taken), fc.constantFrom(...stageNames), snippet)
+        .map(([id, stage, text]) => ({ kind: "addSnippet", id, stage, snippet: text }) as Draft),
+      fc.tuple(freshName("etape", taken), freshName("outil", taken), snippet).map(
+        ([name, id, text]) =>
+          ({
+            kind: "composite",
+            steps: [
+              { kind: "addStage", name },
+              { kind: "addSnippet", id, stage: name, snippet: text },
+            ],
+          }) as Draft,
+      ),
     );
   }
 

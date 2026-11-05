@@ -53,10 +53,10 @@ describe("binaire buildé exécuté par node", () => {
     }
   });
 
-  test("export sort en 2 avec le message « command not implemented yet »", () => {
-    const result = keelson(["export"]);
+  test("export répond sous Node", () => {
+    const result = keelson(["export", "/chemin/absent.yml"]);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("not implemented yet");
+    expect(result.stderr).toContain("file not found");
   });
 });
 

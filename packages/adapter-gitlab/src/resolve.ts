@@ -411,6 +411,42 @@ export function resolveNeeds(
   return { value, origin: origin ?? found.origin };
 }
 
+/** Un item `project:` ou `pipeline:` dans la liste effective de `needs`. */
+/** Liste blanche, pas liste noire : seul ce que `needFrom` rend à l'identique peut être réécrit depuis
+ *  l'IR. Un alias, un `!reference`, une clé de plus, et la réécriture perdrait quelque chose. */
+function modelledNeed(item: AnyNode): boolean {
+  if (isScalar(item)) {
+    return typeof item.value === "string";
+  }
+  if (!isMap(item)) {
+    return false;
+  }
+  const job = localPair(item, "job")?.value;
+  return (
+    isScalar(job) &&
+    typeof job.value === "string" &&
+    item.items.every((pair) => {
+      const key = isScalar(pair.key) ? String(pair.key.value) : "";
+      return (
+        key === "job" ||
+        ((key === "optional" || key === "artifacts") &&
+          isScalar(pair.value) &&
+          typeof pair.value.value === "boolean")
+      );
+    })
+  );
+}
+
+export function hasUnmodelledNeeds(sources: readonly Source[]): boolean {
+  const found = matches(sources, "needs").at(-1);
+  if (found === undefined) {
+    return false;
+  }
+  const list = found.node;
+  const literal = isSeq(list) && (list as { tag?: string }).tag !== REFERENCE_TAG;
+  return !literal || !list.items.every((item) => modelledNeed(item as AnyNode));
+}
+
 function plainObject(node: AnyNode): Record<string, unknown> | null {
   if (!isMap(node)) {
     return null;

@@ -450,6 +450,16 @@ describe("coverage.changed pendant une opération", () => {
   });
 });
 
+describe("annonce d'écriture", () => {
+  test("elle ne survit pas à l'annulation qui la dément", async () => {
+    await addStage("verify");
+    state().announce("verify added.");
+    api.queue({ ok: true, value: operationPayload(HASH_C, HASH_B) });
+    await state().undo();
+    expect(state().notice).toBeNull();
+  });
+});
+
 describe("sélection", () => {
   test("un job peut être sélectionné puis désélectionné", () => {
     state().selectJob("compile");

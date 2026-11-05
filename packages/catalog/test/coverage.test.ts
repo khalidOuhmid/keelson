@@ -135,6 +135,27 @@ describe("les fiches réelles", () => {
     expect(found({ image, script: [] })).toContain("zap");
   });
 
+  test("le script d'un snippet ne revendique que les couches de sa fiche", () => {
+    const foreign = catalog.tools.flatMap((tool) => {
+      const snippet = tool.snippets.gitlab;
+      if (snippet === null) {
+        return [];
+      }
+      const jobs = parseYaml(snippet) as Record<string, { script?: string[] }>;
+      const script = Object.values(jobs).flatMap((job) => job.script ?? []);
+      return detectTools({ image: null, script }, catalog.tools)
+        .filter((entry) => entry.layers.some((layer) => !tool.layers.includes(layer)))
+        .map((entry) => `${tool.id} détecte ${entry.tool}`);
+    });
+    expect(foreign).toEqual([]);
+  });
+
+  test("un mot dans une chaîne n'est pas une commande", () => {
+    expect(
+      found({ image: null, script: ['curl -F scan_type="Trivy Scan" https://x'] }),
+    ).not.toContain("trivy");
+  });
+
   test("chaque image de snippet GitLab est reconnue par sa propre fiche", () => {
     const missed = catalog.tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;
@@ -278,5 +299,124 @@ describe("couverture", () => {
     const unresolved = [{ form: "remote" as const, detail: "x", from: "a", range: null }];
     expect(coverage(pipeline([], unresolved), CATALOG).partial).toBe(true);
     expect(coverage(pipeline([]), CATALOG).partial).toBe(false);
+  });
+});
+
+describe("découpage shell sur une entrée hostile", () => {
+  const catalog = loadCatalog();
+  test.each([
+    ["$( imbriqués", "$(".repeat(5000)],
+    ["sh -c imbriqués", "bash -c ".repeat(5000)],
+    ["kubectl exec imbriqués", "kubectl exec a -- ".repeat(5000)],
+    ["une ligne immense", "a ".repeat(500000)],
+  ])("%s ne plante pas et reste rapide", (_label, line) => {
+    const started = performance.now();
+    expect(() => detectTools({ image: null, script: [line] }, catalog.tools)).not.toThrow();
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test.each([
+    ['bash -o pipefail -c "trivy fs ."'],
+    ['timeout 60 bash -c "trivy fs ."'],
+    ['nice -n 10 sh -c "trivy fs ."'],
+    ['docker exec c bash -c "trivy fs ."'],
+    ['xargs sh -c "trivy fs ."'],
+    ['eval "trivy fs ."'],
+    ['ssh host "trivy fs ."'],
+    ['su -c "trivy fs ."'],
+    ["timeout 60 trivy fs ."],
+  ])("%s lance l'outil", (line) => {
+    expect(
+      detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
+    ).toContain("trivy");
+  });
+
+  test("if command -v n'est pas une exécution", () => {
+    expect(
+      detectTools(
+        { image: null, script: ["if command -v trivy >/dev/null; then echo y; fi"] },
+        catalog.tools,
+      ),
+    ).toEqual([]);
+  });
+
+  test.each([
+    ["echo sh -c trivy fs ."],
+    ['git commit -m "fix: use sh -c trivy fs ."'],
+    ['grep -r "run sh -c trivy fs ." .'],
+    ["ls /bin/sh -c trivy fs ."],
+  ])("%s ne lance rien", (line) => {
+    expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
+  });
+
+  test.each([
+    ['ssh -i key host "trivy fs ."'],
+    ['su - bob -c "trivy fs ."'],
+    ['find . -exec sh -c "trivy fs ." ;'],
+    ['/bin/bash -c "trivy fs ."'],
+  ])("%s lance l'outil aussi", (line) => {
+    expect(
+      detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
+    ).toContain("trivy");
+  });
+
+  test("une liste d'options répétées reste linéaire", () => {
+    const started = performance.now();
+    detectTools({ image: null, script: [`sh ${"-o ".repeat(20000)}`] }, catalog.tools);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test.each([
+    ['docker build --label "note=sh -c trivy fs ." .'],
+    ['docker exec app echo "run sh -c trivy fs ."'],
+    ["sh -c 'echo gitleaks' arg"],
+    ["su -c 'echo gitleaks' bob"],
+    ["ssh -o StrictHostKeyChecking=no gitleaks uptime"],
+  ])("%s ne lance pas l'outil cité", (line) => {
+    expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
+  });
+
+  test("command lance, command -v interroge", () => {
+    const found = (line: string) =>
+      detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
+    expect(found("command trivy fs .")).toContain("trivy");
+    expect(found("command -v trivy")).toEqual([]);
+  });
+});
+
+describe("découpage shell de la détection", () => {
+  const catalog = loadCatalog();
+  const found = (line: string) =>
+    detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
+
+  test.each([
+    ['echo "a; trivy fs ."'],
+    ["true # trivy fs ."],
+    ["# a && gitleaks detect"],
+    ["git add renovate.json"],
+    ["test -f renovate.json"],
+    ["jq . renovate.json"],
+    ["which gitleaks"],
+    ["command -v gitleaks"],
+    ["sudo cat renovate.json"],
+    ["apt-get install -y trivy jq"],
+    ["pip install semgrep pytest"],
+    ['git commit -m "semgrep rule fix"'],
+  ])("%s ne prouve rien", (line) => {
+    expect(found(line)).toEqual([]);
+  });
+
+  test.each([
+    ["trivy fs . && echo ok", "trivy"],
+    ["echo ok; trivy fs .", "trivy"],
+    ['bash -c "semgrep scan"', "semgrep"],
+    ["sudo trivy fs .", "trivy"],
+    ["export R=$(gitleaks detect)", "gitleaks"],
+    ['echo "$(semgrep scan)"', "semgrep"],
+    ["`trivy fs .`", "trivy"],
+    ["kubectl exec p -- gitleaks detect", "gitleaks"],
+    ["env A=1 trivy fs .", "trivy"],
+  ])("%s nomme %s", (line, tool) => {
+    expect(found(line)).toContain(tool);
   });
 });

@@ -8,7 +8,7 @@ verifiedAt: https://github.com/aquasecurity/trivy
 logo: trivy
 detect:
   images: ['aquasec/trivy']
-  scripts: ['(^|[\s/"''(])trivy\s']
+  scripts: ['(^|[\s/])trivy\s']
 snippets:
   gitlab: |
     trivy:

@@ -1,6 +1,7 @@
 import {
   emptyPipeline,
   isPartial,
+  type Operation,
   TOOLCHAIN_INVALID,
   type ToolchainOperation,
 } from "@keelson/core";
@@ -27,7 +28,7 @@ import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
-import { blocksEditing, createStore, type KeelsonStore } from "./state/store.ts";
+import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
 import { createToolchainStore, type ToolchainStore } from "./state/toolchain.ts";
 import { DocumentRemoved } from "./states/DocumentRemoved.tsx";
 import { InvalidDocument } from "./states/InvalidDocument.tsx";
@@ -58,6 +59,7 @@ type ClientSurface = {
     opId: string,
   ) => Promise<ApiResult<OperationPayload>>;
   catalog: () => Promise<ApiResult<CatalogPayload>>;
+  preview: (file: string, op: Operation) => Promise<ApiResult<OperationPayload>>;
   toolchain: () => Promise<ApiResult<ToolchainPayload>>;
   submitToolchain: (
     op: ToolchainOperation,
@@ -72,6 +74,16 @@ export type AppDeps = {
   subscribe?: typeof subscribeToEvents;
   newOpId?: () => string;
 };
+
+/** La mise en page du graphe est asynchrone : le nœud n'existe pas encore au prochain rendu. */
+function focusWhenDrawn(selector: string, frames = 120): void {
+  const found = document.querySelector<HTMLElement>(selector);
+  if (found !== null) {
+    found.focus();
+  } else if (frames > 0) {
+    requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
+  }
+}
 
 function browserDeps(): AppDeps {
   const token = readToken(browserLocation()) ?? "";
@@ -283,6 +295,36 @@ export function App({ deps }: AppProps = {}) {
     [reading, state.coverage, state.selectedLayer],
   );
 
+  const file = state.file;
+  const hash = state.hash;
+  const insertion = useMemo(
+    () =>
+      state.pipeline === null || file === null || hash === null
+        ? undefined
+        : {
+            pipeline: state.pipeline,
+            text: state.text,
+            disabled: !editable,
+            preview: (draft: Draft) =>
+              resolved.client.preview(file, { v: 1, baseHash: hash, ...draft } as Operation),
+            onInsert: async (draft: Draft, job: string) => {
+              const written = await store.getState().submit(draft);
+              if (!written) {
+                return store.getState().error;
+              }
+              store.getState().setView("pipeline");
+              store.getState().announce(`${job} added to ${file}.`);
+              // Sous `lg`, sélectionner ouvrirait une superposition par-dessus Undo et le nœud.
+              if (window.matchMedia("(min-width: 64rem)").matches) {
+                store.getState().selectJob(job);
+              }
+              focusWhenDrawn(`[data-job-id="${CSS.escape(job)}"]`);
+              return null;
+            },
+          },
+    [state.pipeline, state.text, file, hash, editable, resolved, store],
+  );
+
   const body = (() => {
     if (state.status === "loading") {
       return <Loading />;
@@ -318,6 +360,7 @@ export function App({ deps }: AppProps = {}) {
           key={state.catalogLayer ?? "any"}
           catalog={state.catalog}
           initialLayer={state.catalogLayer}
+          insertion={insertion}
         />
       );
     }
