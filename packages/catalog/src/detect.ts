@@ -1,6 +1,7 @@
 import type { IntegrationKind, JobSignals } from "@keelson/core";
 import type { LayerId } from "@keelson/taxonomy";
 import type { Tool } from "./schema.ts";
+import { executedCommands } from "./shell.ts";
 
 export type Detection = {
   tool: string;
@@ -20,41 +21,11 @@ function onImage(tool: Tool, image: string | null): boolean {
   return name !== null && tool.detect.images.some((candidate) => imageName(candidate) === name);
 }
 
-/** Commandes qui nomment un fichier ou un mot sans rien exécuter : `cp renovate.json /tmp`, un
- *  `echo` ou un commentaire ne prouvent pas qu'un outil tourne. */
-const INERT = new Set([
-  "cat",
-  "cd",
-  "chmod",
-  "chown",
-  "cp",
-  "echo",
-  "export",
-  "grep",
-  "kubectl",
-  "ls",
-  "mkdir",
-  "mv",
-  "printf",
-  "rm",
-  "sed",
-  "tee",
-  "touch",
-]);
-
-function commands(script: readonly string[]): string[] {
-  return script
-    .flatMap((line) => line.split(/\n|&&|\|\||;|\|/))
-    .map((command) => command.trim())
-    .filter((command) => {
-      const first = command.split(/\s+/)[0] ?? "";
-      return command !== "" && !first.startsWith("#") && !INERT.has(first);
-    });
-}
-
 function onScript(tool: Tool, script: readonly string[]): boolean {
   const patterns = tool.detect.scripts.map((source) => new RegExp(source, "i"));
-  return commands(script).some((command) => patterns.some((pattern) => pattern.test(command)));
+  return script
+    .flatMap(executedCommands)
+    .some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };

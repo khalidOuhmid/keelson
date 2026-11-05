@@ -280,3 +280,40 @@ describe("couverture", () => {
     expect(coverage(pipeline([]), CATALOG).partial).toBe(false);
   });
 });
+
+describe("découpage shell de la détection", () => {
+  const catalog = loadCatalog();
+  const found = (line: string) =>
+    detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
+
+  test.each([
+    ['echo "a; trivy fs ."'],
+    ["true # trivy fs ."],
+    ["# a && gitleaks detect"],
+    ["git add renovate.json"],
+    ["test -f renovate.json"],
+    ["jq . renovate.json"],
+    ["which gitleaks"],
+    ["command -v gitleaks"],
+    ["sudo cat renovate.json"],
+    ["apt-get install -y trivy jq"],
+    ["pip install semgrep pytest"],
+    ['git commit -m "semgrep rule fix"'],
+  ])("%s ne prouve rien", (line) => {
+    expect(found(line)).toEqual([]);
+  });
+
+  test.each([
+    ["trivy fs . && echo ok", "trivy"],
+    ["echo ok; trivy fs .", "trivy"],
+    ['bash -c "semgrep scan"', "semgrep"],
+    ["sudo trivy fs .", "trivy"],
+    ["export R=$(gitleaks detect)", "gitleaks"],
+    ['echo "$(semgrep scan)"', "semgrep"],
+    ["`trivy fs .`", "trivy"],
+    ["kubectl exec p -- gitleaks detect", "gitleaks"],
+    ["env A=1 trivy fs .", "trivy"],
+  ])("%s nomme %s", (line, tool) => {
+    expect(found(line)).toContain(tool);
+  });
+});
