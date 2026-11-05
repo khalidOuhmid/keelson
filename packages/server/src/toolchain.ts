@@ -1,3 +1,5 @@
+import { lstatSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type { Diagnostic, MessageCode, ParamsOf, SpliceOperation, Toolchain } from "@keelson/core";
@@ -8,6 +10,7 @@ import {
   parseToolchainOperation,
   STALE_DOCUMENT,
   TOOLCHAIN_FILE,
+  TOOLCHAIN_INVALID,
 } from "@keelson/core";
 import {
   analyseToolchain,
@@ -45,6 +48,18 @@ export type PositionsResponse = {
   body: { positions: Positions } | ErrorBody;
 };
 
+type Disk = { kind: "absent" } | { kind: "unreadable" } | { kind: "text"; text: string };
+
+function unreadable(): Diagnostic {
+  return {
+    code: TOOLCHAIN_INVALID,
+    severity: "error",
+    params: { detail: "the file cannot be read" },
+    range: null,
+    file: TOOLCHAIN_FILE,
+  };
+}
+
 /** `.devsecops/toolchain.yaml`. Une seule file d'écriture : deux opérations concurrentes ne peuvent
  *  pas se fonder sur le même texte. */
 export class ToolchainStore {
@@ -56,8 +71,27 @@ export class ToolchainStore {
     private readonly documents: DocumentStore,
   ) {}
 
-  private text(): string {
-    return readInsideRoot(this.root, TOOLCHAIN_FILE) ?? "";
+  /** Un fichier qu'on ne peut pas lire n'est pas un fichier absent : le traiter comme vide
+   *  l'écraserait. Sont illisibles ce qui sort de la racine, ce qui refuse la lecture, un dossier,
+   *  et ce qui n'est pas de l'UTF-8, que le patch réécrirait avec des caractères de remplacement. */
+  private read(path: string): Disk {
+    const absolute = join(this.root, path);
+    try {
+      lstatSync(absolute);
+    } catch {
+      return { kind: "absent" };
+    }
+    const text = readInsideRoot(this.root, path);
+    if (text === null) {
+      return { kind: "unreadable" };
+    }
+    try {
+      return Buffer.from(text).equals(readFileSync(absolute))
+        ? { kind: "text", text }
+        : { kind: "unreadable" };
+    } catch {
+      return { kind: "unreadable" };
+    }
   }
 
   private async pipeline() {
@@ -89,8 +123,12 @@ export class ToolchainStore {
     };
   }
 
-  load(): Promise<ToolchainBody> {
-    return this.body(this.text());
+  async load(): Promise<ToolchainBody> {
+    const disk = this.read(TOOLCHAIN_FILE);
+    const body = await this.body(disk.kind === "text" ? disk.text : "");
+    return disk.kind === "unreadable"
+      ? { ...body, diagnostics: [unreadable(), ...body.diagnostics] }
+      : body;
   }
 
   apply(operation: unknown, opId: string): Promise<ToolchainResponse> {
@@ -122,7 +160,14 @@ export class ToolchainStore {
       return { status: 400, body: validated.error };
     }
 
-    const text = this.text();
+    const disk = this.read(TOOLCHAIN_FILE);
+    if (disk.kind === "unreadable") {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "invalidToolchain" } },
+      };
+    }
+    const text = disk.kind === "text" ? disk.text : "";
     const result = applyToolchain(text, validated.value);
     if (!result.ok) {
       return result.error.code === STALE_DOCUMENT
@@ -168,7 +213,11 @@ export class ToolchainStore {
       };
     }
 
-    const text = writePositions(readInsideRoot(this.root, LAYOUT_FILE), parsed.positions);
+    const disk = this.read(LAYOUT_FILE);
+    const text =
+      disk.kind === "unreadable"
+        ? null
+        : writePositions(disk.kind === "text" ? disk.text : null, parsed.positions);
     if (text === null) {
       return {
         status: 422,
@@ -181,6 +230,6 @@ export class ToolchainStore {
         body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: LAYOUT_FILE } },
       };
     }
-    return { status: 200, body: { positions: parsed.positions } };
+    return { status: 200, body: { positions: parseLayout(text, emptyPipeline("")).positions } };
   }
 }

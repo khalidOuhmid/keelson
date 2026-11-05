@@ -94,6 +94,16 @@ describe("positions", () => {
     );
   });
 
+  test("écrire fusionne avec les positions déjà là", () => {
+    const written = writePositions('{"version":1,"positions":{"a":{"x":1,"y":1}}}', {
+      b: { x: 2, y: 2 },
+    });
+    expect(JSON.parse(written ?? "").positions).toEqual({
+      a: { x: 1, y: 1 },
+      b: { x: 2, y: 2 },
+    });
+  });
+
   test("écrire crée le fichier absent", () => {
     expect(JSON.parse(writePositions(null, {}) ?? "")).toEqual({ version: 1, positions: {} });
   });

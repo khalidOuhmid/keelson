@@ -334,7 +334,17 @@ describe("fichiers écrits à la main", () => {
     });
     const scalar =
       "version: 1\nservices:\n  a:\n    tool: x\n    url: &u y\n  b:\n    tool: z\n    url: *u\n";
-    expect(code(scalar, { kind: "updateService", id: "a", url: "w" })).toBe("INVALID_OPERATION");
+    expect(run(scalar, { kind: "updateService", id: "a", url: "w" })).toMatchObject({
+      error: { params: { reason: "sharedValue" } },
+    });
+  });
+
+  test("ce que le patch changerait sans le vouloir est refusé à la relecture", () => {
+    const text = "version: 1\nservices:\n  a:\n    tool: x\n    url: |+\n      u\n\n";
+    const result = run(text, { kind: "updateService", id: "a", environment: "e" });
+    expect(result.ok ? null : result.error).toMatchObject({
+      params: { reason: "wouldBreakYaml", operation: "updateService" },
+    });
   });
 
   test("retirer une ancre dont un alias dépend est refusé", () => {

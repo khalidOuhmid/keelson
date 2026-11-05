@@ -175,6 +175,10 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
       void store.getState().serverEvent(event);
+      // `layout.json` a pu changer : les positions d'une autre main arrivent par ici.
+      if (event.kind === "coverage.changed") {
+        void toolchainStore.getState().refresh();
+      }
     });
     return () => subscription.close();
   }, [resolved, store, toolchainStore]);
@@ -334,6 +338,10 @@ export function App({ deps }: AppProps = {}) {
   return (
     <div className="flex h-full flex-col bg-surface-0">
       <NoticeBar notice={state.notice} onDismiss={() => store.getState().dismissNotice()} />
+      <NoticeBar
+        notice={toolchainState.notice}
+        onDismiss={() => toolchainStore.getState().dismissNotice()}
+      />
       <ErrorBanner error={state.error} onDismiss={() => store.getState().dismissError()} />
       <ErrorBanner
         error={toolchainState.error}
@@ -409,8 +417,8 @@ export function App({ deps }: AppProps = {}) {
           ) : null}
           {inToolchain ? (
             <HistoryControls
-              canUndo={toolchainState.canUndo()}
-              canRedo={toolchainState.canRedo()}
+              canUndo={toolchainEditable && toolchainState.canUndo()}
+              canRedo={toolchainEditable && toolchainState.canRedo()}
               onUndo={() => void toolchainStore.getState().undo()}
               onRedo={() => void toolchainStore.getState().redo()}
             />

@@ -50,9 +50,8 @@ export async function writeAtomic(path: string, text: string): Promise<void> {
 }
 
 /** Pour les fichiers de `.devsecops`, que Keelson crée lui-même : le dossier peut manquer, et un
- *  dossier lié hors du dépôt ne doit pas devenir une écriture hors de la racine. `rename` remplace
- *  un lien sur le fichier sans le suivre, donc seul le dossier est à contrôler. Rend `false` sans
- *  rien écrire si le dossier sort de la racine. */
+ *  dossier lié hors du dépôt ne doit pas devenir une écriture hors de la racine. Rend `false` sans
+ *  rien écrire si le dossier ou le fichier sort de la racine. */
 export async function writeInsideRoot(root: string, path: string, text: string): Promise<boolean> {
   const directory = resolve(root, dirname(path));
   try {
@@ -67,6 +66,11 @@ export async function writeInsideRoot(root: string, path: string, text: string):
     return false;
   }
 
-  await writeAtomic(join(real, basename(path)), text);
+  // Un lien interne reste un lien : on écrit sa cible, après l'avoir bornée comme le dossier.
+  const target = await realpath(join(real, basename(path))).catch(() => join(real, basename(path)));
+  if (!target.startsWith(`${realRoot}${sep}`)) {
+    return false;
+  }
+  await writeAtomic(target, text);
   return true;
 }

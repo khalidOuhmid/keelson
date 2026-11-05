@@ -91,8 +91,9 @@ export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayo
   return { overrides, positions: parsed.data.positions, diagnostics };
 }
 
-/** Le texte de `layout.json` avec ces positions, ou `null` si le fichier actuel n'est pas compris :
- *  Keelson n'écrase pas ce qu'il ne sait pas lire. Les clés qu'il ignore survivent. */
+/** Le texte de `layout.json` avec ces positions en plus, ou `null` si le fichier actuel n'est pas
+ *  compris : Keelson n'écrase pas ce qu'il ne sait pas lire. Les clés qu'il ignore et les positions
+ *  écrites par quelqu'un d'autre survivent. */
 export function writePositions(text: string | null, positions: Positions): string | null {
   let current: unknown = { version: 1 };
   if (text !== null) {
@@ -106,8 +107,9 @@ export function writePositions(text: string | null, positions: Positions): strin
     }
   }
 
+  const known = layoutSchema.parse(current).positions;
   const sorted = Object.fromEntries(
-    Object.entries(positions).sort(([left], [right]) => (left < right ? -1 : 1)),
+    Object.entries({ ...known, ...positions }).sort(([left], [right]) => (left < right ? -1 : 1)),
   );
   return `${JSON.stringify({ ...(current as object), positions: sorted }, null, 2)}\n`;
 }

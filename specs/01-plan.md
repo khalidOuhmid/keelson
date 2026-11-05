@@ -128,7 +128,7 @@ et écrit.
 | POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
 | GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
 | POST | `/api/toolchain/operations` | corps `{ op, opId }` → 200 le même corps plus `inverse` · 400 · 409 avec le `hash` courant · 422 |
-| PUT | `/api/layout/positions` | corps `{ positions }` → 200 · 400 · 422 si `layout.json` est illisible |
+| PUT | `/api/layout/positions` | corps `{ positions }`, fusionnées dans le fichier → 200 avec la carte complète · 400 · 422 si `layout.json` est illisible |
 | GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `coverage.changed { file }`, `toolchain.changed { hash }`, heartbeat toutes les 15 s |
 | GET | `/*` | bundle de l'UI, repli SPA sur `index.html` |
 

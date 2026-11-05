@@ -69,11 +69,12 @@ async function readBody(request: IncomingMessage): Promise<string | "too-large">
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** Le corps JSON d'une requête, ou `null` si la réponse d'erreur est déjà partie. */
-async function readEnvelope(
-  request: IncomingMessage,
-  response: ServerResponse,
-): Promise<unknown | null> {
+/** `null` est un corps JSON valide : la réponse déjà partie se dit par un marqueur à part. */
+const ANSWERED = Symbol("answered");
+
+/** Le corps JSON d'une requête, ou `ANSWERED` si la réponse d'erreur est déjà partie. Le résultat
+ *  n'a aucune forme garantie, et une valeur non objet devient un objet vide pour les appelants. */
+async function readEnvelope(request: IncomingMessage, response: ServerResponse): Promise<unknown> {
   const raw = await readBody(request);
   if (raw === "too-large") {
     const payload = JSON.stringify({
@@ -87,14 +88,14 @@ async function readEnvelope(
     });
     response.on("finish", () => request.destroy());
     response.end(payload);
-    return null;
+    return ANSWERED;
   }
 
   try {
-    return JSON.parse(raw);
+    return JSON.parse(raw) ?? {};
   } catch {
     fail(response, 400, INVALID_OPERATION, { reason: "unreadableBody" });
-    return null;
+    return ANSWERED;
   }
 }
 
@@ -163,7 +164,7 @@ export function createRequestHandler(context: AppContext) {
         return;
       }
       const envelope = await readEnvelope(request, response);
-      if (envelope === null) {
+      if (envelope === ANSWERED) {
         return;
       }
       const opId = (envelope as { opId?: unknown }).opId;
@@ -187,7 +188,7 @@ export function createRequestHandler(context: AppContext) {
         return;
       }
       const envelope = await readEnvelope(request, response);
-      if (envelope === null) {
+      if (envelope === ANSWERED) {
         return;
       }
       const result = await context.toolchain.savePositions(
@@ -220,7 +221,7 @@ export function createRequestHandler(context: AppContext) {
       }
 
       const parsed = await readEnvelope(request, response);
-      if (parsed === null) {
+      if (parsed === ANSWERED) {
         return;
       }
 

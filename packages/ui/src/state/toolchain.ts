@@ -7,6 +7,7 @@ import type {
   ToolchainOperationPayload,
   ToolchainPayload,
 } from "../api/client.ts";
+import type { Notice } from "./store.ts";
 
 export type ToolchainDraft = ToolchainOperation extends infer O
   ? O extends ToolchainOperation
@@ -24,6 +25,7 @@ export type ToolchainDependencies = {
 export type ToolchainState = {
   payload: ToolchainPayload | null;
   error: ApiFailure | null;
+  notice: Notice | null;
   pending: boolean;
   selectedService: string | null;
   load(): Promise<void>;
@@ -40,6 +42,12 @@ export type ToolchainState = {
   move(node: string, position: Position): Promise<void>;
   selectService(id: string | null): void;
   dismissError(): void;
+  dismissNotice(): void;
+};
+
+const RELOADED: Notice = {
+  kind: "reloaded",
+  message: "toolchain.yaml changed on disk and was reloaded.",
 };
 
 export type ToolchainStore = StoreApi<ToolchainState>;
@@ -47,6 +55,9 @@ export type ToolchainStore = StoreApi<ToolchainState>;
 export function createToolchainStore(dependencies: ToolchainDependencies): ToolchainStore {
   let undoStack: SpliceOperation[] = [];
   let redoStack: SpliceOperation[] = [];
+  /** Le hash annoncé pendant une opération : celle-ci finie, seul ce hash dit si le disque a bougé
+   *  ailleurs. Aucun autre événement ne suivra. */
+  let announced: string | null = null;
 
   return createStore<ToolchainState>((set, get) => {
     const reload = async (): Promise<void> => {
@@ -67,11 +78,17 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       set({ pending: true, error: null });
       const result = await dependencies.submit(op, dependencies.newOpId());
       set({ pending: false });
+      const heard = announced;
+      announced = null;
 
       if (result.ok) {
         const { inverse, ...payload } = result.value;
         onSuccess(inverse);
         set({ payload });
+        if (heard !== null && heard !== payload.hash) {
+          await reload();
+          set({ notice: RELOADED });
+        }
         return true;
       }
       if (result.error.status === 409) {
@@ -84,6 +101,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
     return {
       payload: null,
       error: null,
+      notice: null,
       pending: false,
       selectedService: null,
 
@@ -109,7 +127,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
 
       async undo() {
         const inverse = undoStack.at(-1);
-        if (inverse !== undefined) {
+        if (inverse !== undefined && !get().pending) {
           await send(inverse, (next) => {
             undoStack.pop();
             redoStack.push(next);
@@ -119,7 +137,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
 
       async redo() {
         const inverse = redoStack.at(-1);
-        if (inverse !== undefined) {
+        if (inverse !== undefined && !get().pending) {
           await send(inverse, (next) => {
             redoStack.pop();
             undoStack.push(next);
@@ -131,8 +149,13 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       canRedo: () => redoStack.length > 0,
 
       async changed(hash) {
-        if (hash !== get().payload?.hash && !get().pending) {
+        if (get().pending) {
+          announced = hash;
+          return;
+        }
+        if (hash !== get().payload?.hash) {
           await reload();
+          set({ notice: RELOADED });
         }
       },
 
@@ -141,16 +164,22 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
         if (payload === null) {
           return;
         }
-        const positions = { ...payload.positions, [node]: position };
-        set({ payload: { ...payload, positions } });
-        const result = await dependencies.savePositions(positions);
-        if (!result.ok) {
-          set({ error: result.error });
+        set({ payload: { ...payload, positions: { ...payload.positions, [node]: position } } });
+        const result = await dependencies.savePositions({ [node]: position });
+        if (result.ok) {
+          const current = get().payload;
+          if (current !== null) {
+            set({ payload: { ...current, positions: result.value.positions } });
+          }
+          return;
         }
+        set({ error: result.error });
+        await get().refresh();
       },
 
       selectService: (id) => set({ selectedService: id }),
       dismissError: () => set({ error: null }),
+      dismissNotice: () => set({ notice: null }),
     };
   });
 }

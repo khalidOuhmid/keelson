@@ -105,6 +105,20 @@ function afterColon(text: string, key: Node): number {
   return text.indexOf(":", rangeOf(key)[1]) + 1;
 }
 
+/** Un alias ailleurs dépend peut-être de cette ancre : la retirer le laisserait sans cible. */
+function hasAnchor(node: Node | null): boolean {
+  if (node === null || isAlias(node)) {
+    return false;
+  }
+  if (node.anchor !== undefined) {
+    return true;
+  }
+  if (isMap(node)) {
+    return node.items.some((pair) => hasAnchor(pair.value as Node | null));
+  }
+  return isSeq(node) && node.items.some((item) => hasAnchor(item as Node | null));
+}
+
 function pairOf(map: YAMLMap, key: string): Pair | undefined {
   return map.items.find((pair) => isScalar(pair.key) && pair.key.value === key);
 }
@@ -274,7 +288,8 @@ function updateFields(
     if (current !== null && (!isScalar(current) || current.anchor !== undefined)) {
       return shared(key);
     }
-    const [start, end] = current === null ? [0, 0] : rangeOf(current);
+    const start = current === null ? 0 : rangeOf(current)[0];
+    const end = current === null ? 0 : contentEnd(editing.text, current);
     const empty = current === null || start === end;
     const colon = afterColon(editing.text, pair.key as Node);
     edits.push(
@@ -412,6 +427,12 @@ function planned(
         return refuse({
           code: SERVICE_REFERENCED,
           params: { service: operation.id, jobs: [...new Set(jobs)] },
+        });
+      }
+      if (hasAnchor(pair.value as Node | null)) {
+        return refuse({
+          code: INVALID_OPERATION,
+          params: { reason: "sharedValue", job: operation.id, key: "service" },
         });
       }
       return editing.pairSpan(pair);

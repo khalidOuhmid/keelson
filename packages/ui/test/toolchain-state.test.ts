@@ -34,6 +34,7 @@ let sent: ToolchainOperation[];
 let answers: ApiResult<ToolchainOperationPayload>[];
 let loaded: ToolchainPayload;
 let saved: unknown[];
+let disk: Record<string, { x: number; y: number }>;
 let store: ToolchainStore;
 const state = () => store.getState();
 
@@ -41,6 +42,7 @@ beforeEach(async () => {
   sent = [];
   answers = [];
   saved = [];
+  disk = {};
   loaded = payload("a");
   store = createToolchainStore({
     load: async () => ({ ok: true, value: loaded }),
@@ -50,7 +52,8 @@ beforeEach(async () => {
     },
     savePositions: async (positions) => {
       saved.push(positions);
-      return { ok: true, value: { positions } };
+      disk = { ...disk, ...positions };
+      return { ok: true, value: { positions: disk } };
     },
     newOpId: () => "op",
   });
@@ -123,10 +126,46 @@ describe("store de toolchain", () => {
     expect(state().canUndo()).toBe(false);
   });
 
-  test("déplacer un nœud envoie toutes les positions connues", async () => {
+  test("deux annulations rapides n'envoient pas deux fois le même inverse", async () => {
+    await state().submit(draft);
+    await state().submit(draft);
+    sent.length = 0;
+    await Promise.all([state().undo(), state().undo()]);
+    expect(sent).toHaveLength(1);
+  });
+
+  test("un changement externe pendant une opération recharge ensuite", async () => {
+    let settle: (value: ApiResult<ToolchainOperationPayload>) => void = () => {};
+    const held = createToolchainStore({
+      load: async () => ({ ok: true, value: loaded }),
+      submit: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      newOpId: () => "op",
+    });
+    await held.getState().load();
+    const submitted = held.getState().submit(draft);
+    await held.getState().changed("z");
+    loaded = payload("z");
+    settle(applied("b"));
+    await submitted;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(held.getState().payload?.hash).toBe("z");
+  });
+
+  test("une écriture externe rechargée le dit", async () => {
+    loaded = payload("z");
+    await state().changed("z");
+    expect(state().notice?.kind).toBe("reloaded");
+  });
+
+  test("déplacer un nœud n'envoie que ce nœud : le reste est au serveur", async () => {
     await state().move("job:a", { x: 1, y: 2 });
     await state().move("job:b", { x: 3, y: 4 });
-    expect(saved.at(-1)).toEqual({ "job:a": { x: 1, y: 2 }, "job:b": { x: 3, y: 4 } });
+    expect(saved.at(-1)).toEqual({ "job:b": { x: 3, y: 4 } });
     expect(state().payload?.positions).toEqual({
       "job:a": { x: 1, y: 2 },
       "job:b": { x: 3, y: 4 },

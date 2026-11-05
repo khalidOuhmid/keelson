@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -209,5 +211,94 @@ describe("watcher", () => {
     } finally {
       watcher.close();
     }
+  });
+});
+
+describe("ce que Keelson ne sait pas lire, il ne l'écrase pas", () => {
+  test("un toolchain.yaml sans droit de lecture n'est pas remplacé", async () => {
+    write(FILE, TEXT);
+    chmodSync(disk(FILE), 0o000);
+    const body = await get();
+    expect(body.diagnostics.map((entry) => entry.code)).toContain("TOOLCHAIN_INVALID");
+    const { status } = await post({ ...addHarbor, baseHash: hashText("") });
+    chmodSync(disk(FILE), 0o644);
+    expect(status).toBe(422);
+    expect(readFileSync(disk(FILE), "utf8")).toBe(TEXT);
+  });
+
+  test("un toolchain.yaml lié hors de la racine n'est pas remplacé", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "keelson-out-"));
+    writeFileSync(join(outside, "t.yaml"), TEXT);
+    mkdirSync(disk(".devsecops"));
+    symlinkSync(join(outside, "t.yaml"), disk(FILE));
+    const { status } = await post({ ...addHarbor, baseHash: hashText("") });
+    expect(status).toBe(422);
+    expect(lstatSync(disk(FILE)).isSymbolicLink()).toBe(true);
+    rmSync(outside, { recursive: true });
+  });
+
+  test("un lien interne reste un lien, sa cible reçoit l'écriture", async () => {
+    write("conf/toolchain.yaml", TEXT);
+    mkdirSync(disk(".devsecops"));
+    symlinkSync(disk("conf/toolchain.yaml"), disk(FILE));
+    const { status } = await post({ ...addHarbor, baseHash: hashText(TEXT) });
+    expect(status).toBe(200);
+    expect(lstatSync(disk(FILE)).isSymbolicLink()).toBe(true);
+    expect(readFileSync(disk("conf/toolchain.yaml"), "utf8")).toContain("harbor:");
+  });
+
+  test("un fichier qui n'est pas de l'UTF-8 n'est pas réécrit", async () => {
+    const bytes = Buffer.concat([
+      Buffer.from("# caf"),
+      Buffer.from([0xe9]),
+      Buffer.from("\nversion: 1\n"),
+    ]);
+    mkdirSync(disk(".devsecops"));
+    writeFileSync(disk(FILE), bytes);
+    const { status } = await post({ ...addHarbor, baseHash: hashText("") });
+    expect(status).toBe(422);
+    expect(readFileSync(disk(FILE)).equals(bytes)).toBe(true);
+  });
+
+  test("un dossier à la place du fichier refuse, sans 500", async () => {
+    mkdirSync(disk(FILE), { recursive: true });
+    const { status } = await post({ ...addHarbor, baseHash: hashText("") });
+    expect(status).toBe(422);
+  });
+
+  test("un layout.json sans droit de lecture n'est pas remplacé", async () => {
+    const text = '{"version":1,"layers":{"a":["sast"]}}';
+    write(".devsecops/layout.json", text);
+    chmodSync(disk(".devsecops/layout.json"), 0o000);
+    const response = await harness.api("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions: {} }),
+    });
+    chmodSync(disk(".devsecops/layout.json"), 0o644);
+    expect(response.status).toBe(422);
+    expect(readFileSync(disk(".devsecops/layout.json"), "utf8")).toBe(text);
+  });
+
+  test("les positions se fusionnent : celles écrites à la main survivent", async () => {
+    write(".devsecops/layout.json", '{"version":1,"positions":{"human":{"x":1,"y":1}}}');
+    const response = await harness.api("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions: { "job:a": { x: 2, y: 2 } } }),
+    });
+    expect(((await response.json()) as Body).positions).toEqual({
+      human: { x: 1, y: 1 },
+      "job:a": { x: 2, y: 2 },
+    });
+  });
+});
+
+describe("corps de requête", () => {
+  test.each([
+    ["POST", "/api/toolchain/operations"],
+    ["PUT", "/api/layout/positions"],
+    ["POST", "/api/documents/.gitlab-ci.yml/operations"],
+  ])("%s %s avec un corps null répond 400", async (method, path) => {
+    const response = await harness.api(path, { method, body: "null" });
+    expect(response.status).toBe(400);
   });
 });
