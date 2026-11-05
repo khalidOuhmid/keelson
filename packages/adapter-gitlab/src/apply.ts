@@ -550,7 +550,7 @@ function planAddNeed(
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" });
   }
   const prefix = itemPrefix(text, lastRange[0]);
-  const atEnd = lastRange[2] === text.length && !text.endsWith(eol);
+  const atEnd = lastRange[2] === text.length && !text.endsWith("\n");
   return ok([
     {
       start: lastRange[2],

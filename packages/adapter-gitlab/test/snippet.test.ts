@@ -327,6 +327,14 @@ describe("needs inter-projets", () => {
     expect(job?.needs?.value.map((need) => need.job)).toEqual(["a", "c"]);
   });
 
+  test("un fichier CRLF qui finit par un simple saut de ligne ne reçoit pas de ligne vide", () => {
+    const text =
+      "a:\r\n  stage: test\r\n  script: x\r\n\r\nc:\r\n  stage: test\r\n  script: x\r\n\r\njob:\r\n  stage: test\r\n  script: x\r\n  needs:\r\n    - a\n";
+    expect(written(text, { kind: "addNeed", id: "job", need: { job: "c" } })).toEndWith(
+      "    - a\n    - c\r\n",
+    );
+  });
+
   test("beaucoup d'alias restent linéaires à l'écriture", () => {
     const aliases = Array.from({ length: 3000 }, () => "    - *x\n").join("");
     const started = performance.now();

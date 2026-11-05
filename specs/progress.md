@@ -2,7 +2,7 @@
 
 Statut : EN COURS
 Lot courant : **L5 — propositions et insertion**, sur `lot/l5-propositions`
-Prochaine action : contre-revue des correctifs, vérification depuis un clone, fusion.
+Prochaine action : vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -746,4 +746,10 @@ a tué le script avant la restauration. Le fichier muté est parti dans le commi
 par `git add -A`, repéré à la relecture et corrigé au commit suivant. Une mutation qui peut ne pas
 finir se lance sans `timeout` extérieur au script, et `git add -A` ne suit jamais une mutation sans
 contrôle de l'arbre.
+
+**Contre-revues.** Six passes. Les premières ont trouvé un formulaire bloqué après un 409, des faux
+positifs et une explosion de regex introduits par le correctif du shell, puis une explosion du parcours
+de `needs`. Le mot à mot a remplacé la regex, et une liste blanche a remplacé le parcours : seul ce que
+l'IR rend à l'identique est réécrit, et la liste relue est comparée à la liste attendue. La dernière ne
+rouvre rien.
 
