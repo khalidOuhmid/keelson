@@ -698,3 +698,10 @@ donc pas été faites par elle ; l'E2E couvre 375 px.
 sortie a été lue après le `git commit`. Le suivant le corrige. L'enchaînement `bun test`, puis commit
 seulement sur zéro échec.
 
+**Contre-revues.** Cinq passes, chacune sur le commit de la précédente. Elles ont trouvé : l'écho d'une
+écriture pris pour une modification externe sous `Ctrl+Z` tenu ; un `written` qui n'expirait jamais et
+laissait l'écran faux ; un job disparu écrit quand même ; un focus volé en pleine saisie ; `8080:` et
+`"8080":` qui faisaient écrire dans une entrée invisible. Tous prouvés rouges, E2E compris. La dernière
+ne rouvre rien de bloquant, et son unique reste est consigné. Le premier essai de preuve de la garde de
+focus n'avait pas de code de sortie fiable : refait avec un script qui rend celui de Playwright.
+
