@@ -4,7 +4,7 @@ import { emptyPipeline, type Job, type Pipeline } from "@keelson/core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import type { ApiResult, OperationPayload } from "../src/api/client.ts";
+import type { ApiFailure, ApiResult, OperationPayload } from "../src/api/client.ts";
 import { diffRows, visibleRows } from "../src/editing/diff.ts";
 import { InsertTool, type InsertToolProps } from "../src/views/catalog/InsertTool.tsx";
 
@@ -254,21 +254,24 @@ describe("insertion depuis la fiche", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("coupé");
   });
 
-  test("après un échec d'écriture, la prévisualisation reprend", async () => {
+  test("le document change pendant une écriture refusée : la prévisualisation reprend", async () => {
     const preview = mock(async () => payload());
-    const onInsert = mock(async () => ({
-      status: 409,
-      code: "NETWORK_ERROR" as const,
-      params: { detail: "coupé" },
-    }));
+    let refuse: (failure: ApiFailure) => void = () => {};
+    const onInsert = mock(
+      () =>
+        new Promise<ApiFailure>((resolve) => {
+          refuse = resolve;
+        }),
+    );
     const props = { tool: TOOL, disabled: false, preview, onInsert };
     const { rerender } = render(<Harness {...props} pipeline={PIPELINE} text={BEFORE} />);
     await open();
     await screen.findByText("trivy:");
     await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
-    await screen.findByRole("alert");
-    preview.mockClear();
     rerender(<Harness {...props} pipeline={{ ...PIPELINE }} text={`${BEFORE}# x\n`} />);
+    await new Promise((settle) => setTimeout(settle, 10));
+    preview.mockClear();
+    refuse({ status: 409, code: "NETWORK_ERROR", params: { detail: "coupé" } });
     await waitFor(() => expect(preview).toHaveBeenCalled());
   });
 
