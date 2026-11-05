@@ -62,7 +62,7 @@ export function operationArb(text: string): fc.Arbitrary<Draft> {
         environment: { name },
       })),
       id.map((target) => ({ kind: "setEnvironment", id: target, environment: null })),
-      id.chain((target) => {
+      id.chain((target): fc.Arbitrary<Draft> => {
         const needs = pipeline.jobs.find((job) => job.id === target)?.needs?.value ?? [];
         return needs.length === 0
           ? fc.constant({ kind: "removeJob", id: target })

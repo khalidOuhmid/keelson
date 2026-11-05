@@ -262,6 +262,13 @@ describe("garde-fous", () => {
     expect(run(text, { kind: "removeJob", id: "a" }).ok).toBe(false);
   });
 
+  test("un doublon que le patch ne retirerait qu'à moitié est refusé à la relecture", () => {
+    const text = "jobs:\n  a:\n    needs:\n      - b\n      - b\n      - c\n    steps:\n      - run: x\n";
+    expect(run(text, { kind: "removeNeed", id: "a", job: "b" })).toMatchObject({
+      error: { params: { reason: "wouldBreakYaml" } },
+    });
+  });
+
   test("un job en valeur de bloc en dernière position garde son voisin", () => {
     const text =
       "jobs:\n  a:\n    steps:\n      - run: |\n          x\n  b:\n    steps:\n      - run: y\n";
