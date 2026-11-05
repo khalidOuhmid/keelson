@@ -254,6 +254,24 @@ describe("insertion depuis la fiche", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("coupé");
   });
 
+  test("après un échec d'écriture, la prévisualisation reprend", async () => {
+    const preview = mock(async () => payload());
+    const onInsert = mock(async () => ({
+      status: 409,
+      code: "NETWORK_ERROR" as const,
+      params: { detail: "coupé" },
+    }));
+    const props = { tool: TOOL, disabled: false, preview, onInsert };
+    const { rerender } = render(<Harness {...props} pipeline={PIPELINE} text={BEFORE} />);
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
+    await screen.findByRole("alert");
+    preview.mockClear();
+    rerender(<Harness {...props} pipeline={{ ...PIPELINE }} text={`${BEFORE}# x\n`} />);
+    await waitFor(() => expect(preview).toHaveBeenCalled());
+  });
+
   test("le diff est sémantique : ins, del, et le sens en toutes lettres", async () => {
     setup(mock(async () => payload("stages:\n  - deploy\n")));
     await open();

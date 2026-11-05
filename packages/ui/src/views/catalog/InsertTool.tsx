@@ -89,9 +89,9 @@ function Form({
   const [stage, setStage] = useState(wanted ?? stages[0] ?? "test");
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [lastDiff, setLastDiff] = useState<string | null>(null);
-  const [writeFailure, setWriteFailure] = useState<ApiFailure | null>(null);
+  const [refusal, setRefusal] = useState<{ draft: Draft; failure: ApiFailure } | null>(null);
   const asked = useRef(0);
-  const writing = useRef(false);
+  const [writing, setWriting] = useState(false);
   const nameField = useRef<HTMLInputElement>(null);
 
   useEffect(() => nameField.current?.focus(), []);
@@ -102,7 +102,7 @@ function Form({
   );
 
   useEffect(() => {
-    if (writing.current) {
+    if (writing) {
       return;
     }
     asked.current += 1;
@@ -116,7 +116,7 @@ function Form({
         setLastDiff(result.value.text);
       }
     });
-  }, [draft, preview]);
+  }, [draft, preview, writing]);
 
   // Le diff affiché doit être celui de ce qui partira : une réponse d'un autre brouillon ne compte pas.
   const settled = answer !== null && answer.draft === draft;
@@ -134,10 +134,12 @@ function Form({
     if (disabled || payload === null) {
       return;
     }
-    writing.current = true;
+    setWriting(true);
     const refused = await onInsert(draft, id);
-    writing.current = refused === null;
-    setWriteFailure(refused);
+    if (refused !== null) {
+      setRefusal({ draft, failure: refused });
+      setWriting(false);
+    }
   };
 
   return (
@@ -215,9 +217,9 @@ function Form({
         </figure>
       )}
 
-      {writeFailure === null ? null : (
+      {refusal === null || refusal.draft !== draft ? null : (
         <p role="alert" className="text-sm text-danger">
-          {renderMessage(writeFailure)}
+          {renderMessage(refusal.failure)}
         </p>
       )}
 

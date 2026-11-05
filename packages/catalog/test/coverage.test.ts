@@ -315,6 +315,31 @@ describe("découpage shell sur une entrée hostile", () => {
     expect(performance.now() - started).toBeLessThan(1000);
   });
 
+  test.each([
+    ['bash -o pipefail -c "trivy fs ."'],
+    ['timeout 60 bash -c "trivy fs ."'],
+    ['nice -n 10 sh -c "trivy fs ."'],
+    ['docker exec c bash -c "trivy fs ."'],
+    ['xargs sh -c "trivy fs ."'],
+    ['eval "trivy fs ."'],
+    ['ssh host "trivy fs ."'],
+    ['su -c "trivy fs ."'],
+    ["timeout 60 trivy fs ."],
+  ])("%s lance l'outil", (line) => {
+    expect(
+      detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
+    ).toContain("trivy");
+  });
+
+  test("if command -v n'est pas une exécution", () => {
+    expect(
+      detectTools(
+        { image: null, script: ["if command -v trivy >/dev/null; then echo y; fi"] },
+        catalog.tools,
+      ),
+    ).toEqual([]);
+  });
+
   test("command lance, command -v interroge", () => {
     const found = (line: string) =>
       detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);

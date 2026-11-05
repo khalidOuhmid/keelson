@@ -193,6 +193,17 @@ describe("composite", () => {
     expect(after.pipeline.jobs[0]?.stage.value).toBe("test");
   });
 
+  test.each([["- # c\n    test"], ["- &t\n    test"]])(
+    "un item sur une ligne de continuation (%j) n'est pas prolongé",
+    (item) => {
+      const text = `stages:\n  - build\n  ${item}\n\na:\n  stage: test\n  script: x\n`;
+      const after = parse(written(text, { kind: "addStage", name: "scan" }));
+      expect(after.pipeline.stages.map((stage) => stage.name)).toEqual(
+        expect.arrayContaining(["test", "scan"]),
+      );
+    },
+  );
+
   test("une composite vide est refusée", () => {
     expect(run(BASE, { kind: "composite", steps: [] }).ok).toBe(false);
   });
@@ -227,6 +238,14 @@ describe("needs inter-projets", () => {
       const text = `${anchor}${jobs}    - a\n${item}`;
       expect(run(text, { kind: "removeNeed", id: "job", job: "a" }).ok).toBe(false);
     }
+  });
+
+  test.each([
+    ["!reference dans la liste", "    - a\n    - !reference [.n, needs]\n"],
+    ["liste imbriquée", "    - a\n    - - project: g/p\n        job: j\n        ref: main\n"],
+  ])("un item inter-projets dans %s se voit aussi", (_label, items) => {
+    const text = `.n:\n  needs:\n    - project: g/p\n      job: j\n      ref: main\n\n.tpl:\n  needs:\n${items}\na:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .tpl\n  stage: test\n  script: x\n`;
+    expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
   });
 
   test("une liste locale s'étend sans perdre l'item", () => {

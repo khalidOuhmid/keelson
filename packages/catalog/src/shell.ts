@@ -155,16 +155,24 @@ function unquoted(word: string): string {
 
 /** Le script passé à `sh -c`, ou `null`. */
 function shellArgument(command: string): string | null {
-  const match = /^(?:\S*\/)?(?:ba|z|da)?sh\s+(?:-\w+\s+)*-\w*c\s+(.+)$/s.exec(command);
-  return match?.[1] === undefined ? null : unquoted(match[1].trim());
+  const nested = /(?:^|[\s/])(?:ba|z|da)?sh\s+(?:-o\s+\S+\s+|-\w+\s+)*-\w*c\s+(.+)$/s.exec(command);
+  const direct =
+    nested ?? /^eval\s+(.+)$/s.exec(command) ?? /^su\s+(?:-\S*\s+)*-c\s+(.+)$/s.exec(command);
+  const distant = direct ?? /^ssh\s+(?:-\S+\s+)*\S+\s+(.+)$/s.exec(command);
+  return distant?.[1] === undefined ? null : unquoted(distant[1].trim());
 }
 
 function resolved(raw: string, depth: number): string[] {
   let command = raw.trim();
-  if (/^command\s+-[vVp]/.test(command)) {
-    return [];
-  }
   while (true) {
+    if (/^command\s+-[vVp]/.test(command)) {
+      return [];
+    }
+    const measured = /^(?:timeout(?:\s+-\S+)*\s+\S+|nice(?:\s+-n\s+\S+|\s+-\S+)?)\s+/.exec(command);
+    if (measured !== null) {
+      command = command.slice(measured[0].length).trim();
+      continue;
+    }
     const first = command.split(/\s+/, 1)[0] ?? "";
     if (WRAPPERS.has(first) || /^\w+=/.test(first)) {
       command = command.slice(first.length).trim();

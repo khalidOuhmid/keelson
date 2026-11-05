@@ -21,12 +21,13 @@ function onImage(tool: Tool, image: string | null): boolean {
   return name !== null && tool.detect.images.some((candidate) => imageName(candidate) === name);
 }
 
-function onScript(tool: Tool, script: readonly string[]): boolean {
+function onScript(tool: Tool, commands: readonly string[]): boolean {
   const patterns = tool.detect.scripts.map((source) => new RegExp(source, "i"));
-  return script
-    .flatMap((line) => executedCommands(line))
-    .some((command) => patterns.some((pattern) => pattern.test(command)));
+  return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
+
+const commandsOf = (signals: JobSignals): string[] =>
+  signals.script.flatMap((line) => executedCommands(line));
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };
 
@@ -35,8 +36,9 @@ export function detectIntegrations(
   signals: JobSignals,
   tools: readonly Tool[],
 ): DetectedIntegration[] {
+  const commands = commandsOf(signals);
   return tools.flatMap((tool): DetectedIntegration[] =>
-    tool.integration !== null && onScript(tool, signals.script)
+    tool.integration !== null && onScript(tool, commands)
       ? [{ tool: tool.id, kind: tool.integration }]
       : [],
   );
@@ -44,8 +46,9 @@ export function detectIntegrations(
 
 /** Un job peut correspondre à plusieurs outils. */
 export function detectTools(signals: JobSignals, tools: readonly Tool[]): Detection[] {
+  const commands = commandsOf(signals);
   return tools.flatMap((tool): Detection[] =>
-    onImage(tool, signals.image) || onScript(tool, signals.script)
+    onImage(tool, signals.image) || onScript(tool, commands)
       ? [{ tool: tool.id, layers: tool.layers }]
       : [],
   );

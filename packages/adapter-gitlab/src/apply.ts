@@ -448,7 +448,14 @@ function planSetJobStage(
 /** Le début de ligne d'un item, sans son ancre ni son tag : les recopier sur un nouvel item
  *  déplacerait l'ancre, et tout alias changerait de valeur sans un mot. */
 function itemPrefix(text: string, offset: number): string {
-  return linePrefix(text, offset).replace(/[&!][^\s]*[ \t]+/g, "");
+  const here = linePrefix(text, offset).replace(/[&!][^\s]*[ \t]+/g, "");
+  if (here.includes("-")) {
+    return here;
+  }
+  // Un item peut commencer sur la ligne d'avant : `- # note` puis sa valeur.
+  const lines = text.slice(0, lineStart(text, offset)).split("\n");
+  const dash = lines.toReversed().find((line) => /^\s*-(\s|$)/.test(line));
+  return dash === undefined ? here : `${/^\s*/.exec(dash)?.[0] ?? ""}- `;
 }
 
 function rewritesCrossProject(pipeline: Pipeline, id: string): boolean {

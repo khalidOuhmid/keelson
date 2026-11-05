@@ -166,7 +166,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         return false;
       }
 
-      set({ pending: true });
+      // « Ajouté » serait faux dès l'opération suivante, un Undo par exemple.
+      set({ pending: true, ...(get().notice?.kind === "written" ? { notice: null } : {}) });
       const result = await dependencies.submit(file, op, dependencies.newOpId());
       set({ pending: false });
       const owed = reloadOwed;

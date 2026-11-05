@@ -417,20 +417,24 @@ export function hasCrossProjectNeed(sources: readonly Source[], context: Resolve
   if (found === undefined) {
     return false;
   }
-  const { node } = dereference(found.node, found.file, context);
   const document = documentOf(context, found.file);
-  return (
-    isSeq(node) &&
-    document !== null &&
-    node.items.some((item) => {
-      const target = dereference(item as AnyNode, found.file, context).node;
-      return (
-        isMap(target) &&
-        (entryAt(target, "project", document) !== undefined ||
-          entryAt(target, "pipeline", document) !== undefined)
-      );
-    })
-  );
+  if (document === null) {
+    return false;
+  }
+
+  // GitLab aplatit `needs` : un `!reference` ou une liste imbriquée y vaut ses items.
+  const carries = (node: AnyNode, depth: number): boolean => {
+    const target = dereference(node, found.file, context).node;
+    if (isSeq(target)) {
+      return depth > 0 && target.items.some((item) => carries(item as AnyNode, depth - 1));
+    }
+    return (
+      isMap(target) &&
+      (entryAt(target, "project", document) !== undefined ||
+        entryAt(target, "pipeline", document) !== undefined)
+    );
+  };
+  return carries(found.node, 8);
 }
 
 function plainObject(node: AnyNode): Record<string, unknown> | null {
