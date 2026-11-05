@@ -737,7 +737,13 @@ perdus (l'écart avait été déclaré clos à tort), `addStage` recopiait une a
 jobs d'un stage non déclaré et laissait passer `%%{init}%%`, et 6 Ko de `$(` faisaient planter la CLI.
 Elle a aussi trouvé la cause de l'instabilité E2E : une assertion déjà vraie avant l'action.
 
-**Deux erreurs de méthode.** `pkill -f` a tué mon propre shell, ce que le journal de L2b notait déjà.
+**Trois erreurs de méthode.** `pkill -f` a tué mon propre shell, ce que le journal de L2b notait déjà.
 Un premier correctif de `crossProjectNeeds` a marqué tous les jobs à `needs` : `entryAt` rend `null`
 hors d'une map, et les goldens l'ont attrapé sans être régénérés.
+
+La troisième : la preuve rouge de la borne du découpage shell bloquait, comme prévu, et son `timeout`
+a tué le script avant la restauration. Le fichier muté est parti dans le commit de journal `5db58c3`
+par `git add -A`, repéré à la relecture et corrigé au commit suivant. Une mutation qui peut ne pas
+finir se lance sans `timeout` extérieur au script, et `git add -A` ne suit jamais une mutation sans
+contrôle de l'arbre.
 
