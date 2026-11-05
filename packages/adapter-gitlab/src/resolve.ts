@@ -418,14 +418,22 @@ function modelledNeed(item: AnyNode): boolean {
   if (isScalar(item)) {
     return typeof item.value === "string";
   }
+  if (!isMap(item)) {
+    return false;
+  }
+  const job = localPair(item, "job")?.value;
   return (
-    isMap(item) &&
-    item.items.every(
-      (pair) =>
-        isScalar(pair.key) &&
-        ["job", "optional", "artifacts"].includes(String(pair.key.value)) &&
-        isScalar(pair.value),
-    )
+    isScalar(job) &&
+    typeof job.value === "string" &&
+    item.items.every((pair) => {
+      const key = isScalar(pair.key) ? String(pair.key.value) : "";
+      return (
+        key === "job" ||
+        ((key === "optional" || key === "artifacts") &&
+          isScalar(pair.value) &&
+          typeof pair.value.value === "boolean")
+      );
+    })
   );
 }
 

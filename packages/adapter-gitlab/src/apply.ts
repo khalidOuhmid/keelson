@@ -550,7 +550,14 @@ function planAddNeed(
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" });
   }
   const prefix = itemPrefix(text, lastRange[0]);
-  return ok([{ start: lastRange[2], end: lastRange[2], text: renderNeedItem(added, prefix, eol) }]);
+  const atEnd = lastRange[2] === text.length && !text.endsWith(eol);
+  return ok([
+    {
+      start: lastRange[2],
+      end: lastRange[2],
+      text: `${atEnd ? eol : ""}${renderNeedItem(added, prefix, eol)}`,
+    },
+  ]);
 }
 
 function planRemoveNeed(
@@ -1044,12 +1051,18 @@ function applyComposite(
 }
 
 function danglingAliases(text: string): number {
-  const document = parseDocument(text);
+  const anchors = new Set<string>();
   let count = 0;
-  visit(document, {
+  visit(parseDocument(text), {
     Alias(_key, node) {
-      if (node.resolve(document) === undefined) {
+      if (!anchors.has(node.source)) {
         count += 1;
+      }
+    },
+    Node(_key, node) {
+      const { anchor } = node as { anchor?: string };
+      if (anchor !== undefined) {
+        anchors.add(anchor);
       }
     },
   });
@@ -1063,16 +1076,27 @@ function needsAsExpected(
   before: { pipeline: Pipeline },
   after: { pipeline: Pipeline },
 ): boolean {
-  const names = (pipeline: Pipeline): string[] =>
-    (pipeline.jobs.find((job) => job.id === operation.id)?.needs?.value ?? []).map(
-      (need) => need.job,
+  const listed = (pipeline: Pipeline): Need[] =>
+    pipeline.jobs.find((job) => job.id === operation.id)?.needs?.value ?? [];
+  const sorted = (needs: readonly Need[]): string =>
+    JSON.stringify(
+      needs
+        .map(({ job, optional, artifacts }) => [job, optional, artifacts])
+        .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
     );
-  const current = names(before.pipeline);
+  const current = listed(before.pipeline);
   const expected =
     operation.kind === "addNeed"
-      ? [...current, operation.need.job]
-      : current.filter((job) => job !== operation.job);
-  return JSON.stringify(names(after.pipeline).sort()) === JSON.stringify(expected.sort());
+      ? [
+          ...current,
+          {
+            job: operation.need.job,
+            optional: operation.need.optional ?? false,
+            artifacts: operation.need.artifacts ?? true,
+          },
+        ]
+      : current.filter((need) => need.job !== operation.job);
+  return sorted(listed(after.pipeline)) === sorted(expected);
 }
 
 /** Toute relecture dans `apply` passe par ici : un `parse(texte)` nu perdrait le nom du fichier et

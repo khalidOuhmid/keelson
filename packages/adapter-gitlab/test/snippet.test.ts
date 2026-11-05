@@ -299,6 +299,46 @@ describe("needs inter-projets", () => {
     expect(performance.now() - started).toBeLessThan(1500);
   });
 
+  test("une liste flow ne perd pas les options d'un need", () => {
+    const text =
+      "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs: [a]\n";
+    const result = run(text, { kind: "addNeed", id: "job", need: { job: "c", optional: true } });
+    if (result.ok) {
+      const job = parse(result.value.text).pipeline.jobs.find((entry) => entry.id === "job");
+      expect(job?.needs?.value.find((need) => need.job === "c")?.optional).toBe(true);
+    }
+  });
+
+  test.each([
+    ["artifacts: no", "    - job: a\n      artifacts: no\n"],
+    ["optional: yes", "    - job: a\n      optional: yes\n"],
+    ["job numérique", "    - job: 123\n"],
+    ["sans job", "    - optional: true\n"],
+  ])("un item à relecture douteuse (%s) n'est pas réécrit", (_label, items) => {
+    const text = `.t:\n  needs:\n${items}\na:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n`;
+    expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
+  });
+
+  test("ajouter un need à un fichier sans fin de ligne finale", () => {
+    const text =
+      "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a";
+    const after = parse(written(text, { kind: "addNeed", id: "job", need: { job: "c" } }));
+    const job = after.pipeline.jobs.find((entry) => entry.id === "job");
+    expect(job?.needs?.value.map((need) => need.job)).toEqual(["a", "c"]);
+  });
+
+  test("beaucoup d'alias restent linéaires à l'écriture", () => {
+    const aliases = Array.from({ length: 3000 }, () => "    - *x\n").join("");
+    const started = performance.now();
+    run(`.v:\n  y: &x a\n\nz:\n  stage: test\n  script:\n${aliases}`, {
+      kind: "splice",
+      start: 0,
+      end: 0,
+      text: "",
+    });
+    expect(performance.now() - started).toBeLessThan(4000);
+  });
+
   test("une liste locale s'étend sans perdre l'item", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";
