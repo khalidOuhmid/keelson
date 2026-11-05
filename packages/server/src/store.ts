@@ -243,7 +243,16 @@ export class DocumentStore {
     return response;
   }
 
-  private async executeOperation(file: string, operation: Operation): Promise<StoreResponse> {
+  /** Le résultat d'une opération sans l'écrire ni la retenir : mêmes refus, mêmes hash. */
+  preview(file: string, operation: Operation): Promise<StoreResponse> {
+    return this.executeOperation(file, operation, false);
+  }
+
+  private async executeOperation(
+    file: string,
+    operation: Operation,
+    write = true,
+  ): Promise<StoreResponse> {
     if (this.absolute(file) === null) {
       return {
         status: 404,
@@ -281,13 +290,29 @@ export class DocumentStore {
       };
     }
 
-    await writeAtomic(current.absolute, result.value.text);
-
     const { diagnostics, coverage: covered } = analyse(
       this.root,
       result.value.diagnostics,
       result.value.pipeline,
     );
+
+    if (!write) {
+      return {
+        status: 200,
+        body: {
+          text: result.value.text,
+          pipeline: result.value.pipeline,
+          diagnostics,
+          hash: result.value.hash,
+          inverse: result.value.inverse,
+          touched: result.value.touched,
+          included: result.value.included,
+          coverage: covered,
+        },
+      };
+    }
+
+    await writeAtomic(current.absolute, result.value.text);
 
     this.loaded.set(file, {
       absolute: current.absolute,

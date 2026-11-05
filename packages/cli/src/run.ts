@@ -1,6 +1,7 @@
 import packageJson from "../package.json" with { type: "json" };
 import { catalogCommand } from "./catalog.ts";
 import { coverageCommand } from "./coverage.ts";
+import { exportCommand } from "./export.ts";
 import type { CliResult } from "./result.ts";
 import type { StartDeps } from "./start.ts";
 import { startCommand } from "./start.ts";
@@ -43,10 +44,6 @@ function helpText(): string {
   return `${lines.join("\n")}\n`;
 }
 
-function isCommand(value: string): value is Command {
-  return (COMMANDS as readonly string[]).includes(value);
-}
-
 export async function run(argv: readonly string[], options: RunOptions = {}): Promise<CliResult> {
   const [first] = argv;
 
@@ -78,13 +75,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     return catalogCommand(argv.slice(1), options.cwd ?? process.cwd(), options.now ?? new Date());
   }
 
-  if (isCommand(first)) {
-    // DETTE(2026-10-20): commande `export` non implémentée — livrée au lot L5.
-    return {
-      stdout: "",
-      stderr: `keelson ${first}: command not implemented yet.\n`,
-      exitCode: 2,
-    };
+  if (first === "export") {
+    return exportCommand(argv.slice(1), options.cwd ?? process.cwd());
   }
 
   return {

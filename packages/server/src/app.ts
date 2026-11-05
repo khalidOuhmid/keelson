@@ -207,6 +207,31 @@ export function createRequestHandler(context: AppContext) {
       return;
     }
 
+    const preview = /^\/api\/documents\/([^/]+)\/preview$/.exec(pathname);
+    if (preview !== null) {
+      if (request.method !== "POST") {
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
+        return;
+      }
+      const file = decodeFile(preview[1] ?? "");
+      if (file === null) {
+        fail(response, 404, NOT_FOUND, { reason: "unreadableFileName" });
+        return;
+      }
+      const envelope = await readEnvelope(request, response);
+      if (envelope === ANSWERED) {
+        return;
+      }
+      const op = (envelope as { op?: unknown }).op;
+      if (typeof op !== "object" || op === null) {
+        fail(response, 400, INVALID_OPERATION, { reason: "missingOp" });
+        return;
+      }
+      const result = await context.store.preview(file, op as Operation);
+      send(response, result.status, result.body as unknown as Json);
+      return;
+    }
+
     const operations = /^\/api\/documents\/([^/]+)\/operations$/.exec(pathname);
     if (operations !== null) {
       if (request.method !== "POST") {

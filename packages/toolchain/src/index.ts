@@ -1,6 +1,7 @@
 export const PACKAGE_NAME = "@keelson/toolchain";
 
 export { applyToolchain, type ToolchainResult } from "./apply.ts";
+export { renderCoverageMarkdown, renderMermaid } from "./export.ts";
 export {
   LAYOUT_FILE,
   type ParsedLayout,
