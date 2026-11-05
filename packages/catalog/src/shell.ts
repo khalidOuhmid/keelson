@@ -191,7 +191,7 @@ function resolved(raw: string, depth: number): string[] {
 }
 
 export function executedCommands(line: string, depth = 0): string[] {
-  if (line.length > MAX_LINE) {
+  if (depth > MAX_DEPTH || line.length > MAX_LINE) {
     return [line];
   }
   const joined = line.replace(/\\\r?\n/g, " ");
