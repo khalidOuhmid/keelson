@@ -188,12 +188,15 @@ export function ServicePanel({
           type="button"
           className={`${DANGER_BUTTON} self-start`}
           disabled={disabled || referencing.length > 0}
+          aria-describedby={referencing.length === 0 ? undefined : "service-in-use"}
           onClick={() => onSubmit({ kind: "removeService", id: service.id })}
         >
           Remove service
         </button>
         {referencing.length === 0 ? null : (
-          <p className="text-sm text-text-muted">Still used by {referencing.join(", ")}.</p>
+          <p id="service-in-use" className="text-sm text-text-muted">
+            Still used by {referencing.join(", ")}.
+          </p>
         )}
       </div>
     </section>

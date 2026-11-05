@@ -31,11 +31,8 @@ test.describe("toolchain sur le binaire réel", () => {
 
       const proposals = page.getByRole("group", { name: "Proposed integrations" });
       await expect(proposals.getByText("HashiCorp Vault")).toBeVisible();
-      await proposals
-        .getByRole("listitem")
-        .filter({ hasText: "HashiCorp Vault" })
-        .getByRole("button", { name: "Add service" })
-        .click();
+      await page.getByRole("button", { name: "Add a service for deploy, HashiCorp Vault" }).click();
+      await expect(page.getByLabel("Name")).toBeFocused();
       await expect(page.getByRole("combobox", { name: "Tool", exact: true })).toHaveValue("vault");
       await page
         .getByRole("group", { name: "New service" })
@@ -133,11 +130,54 @@ test.describe("toolchain sur le binaire réel", () => {
       await page.goto(keelson.url);
       await page.getByRole("button", { name: "Toolchain" }).click();
       await expect(page.getByText("TOOLCHAIN_INVALID").first()).toBeVisible();
-      await expect(
-        page
-          .getByRole("group", { name: "New service" })
-          .getByRole("button", { name: "Add service" }),
-      ).toBeDisabled();
+      await expect(page.getByText("toolchain.yaml can't be read.").first()).toBeVisible();
+      await expect(page.getByRole("group", { name: "New service" })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Retour arrière ne retire aucun nœud de l'écran", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-toolchain-job=deploy]").click();
+      await page.keyboard.press("Backspace");
+      await expect(page.locator("[data-toolchain-job=deploy]")).toBeVisible();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Échap ferme le panneau de service et rend le focus au graphe", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      await expect(page.getByRole("region", { name: "Service detail" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("region", { name: "Service detail" })).toHaveCount(0);
+      await expect(page.getByRole("region", { name: "Toolchain graph" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("à 375 px, le bouton Panel compte les décisions en attente", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.getByRole("button", { name: "Panel, 2 proposed" })).toBeVisible();
     } finally {
       await keelson.stop();
     }

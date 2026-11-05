@@ -13,6 +13,9 @@ import { RefitOnResize } from "../pipeline/PipelineCanvas.tsx";
 import { SERVICE_NODE, TOOLCHAIN_JOB_NODE, type ToolLabels, toolchainGraph } from "./graph.ts";
 import { ServiceNode, ToolchainJobNode } from "./nodes.tsx";
 
+/** Sous ce zoom, les noms passent sous 11 px : mieux vaut un graphe à parcourir qu'illisible. */
+const FIT_MIN_ZOOM = 0.6;
+
 const NODE_TYPES = {
   [TOOLCHAIN_JOB_NODE]: ToolchainJobNode,
   [SERVICE_NODE]: ServiceNode,
@@ -24,6 +27,7 @@ export type ToolchainCanvasProps = {
   selectedService: string | null;
   onSelectService: (id: string | null) => void;
   onMove: (node: string, position: { x: number; y: number }) => void;
+  invalid: boolean;
 };
 
 export function ToolchainCanvas({
@@ -32,6 +36,7 @@ export function ToolchainCanvas({
   selectedService,
   onSelectService,
   onMove,
+  invalid,
 }: ToolchainCanvasProps) {
   const graph = useMemo(
     () =>
@@ -71,10 +76,14 @@ export function ToolchainCanvas({
             setNodes((current) => applyNodeChanges(changes, current))
           }
           onNodeDragStop={(_event, node) => onMove(node.id, node.position)}
-          nodesDraggable
+          nodesDraggable={!invalid}
           nodesConnectable={false}
           nodesFocusable={false}
           edgesFocusable={false}
+          elementsSelectable={false}
+          deleteKeyCode={null}
+          disableKeyboardA11y
+          fitViewOptions={{ minZoom: FIT_MIN_ZOOM }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
           fitView
@@ -88,7 +97,9 @@ export function ToolchainCanvas({
 
       {graph.nodes.length === 0 ? (
         <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-text-muted">
-          No services declared yet.
+          {invalid
+            ? "toolchain.yaml can't be read. Editing is off; see Diagnostics."
+            : "No services declared yet. Add one from the panel."}
         </p>
       ) : null}
     </section>

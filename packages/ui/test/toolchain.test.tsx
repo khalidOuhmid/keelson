@@ -25,7 +25,7 @@ function tool(id: string, integration: Tool["integration"] = "push"): Tool {
   };
 }
 
-const TOOLS = [tool("nexus"), tool("vault", "fetch-secret")];
+const TOOLS = [tool("nexus"), { ...tool("vault", "fetch-secret"), name: "HashiCorp" }];
 const NEXUS = { id: "nexus-prod", tool: "nexus", url: null, environment: "production" };
 
 afterEach(cleanup);
@@ -116,8 +116,7 @@ describe("panneau de toolchain", () => {
         proposed: [{ job: "b", tool: "vault", kind: "fetch-secret", services: [] }],
       }),
     );
-    const list = screen.getByRole("group", { name: "Proposed integrations" });
-    await userEvent.click(within(list).getByRole("button", { name: "Add service" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add a service for b, HashiCorp" }));
     expect((screen.getByLabelText("Tool") as HTMLSelectElement).value).toBe("vault");
   });
 
@@ -148,6 +147,65 @@ describe("panneau de toolchain", () => {
       tool: "nexus",
       integration: "push",
     });
+  });
+
+  test("un fichier invalide le dit, au lieu d'annoncer une toolchain vide", () => {
+    render(
+      <ToolchainPanel
+        payload={payload()}
+        tools={TOOLS}
+        disabled
+        invalid
+        selectedService={null}
+        onSubmit={mock(() => {})}
+        onSelectService={mock(() => {})}
+      />,
+    );
+    expect(screen.getByText(/can't be read/)).toBeDefined();
+    expect(screen.queryByText("No services declared yet.")).toBeNull();
+  });
+
+  test("le titre compte les décisions en attente", () => {
+    panel(payload({ proposed: [{ job: "b", tool: "nexus", kind: "push", services: [] }] }));
+    expect(screen.getByRole("heading", { name: /Proposed integrations/ }).textContent).toContain(
+      "1",
+    );
+  });
+
+  test("chaque service liste ses intégrations : les arêtes se lisent ici au clavier", () => {
+    panel(
+      payload({
+        toolchain: {
+          services: [NEXUS],
+          integrations: [{ job: "build", service: "nexus-prod", kind: "push" }],
+        },
+      }),
+    );
+    expect(screen.getByRole("group", { name: "Services" }).textContent).toContain("build push");
+  });
+
+  test("une saisie rejetée reste dans le formulaire", async () => {
+    const onSubmit = mock(async () => false);
+    render(
+      <ToolchainPanel
+        payload={payload()}
+        tools={TOOLS}
+        disabled={false}
+        selectedService={null}
+        onSubmit={onSubmit}
+        onSelectService={mock(() => {})}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("URL"), "https://n");
+    const form = screen.getByRole("group", { name: "New service" });
+    await userEvent.click(within(form).getByRole("button", { name: "Add service" }));
+    expect((screen.getByLabelText("URL") as HTMLInputElement).value).toBe("https://n");
+  });
+
+  test("une proposition sans service amène le focus sur le nom", async () => {
+    panel(payload({ proposed: [{ job: "b", tool: "vault", kind: "fetch-secret", services: [] }] }));
+    await userEvent.click(screen.getByRole("button", { name: "Add a service for b, HashiCorp" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Name"));
   });
 
   test("un service se sélectionne au clavier depuis la liste", async () => {
@@ -259,6 +317,56 @@ describe("graphe", () => {
     expect(edges.map((edge) => edge.label)).toEqual(["push", "proposed notify"]);
     expect(edges[0]?.style?.strokeDasharray).toBeUndefined();
     expect(edges[1]?.style?.strokeDasharray).toBeDefined();
+  });
+
+  test("deux types sur le même lien font une seule arête", () => {
+    const { edges } = toolchainGraph(
+      {
+        ...chain,
+        integrations: [LINK, { ...LINK, kind: "notify" }],
+      },
+      [],
+      {},
+      new Map(),
+      METRICS,
+      null,
+    );
+    expect(edges.map((edge) => edge.label)).toEqual(["push, notify"]);
+  });
+
+  test("un job proposé sans service figure quand même au graphe", () => {
+    const { nodes } = toolchainGraph(
+      { services: [], integrations: [], dismissed: [] },
+      [{ job: "scan", tool: "nexus", kind: "push", services: [] }],
+      {},
+      new Map(),
+      METRICS,
+      null,
+    );
+    expect(nodes.map((node) => node.id)).toEqual(["job:scan"]);
+  });
+
+  test("les services suivent leurs jobs, pour éviter les croisements", () => {
+    const { nodes } = toolchainGraph(
+      {
+        services: [
+          { ...NEXUS, id: "premier" },
+          { ...NEXUS, id: "second" },
+        ],
+        integrations: [
+          { job: "a", service: "second", kind: "push" },
+          { job: "b", service: "premier", kind: "push" },
+        ],
+        dismissed: [],
+      },
+      [],
+      {},
+      new Map(),
+      METRICS,
+      null,
+    );
+    const y = (id: string) => nodes.find((node) => node.id === id)?.position.y ?? -1;
+    expect(y("service:second")).toBeLessThan(y("service:premier"));
   });
 
   test("une intégration vers un service inconnu n'a pas d'arête dans le vide", () => {

@@ -190,17 +190,27 @@ export function App({ deps }: AppProps = {}) {
     hadSelection.current = open;
   }, [state.selectedJobId]);
 
+  const hadService = useRef(false);
+  useEffect(() => {
+    const open = toolchainState.selectedService !== null;
+    if (hadService.current && !open) {
+      document.querySelector<HTMLElement>('[aria-label="Toolchain graph"]')?.focus();
+    }
+    hadService.current = open;
+  }, [toolchainState.selectedService]);
+
   // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
   // désigne au canevas mais se referme depuis n'importe où, panneau compris.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         store.getState().selectJob(null);
+        toolchainStore.getState().selectService(null);
       }
     };
     document.addEventListener("keydown", handle);
     return () => document.removeEventListener("keydown", handle);
-  }, [store]);
+  }, [store, toolchainStore]);
 
   // Une opération en vol désactive l'édition : sans cela chaque contrôle reste actif et une
   // seconde soumission part sur un hash déjà périmé.
@@ -213,9 +223,10 @@ export function App({ deps }: AppProps = {}) {
   });
 
   const toolchainPayload = toolchainState.payload;
+  const toolchainInvalid =
+    toolchainPayload?.diagnostics.some((entry) => entry.code === TOOLCHAIN_INVALID) ?? false;
   const toolchainEditable =
-    !toolchainState.pending &&
-    !(toolchainPayload?.diagnostics.some((entry) => entry.code === TOOLCHAIN_INVALID) ?? true);
+    !toolchainState.pending && toolchainPayload !== null && !toolchainInvalid;
   const inToolchain = state.view === "toolchain";
 
   useHistoryShortcuts({
@@ -285,6 +296,7 @@ export function App({ deps }: AppProps = {}) {
           selectedService={toolchainState.selectedService}
           onSelectService={(id) => toolchainStore.getState().selectService(id)}
           onMove={(node, position) => void toolchainStore.getState().move(node, position)}
+          invalid={toolchainInvalid}
         />
       );
     }
@@ -366,7 +378,9 @@ export function App({ deps }: AppProps = {}) {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className={`lg:hidden ${BUTTON}`}
             >
-              Panel
+              {inToolchain && (toolchainPayload?.proposed.length ?? 0) > 0
+                ? `Panel, ${toolchainPayload?.proposed.length} proposed`
+                : "Panel"}
             </button>
           ) : null}
           <nav aria-label="Views" className="flex items-center gap-1">
@@ -425,8 +439,9 @@ export function App({ deps }: AppProps = {}) {
                   payload={toolchainPayload}
                   tools={state.catalog?.tools ?? []}
                   disabled={!toolchainEditable}
+                  invalid={toolchainInvalid}
                   selectedService={toolchainState.selectedService}
-                  onSubmit={(draft) => void toolchainStore.getState().submit(draft)}
+                  onSubmit={(draft) => toolchainStore.getState().submit(draft)}
                   onSelectService={(id) => {
                     setSidebarOpen(false);
                     toolchainStore.getState().selectService(id);
@@ -467,9 +482,12 @@ export function App({ deps }: AppProps = {}) {
         <main className="min-w-[var(--keelson-canvas-min-width)] flex-1">{body}</main>
 
         {selectedService === null || toolchainPayload === null ? null : (
-          <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1">
+          <aside
+            aria-label="Service"
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
+          >
             <ServicePanel
-              key={selectedService.id}
+              key={`${selectedService.id}:${toolchainPayload.hash}`}
               service={selectedService}
               toolchain={toolchainPayload.toolchain}
               tool={state.catalog?.tools.find((tool) => tool.id === selectedService.tool)}

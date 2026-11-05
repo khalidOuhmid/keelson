@@ -96,6 +96,12 @@ describe("store de toolchain", () => {
     expect(state().error?.status).toBe(409);
   });
 
+  test("submit dit si l'écriture a eu lieu", async () => {
+    expect(await state().submit(draft)).toBe(true);
+    answers.push(failure(422));
+    expect(await state().submit(draft)).toBe(false);
+  });
+
   test("un autre échec garde l'état et dit l'erreur", async () => {
     answers.push(failure(422));
     await state().submit(draft);

@@ -29,7 +29,8 @@ export type ToolchainState = {
   load(): Promise<void>;
   /** Le pipeline a bougé : les propositions changent, l'historique du fichier non. */
   refresh(): Promise<void>;
-  submit(draft: ToolchainDraft): Promise<void>;
+  /** `true` si l'écriture a eu lieu : un formulaire ne se vide qu'à cette condition. */
+  submit(draft: ToolchainDraft): Promise<boolean>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   canUndo(): boolean;
@@ -62,7 +63,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
     const send = async (
       op: ToolchainOperation,
       onSuccess: (inverse: SpliceOperation) => void,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       set({ pending: true, error: null });
       const result = await dependencies.submit(op, dependencies.newOpId());
       set({ pending: false });
@@ -71,12 +72,13 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
         const { inverse, ...payload } = result.value;
         onSuccess(inverse);
         set({ payload });
-        return;
+        return true;
       }
       if (result.error.status === 409) {
         await reload();
       }
       set({ error: result.error });
+      return false;
     };
 
     return {
@@ -97,9 +99,9 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       async submit(draft) {
         const hash = get().payload?.hash;
         if (hash === undefined) {
-          return;
+          return false;
         }
-        await send({ v: 1, baseHash: hash, ...draft } as ToolchainOperation, (inverse) => {
+        return send({ v: 1, baseHash: hash, ...draft } as ToolchainOperation, (inverse) => {
           undoStack.push(inverse);
           redoStack = [];
         });

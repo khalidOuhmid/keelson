@@ -1,16 +1,20 @@
 import type { Tool } from "@keelson/catalog";
 import type { ProposedIntegration } from "@keelson/toolchain";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ToolchainPayload } from "../../api/client.ts";
 import { BUTTON, FIELD, GROUP, LABEL, SECTION_HEADING } from "../../editing/controls.ts";
 import type { ToolchainDraft } from "../../state/toolchain.ts";
+
+type Submit = (draft: ToolchainDraft) => unknown;
 
 export type ToolchainPanelProps = {
   payload: ToolchainPayload;
   tools: readonly Tool[];
   disabled: boolean;
+  /** `toolchain.yaml` illisible : une liste vide y serait une affirmation fausse. */
+  invalid?: boolean;
   selectedService: string | null;
-  onSubmit: (draft: ToolchainDraft) => void;
+  onSubmit: Submit;
   onSelectService: (id: string) => void;
 };
 
@@ -28,7 +32,7 @@ function Proposal({
   entry: ProposedIntegration;
   tools: readonly Tool[];
   disabled: boolean;
-  onSubmit: (draft: ToolchainDraft) => void;
+  onSubmit: Submit;
   onAddService: (tool: string) => void;
 }) {
   const [chosen, setChosen] = useState(entry.services[0] ?? "");
@@ -62,6 +66,7 @@ function Proposal({
             type="button"
             className={BUTTON}
             disabled={disabled}
+            aria-label={`Add a service for ${job}, ${nameOf(tools, tool)}`}
             onClick={() => onAddService(tool)}
           >
             Add service
@@ -97,12 +102,14 @@ function AddService({
   onTool,
   disabled,
   onSubmit,
+  nameField,
 }: {
   tools: readonly Tool[];
   tool: string;
   onTool: (id: string) => void;
   disabled: boolean;
-  onSubmit: (draft: ToolchainDraft) => void;
+  onSubmit: Submit;
+  nameField: React.RefObject<HTMLInputElement | null>;
 }) {
   const [id, setId] = useState("");
   const [url, setUrl] = useState("");
@@ -114,16 +121,20 @@ function AddService({
       className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit({
-          kind: "addService",
-          id: id === "" ? chosen : id,
-          tool: chosen,
-          url: url === "" ? null : url,
-          environment: environment === "" ? null : environment,
-        });
-        setId("");
-        setUrl("");
-        setEnvironment("");
+        void (async () => {
+          const written = await onSubmit({
+            kind: "addService",
+            id: id === "" ? chosen : id,
+            tool: chosen,
+            url: url === "" ? null : url,
+            environment: environment === "" ? null : environment,
+          });
+          if (written !== false) {
+            setId("");
+            setUrl("");
+            setEnvironment("");
+          }
+        })();
       }}
     >
       <label className={GROUP}>
@@ -144,6 +155,7 @@ function AddService({
       <label className={GROUP}>
         <span className={LABEL}>Name</span>
         <input
+          ref={nameField}
           className={FIELD}
           value={id}
           placeholder={chosen}
@@ -180,19 +192,34 @@ export function ToolchainPanel({
   payload,
   tools,
   disabled,
+  invalid = false,
   selectedService,
   onSubmit,
   onSelectService,
 }: ToolchainPanelProps) {
   const { toolchain, proposed } = payload;
   const [tool, setTool] = useState("");
+  const nameField = useRef<HTMLInputElement>(null);
   const services = tools.filter((entry) => entry.kind === "service");
+
+  if (invalid) {
+    return (
+      <p className="text-sm text-text-secondary">
+        toolchain.yaml can't be read. Editing is off; see Diagnostics.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
       {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
       <div role="group" aria-label="Proposed integrations" className="flex flex-col gap-2">
-        <h2 className={SECTION_HEADING}>Proposed integrations</h2>
+        <h2 className={SECTION_HEADING}>
+          Proposed integrations{" "}
+          {proposed.length === 0 ? null : (
+            <span className="font-mono text-xs text-text-muted">{proposed.length}</span>
+          )}
+        </h2>
         {proposed.length === 0 ? (
           <p className="text-sm text-text-muted">Nothing to confirm.</p>
         ) : (
@@ -204,7 +231,10 @@ export function ToolchainPanel({
                 tools={tools}
                 disabled={disabled}
                 onSubmit={onSubmit}
-                onAddService={setTool}
+                onAddService={(id) => {
+                  setTool(id);
+                  nameField.current?.focus();
+                }}
               />
             ))}
           </ul>
@@ -222,15 +252,25 @@ export function ToolchainPanel({
               <li key={service.id}>
                 <button
                   type="button"
-                  aria-pressed={service.id === selectedService}
+                  aria-current={service.id === selectedService ? "true" : undefined}
                   onClick={() => onSelectService(service.id)}
-                  className="flex w-full cursor-pointer flex-col rounded-sm border border-transparent px-1 py-1 text-left transition-colors duration-fast ease-out hover:bg-surface-3 aria-pressed:border-accent"
+                  className="flex w-full cursor-pointer flex-col rounded-sm border border-transparent px-1 py-1 text-left transition-colors duration-fast ease-out hover:bg-surface-3 aria-[current=true]:border-accent"
                 >
                   <span className="truncate text-sm text-text-primary">{service.id}</span>
                   <span className="truncate text-xs text-text-muted">
                     {nameOf(tools, service.tool)}
                     {service.environment === null ? "" : ` · ${service.environment}`}
                   </span>
+                  {toolchain.integrations
+                    .filter((entry) => entry.service === service.id)
+                    .map((entry) => (
+                      <span
+                        key={`${entry.job}:${entry.kind}`}
+                        className="truncate font-mono text-2xs text-text-muted"
+                      >
+                        {entry.job} {entry.kind}
+                      </span>
+                    ))}
                 </button>
               </li>
             ))}
@@ -247,6 +287,7 @@ export function ToolchainPanel({
           onTool={setTool}
           disabled={disabled}
           onSubmit={onSubmit}
+          nameField={nameField}
         />
       </div>
 
