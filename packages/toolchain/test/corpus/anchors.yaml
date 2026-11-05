@@ -1,0 +1,9 @@
+version: 1
+services:
+  a: &base
+    tool: nexus
+    url: &u https://a.example
+  b: *base
+  c:
+    tool: harbor
+    url: *u

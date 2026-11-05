@@ -1,0 +1,22 @@
+version: 1
+services:
+  a:
+    tool: nexus
+    url: |
+      https://a.example
+  # entre deux services
+  b:
+    tool: harbor
+    url: >-
+      https://b.example
+  c:
+    tool: vault
+integrations:
+  - job: |-
+      build
+    service: a
+    kind: push
+  - job: deploy
+    service: c
+    kind: fetch-secret
+# fin

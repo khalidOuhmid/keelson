@@ -1,6 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { INTEGRATION_KINDS, type Toolchain, type ToolchainOperation } from "@keelson/core";
+import {
+  INTEGRATION_KINDS,
+  type OperationError,
+  type Toolchain,
+  type ToolchainOperation,
+} from "@keelson/core";
 import fc from "fast-check";
 import { parseToolchain } from "../../../src/index.ts";
 
@@ -88,6 +93,29 @@ export function operationArb(text: string): fc.Arbitrary<Draft> {
       integration,
     })),
   ) as fc.Arbitrary<Draft>;
+}
+
+/** Les refus qui sont une réponse, pas une panne : sur le corpus, tout autre refus est un défaut. */
+const EXPECTED_REFUSALS: readonly string[] = [
+  "NAME_CONFLICT",
+  "INVALID_NAME",
+  "SERVICE_NOT_FOUND",
+  "SERVICE_REFERENCED",
+  "INTEGRATION_EXISTS",
+  "INTEGRATION_NOT_FOUND",
+];
+
+const SHARED_CORPUS_REASONS: readonly string[] = ["sharedValue", "flowStyleToolchain"];
+
+export function isExpectedRefusal(error: OperationError): boolean {
+  if (EXPECTED_REFUSALS.includes(error.code)) {
+    return true;
+  }
+  return (
+    error.code === "INVALID_OPERATION" &&
+    "reason" in error.params &&
+    SHARED_CORPUS_REASONS.includes(error.params.reason)
+  );
 }
 
 /** Ce que l'opération doit produire sur le modèle, écrit sans passer par le texte. */

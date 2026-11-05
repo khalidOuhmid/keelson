@@ -25,6 +25,7 @@ import {
 } from "@keelson/core";
 import {
   type Document,
+  isAlias,
   isCollection,
   isMap,
   isScalar,
@@ -36,6 +37,7 @@ import {
   type YAMLMap,
   type YAMLSeq,
 } from "yaml";
+import { expectedToolchain } from "./model.ts";
 import { parseToolchain } from "./parse.ts";
 
 export type ToolchainResult = {
@@ -75,31 +77,47 @@ function rangeOf(node: Node): [number, number] {
 }
 
 /** Où finit réellement un nœud. `range` d'une collection en bloc inclut ce qui suit sa dernière
- *  valeur, donc les commentaires du voisin : on descend jusqu'à la dernière feuille. */
-function contentEnd(node: Node): number {
+ *  valeur, donc les commentaires du voisin, et celui d'un scalaire `|` ou `>` inclut son saut de
+ *  ligne final : on descend jusqu'à la dernière feuille, puis jusqu'à son dernier caractère. */
+function contentEnd(text: string, node: Node): number {
   if (isMap(node) && !node.flow) {
     const last = node.items.at(-1);
-    return last === undefined ? rangeOf(node)[1] : pairEnd(last);
+    return last === undefined ? rangeOf(node)[1] : pairEnd(text, last);
   }
   if (isSeq(node) && !node.flow) {
     const last = node.items.at(-1) as Node | undefined;
-    return last === undefined ? rangeOf(node)[1] : contentEnd(last);
+    return last === undefined ? rangeOf(node)[1] : contentEnd(text, last);
   }
-  return rangeOf(node)[1];
+  const [start, end] = rangeOf(node);
+  if (isScalar(node) && (node.type === "BLOCK_LITERAL" || node.type === "BLOCK_FOLDED")) {
+    return start + text.slice(start, end).trimEnd().length;
+  }
+  return end;
 }
 
-function pairEnd(pair: Pair): number {
+function pairEnd(text: string, pair: Pair): number {
   const value = pair.value as Node | null;
-  const end = value === null ? 0 : contentEnd(value);
+  const end = value === null ? 0 : contentEnd(text, value);
   return Math.max(end, rangeOf(pair.key as Node)[1]);
+}
+
+function afterColon(text: string, key: Node): number {
+  return text.indexOf(":", rangeOf(key)[1]) + 1;
 }
 
 function pairOf(map: YAMLMap, key: string): Pair | undefined {
   return map.items.find((pair) => isScalar(pair.key) && pair.key.value === key);
 }
 
+/** `stringify` plie les longues chaînes et laisse passer `---` : seul ce qui se relit à l'identique
+ *  est gardé tel quel, le reste part en double quotes, que YAML relit toujours. */
 function scalarText(value: string): string {
-  return /[\r\n\t]/.test(value) ? JSON.stringify(value) : stringify(value).trimEnd();
+  const plain = stringify(value, { lineWidth: 0 }).replace(/\r?\n$/, "");
+  const line = `key: ${plain}\n`;
+  const document = parseDocument(line);
+  const faithful =
+    !plain.includes("\n") && document.errors.length === 0 && document.get("key") === value;
+  return faithful ? plain : JSON.stringify(value);
 }
 
 function isEmpty(node: Node | null): boolean {
@@ -125,8 +143,10 @@ class Editing {
   }
 
   private appendAtEnd(block: string): Edit {
-    const end = this.text.length;
-    const glue = end === 0 || this.text.endsWith("\n") ? "" : this.eol;
+    // Après un `...` final, YAML ouvrirait un autre document.
+    const marker = this.text.search(/^\.\.\.[ \t]*(#.*)?\r?\n?\s*$/m);
+    const end = marker === -1 ? this.text.length : marker;
+    const glue = end === 0 || this.text.slice(0, end).endsWith("\n") ? "" : this.eol;
     const header = this.root === null ? `version: 1${this.eol}` : "";
     return { start: end, end, text: `${glue}${header}${block}` };
   }
@@ -144,12 +164,16 @@ class Editing {
 
     const value = pair.value as Node | null;
     if (isEmpty(value)) {
-      const start = rangeOf(pair.key as Node)[1] + 1;
-      const end = value === null || isScalar(value) ? start : rangeOf(value)[1];
+      // `~`, `null` ou `[]` disparaissent ; ce qui suit sur la ligne, un commentaire, y reste.
+      const start = afterColon(this.text, pair.key as Node);
+      const end = lineEnd(this.text, start);
+      const line = this.text.slice(start, end);
+      const comment = line.search(/(^|\s)#/);
+      const tail = comment === -1 ? "" : line.slice(comment);
       return {
         start,
         end,
-        text: `${this.eol}${entry(2).slice(0, -this.eol.length)}`,
+        text: `${tail.trimEnd()}${this.eol}${entry(2)}`,
       };
     }
 
@@ -157,7 +181,7 @@ class Editing {
       return flow(section);
     }
 
-    const offset = lineEnd(this.text, contentEnd(value));
+    const offset = lineEnd(this.text, contentEnd(this.text, value));
     const glue = this.text.endsWith("\n") || offset < this.text.length ? "" : this.eol;
     return { start: offset, end: offset, text: `${glue}${entry(indentOf(value))}` };
   }
@@ -166,7 +190,7 @@ class Editing {
   pairSpan(pair: Pair): Edit {
     return {
       start: lineStart(this.text, rangeOf(pair.key as Node)[0]),
-      end: lineEnd(this.text, pairEnd(pair)),
+      end: lineEnd(this.text, pairEnd(this.text, pair)),
       text: "",
     };
   }
@@ -176,7 +200,7 @@ class Editing {
     while (start > 0 && !this.text.slice(start).trimStart().startsWith("-")) {
       start = lineStart(this.text, start - 1);
     }
-    return { start, end: lineEnd(this.text, contentEnd(item)), text: "" };
+    return { start, end: lineEnd(this.text, contentEnd(this.text, item)), text: "" };
   }
 
   dashColumn(sequence: YAMLSeq): number {
@@ -206,13 +230,19 @@ function updateFields(
   fields: Record<string, string | null | undefined>,
 ): Edit[] | Refusal {
   const map = service.value;
+  const shared = (key: string): Refusal =>
+    refuse({ code: INVALID_OPERATION, params: { reason: "sharedValue", job: id, key } });
+  if (isAlias(map) || (isMap(map) && map.anchor !== undefined)) {
+    return shared("service");
+  }
   if (!isMap(map) || map.flow === true) {
     return flow(`services.${id}`);
   }
 
   const indent = column(editing.text, rangeOf(map.items[0]?.key as Node)[0]);
-  const after = lineEnd(editing.text, contentEnd(map));
+  const after = lineEnd(editing.text, contentEnd(editing.text, map));
   const edits: Edit[] = [];
+  let glued = editing.text.endsWith("\n") || after < editing.text.length;
 
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined) {
@@ -221,7 +251,8 @@ function updateFields(
     const pair = pairOf(map, key);
     if (pair === undefined) {
       if (value !== null) {
-        const glue = editing.text.endsWith("\n") || after < editing.text.length ? "" : editing.eol;
+        const glue = glued ? "" : editing.eol;
+        glued = true;
         edits.push({
           start: after,
           end: after,
@@ -232,20 +263,20 @@ function updateFields(
     }
 
     if (value === null) {
+      if ((pair.value as Node | null)?.anchor !== undefined) {
+        return shared(key);
+      }
       edits.push(editing.pairSpan(pair));
       continue;
     }
 
     const current = pair.value as Node | null;
-    if (current !== null && !isScalar(current)) {
-      return refuse({
-        code: INVALID_OPERATION,
-        params: { reason: "sharedValue", job: id, key },
-      });
+    if (current !== null && (!isScalar(current) || current.anchor !== undefined)) {
+      return shared(key);
     }
     const [start, end] = current === null ? [0, 0] : rangeOf(current);
     const empty = current === null || start === end;
-    const colon = rangeOf(pair.key as Node)[1] + 1;
+    const colon = afterColon(editing.text, pair.key as Node);
     edits.push(
       empty
         ? { start: colon, end: colon, text: ` ${scalarText(value)}` }
@@ -490,7 +521,10 @@ export function applyToolchain(
   }
 
   const result = finish(text, edit);
-  if (parseToolchain(result.text).diagnostics.length > 0) {
+  const read = parseToolchain(result.text);
+  const faithful =
+    JSON.stringify(read.toolchain) === JSON.stringify(expectedToolchain(toolchain, operation));
+  if (read.diagnostics.length > 0 || !faithful) {
     return err({
       code: INVALID_OPERATION,
       params: { reason: "wouldBreakYaml", operation: operation.kind },

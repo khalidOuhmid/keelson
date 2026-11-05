@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { hashText, type ToolchainOperation } from "@keelson/core";
 import fc from "fast-check";
 import { applyToolchain, parseToolchain } from "../../src/index.ts";
-import { assertOptions, corpusTexts, expected, operationArb } from "./support/arbitraries.ts";
+import {
+  assertOptions,
+  corpusTexts,
+  expected,
+  isExpectedRefusal,
+  operationArb,
+} from "./support/arbitraries.ts";
 
 const texts = corpusTexts();
 const scenario = fc
@@ -16,6 +22,11 @@ describe("propriété : le texte écrit se relit comme le modèle attendu", () =
         const operation = { v: 1, baseHash: hashText(text), ...draft } as ToolchainOperation;
         const result = applyToolchain(text, operation);
         if (!result.ok) {
+          expect({ draft, error: result.error, refused: isExpectedRefusal(result.error) }).toEqual({
+            draft,
+            error: result.error,
+            refused: true,
+          });
           return;
         }
         const read = parseToolchain(result.value.text);

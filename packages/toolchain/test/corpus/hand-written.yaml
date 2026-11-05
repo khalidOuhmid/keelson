@@ -1,0 +1,14 @@
+---
+version: 1
+"services" :
+  'quoted-key':
+    "tool": nexus   # aligné
+    url:   https://q.example
+
+    environment: prod
+integrations:
+  -
+    job: build
+    service: quoted-key
+    kind: push
+...

@@ -253,6 +253,121 @@ describe("refus", () => {
   });
 });
 
+describe("fichiers écrits à la main", () => {
+  const BLOCK =
+    "version: 1\nservices:\n  a:\n    tool: nexus\n    url: |\n      https://a\n  b:\n    tool: harbor\nintegrations:\n  - job: x\n    service: b\n    kind: push\n";
+
+  test("retirer un service à valeur en bloc garde son voisin", () => {
+    const text = edited(BLOCK, { kind: "removeService", id: "a" });
+    const { services, integrations } = parseToolchain(text).toolchain;
+    expect(services.map((service) => service.id)).toEqual(["b"]);
+    expect(integrations).toHaveLength(1);
+  });
+
+  test("retirer le dernier service à valeur en bloc garde la section suivante", () => {
+    const text =
+      "version: 1\nservices:\n  a:\n    tool: x\n    url: |\n      u\nintegrations:\n  - job: j\n    service: z\n    kind: push\n";
+    expect(edited(text, { kind: "removeService", id: "a" })).toContain("integrations:");
+  });
+
+  test("un champ retiré après une valeur en bloc ne touche pas le voisin", () => {
+    const text = edited(BLOCK, { kind: "updateService", id: "a", url: null });
+    expect(parseToolchain(text).toolchain.services.map((service) => service.id)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  test("un champ ajouté après une valeur en bloc reste dans son service", () => {
+    const text = edited(BLOCK, { kind: "updateService", id: "a", environment: "prod" });
+    const [first, second] = parseToolchain(text).toolchain.services;
+    expect(first?.environment).toBe("prod");
+    expect(second?.environment).toBeNull();
+  });
+
+  test("remplacer une valeur en bloc garde le commentaire suivant", () => {
+    const text =
+      "version: 1\nservices:\n  a:\n    tool: x\n    url: |\n      u\n    # note\n    environment: e\n";
+    expect(edited(text, { kind: "updateService", id: "a", url: "v" })).toContain("    # note\n");
+  });
+
+  test("un élément de liste à valeur en bloc garde le suivant", () => {
+    const text = edited(
+      BLOCK.replace("  - job: x\n", "  - job: |-\n      x\n").concat(
+        "  - job: y\n    service: b\n    kind: push\n",
+      ),
+      {
+        kind: "removeIntegration",
+        job: "x",
+        service: "b",
+        integration: "push",
+      },
+    );
+    expect(parseToolchain(text).toolchain.integrations.map((entry) => entry.job)).toEqual(["y"]);
+  });
+
+  test.each(["~", "null", "!!null", "&s"])("une section valant %s se remplace", (token) => {
+    const text = edited(`version: 1\nservices: ${token}\n`, { ...add, id: "h" });
+    expect(parseToolchain(text).toolchain.services).toEqual([
+      { id: "h", tool: "harbor", url: null, environment: null },
+    ]);
+    expect(text).not.toContain(token);
+  });
+
+  test("un commentaire sur la ligne de la section y reste", () => {
+    expect(edited("version: 1\nservices: # plateforme\n", { ...add, id: "h" })).toBe(
+      "version: 1\nservices: # plateforme\n  h:\n    tool: harbor\n",
+    );
+  });
+
+  test("un espace avant les deux-points n'empêche pas d'écrire", () => {
+    const text = edited("version: 1\nservices :\n", { ...add, id: "h" });
+    expect(parseToolchain(text).toolchain.services).toHaveLength(1);
+  });
+
+  test("toucher une valeur ancrée changerait ses alias : refusé", () => {
+    const text = "version: 1\nservices:\n  a: &base\n    tool: x\n  b: *base\n";
+    const result = run(text, { kind: "updateService", id: "a", environment: "e" });
+    expect(result.ok ? null : result.error).toMatchObject({
+      code: "INVALID_OPERATION",
+      params: { reason: "sharedValue" },
+    });
+    const scalar =
+      "version: 1\nservices:\n  a:\n    tool: x\n    url: &u y\n  b:\n    tool: z\n    url: *u\n";
+    expect(code(scalar, { kind: "updateService", id: "a", url: "w" })).toBe("INVALID_OPERATION");
+  });
+
+  test("retirer une ancre dont un alias dépend est refusé", () => {
+    const text = "version: 1\nservices:\n  a: &base\n    tool: x\n  b: *base\n";
+    expect(code(text, { kind: "removeService", id: "a" })).toBe("INVALID_OPERATION");
+  });
+
+  test("un service en alias n'est pas présenté comme du flow", () => {
+    const text = "version: 1\nservices:\n  a: &base\n    tool: x\n  b: *base\n";
+    const result = run(text, { kind: "updateService", id: "b", url: "u" });
+    expect(result.ok ? null : result.error).toMatchObject({ params: { reason: "sharedValue" } });
+  });
+
+  test.each(["a\u00a0", "--- x", "...", "x ".repeat(60).trim(), "\ufeffx", "- a", "1", "true"])(
+    "la valeur %j se relit à l'identique",
+    (value) => {
+      const text = edited("", { ...add, id: "h", url: value });
+      expect(parseToolchain(text).toolchain.services[0]?.url).toBe(value);
+    },
+  );
+
+  test("deux champs ajoutés sans fin de ligne finale ne laissent pas de ligne vide", () => {
+    expect(
+      edited("version: 1\nservices:\n  a:\n    tool: x", {
+        kind: "updateService",
+        id: "a",
+        url: "u",
+        environment: "e",
+      }),
+    ).toBe("version: 1\nservices:\n  a:\n    tool: x\n    url: u\n    environment: e\n");
+  });
+});
+
 describe("splice et inverse", () => {
   test("une plage hors du texte est refusée", () => {
     expect(code("abc", { kind: "splice", start: 2, end: 9, text: "" })).toBe("RANGE_OUT_OF_BOUNDS");
