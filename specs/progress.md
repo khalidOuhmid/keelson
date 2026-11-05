@@ -1,8 +1,8 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L4 — toolchain**, sur `lot/l4-toolchain`
-Prochaine action : contre-revue des correctifs, vérification depuis un clone, fusion.
+Lot courant : **L5 — propositions et insertion**, à cadrer depuis `main`
+Prochaine action : cadrage de L5, `specs/lots/l5.md`, branche `lot/l5-propositions`.
 Blocage : aucun
 
 
@@ -15,8 +15,8 @@ Blocage : aucun
 | L2b — résolution des `include` locaux, origine par fichier, écriture bornée | TERMINÉ | `5a5b530` (`--no-ff`) |
 | L2b-fix — preuves rouges, sévérité, texte d'aide, polish | TERMINÉ | `a88faf2` (`--no-ff`) |
 | L3 — taxonomie, catalogue, overlay OWASP | TERMINÉ | `36caaa1` (`--no-ff`) |
-| L4 — toolchain | **LOT COURANT** | — |
-| L5 — propositions et insertion | À FAIRE | — |
+| L4 — toolchain | TERMINÉ | `fd63570` (`--no-ff`) |
+| L5 — propositions et insertion | **LOT COURANT** | — |
 | L6 — adaptateur GitHub Actions | À FAIRE | — |
 | L7 — packaging open source | À FAIRE | — |
 | L8 — flotte | À FAIRE | — |
@@ -704,4 +704,7 @@ laissait l'écran faux ; un job disparu écrit quand même ; un focus volé en p
 `"8080":` qui faisaient écrire dans une entrée invisible. Tous prouvés rouges, E2E compris. La dernière
 ne rouvre rien de bloquant, et son unique reste est consigné. Le premier essai de preuve de la garde de
 focus n'avait pas de code de sortie fiable : refait avec un script qui rend celui de Playwright.
+
+**Clôture.** Fusion `fd63570`. Depuis un clone sans `dist/` : `bun run check`, propriétés à 500 runs,
+68 E2E, smoke test Node. `check` vert sur `main`.
 
