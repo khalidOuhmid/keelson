@@ -160,41 +160,51 @@ const isShell = (word: string): boolean =>
 /** Les commandes qui lancent le shell qu'on leur passe en argument. */
 const CARRIERS = new Set(["docker", "podman", "xargs", "find"]);
 
-/** Le script passé à `sh -c`, `su -c`, `eval` ou `ssh`, ou `null`. Mot à mot : un `sh -c` cité par
- *  `echo` ou `git commit` n'est pas une exécution, et une regex à options répétées peut exploser. */
+/** Les options de `ssh` qui prennent une valeur. */
+const SSH_VALUES = /^-[bcDEeFIiJLlmOopQRSWw]$/;
+
+const isQuoted = (word: string): boolean => /^["']/.test(word);
+
+/** Le script passé à `sh -c`, `su -c`, `eval` ou `ssh`, ou `null`. Mot à mot, guillemets compris : un
+ *  `sh -c` cité n'est pas une exécution, et une regex à options répétées peut exploser. */
 function shellArgument(command: string): string | null {
-  const words = [...command.matchAll(/\S+/g)];
-  const head = words[0]?.[0] ?? "";
+  const words = [...command.matchAll(/"[^"]*"|'[^']*'|\S+/g)];
+  const text = (index: number): string => words[index]?.[0] ?? "";
+  const head = text(0);
   const rest = (index: number): string | null => {
     const start = words[index]?.index;
     return start === undefined ? null : unquoted(command.slice(start).trim());
   };
+  /** Le script est un seul mot s'il est cité ; ce qui le suit sont ses arguments. */
+  const script = (index: number): string | null =>
+    isQuoted(text(index)) ? unquoted(text(index)) : rest(index);
 
   if (head === "eval") {
     return rest(1);
   }
   if (head === "ssh") {
-    const host = words.findIndex((word, index) => index > 0 && !word[0].startsWith("-"));
-    // `-i key` : l'option prend une valeur, le mot suivant est l'hôte.
-    const flagged = words[1]?.[0] === "-i" || words[1]?.[0] === "-p" || words[1]?.[0] === "-l";
-    return host === -1 ? null : rest(host + (flagged ? 2 : 1));
+    let index = 1;
+    while (text(index).startsWith("-")) {
+      index += SSH_VALUES.test(text(index)) ? 2 : 1;
+    }
+    return rest(index + 1);
   }
 
-  const shell = isShell(head)
-    ? 0
-    : head === "su"
-      ? 0
-      : CARRIERS.has(head)
-        ? words.findIndex((word) => isShell(word[0]))
-        : -1;
+  const carried = CARRIERS.has(head);
+  const shell =
+    isShell(head) || head === "su" ? 0 : carried ? words.findIndex((w) => isShell(w[0])) : -1;
   if (shell === -1) {
     return null;
   }
 
   for (let index = shell + 1; index < words.length; index += 1) {
-    const word = words[index]?.[0] ?? "";
+    const word = text(index);
+    if (word === "--") {
+      return null;
+    }
     if (/^-\w*c$/.test(word)) {
-      return rest(index + 1);
+      // Après un porteur, seul un script cité compte : `xargs grep sh -c x` cherche, il ne lance pas.
+      return carried && !isQuoted(text(index + 1)) ? null : script(index + 1);
     }
     if (word === "-o") {
       index += 1;
@@ -238,7 +248,9 @@ function resolved(raw: string, depth: number): string[] {
   }
 
   const first = command.split(/\s+/, 1)[0] ?? "";
-  return INERT.has(first) || first.startsWith("#") || INSTALLING.test(command) ? [] : [command];
+  // Une chaîne citée qui porte une espace est une phrase, pas un chemin ni une URL à détecter.
+  const words = command.replace(/"[^"]*\s[^"]*"|'[^']*\s[^']*'/g, '""');
+  return INERT.has(first) || first.startsWith("#") || INSTALLING.test(command) ? [] : [words];
 }
 
 export function executedCommands(line: string, depth = 0): string[] {

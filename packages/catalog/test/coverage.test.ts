@@ -366,6 +366,16 @@ describe("découpage shell sur une entrée hostile", () => {
     expect(performance.now() - started).toBeLessThan(1000);
   });
 
+  test.each([
+    ['docker build --label "note=sh -c trivy fs ." .'],
+    ['docker exec app echo "run sh -c trivy fs ."'],
+    ["sh -c 'echo gitleaks' arg"],
+    ["su -c 'echo gitleaks' bob"],
+    ["ssh -o StrictHostKeyChecking=no gitleaks uptime"],
+  ])("%s ne lance pas l'outil cité", (line) => {
+    expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
+  });
+
   test("command lance, command -v interroge", () => {
     const found = (line: string) =>
       detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);

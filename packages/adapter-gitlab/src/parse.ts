@@ -311,7 +311,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       id: entry.id,
       stage,
       needs: resolveNeeds(sources, context),
-      ...(hasUnmodelledNeeds(sources, context) ? { unmodelledNeeds: true as const } : {}),
+      ...(hasUnmodelledNeeds(sources) ? { unmodelledNeeds: true as const } : {}),
       environment: resolveEnvironment(sources, context),
       // L'union des `extends` de toutes les définitions, dédoublée : le fichier principal peut
       // ajouter un template sans retirer celui de l'include, et GitLab les applique tous les deux.

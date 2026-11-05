@@ -412,27 +412,31 @@ export function resolveNeeds(
 }
 
 /** Un item `project:` ou `pipeline:` dans la liste effective de `needs`. */
-export function hasUnmodelledNeeds(sources: readonly Source[], context: ResolveContext): boolean {
+/** Liste blanche, pas liste noire : seul ce que `needFrom` rend à l'identique peut être réécrit depuis
+ *  l'IR. Un alias, un `!reference`, une clé de plus, et la réécriture perdrait quelque chose. */
+function modelledNeed(item: AnyNode): boolean {
+  if (isScalar(item)) {
+    return typeof item.value === "string";
+  }
+  return (
+    isMap(item) &&
+    item.items.every(
+      (pair) =>
+        isScalar(pair.key) &&
+        ["job", "optional", "artifacts"].includes(String(pair.key.value)) &&
+        isScalar(pair.value),
+    )
+  );
+}
+
+export function hasUnmodelledNeeds(sources: readonly Source[]): boolean {
   const found = matches(sources, "needs").at(-1);
-  const document = found === undefined ? null : documentOf(context, found.file);
-  if (found === undefined || document === null) {
+  if (found === undefined) {
     return false;
   }
-
-  const list = dereference(found.node, found.file, context).node;
-  return (
-    isSeq(list) &&
-    list.items.some((item) => {
-      const target = dereference(item as AnyNode, found.file, context).node;
-      // GitLab aplatit une liste imbriquée ou un `!reference` en item : `needFrom` ne les voit pas.
-      return (
-        isSeq(target) ||
-        (isMap(target) &&
-          (entryAt(target, "project", document) !== undefined ||
-            entryAt(target, "pipeline", document) !== undefined))
-      );
-    })
-  );
+  const list = found.node;
+  const literal = isSeq(list) && (list as { tag?: string }).tag !== REFERENCE_TAG;
+  return !literal || !list.items.every((item) => modelledNeed(item as AnyNode));
 }
 
 function plainObject(node: AnyNode): Record<string, unknown> | null {

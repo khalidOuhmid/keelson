@@ -260,6 +260,45 @@ describe("needs inter-projets", () => {
     expect(performance.now() - started).toBeLessThan(1000);
   });
 
+  test.each([
+    ["alias de scalaire", "    - a\n    - *b\n"],
+    ["map avec alias", "    - a\n    - job: *b\n"],
+    ["clé non modélisée", "    - job: a\n      parallel:\n        matrix:\n          - X: 1\n"],
+    ["optional en alias", "    - job: a\n      optional: *o\n"],
+  ])("surcharger une liste héritée avec %s est refusé", (_label, items) => {
+    const text = `.v:\n  x: &b a\n  y: &o true\n\n.t:\n  needs:\n${items}\na:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n`;
+    expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } })).toMatchObject({
+      error: { code: "INVALID_OPERATION" },
+    });
+  });
+
+  test("retirer le dernier need local ne fait pas ressortir l'hérité", () => {
+    const text =
+      ".t:\n  needs:\n    - b\n\na:\n  stage: test\n  script: x\n\nb:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n  needs:\n    - a\n";
+    const result = run(text, { kind: "removeNeed", id: "job", job: "a" });
+    if (result.ok) {
+      const job = parse(result.value.text).pipeline.jobs.find((entry) => entry.id === "job");
+      expect(job?.needs?.value ?? []).toEqual([]);
+    }
+  });
+
+  test("retirer un item porteur d'une ancre utilisée ne laisse pas d'alias pendant", () => {
+    const text =
+      "a:\n  stage: test\n  script: x\n\nb:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - &k a\n    - b\n\nz:\n  stage: test\n  script: x\n  needs:\n    - *k\n";
+    expect(run(text, { kind: "removeNeed", id: "job", job: "a" }).ok).toBe(false);
+  });
+
+  test("une chaîne d'ancres longue ne ralentit pas l'analyse", () => {
+    const links = Array.from({ length: 400 }, (_, index) =>
+      index === 0
+        ? ".m0: &m0\n  x: 1\n"
+        : `.m${index}: &m${index}\n  <<: [*m${index - 1}, *m${index - 1}]\n`,
+    ).join("");
+    const started = performance.now();
+    parse(`${links}.t:\n  needs:\n    - *m399\n\njob:\n  extends: .t\n  script: x\n`);
+    expect(performance.now() - started).toBeLessThan(1500);
+  });
+
   test("une liste locale s'étend sans perdre l'item", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";

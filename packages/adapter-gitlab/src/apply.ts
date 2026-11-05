@@ -1043,6 +1043,38 @@ function applyComposite(
   });
 }
 
+function danglingAliases(text: string): number {
+  const document = parseDocument(text);
+  let count = 0;
+  visit(document, {
+    Alias(_key, node) {
+      if (node.resolve(document) === undefined) {
+        count += 1;
+      }
+    },
+  });
+  return count;
+}
+
+/** La liste relue doit être celle demandée : l'hérité qui ressort, ou une liste partagée mal lue,
+ *  se voient ici quelle que soit la forme écrite à la main. */
+function needsAsExpected(
+  operation: AddNeedOperation | RemoveNeedOperation,
+  before: { pipeline: Pipeline },
+  after: { pipeline: Pipeline },
+): boolean {
+  const names = (pipeline: Pipeline): string[] =>
+    (pipeline.jobs.find((job) => job.id === operation.id)?.needs?.value ?? []).map(
+      (need) => need.job,
+    );
+  const current = names(before.pipeline);
+  const expected =
+    operation.kind === "addNeed"
+      ? [...current, operation.need.job]
+      : current.filter((job) => job !== operation.job);
+  return JSON.stringify(names(after.pipeline).sort()) === JSON.stringify(expected.sort());
+}
+
 /** Toute relecture dans `apply` passe par ici : un `parse(texte)` nu perdrait le nom du fichier et
  *  le lecteur d'includes, donc l'IR relue n'aurait plus les jobs des fichiers inclus. */
 function reparse(document: GitlabDocument, text: string) {
@@ -1098,6 +1130,15 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     !before.diagnostics.some((diagnostic) => diagnostic.code === INVALID_YAML);
   if (brokeYaml) {
     return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
+  }
+
+  // Une ancre retirée laisse un alias pendant, que `parse` ne signale pas.
+  if (op.kind !== "splice" && danglingAliases(spliced.text) > danglingAliases(document.text)) {
+    return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
+  }
+
+  if ((op.kind === "addNeed" || op.kind === "removeNeed") && !needsAsExpected(op, before, after)) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: op.id, key: "needs" });
   }
 
   if (op.kind !== "splice" && cycleCount(after.pipeline) > cycleCount(before.pipeline)) {
