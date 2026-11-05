@@ -445,6 +445,12 @@ function planSetJobStage(
   ]);
 }
 
+/** Le début de ligne d'un item, sans son ancre ni son tag : les recopier sur un nouvel item
+ *  déplacerait l'ancre, et tout alias changerait de valeur sans un mot. */
+function itemPrefix(text: string, offset: number): string {
+  return linePrefix(text, offset).replace(/[&!][^\s]*[ \t]+/g, "");
+}
+
 function rewritesCrossProject(pipeline: Pipeline, id: string): boolean {
   return pipeline.jobs.find((job) => job.id === id)?.crossProjectNeeds === true;
 }
@@ -536,7 +542,7 @@ function planAddNeed(
   if (lastRange === undefined) {
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" });
   }
-  const prefix = linePrefix(text, lastRange[0]);
+  const prefix = itemPrefix(text, lastRange[0]);
   return ok([{ start: lastRange[2], end: lastRange[2], text: renderNeedItem(added, prefix, eol) }]);
 }
 
@@ -745,7 +751,7 @@ function planAddStage(
     }
     const at = lineStart(text, anchorStart);
     return ok([
-      { start: at, end: at, text: `${linePrefix(text, anchorStart)}${operation.name}${eol}` },
+      { start: at, end: at, text: `${itemPrefix(text, anchorStart)}${operation.name}${eol}` },
     ]);
   }
 
@@ -758,7 +764,7 @@ function planAddStage(
     {
       start: lastRange[2],
       end: lastRange[2],
-      text: `${linePrefix(text, lastRange[0])}${operation.name}${eol}`,
+      text: `${itemPrefix(text, lastRange[0])}${operation.name}${eol}`,
     },
   ]);
 }
@@ -912,8 +918,14 @@ function planAddSnippet(
   const keyRange = nodeRange(job.key);
   const stagePair = localPair(job.map, "stage");
   const stageValue = stagePair?.value as AnyNode;
-  const stageRange = isScalar(stageValue) ? nodeRange(stageValue) : null;
-  if (keyRange === null || keyRange === undefined || (stagePair !== undefined && !stageRange)) {
+  const stageRange =
+    isScalar(stageValue) && typeof stageValue.value === "string" && stageValue.value !== ""
+      ? nodeRange(stageValue)
+      : null;
+  const preamble = keyRange === undefined ? "" : snippet.slice(0, keyRange[0]);
+  // Une clé ou un commentaire indentés s'accrocheraient au dernier job du fichier.
+  const indented = /^[ \t]+\S/m.test(preamble) || !/(^|\n)$/.test(preamble);
+  if (keyRange === undefined || indented || (stagePair !== undefined && !stageRange)) {
     return fail(INVALID_OPERATION, { reason: "invalidSnippet" });
   }
 

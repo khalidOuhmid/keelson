@@ -2,19 +2,33 @@ import type { Coverage } from "@keelson/catalog";
 import type { Pipeline, Toolchain } from "@keelson/core";
 import { findLayer, LAYERS } from "@keelson/taxonomy";
 
-const label = (text: string): string => `"${text.replaceAll('"', "#quot;")}"`;
+/** `#` d'abord : les entités qui suivent en contiennent un. `%` neutralise les directives `%%`, et
+ *  un saut de ligne ouvrirait une ligne que Mermaid lirait comme un commentaire ou une directive. */
+const label = (text: string): string =>
+  `"${text
+    .replaceAll("#", "#35;")
+    .replaceAll('"', "#quot;")
+    .replaceAll("%", "#37;")
+    .replace(/\s*\n\s*/g, " ")}"`;
 
 /** Identifiants par position : les noms de jobs n'ont aucune forme garantie, Mermaid si. */
 export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string {
   const jobId = new Map(pipeline.jobs.map((job, index) => [job.id, `j${index}`]));
   const serviceId = new Map(toolchain.services.map((service, index) => [service.id, `v${index}`]));
 
-  const stages = pipeline.stages.flatMap((stage, index) => {
-    const jobs = pipeline.jobs.filter((job) => job.stage.value === stage.name);
+  // Un job peut viser un stage que ce fichier ne déclare pas, un include distant par exemple.
+  const names = [
+    ...new Set([
+      ...pipeline.stages.map((stage) => stage.name),
+      ...pipeline.jobs.map((job) => job.stage.value),
+    ]),
+  ];
+  const stages = names.flatMap((name, index) => {
+    const jobs = pipeline.jobs.filter((job) => job.stage.value === name);
     return jobs.length === 0
       ? []
       : [
-          `  subgraph s${index}[${label(stage.name)}]`,
+          `  subgraph s${index}[${label(name)}]`,
           ...jobs.map((job) => `    ${jobId.get(job.id)}[${label(job.id)}]`),
           "  end",
         ];

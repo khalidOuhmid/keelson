@@ -418,13 +418,18 @@ export function hasCrossProjectNeed(sources: readonly Source[], context: Resolve
     return false;
   }
   const { node } = dereference(found.node, found.file, context);
+  const document = documentOf(context, found.file);
   return (
     isSeq(node) &&
-    node.items.some(
-      (item) =>
-        isMap(item) &&
-        (localPair(item, "project") !== undefined || localPair(item, "pipeline") !== undefined),
-    )
+    document !== null &&
+    node.items.some((item) => {
+      const target = dereference(item as AnyNode, found.file, context).node;
+      return (
+        isMap(target) &&
+        (entryAt(target, "project", document) !== undefined ||
+          entryAt(target, "pipeline", document) !== undefined)
+      );
+    })
   );
 }
 

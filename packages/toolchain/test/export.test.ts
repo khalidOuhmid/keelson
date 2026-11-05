@@ -55,6 +55,30 @@ describe("export Mermaid", () => {
   });
 });
 
+describe("Mermaid sur des noms piégés", () => {
+  test("un job d'un stage non déclaré reste dessiné", () => {
+    const text = renderMermaid({ ...PIPELINE, jobs: [job("a", "security")] }, TOOLCHAIN);
+    expect(text).toContain('["security"]');
+    expect(text).toContain('j0["a"]');
+  });
+
+  test("une dépendance vers un job absent n'est pas dessinée", () => {
+    const text = renderMermaid({ ...PIPELINE, jobs: [job("a", "build", ["absent"])] }, TOOLCHAIN);
+    expect(text).not.toContain("-->");
+  });
+
+  test("une directive ne survit pas dans un libellé", () => {
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [job("x%%{init: {'theme':'forest'}}%%y#z\nw", "build")] },
+      TOOLCHAIN,
+    );
+    expect(text).not.toContain("%%");
+    expect(text).toContain("#37;#37;{init");
+    expect(text).toContain("y#35;z w");
+    expect(text.split("\n").filter((line) => line.includes("j0["))).toHaveLength(1);
+  });
+});
+
 describe("rapport de couverture", () => {
   const { tools } = loadCatalog();
   const result = coverage(PIPELINE, tools, {}, [], TOOLCHAIN.services);

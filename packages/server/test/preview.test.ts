@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { hashText } from "@keelson/core";
 import { type Harness, startHarness } from "./support/harness.ts";
 
@@ -57,6 +57,43 @@ describe("POST /api/documents/:file/preview", () => {
     expect((await post({ ...OP, baseHash: "a".repeat(64) })).status).toBe(409);
     expect((await post({ kind: "x" })).status).toBe(400);
     expect((await harness.api("/api/documents/.gitlab-ci.yml/preview")).status).toBe(405);
+  });
+
+  test("une écriture externe que le watcher n'a pas vue reste à lui", async () => {
+    const external = `${MAIN}# externe\n`;
+    writeFileSync(harness.file, external);
+    const stream = await harness.raw(`/api/events?token=${harness.server.token}`);
+    const reader = stream.body?.getReader();
+    expect((await post(OP)).status).toBe(409);
+    let seen = "";
+    const deadline = Date.now() + 1500;
+    while (Date.now() < deadline && !seen.includes("document.changed")) {
+      const chunk = await Promise.race([
+        reader?.read(),
+        new Promise<undefined>((settle) => setTimeout(settle, 100)),
+      ]);
+      seen += chunk?.value === undefined ? "" : new TextDecoder().decode(chunk.value);
+    }
+    await reader?.cancel();
+    expect(seen).toContain("document.changed");
+  });
+
+  test("un fichier supprimé reste à annoncer par le watcher", async () => {
+    rmSync(harness.file);
+    expect((await post(OP)).status).toBe(404);
+    const stream = await harness.raw(`/api/events?token=${harness.server.token}`);
+    const reader = stream.body?.getReader();
+    let seen = "";
+    const deadline = Date.now() + 1500;
+    while (Date.now() < deadline && !seen.includes("document.removed")) {
+      const chunk = await Promise.race([
+        reader?.read(),
+        new Promise<undefined>((settle) => setTimeout(settle, 100)),
+      ]);
+      seen += chunk?.value === undefined ? "" : new TextDecoder().decode(chunk.value);
+    }
+    await reader?.cancel();
+    expect(seen).toContain("document.removed");
   });
 
   test("une opération refusée n'occupe pas d'opId, l'insertion passe ensuite", async () => {

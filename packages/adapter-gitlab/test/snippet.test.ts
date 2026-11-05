@@ -69,6 +69,22 @@ describe("addSnippet", () => {
     });
   });
 
+  test.each([
+    ["une clé indentée", "  x:\n    stage: test\n    script:\n      - a\n"],
+    ["un commentaire indenté en tête", "    # note\nx:\n  script:\n    - a\n"],
+    ["un stage vide commenté", "x:\n  stage: # c\n  script:\n    - a\n"],
+    ["un stage vide tagué", "x:\n  stage: !!str\n  script:\n    - a\n"],
+    ["un stage sans valeur", "x:\n  stage:\n  script:\n    - a\n"],
+  ])("%s est refusé", (_label, snippet) => {
+    expect(run(BASE, { ...add, snippet })).toMatchObject({
+      error: { params: { reason: "invalidSnippet" } },
+    });
+  });
+
+  test("un commentaire de tête à la colonne zéro est recopié", () => {
+    expect(written(BASE, { ...add, snippet: `# scan\n${SNIPPET}` })).toContain("# scan\ntrivy:\n");
+  });
+
   test("les refus de nom et de stage sont ceux d'addJob", () => {
     expect(run(BASE, { ...add, id: "compile" })).toMatchObject({
       error: { code: "NAME_CONFLICT" },
@@ -171,6 +187,12 @@ describe("composite", () => {
     }
   });
 
+  test("une ancre sur le dernier stage n'est pas recopiée", () => {
+    const text = "stages:\n  - build\n  - &t test\n\na:\n  stage: *t\n  script: x\n";
+    const after = parse(written(text, { kind: "addStage", name: "scan" }));
+    expect(after.pipeline.jobs[0]?.stage.value).toBe("test");
+  });
+
   test("une composite vide est refusée", () => {
     expect(run(BASE, { kind: "composite", steps: [] }).ok).toBe(false);
   });
@@ -196,6 +218,15 @@ describe("needs inter-projets", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";
     expect(run(text, { kind: "removeNeed", id: "job", job: "a" }).ok).toBe(false);
+  });
+
+  test("un item inter-projets derrière une ancre se voit aussi", () => {
+    const anchor = ".p: &p\n  project: g/p\n  job: j\n  ref: main\n  artifacts: true\n\n";
+    const jobs = "a:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n";
+    for (const item of ["    - *p\n", "    - <<: *p\n"]) {
+      const text = `${anchor}${jobs}    - a\n${item}`;
+      expect(run(text, { kind: "removeNeed", id: "job", job: "a" }).ok).toBe(false);
+    }
   });
 
   test("une liste locale s'étend sans perdre l'item", () => {

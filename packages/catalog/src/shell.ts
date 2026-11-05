@@ -100,7 +100,6 @@ const INERT = new Set([
   "cd",
   "chmod",
   "chown",
-  "command",
   "cp",
   "echo",
   "export",
@@ -129,6 +128,7 @@ const INERT = new Set([
 ]);
 
 const WRAPPERS = new Set([
+  "command",
   "do",
   "else",
   "env",
@@ -144,6 +144,11 @@ const WRAPPERS = new Set([
 const INSTALLING =
   /^(apt-get|apt|apk|yum|dnf|brew|pip3?|npm|gem|go|cargo)\s+(-\S+\s+)*(install|add|i)\b/;
 
+/** Au-delà, une ligne ou une imbrication n'est plus un script mais une entrée hostile : elle reste
+ *  entière, et la détection n'y voit qu'une commande. */
+const MAX_DEPTH = 8;
+const MAX_LINE = 64 * 1024;
+
 function unquoted(word: string): string {
   return word.replace(/^(["'])(.*)\1$/s, "$2");
 }
@@ -154,8 +159,11 @@ function shellArgument(command: string): string | null {
   return match?.[1] === undefined ? null : unquoted(match[1].trim());
 }
 
-function resolved(raw: string): string[] {
+function resolved(raw: string, depth: number): string[] {
   let command = raw.trim();
+  if (/^command\s+-[vVp]/.test(command)) {
+    return [];
+  }
   while (true) {
     const first = command.split(/\s+/, 1)[0] ?? "";
     if (WRAPPERS.has(first) || /^\w+=/.test(first)) {
@@ -170,20 +178,26 @@ function resolved(raw: string): string[] {
 
   const script = shellArgument(command);
   if (script !== null) {
-    return executedCommands(script);
+    return executedCommands(script, depth + 1);
   }
 
   const remote = /^kubectl\s+exec\s.*?\s--\s+(.+)$/s.exec(command);
   if (remote?.[1] !== undefined) {
-    return executedCommands(remote[1]);
+    return executedCommands(remote[1], depth + 1);
   }
 
   const first = command.split(/\s+/, 1)[0] ?? "";
   return INERT.has(first) || first.startsWith("#") || INSTALLING.test(command) ? [] : [command];
 }
 
-export function executedCommands(line: string): string[] {
+export function executedCommands(line: string, depth = 0): string[] {
+  if (depth > MAX_DEPTH || line.length > MAX_LINE) {
+    return [line];
+  }
   const joined = line.replace(/\\\r?\n/g, " ");
   const { commands, nested } = split(joined);
-  return [...commands.flatMap(resolved), ...nested.flatMap(executedCommands)];
+  return [
+    ...commands.flatMap((command) => resolved(command, depth)),
+    ...nested.flatMap((command) => executedCommands(command, depth + 1)),
+  ];
 }

@@ -32,7 +32,11 @@ function freeName(base: string, taken: ReadonlySet<string>): string {
 }
 
 function snippetStage(snippet: string): string | null {
-  return /^[ \t]+stage:[ \t]*["']?([^"'\s#]+)/m.exec(snippet)?.[1] ?? null;
+  const indent = /^[ \t]+/m.exec(snippet)?.[0] ?? "";
+  const line = new RegExp(`^${indent}stage:[ \\t]*(?:"([^"]+)"|'([^']+)'|([^\\s#]+))`, "m").exec(
+    snippet,
+  );
+  return line?.[1] ?? line?.[2] ?? line?.[3] ?? null;
 }
 
 function draftFor(id: string, stage: string, snippet: string, pipeline: Pipeline): Draft {

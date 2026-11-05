@@ -302,6 +302,27 @@ describe("couverture", () => {
   });
 });
 
+describe("découpage shell sur une entrée hostile", () => {
+  const catalog = loadCatalog();
+  test.each([
+    ["$( imbriqués", "$(".repeat(5000)],
+    ["sh -c imbriqués", "bash -c ".repeat(5000)],
+    ["kubectl exec imbriqués", "kubectl exec a -- ".repeat(5000)],
+    ["une ligne immense", "a ".repeat(500000)],
+  ])("%s ne plante pas et reste rapide", (_label, line) => {
+    const started = performance.now();
+    expect(() => detectTools({ image: null, script: [line] }, catalog.tools)).not.toThrow();
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test("command lance, command -v interroge", () => {
+    const found = (line: string) =>
+      detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
+    expect(found("command trivy fs .")).toContain("trivy");
+    expect(found("command -v trivy")).toEqual([]);
+  });
+});
+
 describe("découpage shell de la détection", () => {
   const catalog = loadCatalog();
   const found = (line: string) =>

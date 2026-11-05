@@ -267,7 +267,25 @@ export class DocumentStore {
 
     // Le watcher a 40 ms de retard sur le disque : sans cette relecture, une écriture externe dans
     // cette fenêtre serait écrasée par une opération fondée sur le texte en cache.
-    if (this.loaded.has(file) && this.reader.read(file) !== this.loaded.get(file)?.text) {
+    const known = this.loaded.get(file);
+    const onDisk = known === undefined ? undefined : this.reader.read(file);
+    if (known !== undefined && onDisk !== known.text) {
+      // Une prévisualisation n'a rien à changer : le chargement avancerait le hash, et le watcher
+      // ne dirait plus rien du changement à l'écran.
+      if (!write && (onDisk === null || onDisk === undefined)) {
+        return { status: 404, body: { code: NOT_FOUND, params: { reason: "missingFile", file } } };
+      }
+      if (!write) {
+        const { hash } = parse(onDisk as string, { file, read: this.reader });
+        return {
+          status: 409,
+          body: {
+            code: STALE_DOCUMENT,
+            params: { expected: hash, received: validated.value.baseHash },
+            hash,
+          },
+        };
+      }
       await this.load(file);
     }
     const current =

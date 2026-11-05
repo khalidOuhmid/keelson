@@ -24,7 +24,8 @@ Un `flowchart LR` :
 | intégration | `jA -->\|type\| vB` |
 
 Les identifiants sont des positions, les noms ne passent que par des libellés entre guillemets, où
-`"` s'écrit `#quot;`. Une dépendance ou une intégration vers un élément absent n'est pas dessinée.
+`#`, `"` et `%` s'écrivent `#35;`, `#quot;` et `#37;`, et où un saut de ligne devient une espace. Un
+job dont le stage n'est pas déclaré a quand même son `subgraph`. Une dépendance ou une intégration vers un élément absent n'est pas dessinée.
 
 ## `json`
 

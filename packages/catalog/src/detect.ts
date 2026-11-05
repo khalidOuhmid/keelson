@@ -24,7 +24,7 @@ function onImage(tool: Tool, image: string | null): boolean {
 function onScript(tool: Tool, script: readonly string[]): boolean {
   const patterns = tool.detect.scripts.map((source) => new RegExp(source, "i"));
   return script
-    .flatMap(executedCommands)
+    .flatMap((line) => executedCommands(line))
     .some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
