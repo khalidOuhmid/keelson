@@ -1,8 +1,8 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L5 — propositions et insertion**, sur `lot/l5-propositions`
-Prochaine action : vérification depuis un clone, fusion.
+Lot courant : **L6 — adaptateur GitHub Actions**, à cadrer depuis `main`
+Prochaine action : cadrage de L6, `specs/lots/l6.md`, branche `lot/l6-github`.
 Blocage : aucun
 
 
@@ -16,8 +16,8 @@ Blocage : aucun
 | L2b-fix — preuves rouges, sévérité, texte d'aide, polish | TERMINÉ | `a88faf2` (`--no-ff`) |
 | L3 — taxonomie, catalogue, overlay OWASP | TERMINÉ | `36caaa1` (`--no-ff`) |
 | L4 — toolchain | TERMINÉ | `fd63570` (`--no-ff`) |
-| L5 — propositions et insertion | **LOT COURANT** | — |
-| L6 — adaptateur GitHub Actions | À FAIRE | — |
+| L5 — propositions et insertion | TERMINÉ | `971ae5b` (`--no-ff`) |
+| L6 — adaptateur GitHub Actions | **LOT COURANT** | — |
 | L7 — packaging open source | À FAIRE | — |
 | L8 — flotte | À FAIRE | — |
 
@@ -752,4 +752,7 @@ positifs et une explosion de regex introduits par le correctif du shell, puis un
 de `needs`. Le mot à mot a remplacé la regex, et une liste blanche a remplacé le parcours : seul ce que
 l'IR rend à l'identique est réécrit, et la liste relue est comparée à la liste attendue. La dernière ne
 rouvre rien.
+
+**Clôture.** Fusion `971ae5b`. Depuis un clone sans `dist/` : `bun run check`, propriétés à 500 runs,
+71 E2E, smoke test Node, `export` compris. `check` vert sur `main`.
 
