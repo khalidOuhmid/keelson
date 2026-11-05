@@ -471,6 +471,16 @@ function planned(
   }
 }
 
+/** Sans l'ordre des services : `toJS` passe les clés entières en tête, quel que soit le fichier. */
+function sameModel(left: Toolchain, right: Toolchain): boolean {
+  const sorted = (model: Toolchain) =>
+    JSON.stringify({
+      ...model,
+      services: [...model.services].sort((a, b) => (a.id < b.id ? -1 : 1)),
+    });
+  return sorted(left) === sorted(right);
+}
+
 function finish(text: string, edit: Edit | null): ToolchainResult {
   const next =
     edit === null ? text : `${text.slice(0, edit.start)}${edit.text}${text.slice(edit.end)}`;
@@ -543,8 +553,7 @@ export function applyToolchain(
 
   const result = finish(text, edit);
   const read = parseToolchain(result.text);
-  const faithful =
-    JSON.stringify(read.toolchain) === JSON.stringify(expectedToolchain(toolchain, operation));
+  const faithful = sameModel(read.toolchain, expectedToolchain(toolchain, operation));
   if (read.diagnostics.length > 0 || !faithful) {
     return err({
       code: INVALID_OPERATION,

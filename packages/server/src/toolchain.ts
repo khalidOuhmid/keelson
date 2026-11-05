@@ -78,8 +78,9 @@ export class ToolchainStore {
     const absolute = join(this.root, path);
     try {
       lstatSync(absolute);
-    } catch {
-      return { kind: "absent" };
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      return { kind: code === "ENOENT" || code === "ENOTDIR" ? "absent" : "unreadable" };
     }
     const text = readInsideRoot(this.root, path);
     if (text === null) {

@@ -85,6 +85,11 @@ describe("services", () => {
     expect(parseToolchain(text).toolchain.services[0]?.url).toBe("a: b #c\nd");
   });
 
+  test("un identifiant entier s'ajoute : YAML ne garde pas cet ordre en objet", () => {
+    const text = edited(BASE, { ...add, id: "8080" });
+    expect(parseToolchain(text).toolchain.services.map((service) => service.id)).toContain("8080");
+  });
+
   test("un identifiant déjà pris ou illégal est refusé", () => {
     expect(code(BASE, { ...add, id: "nexus" })).toBe("NAME_CONFLICT");
     expect(code(BASE, { ...add, id: "Bad Name" })).toBe("INVALID_NAME");

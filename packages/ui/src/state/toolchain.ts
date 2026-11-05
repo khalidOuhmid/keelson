@@ -58,11 +58,14 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
   /** Le hash annoncé pendant une opération : celle-ci finie, seul ce hash dit si le disque a bougé
    *  ailleurs. Aucun autre événement ne suivra. */
   let announced: string | null = null;
+  /** Les hash que ce client a écrits : l'écho d'une écriture peut arriver après la suivante. */
+  const written = new Set<string>();
 
   return createStore<ToolchainState>((set, get) => {
     const reload = async (): Promise<void> => {
       undoStack = [];
       redoStack = [];
+      written.clear();
       const result = await dependencies.load();
       if (result.ok) {
         set({ payload: result.value });
@@ -83,6 +86,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
 
       if (result.ok) {
         const { inverse, ...payload } = result.value;
+        written.add(payload.hash);
         onSuccess(inverse);
         set({ payload });
         if (heard !== null && heard !== payload.hash) {
@@ -149,14 +153,15 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       canRedo: () => redoStack.length > 0,
 
       async changed(hash) {
+        if (written.has(hash) || hash === get().payload?.hash) {
+          return;
+        }
         if (get().pending) {
           announced = hash;
           return;
         }
-        if (hash !== get().payload?.hash) {
-          await reload();
-          set({ notice: RELOADED });
-        }
+        await reload();
+        set({ notice: RELOADED });
       },
 
       async move(node, position) {

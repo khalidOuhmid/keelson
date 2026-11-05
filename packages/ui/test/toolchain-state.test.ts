@@ -156,6 +156,39 @@ describe("store de toolchain", () => {
     expect(held.getState().payload?.hash).toBe("z");
   });
 
+  test("l'écho de notre écriture pendant l'opération suivante ne recharge pas", async () => {
+    await state().submit(draft);
+    let settle: (value: ApiResult<ToolchainOperationPayload>) => void = () => {};
+    const echo = createToolchainStore({
+      load: async () => ({ ok: true, value: payload("a") }),
+      submit: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      newOpId: () => "op",
+    });
+    await echo.getState().load();
+    const first = echo.getState().submit(draft);
+    settle(applied("b"));
+    await first;
+    const second = echo.getState().submit(draft);
+    await echo.getState().changed("b");
+    settle(applied("c"));
+    await second;
+    expect(echo.getState().notice).toBeNull();
+    expect(echo.getState().canUndo()).toBe(true);
+  });
+
+  test("l'écho tardif d'une écriture déjà dépassée ne recharge pas", async () => {
+    await state().submit(draft);
+    answers.push(applied("c"));
+    await state().submit(draft);
+    await state().changed("b");
+    expect(state().notice).toBeNull();
+    expect(state().canUndo()).toBe(true);
+  });
+
   test("une écriture externe rechargée le dit", async () => {
     loaded = payload("z");
     await state().changed("z");

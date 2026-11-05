@@ -194,14 +194,19 @@ export function App({ deps }: AppProps = {}) {
     hadSelection.current = open;
   }, [state.selectedJobId]);
 
+  const serviceOpen =
+    state.view === "toolchain" &&
+    (toolchainState.payload?.toolchain.services.some(
+      (service) => service.id === toolchainState.selectedService,
+    ) ??
+      false);
   const hadService = useRef(false);
   useEffect(() => {
-    const open = toolchainState.selectedService !== null;
-    if (hadService.current && !open) {
+    if (hadService.current && !serviceOpen) {
       document.querySelector<HTMLElement>('[aria-label="Toolchain graph"]')?.focus();
     }
-    hadService.current = open;
-  }, [toolchainState.selectedService]);
+    hadService.current = serviceOpen;
+  }, [serviceOpen]);
 
   // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
   // désigne au canevas mais se referme depuis n'importe où, panneau compris.
@@ -495,7 +500,7 @@ export function App({ deps }: AppProps = {}) {
             className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
           >
             <ServicePanel
-              key={`${selectedService.id}:${toolchainPayload.hash}`}
+              key={`${selectedService.id}:${selectedService.url}:${selectedService.environment}`}
               service={selectedService}
               toolchain={toolchainPayload.toolchain}
               tool={state.catalog?.tools.find((tool) => tool.id === selectedService.tool)}

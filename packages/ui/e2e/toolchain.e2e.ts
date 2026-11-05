@@ -183,6 +183,41 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
+  test("une saisie en cours survit à une écriture sans rapport", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("textbox", { name: "URL" }).fill("http://brouillon");
+      await panel.getByRole("button", { name: "Add integration" }).click();
+      await expect(panel.getByRole("button", { name: /^Remove push|^Remove fetch/ })).toBeVisible();
+      await expect(panel.getByRole("textbox", { name: "URL" })).toHaveValue("http://brouillon");
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("retirer le service sélectionné rend le focus au graphe", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      await page.getByRole("button", { name: "Remove service" }).click();
+      await expect(page.getByRole("region", { name: "Toolchain graph" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("à 375 px, le panneau de service tient dans la fenêtre", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson({
