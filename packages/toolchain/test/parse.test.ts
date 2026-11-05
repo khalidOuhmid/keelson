@@ -63,6 +63,10 @@ describe("lecture de toolchain.yaml", () => {
       "version: 1\nintegrations:\n  - {job: a, service: b, kind: x}\n",
     ],
     ["clé inconnue", "version: 1\nvoici: 1\n"],
+    [
+      "deux clés au même texte",
+      'version: 1\nservices:\n  8080:\n    tool: a\n  "8080":\n    tool: b\n',
+    ],
   ])("%s rend TOOLCHAIN_INVALID et une toolchain vide", (_label, text) => {
     const { toolchain, diagnostics } = parseToolchain(text);
     expect(toolchain.services).toEqual([]);

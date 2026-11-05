@@ -155,7 +155,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       canRedo: () => redoStack.length > 0,
 
       async changed(hash) {
-        const echo = awaitingEcho.indexOf(hash);
+        const echo = awaitingEcho.lastIndexOf(hash);
         if (echo !== -1) {
           awaitingEcho = awaitingEcho.slice(echo + 1);
           return;

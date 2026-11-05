@@ -211,6 +211,18 @@ describe("store de toolchain", () => {
     expect(state().payload?.hash).toBe("b");
   });
 
+  test("un hash écrit deux fois : l'écho consomme jusqu'à la dernière occurrence", async () => {
+    await state().submit(draft);
+    answers.push(applied("a"));
+    await state().submit(draft);
+    answers.push(applied("b"));
+    await state().submit(draft);
+    await state().changed("b");
+    loaded = payload("a");
+    await state().changed("a");
+    expect(state().payload?.hash).toBe("a");
+  });
+
   test("une écriture externe rechargée le dit", async () => {
     loaded = payload("z");
     await state().changed("z");

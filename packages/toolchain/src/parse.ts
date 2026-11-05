@@ -78,6 +78,12 @@ export function parseToolchain(text: string | null): ParsedToolchain {
   if (illegal !== undefined) {
     return invalid(`services: ${String(illegal.key)} is not a usable service id`);
   }
+  // `8080:` et `"8080":` sont deux clés pour `yaml`, et une seule une fois en objet.
+  const keys = isMap(services) ? services.items.map((pair) => String(pair.key)) : [];
+  const repeated = keys.find((key, position) => keys.indexOf(key) !== position);
+  if (repeated !== undefined) {
+    return invalid(`services: ${repeated} is declared twice`);
+  }
 
   // `toJS` lève sur un alias sans ancre : `parseDocument` ne le voit pas comme une erreur.
   let raw: unknown;
