@@ -1,5 +1,6 @@
 import type { Logo, Tool } from "@keelson/catalog";
 import { isOpenSource } from "@keelson/catalog/licenses";
+import { useState } from "react";
 import { LAYER_GENERIC_GLYPH, LogoGlyph } from "../../icons.tsx";
 import { OpaqueBlockView } from "../../panels/OpaqueBlockView.tsx";
 import { LayerTags } from "../coverage/LayerTag.tsx";
@@ -19,12 +20,14 @@ function Snippet({ label, source }: { label: string; source: string | null }) {
   return (
     <div className="flex flex-col gap-1">
       <h3 className="text-2xs font-semibold tracking-label text-text-muted uppercase">{label}</h3>
-      <OpaqueBlockView blockKey={`${label} snippet`} source={source.trimEnd()} wrap={false} />
+      <OpaqueBlockView blockKey={`${label} snippet`} source={source.trimEnd()} />
     </div>
   );
 }
 
 export function ToolCard({ tool, logo, onClose, insertion }: ToolCardProps) {
+  const [inserting, setInserting] = useState(false);
+
   return (
     <section aria-label="Tool detail" className="flex flex-col gap-4">
       <header className="flex items-start justify-between gap-2">
@@ -84,10 +87,12 @@ export function ToolCard({ tool, logo, onClose, insertion }: ToolCardProps) {
         Homepage
       </a>
 
-      {insertion === undefined ? null : <InsertTool {...insertion} tool={tool} />}
+      {insertion === undefined ? null : (
+        <InsertTool {...insertion} tool={tool} open={inserting} onOpen={setInserting} />
+      )}
 
-      <Snippet label="GitLab CI" source={tool.snippets.gitlab} />
-      <Snippet label="GitHub Actions" source={tool.snippets.github} />
+      {inserting ? null : <Snippet label="GitLab CI" source={tool.snippets.gitlab} />}
+      {inserting ? null : <Snippet label="GitHub Actions" source={tool.snippets.github} />}
     </section>
   );
 }

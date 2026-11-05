@@ -21,6 +21,7 @@ export type Draft = Operation extends infer T
 export type Notice =
   | { kind: "stale"; message: string }
   | { kind: "reloaded"; message: string }
+  | { kind: "written"; message: string }
   | { kind: "removed"; message: string };
 
 export type Status = "loading" | "ready" | "removed" | "empty";
@@ -86,6 +87,8 @@ export type KeelsonState = {
   redo(): Promise<void>;
   serverEvent(event: Exclude<ServerEvent, { kind: "toolchain.changed" }>): Promise<void>;
   dismissNotice(): void;
+  /** Dit ce qui vient d'être écrit à la demande de l'utilisateur. */
+  announce(message: string): void;
   dismissError(): void;
 };
 
@@ -388,6 +391,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         }
 
         await reload(event.file, RELOADED);
+      },
+
+      announce(message) {
+        set({ notice: { kind: "written", message } });
       },
 
       dismissNotice() {

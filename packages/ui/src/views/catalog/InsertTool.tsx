@@ -4,8 +4,8 @@ import { renderMessage } from "@keelson/core/messages";
 import type { LayerId } from "@keelson/taxonomy";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApiFailure, ApiResult, OperationPayload } from "../../api/client.ts";
-import { BUTTON, FIELD, GROUP, LABEL } from "../../editing/controls.ts";
-import { diffRows, visibleRows } from "../../editing/diff.ts";
+import { BUTTON, FIELD, GROUP, LABEL, SECTION_HEADING } from "../../editing/controls.ts";
+import { type DiffRow, diffRows, visibleRows } from "../../editing/diff.ts";
 import type { Draft } from "../../state/store.ts";
 import { LayerTags } from "../coverage/LayerTag.tsx";
 
@@ -14,19 +14,11 @@ export type Insertion = {
   text: string;
   disabled: boolean;
   preview: (draft: Draft) => Promise<ApiResult<OperationPayload>>;
-  /** `job` est sélectionné une fois l'écriture faite. */
-  onInsert: (draft: Draft, job: string) => Promise<boolean>;
+  /** `job` reçoit le focus une fois l'écriture faite. Rend l'échec, ou `null`. */
+  onInsert: (draft: Draft, job: string) => Promise<ApiFailure | null>;
 };
 
 export type InsertToolProps = Insertion & { tool: Tool };
-
-const SIGN = { same: " ", add: "+", remove: "-" } as const;
-
-const ROW = {
-  same: "text-text-muted",
-  add: "text-text-primary bg-accent/10",
-  remove: "text-danger bg-danger-muted/20",
-} as const;
 
 function freeName(base: string, taken: ReadonlySet<string>): string {
   if (!taken.has(base)) {
@@ -50,7 +42,26 @@ function draftFor(id: string, stage: string, snippet: string, pipeline: Pipeline
     : { kind: "composite", steps: [{ kind: "addStage", name: stage }, add] };
 }
 
-type Result = { payload: OperationPayload } | { failure: ApiFailure };
+type Answer = { draft: Draft; payload: OperationPayload } | { draft: Draft; failure: ApiFailure };
+
+function Row({ row }: { row: DiffRow }) {
+  if (row.kind === "same") {
+    return (
+      <span className="block whitespace-pre-wrap break-words text-text-muted"> {row.text}</span>
+    );
+  }
+  const added = row.kind === "add";
+  const Mark = added ? "ins" : "del";
+  return (
+    <Mark
+      className={`block whitespace-pre-wrap break-words no-underline ${added ? "bg-surface-2 text-text-primary" : "bg-danger-muted/20 text-danger"}`}
+    >
+      <span className="sr-only">{added ? "added: " : "removed: "}</span>
+      <span aria-hidden="true">{added ? "+" : "-"}</span>
+      {row.text}
+    </Mark>
+  );
+}
 
 function Form({
   tool,
@@ -60,7 +71,8 @@ function Form({
   disabled,
   preview,
   onInsert,
-}: InsertToolProps & { snippet: string }) {
+  onCancel,
+}: InsertToolProps & { snippet: string; onCancel: () => void }) {
   const taken = useMemo(
     () => new Set([...pipeline.jobs, ...pipeline.templates].map((entry) => entry.id)),
     [pipeline],
@@ -71,8 +83,14 @@ function Form({
 
   const [id, setId] = useState(() => freeName(tool.id, taken));
   const [stage, setStage] = useState(wanted ?? stages[0] ?? "test");
-  const [result, setResult] = useState<Result | null>(null);
+  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [lastDiff, setLastDiff] = useState<string | null>(null);
+  const [writeFailure, setWriteFailure] = useState<ApiFailure | null>(null);
   const asked = useRef(0);
+  const writing = useRef(false);
+  const nameField = useRef<HTMLInputElement>(null);
+
+  useEffect(() => nameField.current?.focus(), []);
 
   const draft = useMemo(
     () => draftFor(id, stage, snippet, pipeline),
@@ -80,35 +98,69 @@ function Form({
   );
 
   useEffect(() => {
+    if (writing.current) {
+      return;
+    }
     asked.current += 1;
     const turn = asked.current;
-    void preview(draft).then((answer) => {
-      if (turn === asked.current) {
-        setResult(answer.ok ? { payload: answer.value } : { failure: answer.error });
+    void preview(draft).then((result) => {
+      if (turn !== asked.current) {
+        return;
+      }
+      setAnswer(result.ok ? { draft, payload: result.value } : { draft, failure: result.error });
+      if (result.ok) {
+        setLastDiff(result.value.text);
       }
     });
   }, [draft, preview]);
 
+  // Le diff affiché doit être celui de ce qui partira : une réponse d'un autre brouillon ne compte pas.
+  const settled = answer !== null && answer.draft === draft;
+  const failure = settled && "failure" in answer ? answer.failure : null;
+  const payload = settled && "payload" in answer ? answer.payload : null;
+
   const rows =
-    result !== null && "payload" in result
-      ? visibleRows(diffRows(text, result.payload.text), 2)
-      : [];
+    lastDiff === null || failure !== null ? [] : visibleRows(diffRows(text, lastDiff), 2);
+  const added = rows.filter((row) => row.kind === "add").length;
+  const removed = rows.filter((row) => row.kind === "remove").length;
   const layers: readonly LayerId[] =
-    result !== null && "payload" in result
-      ? (result.payload.coverage.jobs.find((job) => job.job === id)?.layers ?? [])
-      : [];
+    payload?.coverage.jobs.find((job) => job.job === id)?.layers ?? [];
+
+  const insert = async (): Promise<void> => {
+    if (disabled || payload === null) {
+      return;
+    }
+    writing.current = true;
+    const refused = await onInsert(draft, id);
+    writing.current = refused === null;
+    setWriteFailure(refused);
+  };
 
   return (
-    <div className="flex flex-col gap-2">
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void insert();
+      }}
+    >
       <label className={GROUP}>
         <span className={LABEL}>Job name</span>
         <input
+          ref={nameField}
           className={FIELD}
           value={id}
           disabled={disabled}
+          aria-invalid={failure !== null}
+          aria-describedby={failure === null ? undefined : "insert-refusal"}
           onChange={(event) => setId(event.target.value)}
         />
       </label>
+      {failure === null ? null : (
+        <p id="insert-refusal" role="alert" className="text-sm text-danger">
+          {renderMessage(failure)}
+        </p>
+      )}
       <label className={GROUP}>
         <span className={LABEL}>Stage</span>
         <select
@@ -126,12 +178,6 @@ function Form({
         </select>
       </label>
 
-      {result !== null && "failure" in result ? (
-        <p role="alert" className="text-sm text-danger">
-          {renderMessage(result.failure)}
-        </p>
-      ) : null}
-
       {layers.length === 0 ? null : (
         <p data-testid="insert-layers" className="flex flex-wrap items-center gap-1 text-sm">
           <span className="text-text-muted">Covers</span>
@@ -139,55 +185,70 @@ function Form({
         </p>
       )}
 
-      {rows.length === 0 ? null : <h3 className={LABEL}>Changes</h3>}
       {rows.length === 0 ? null : (
-        <pre
-          data-testid="insert-diff"
-          className="overflow-x-auto rounded-sm border border-border-default bg-surface-inset p-1 font-mono text-xs"
-        >
-          {rows.map((row, index) =>
-            row.kind === "gap" ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: une ligne n'a pas d'autre identité que sa place dans ce diff
-              <span key={index} className="block text-text-muted">
-                …
-              </span>
-            ) : (
-              // biome-ignore lint/suspicious/noArrayIndexKey: une ligne n'a pas d'autre identité que sa place dans ce diff
-              <span key={index} className={`block ${ROW[row.kind]}`}>
-                {SIGN[row.kind]}
-                {row.text}
-              </span>
-            ),
-          )}
-        </pre>
+        <figure className="flex flex-col gap-1">
+          <figcaption className={SECTION_HEADING}>Changes to {pipeline.main}</figcaption>
+          <pre
+            data-testid="insert-diff"
+            className="rounded-sm border border-border-default bg-surface-inset p-1 font-mono text-xs"
+          >
+            {rows.map((row, index) =>
+              row.kind === "gap" ? (
+                // biome-ignore lint/suspicious/noArrayIndexKey: une ligne n'a pas d'autre identité que sa place dans ce diff
+                <span key={index} className="block text-text-muted">
+                  <span className="sr-only">unchanged lines</span>
+                  <span aria-hidden="true">…</span>
+                </span>
+              ) : (
+                // biome-ignore lint/suspicious/noArrayIndexKey: une ligne n'a pas d'autre identité que sa place dans ce diff
+                <Row key={index} row={row} />
+              ),
+            )}
+          </pre>
+          <p role="status" className="sr-only">
+            {added} lines added, {removed} lines removed.
+          </p>
+        </figure>
       )}
 
-      <button
-        type="button"
-        className={`${BUTTON} self-start`}
-        disabled={disabled || result === null || "failure" in result}
-        onClick={() => void onInsert(draft, id)}
-      >
-        Insert
-      </button>
-    </div>
+      {writeFailure === null ? null : (
+        <p role="alert" className="text-sm text-danger">
+          {renderMessage(writeFailure)}
+        </p>
+      )}
+
+      <div className="sticky bottom-0 flex flex-wrap gap-1 bg-surface-1 py-1">
+        <button
+          type="submit"
+          className={`${BUTTON} border-border-strong text-text-primary`}
+          disabled={disabled || payload === null}
+        >
+          Insert into {pipeline.main}
+        </button>
+        <button type="button" className={BUTTON} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
-export function InsertTool(props: InsertToolProps) {
-  const [open, setOpen] = useState(false);
+export function InsertTool(
+  props: InsertToolProps & { open: boolean; onOpen: (open: boolean) => void },
+) {
+  const { open, onOpen, ...insertion } = props;
   const snippet = props.tool.snippets.gitlab;
   if (snippet === null) {
     return null;
   }
   return open ? (
-    <Form {...props} snippet={snippet} />
+    <Form {...insertion} snippet={snippet} onCancel={() => onOpen(false)} />
   ) : (
     <button
       type="button"
       className={`${BUTTON} self-start`}
       disabled={props.disabled}
-      onClick={() => setOpen(true)}
+      onClick={() => onOpen(true)}
     >
       Add to pipeline
     </button>

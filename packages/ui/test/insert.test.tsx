@@ -3,9 +3,10 @@ import type { Tool } from "@keelson/catalog";
 import { emptyPipeline, type Job, type Pipeline } from "@keelson/core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import type { ApiResult, OperationPayload } from "../src/api/client.ts";
 import { diffRows, visibleRows } from "../src/editing/diff.ts";
-import { InsertTool } from "../src/views/catalog/InsertTool.tsx";
+import { InsertTool, type InsertToolProps } from "../src/views/catalog/InsertTool.tsx";
 
 const SNIPPET = "trivy:\n  stage: test\n  script:\n    - trivy fs .\n";
 
@@ -34,10 +35,15 @@ function payload(text = AFTER, layers: string[] = ["sca"]): ApiResult<OperationP
   };
 }
 
+function Harness(props: InsertToolProps) {
+  const [open, setOpen] = useState(false);
+  return <InsertTool {...props} open={open} onOpen={setOpen} />;
+}
+
 function setup(preview = mock(async () => payload()), pipeline = PIPELINE, disabled = false) {
-  const onInsert = mock(async () => true);
+  const onInsert = mock(async () => null);
   render(
-    <InsertTool
+    <Harness
       tool={TOOL}
       pipeline={pipeline}
       text={BEFORE}
@@ -92,7 +98,7 @@ describe("insertion depuis la fiche", () => {
   test("le diff et la couche couverte s'affichent avant toute écriture", async () => {
     const { onInsert } = setup();
     await open();
-    await screen.findByText("+trivy:");
+    await screen.findByText("trivy:");
     expect(screen.getByTestId("insert-diff").textContent).toContain("+trivy:");
     expect(screen.getByTestId("insert-layers").textContent).toContain("SCA");
     expect(onInsert).not.toHaveBeenCalled();
@@ -148,8 +154,8 @@ describe("insertion depuis la fiche", () => {
   test("insérer envoie la même opération", async () => {
     const { onInsert } = setup();
     await open();
-    await screen.findByText("+trivy:");
-    await userEvent.click(screen.getByRole("button", { name: "Insert" }));
+    await screen.findByText("trivy:");
+    await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
     expect(onInsert).toHaveBeenCalledWith(
       expect.objectContaining({ kind: "addSnippet", id: "trivy" }),
       "trivy",
@@ -168,9 +174,10 @@ describe("insertion depuis la fiche", () => {
     );
     await open();
     await screen.findByText(/already exists/);
-    expect((screen.getByRole("button", { name: "Insert" }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 
   test("une réponse d'un ancien nom ne remplace pas la dernière", async () => {
@@ -185,10 +192,75 @@ describe("insertion depuis la fiche", () => {
     setup(preview as never);
     await open();
     await userEvent.type(screen.getByLabelText("Job name"), "x");
-    await screen.findByText("+last:");
+    await screen.findByText("last:");
     first(payload(`${BEFORE}\nold:\n`));
     await new Promise((settle) => setTimeout(settle, 20));
-    expect(screen.queryByText("+old:")).toBeNull();
+    expect(screen.queryByText("old:")).toBeNull();
+  });
+
+  test("le focus entre dans le formulaire à l'ouverture", async () => {
+    setup();
+    await open();
+    expect(document.activeElement).toBe(screen.getByLabelText("Job name"));
+  });
+
+  test("Cancel referme sans rien écrire", async () => {
+    const { onInsert } = setup();
+    await open();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Add to pipeline" })).toBeDefined();
+    expect(onInsert).not.toHaveBeenCalled();
+  });
+
+  test("Entrée insère", async () => {
+    const { onInsert } = setup();
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.type(screen.getByLabelText("Job name"), "{Enter}");
+    expect(onInsert).toHaveBeenCalledTimes(1);
+  });
+
+  test("un diff périmé coupe Insert jusqu'à la réponse suivante", async () => {
+    const preview = mock((op: { id?: string }) =>
+      op.id === "trivy" ? Promise.resolve(payload()) : new Promise<never>(() => {}),
+    );
+    setup(preview as never);
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.type(screen.getByLabelText("Job name"), "x");
+    const insert = screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" });
+    expect((insert as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  test("une écriture refusée se dit dans le formulaire", async () => {
+    const onInsert = mock(async () => ({
+      status: 0,
+      code: "NETWORK_ERROR" as const,
+      params: { detail: "coupé" },
+    }));
+    render(
+      <Harness
+        tool={TOOL}
+        pipeline={PIPELINE}
+        text={BEFORE}
+        disabled={false}
+        preview={async () => payload()}
+        onInsert={onInsert}
+      />,
+    );
+    await open();
+    await screen.findByText("trivy:");
+    await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("coupé");
+  });
+
+  test("le diff est sémantique : ins, del, et le sens en toutes lettres", async () => {
+    setup(mock(async () => payload("stages:\n  - deploy\n")));
+    await open();
+    await screen.findByText("Changes to .gitlab-ci.yml");
+    const figure = document.querySelector("figure");
+    expect(figure?.querySelector("ins")?.textContent).toContain("added");
+    expect(figure?.querySelector("del")?.textContent).toContain("removed");
   });
 
   test("une édition coupée coupe le bouton", () => {

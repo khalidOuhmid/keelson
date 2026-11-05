@@ -629,6 +629,16 @@ write indicator, the `Panel` button below `lg`, the `Views` navigation of four g
 (Pipeline, Toolchain, Coverage, Catalog), and on the Pipeline and Toolchain views the undo/redo ghost pair with their shortcuts
 in the `title` attribute. It is underlined by a hairline and sits on the floor colour.
 
+### Diff
+
+The insertion form shows what will be written before anything is. A monospace block on
+`surface-inset`, lines wrapped so nothing about to be written sits out of sight. An added line is an
+`ins` on `surface-2` in `text-primary`, a removed line a `del` on the danger tint in `danger`, each
+with its sign and, for a screen reader, its word; two unchanged lines stay around each change and an
+ellipsis stands for the rest. Sign and word carry the meaning, the fill only repeats it. `Insert into
+<file>` is the one button there with a `border-strong` edge and `text-primary` label, which is how a
+primary action reads in a system that has no filled button.
+
 ### Diagnostics Strip
 
 A `surface-1` band along the bottom, capped at one third of the viewport, separated from the working

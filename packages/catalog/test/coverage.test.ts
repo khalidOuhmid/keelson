@@ -135,6 +135,27 @@ describe("les fiches réelles", () => {
     expect(found({ image, script: [] })).toContain("zap");
   });
 
+  test("le script d'un snippet ne revendique que les couches de sa fiche", () => {
+    const foreign = catalog.tools.flatMap((tool) => {
+      const snippet = tool.snippets.gitlab;
+      if (snippet === null) {
+        return [];
+      }
+      const jobs = parseYaml(snippet) as Record<string, { script?: string[] }>;
+      const script = Object.values(jobs).flatMap((job) => job.script ?? []);
+      return detectTools({ image: null, script }, catalog.tools)
+        .filter((entry) => entry.layers.some((layer) => !tool.layers.includes(layer)))
+        .map((entry) => `${tool.id} détecte ${entry.tool}`);
+    });
+    expect(foreign).toEqual([]);
+  });
+
+  test("un mot dans une chaîne n'est pas une commande", () => {
+    expect(
+      found({ image: null, script: ['curl -F scan_type="Trivy Scan" https://x'] }),
+    ).not.toContain("trivy");
+  });
+
   test("chaque image de snippet GitLab est reconnue par sa propre fiche", () => {
     const missed = catalog.tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;

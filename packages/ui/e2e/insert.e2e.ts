@@ -35,8 +35,9 @@ test.describe("insertion sur le binaire réel", () => {
       await expect(page.getByTestId("insert-layers")).toContainText("Secrets");
       expect(keelson.read()).toBe(original);
 
-      await page.getByRole("button", { name: "Insert" }).click();
-      await expect(page.locator("[data-job-id=gitleaks]")).toBeVisible();
+      await page.getByRole("button", { name: "Insert into .gitlab-ci.yml" }).click();
+      await expect(page.locator("[data-job-id=gitleaks]")).toBeFocused();
+      await expect(page.getByRole("status").filter({ hasText: "gitleaks added" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
       expect(keelson.read()).toContain("gitleaks:\n  stage:");
       expect(keelson.read().split("\n").slice(0, 2).join("\n")).toContain("stages:");
@@ -44,6 +45,23 @@ test.describe("insertion sur le binaire réel", () => {
       await page.getByRole("button", { name: "Undo" }).click();
       await expect(page.locator("[data-job-id=gitleaks]")).toHaveCount(0);
       expect(keelson.read()).toBe(original);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("à 375 px, le retour d'insertion laisse Undo et le nœud atteignables", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Catalog" }).click();
+      await page.getByRole("button", { name: "Gitleaks", exact: true }).click();
+      await page.getByRole("button", { name: "Add to pipeline" }).click();
+      await page.getByRole("button", { name: "Insert into .gitlab-ci.yml" }).click();
+      await expect(page.locator("[data-job-id=gitleaks]")).toBeAttached();
+      await page.getByRole("button", { name: "Undo" }).click();
+      await expect(page.locator("[data-job-id=gitleaks]")).toHaveCount(0);
     } finally {
       await keelson.stop();
     }
@@ -59,7 +77,7 @@ test.describe("insertion sur le binaire réel", () => {
       await page.getByRole("button", { name: "Add to pipeline" }).click();
       await page.getByLabel("Job name").fill("compile");
       await expect(page.getByRole("alert")).toContainText("already exists");
-      await expect(page.getByRole("button", { name: "Insert" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Insert into .gitlab-ci.yml" })).toBeDisabled();
       expect(keelson.read()).toBe(original);
     } finally {
       await keelson.stop();

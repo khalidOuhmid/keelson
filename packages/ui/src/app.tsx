@@ -75,6 +75,16 @@ export type AppDeps = {
   newOpId?: () => string;
 };
 
+/** La mise en page du graphe est asynchrone : le nœud n'existe pas encore au prochain rendu. */
+function focusWhenDrawn(selector: string, frames = 120): void {
+  const found = document.querySelector<HTMLElement>(selector);
+  if (found !== null) {
+    found.focus();
+  } else if (frames > 0) {
+    requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
+  }
+}
+
 function browserDeps(): AppDeps {
   const token = readToken(browserLocation()) ?? "";
   return { client: new KeelsonClient({ token }) };
@@ -299,11 +309,17 @@ export function App({ deps }: AppProps = {}) {
               resolved.client.preview(file, { v: 1, baseHash: hash, ...draft } as Operation),
             onInsert: async (draft: Draft, job: string) => {
               const written = await store.getState().submit(draft);
-              if (written) {
-                store.getState().setView("pipeline");
+              if (!written) {
+                return store.getState().error;
+              }
+              store.getState().setView("pipeline");
+              store.getState().announce(`${job} added to ${file}.`);
+              // Sous `lg`, sélectionner ouvrirait une superposition par-dessus Undo et le nœud.
+              if (window.matchMedia("(min-width: 64rem)").matches) {
                 store.getState().selectJob(job);
               }
-              return written;
+              focusWhenDrawn(`[data-job-id="${CSS.escape(job)}"]`);
+              return null;
             },
           },
     [state.pipeline, state.text, file, hash, editable, resolved, store],
