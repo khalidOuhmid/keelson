@@ -1,7 +1,9 @@
 import type {
   AddJobOperation,
   AddNeedOperation,
+  AddSnippetOperation,
   AddStageOperation,
+  CompositeOperation,
   MoveStageOperation,
   Need,
   Operation,
@@ -40,7 +42,20 @@ import {
   STALE_DOCUMENT,
   validate,
 } from "@keelson/core";
-import { isAlias, isMap, isSeq, type Node, type Pair, YAMLMap, type YAMLSeq } from "yaml";
+import {
+  isAlias,
+  isMap,
+  isNode,
+  isScalar,
+  isSeq,
+  type Node,
+  type Pair,
+  parseDocument,
+  stringify,
+  visit,
+  YAMLMap,
+  type YAMLSeq,
+} from "yaml";
 import { DEFAULT_STAGES } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
@@ -430,6 +445,15 @@ function planSetJobStage(
   ]);
 }
 
+function rewritesCrossProject(pipeline: Pipeline, id: string): boolean {
+  return pipeline.jobs.find((job) => job.id === id)?.crossProjectNeeds === true;
+}
+
+/** L'IR ne porte pas ces items : réécrire la liste les perdrait sans un mot. */
+function crossProjectRefusal(job: string): Planned {
+  return fail(INVALID_OPERATION, { reason: "sharedValue", job, key: "needs" });
+}
+
 function planAddNeed(
   operation: AddNeedOperation,
   geometry: Geometry,
@@ -456,6 +480,9 @@ function planAddNeed(
   const local = localPair(located.value.map, "needs");
 
   if (local === undefined) {
+    if (rewritesCrossProject(pipeline, operation.id)) {
+      return crossProjectRefusal(operation.id);
+    }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
       {
@@ -531,6 +558,13 @@ function planRemoveNeed(
 
   const remaining = current.filter((need) => need.job !== operation.job);
   const local = localPair(located.value.map, "needs");
+
+  if (
+    (local === undefined || remaining.length === 0) &&
+    rewritesCrossProject(pipeline, operation.id)
+  ) {
+    return crossProjectRefusal(operation.id);
+  }
 
   if (local === undefined) {
     const at = overrideInsertAt(geometry, located.value);
@@ -808,8 +842,108 @@ function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
   return ok([{ start: operation.start, end: operation.end, text: operation.text }]);
 }
 
+function jobKeyText(value: string): string {
+  const plain = stringify(value, { lineWidth: 0 }).replace(/\r?\n$/, "");
+  return plain.includes("\n") ? JSON.stringify(value) : plain;
+}
+
+/** Un job en bloc, sans ancre ni alias : recopié dans un autre fichier, un alias n'aurait plus de
+ *  cible, et une ancre pourrait entrer en collision avec celles de l'utilisateur. */
+function snippetJob(snippet: string): { key: AnyNode; map: YAMLMap } | null {
+  const document = parseDocument(snippet);
+  const root = document.contents as AnyNode;
+  if (document.errors.length > 0 || !isMap(root) || root.flow === true || root.items.length !== 1) {
+    return null;
+  }
+  const [pair] = root.items;
+  const map = pair?.value as AnyNode;
+  if (
+    pair === undefined ||
+    !isScalar(pair.key) ||
+    typeof pair.key.value !== "string" ||
+    !isLegalJobName(pair.key.value) ||
+    !isMap(map) ||
+    map.flow === true ||
+    map.items.length === 0
+  ) {
+    return null;
+  }
+
+  let shared = false;
+  visit(document, {
+    Alias() {
+      shared = true;
+    },
+    Node(_key, node) {
+      if (isNode(node) && (node as { anchor?: string }).anchor !== undefined) {
+        shared = true;
+      }
+    },
+  });
+  return shared ? null : { key: pair.key as AnyNode, map };
+}
+
+function planAddSnippet(
+  operation: AddSnippetOperation,
+  geometry: Geometry,
+  root: YAMLMap,
+  pipeline: Pipeline,
+): Planned {
+  const { id, stage, snippet } = operation;
+  if (!isLegalJobName(id)) {
+    return fail(INVALID_NAME, { reason: "job", name: id });
+  }
+  if (localPair(root, id) !== undefined) {
+    return fail(NAME_CONFLICT, { name: id });
+  }
+  const taken = takenByInclude(pipeline, id);
+  if (taken !== null) {
+    return fail(FROM_INCLUDED_FILE, { reason: "nameTaken", name: id, file: taken });
+  }
+  if (!pipeline.stages.some((entry) => entry.name === stage)) {
+    return fail(STAGE_NOT_FOUND, { stage });
+  }
+
+  const job = snippetJob(snippet);
+  if (job === null) {
+    return fail(INVALID_OPERATION, { reason: "invalidSnippet" });
+  }
+
+  const keyRange = nodeRange(job.key);
+  const stagePair = localPair(job.map, "stage");
+  const stageValue = stagePair?.value as AnyNode;
+  const stageRange = isScalar(stageValue) ? nodeRange(stageValue) : null;
+  if (keyRange === null || keyRange === undefined || (stagePair !== undefined && !stageRange)) {
+    return fail(INVALID_OPERATION, { reason: "invalidSnippet" });
+  }
+
+  const firstKey = nodeRange(job.map.items[0]?.key as AnyNode);
+  const indent = " ".repeat(
+    (firstKey?.[0] ?? 2) - (snippet.lastIndexOf("\n", firstKey?.[0] ?? 0) + 1),
+  );
+  const edits = [
+    { start: keyRange[0], end: keyRange[1], text: jobKeyText(id) },
+    stageRange
+      ? { start: stageRange[0], end: stageRange[1], text: jobKeyText(stage) }
+      : {
+          start: snippet.indexOf("\n", keyRange[1]) + 1,
+          end: snippet.indexOf("\n", keyRange[1]) + 1,
+          text: `${indent}stage: ${jobKeyText(stage)}\n`,
+        },
+  ].sort((left, right) => right.start - left.start);
+  const rewritten = edits.reduce(
+    (text, edit) => `${text.slice(0, edit.start)}${edit.text}${text.slice(edit.end)}`,
+    snippet,
+  );
+
+  const { text, eol } = geometry;
+  const body = `${rewritten.trimEnd().replace(/\r?\n/g, eol)}${eol}`;
+  const glue = text.length > 0 && !text.endsWith(eol) ? eol : "";
+  return ok([{ start: text.length, end: text.length, text: `${glue}${eol}${body}` }]);
+}
+
 function planFor(
-  operation: Operation,
+  operation: Exclude<Operation, CompositeOperation>,
   geometry: Geometry,
   root: YAMLMap,
   pipeline: Pipeline,
@@ -835,7 +969,59 @@ function planFor(
       return planMoveStage(operation, geometry, root, pipeline);
     case "splice":
       return planSplice(operation, geometry);
+    case "addSnippet":
+      return planAddSnippet(operation, geometry, root, pipeline);
   }
+}
+
+/** Les étapes s'appliquent en mémoire : rien n'existe avant que toutes aient passé. L'inverse se
+ *  calcule sur le texte final, du premier au dernier octet différent (ADR 0012). */
+function applyComposite(
+  document: GitlabDocument,
+  operation: CompositeOperation,
+): Result<ApplyOk, ApplyError> {
+  let current = document;
+  let last: ApplyOk | null = null;
+  for (const step of operation.steps) {
+    const result = apply(current, { v: 1, baseHash: current.hash, ...step });
+    if (!result.ok) {
+      return result;
+    }
+    last = result.value;
+    current = result.value.document;
+  }
+  if (last === null) {
+    return fail(INVALID_OPERATION, { reason: "schema", path: "steps", detail: "empty" });
+  }
+
+  const before = document.text;
+  const after = last.text;
+  let prefix = 0;
+  while (prefix < before.length && before[prefix] === after[prefix]) {
+    prefix += 1;
+  }
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  ) {
+    suffix += 1;
+  }
+
+  const end = after.length - suffix;
+  return ok({
+    ...last,
+    inverse: {
+      v: 1,
+      baseHash: last.hash,
+      kind: "splice",
+      start: prefix,
+      end,
+      text: before.slice(prefix, before.length - suffix),
+    },
+    touched: [{ start: prefix, end }],
+  });
 }
 
 /** Toute relecture dans `apply` passe par ici : un `parse(texte)` nu perdrait le nom du fichier et
@@ -857,6 +1043,10 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
 
   if (op.baseHash !== document.hash) {
     return fail(STALE_DOCUMENT, { expected: document.hash, received: op.baseHash });
+  }
+
+  if (op.kind === "composite") {
+    return applyComposite(document, op);
   }
 
   const before = reparse(document, document.text);

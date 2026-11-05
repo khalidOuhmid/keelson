@@ -411,6 +411,23 @@ export function resolveNeeds(
   return { value, origin: origin ?? found.origin };
 }
 
+/** Un item `project:` ou `pipeline:` dans la liste effective de `needs`. */
+export function hasCrossProjectNeed(sources: readonly Source[], context: ResolveContext): boolean {
+  const found = matches(sources, "needs").at(-1);
+  if (found === undefined) {
+    return false;
+  }
+  const { node } = dereference(found.node, found.file, context);
+  return (
+    isSeq(node) &&
+    node.items.some(
+      (item) =>
+        isMap(item) &&
+        (localPair(item, "project") !== undefined || localPair(item, "pipeline") !== undefined),
+    )
+  );
+}
+
 function plainObject(node: AnyNode): Record<string, unknown> | null {
   if (!isMap(node)) {
     return null;

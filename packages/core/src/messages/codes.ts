@@ -195,6 +195,7 @@ export type MessageParams = {
     | { reason: "flowStyleToolchain"; section: string }
     | { reason: "invalidToolchain" }
     | { reason: "invalidLayout" }
+    | { reason: "invalidSnippet" }
     | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }
