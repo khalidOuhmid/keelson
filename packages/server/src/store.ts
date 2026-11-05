@@ -1,10 +1,4 @@
-import {
-  apply,
-  createFileReader,
-  type IncludeReader,
-  parse,
-  readInsideRoot,
-} from "@keelson/adapter-gitlab";
+import { createFileReader, type IncludeReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type {
   Diagnostic,
@@ -18,6 +12,7 @@ import type {
 import { parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
 import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
+import { adapterFor } from "./adapters.ts";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
@@ -138,7 +133,7 @@ export class DocumentStore {
       return null;
     }
 
-    const parsed = parse(text, { file, read: this.reader });
+    const parsed = adapterFor(file).parse(text, { file, read: this.reader });
     const { diagnostics, coverage: covered } = analyse(
       this.root,
       parsed.diagnostics,
@@ -276,7 +271,7 @@ export class DocumentStore {
         return { status: 404, body: { code: NOT_FOUND, params: { reason: "missingFile", file } } };
       }
       if (!write) {
-        const { hash } = parse(onDisk as string, { file, read: this.reader });
+        const { hash } = adapterFor(file).parse(onDisk as string, { file, read: this.reader });
         return {
           status: 409,
           body: {
@@ -297,8 +292,9 @@ export class DocumentStore {
       };
     }
 
-    const parsed = parse(current.text, { file, read: this.reader });
-    const result = apply(parsed.document, validated.value);
+    const adapter = adapterFor(file);
+    const parsed = adapter.parse(current.text, { file, read: this.reader });
+    const result = adapter.apply(parsed, validated.value);
 
     if (!result.ok) {
       const stale = result.error.code === STALE_DOCUMENT;

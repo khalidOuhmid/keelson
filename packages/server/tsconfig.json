@@ -19,6 +19,9 @@
     },
     {
       "path": "../toolchain"
+    },
+    {
+      "path": "../adapter-github"
     }
   ]
 }

@@ -1,11 +1,8 @@
-import { readFileSync, statSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
 import { coverage, loadCatalog } from "@keelson/catalog";
 import { renderCoverageMarkdown, renderMermaid } from "@keelson/toolchain";
-import { analyse } from "./analysis.ts";
+import { analyse, readTargets } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
-import { DEFAULT_FILE } from "./validate.ts";
 
 const FORMATS = ["markdown", "mermaid", "json"] as const;
 
@@ -30,26 +27,19 @@ export function exportCommand(argv: readonly string[], cwd: string): CliResult {
     return usage(`expected a single file, "${parsed.positionals[1]}" is one too many`);
   }
 
-  const target = parsed.positionals[0] ?? DEFAULT_FILE;
-  const file = isAbsolute(target) ? target : resolve(cwd, target);
-  let text: string;
-  try {
-    if (!statSync(file).isFile()) {
-      return usage(`"${file}" is not a file`);
-    }
-    text = readFileSync(file, "utf8");
-  } catch {
-    return usage(`file not found: ${file}`);
+  const read = readTargets(parsed.positionals[0], cwd);
+  if (!read.ok) {
+    return usage(read.message);
   }
 
-  const analysis = analyse(file, text);
-  const { pipeline, diagnostics } = analysis.result;
+  const analysis = analyse(read.targets);
+  const { pipeline, parsing } = analysis;
   const { toolchain } = analysis.toolchain;
   const result = coverage(
     pipeline,
     loadCatalog().tools,
     analysis.layout.overrides,
-    diagnostics,
+    parsing,
     toolchain.services,
   );
 

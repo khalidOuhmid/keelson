@@ -1,14 +1,11 @@
-import { readFileSync, statSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type { Diagnostic } from "@keelson/core";
 import { COVERAGE_LAYER_MISSING, hasErrors, INVALID_YAML } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
 import { findLayer, isLayerId, type LayerId } from "@keelson/taxonomy";
-import { analyse } from "./analysis.ts";
+import { analyse, readTargets } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
-import { DEFAULT_FILE } from "./validate.ts";
 
 function usage(message: string): CliResult {
   return { stdout: "", stderr: `keelson coverage: ${message}\n`, exitCode: 2 };
@@ -77,28 +74,22 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
     return usage(`unknown layer "${unknown}"`);
   }
 
-  const target = parsed.positionals[0] ?? DEFAULT_FILE;
-  const file = isAbsolute(target) ? target : resolve(cwd, target);
-  let text: string;
-  try {
-    if (!statSync(file).isFile()) {
-      return usage(`"${file}" is not a file`);
-    }
-    text = readFileSync(file, "utf8");
-  } catch {
-    return usage(`file not found: ${file}`);
+  const read = readTargets(parsed.positionals[0], cwd);
+  if (!read.ok) {
+    return usage(read.message);
   }
 
-  const analysis = analyse(file, text);
+  const file = read.targets[0]?.file ?? cwd;
+  const analysis = analyse(read.targets);
   const result = coverage(
-    analysis.result.pipeline,
+    analysis.pipeline,
     loadCatalog().tools,
     analysis.layout.overrides,
-    analysis.result.diagnostics,
+    analysis.parsing,
     analysis.toolchain.toolchain.services,
   );
   const missing = missingRequired(requested.filter(isLayerId), result, file);
-  const unreadable = analysis.result.diagnostics.filter((entry) => entry.code === INVALID_YAML);
+  const unreadable = analysis.parsing.filter((entry) => entry.code === INVALID_YAML);
   const notes = [
     ...unreadable,
     ...analysis.layout.diagnostics,

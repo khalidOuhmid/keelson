@@ -1,9 +1,10 @@
-import { existsSync } from "node:fs";
-import { basename, dirname, join, sep } from "node:path";
-import { createFileReader, type ParseResult, parse, readInsideRoot } from "@keelson/adapter-gitlab";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { createFileReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
-import type { Diagnostic } from "@keelson/core";
-import { TOOLCHAIN_FILE, validate } from "@keelson/core";
+import type { Diagnostic, Pipeline } from "@keelson/core";
+import { mergePipelines, TOOLCHAIN_FILE, validate } from "@keelson/core";
+import { adapterFor, detectWorkspace } from "@keelson/server";
 import {
   analyseToolchain,
   LAYOUT_FILE,
@@ -11,6 +12,8 @@ import {
   parseLayout,
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
+
+export const DEFAULT_FILE = ".gitlab-ci.yml";
 
 /** La racine depuis laquelle GitLab résout les `include: local`. On remonte jusqu'au premier
  *  dossier qui contient un `.git`, parce que c'est la racine du dépôt que GitLab utilise. Sans
@@ -39,33 +42,75 @@ function relativeTo(root: string, file: string): string {
 
 export type Analysis = {
   root: string;
-  main: string;
-  result: ParseResult;
+  /** Les textes par chemin relatif, inclus compris : un diagnostic se situe dans le texte de son
+   *  fichier. */
+  texts: ReadonlyMap<string, string>;
+  pipeline: Pipeline;
+  /** Les diagnostics du parsing seuls : la couverture y lit qu'un fichier est illisible. */
+  parsing: Diagnostic[];
   layout: ParsedLayout;
   toolchain: ToolchainAnalysis;
   diagnostics: Diagnostic[];
 };
 
-/** Ce que `validate` et `coverage` savent d'un fichier : les deux doivent dire la même chose. */
-export function analyse(file: string, text: string): Analysis {
-  const root = repositoryRoot(file);
-  const main = relativeTo(root, file);
-  const result = parse(text, { file: main, read: createFileReader(root) });
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), result.pipeline);
+export type Target = { file: string; text: string };
+
+/** Les fichiers d'une commande : celui qu'elle nomme, sinon tout le workspace. Rend le message
+ *  d'usage si l'un d'eux manque. */
+export function readTargets(
+  named: string | undefined,
+  cwd: string,
+): { ok: true; targets: Target[] } | { ok: false; message: string } {
+  const detected = named === undefined ? detectWorkspace(cwd).map((entry) => entry.path) : [];
+  const paths = named !== undefined ? [named] : detected.length > 0 ? detected : [DEFAULT_FILE];
+
+  const targets: Target[] = [];
+  for (const path of paths) {
+    const file = isAbsolute(path) ? path : resolve(cwd, path);
+    try {
+      if (!statSync(file).isFile()) {
+        return { ok: false, message: `"${file}" is not a file` };
+      }
+      targets.push({ file, text: readFileSync(file, "utf8") });
+    } catch {
+      return { ok: false, message: `file not found: ${file}` };
+    }
+  }
+  return { ok: true, targets };
+}
+
+/** Ce que `validate`, `coverage` et `export` savent des fichiers : ils doivent dire la même chose. */
+export function analyse(targets: readonly Target[]): Analysis {
+  const root = repositoryRoot((targets[0] as Target).file);
+  const read = createFileReader(root);
+  const parsed = targets.map(({ file, text }) => {
+    const main = relativeTo(root, file);
+    return { main, text, result: adapterFor(main).parse(text, { file: main, read }) };
+  });
+
+  const pipeline = mergePipelines(parsed.map(({ result }) => result.pipeline));
+  const parsing = parsed.flatMap(({ result }) => result.diagnostics);
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
   const toolchain = analyseToolchain(
     readInsideRoot(root, TOOLCHAIN_FILE),
-    result.pipeline,
+    pipeline,
     loadCatalog().tools,
   );
+
   return {
     root,
-    main,
-    result,
+    texts: new Map(
+      parsed.flatMap(({ main, text, result }) => [
+        [main, text] as const,
+        ...Object.entries(result.included),
+      ]),
+    ),
+    pipeline,
+    parsing,
     layout,
     toolchain,
     diagnostics: [
-      ...result.diagnostics,
-      ...validate(result.pipeline),
+      ...parsed.flatMap(({ result }) => [...result.diagnostics, ...validate(result.pipeline)]),
       ...layout.diagnostics,
       ...toolchain.diagnostics,
     ],

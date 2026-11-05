@@ -45,7 +45,7 @@ describe("IR golden du corpus", () => {
       if (process.env.KEELSON_UPDATE_GOLDENS === "1") {
         writeFileSync(golden, actual);
       }
-      expect(actual).toBe(readFileSync(golden, "utf8"));
+      expect(JSON.parse(actual)).toEqual(JSON.parse(readFileSync(golden, "utf8")));
     },
   );
 });

@@ -112,6 +112,36 @@ export function emptyPipeline(main: string): Pipeline {
   return { stages: [], jobs: [], templates: [], opaque: [], main, files: [], unresolved: [] };
 }
 
+/** Plusieurs fichiers vus comme un seul dépôt, pour ce qui porte sur le dépôt et non sur un fichier :
+ *  la toolchain, `keelson coverage` sans argument. Un job de même nom garde sa première définition. */
+export function mergePipelines(pipelines: readonly Pipeline[]): Pipeline {
+  const first = pipelines[0];
+  if (first === undefined) {
+    return emptyPipeline("");
+  }
+  const jobs = new Map<string, Job>();
+  for (const job of pipelines.flatMap((pipeline) => pipeline.jobs)) {
+    if (!jobs.has(job.id)) {
+      jobs.set(job.id, job);
+    }
+  }
+  const stages = new Map<string, Stage>();
+  for (const stage of pipelines.flatMap((pipeline) => pipeline.stages)) {
+    if (!stages.has(stage.name)) {
+      stages.set(stage.name, stage);
+    }
+  }
+  return {
+    ...first,
+    jobs: [...jobs.values()],
+    stages: [...stages.values()],
+    templates: pipelines.flatMap((pipeline) => pipeline.templates),
+    opaque: pipelines.flatMap((pipeline) => pipeline.opaque),
+    files: [...new Set(pipelines.flatMap((pipeline) => pipeline.files))],
+    unresolved: pipelines.flatMap((pipeline) => pipeline.unresolved),
+  };
+}
+
 /** Un pipeline est **partiel** dès qu'un include n'a pas été résolu : des jobs peuvent manquer à
  *  l'écran. Dérivé plutôt que stocké — un booléen stocké peut mentir, celui-ci ne peut pas. */
 export function isPartial(pipeline: Pipeline): boolean {

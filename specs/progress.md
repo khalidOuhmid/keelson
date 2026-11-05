@@ -1,8 +1,8 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L6 — adaptateur GitHub Actions**, à cadrer depuis `main`
-Prochaine action : cadrage de L6, `specs/lots/l6.md`, branche `lot/l6-github`.
+Lot courant : **L6 — adaptateur GitHub Actions**, sur `lot/l6-github`
+Prochaine action : UI de L6 (choix de fichier, `provider` dans `app.tsx`, `NewJobForm`, `JobEditor`, `InsertTool`, `PartialPipelineBar`, `NoCiFile`), E2E, puis `critique`, `audit`, revue, contre-revue, fusion.
 Blocage : aucun
 
 

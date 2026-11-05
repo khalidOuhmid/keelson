@@ -263,7 +263,8 @@ describe("garde-fous", () => {
   });
 
   test("un doublon que le patch ne retirerait qu'à moitié est refusé à la relecture", () => {
-    const text = "jobs:\n  a:\n    needs:\n      - b\n      - b\n      - c\n    steps:\n      - run: x\n";
+    const text =
+      "jobs:\n  a:\n    needs:\n      - b\n      - b\n      - c\n    steps:\n      - run: x\n";
     expect(run(text, { kind: "removeNeed", id: "a", job: "b" })).toMatchObject({
       error: { params: { reason: "wouldBreakYaml" } },
     });
