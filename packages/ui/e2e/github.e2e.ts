@@ -108,7 +108,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
       await page.locator("[data-job-id=build]").click();
       await expect(page.getByLabel("Stage", { exact: true })).toHaveCount(0);
       await expect(page.getByLabel("Optional")).toHaveCount(0);
-      await page.getByRole("textbox", { name: "Job id" }).fill("compile");
+      await page.getByRole("textbox", { name: "Job id", exact: true }).fill("compile");
       await page.getByRole("button", { name: "Rename" }).click();
       await expect(page.locator("[data-job-id=compile]")).toBeVisible();
       await expect.poll(() => keelson.readAt(CI)).toContain("needs: compile");
