@@ -43,7 +43,7 @@ export type StoreDependencies = {
   newOpId: () => string;
 };
 
-export type View = "pipeline" | "coverage" | "catalog";
+export type View = "pipeline" | "toolchain" | "coverage" | "catalog";
 
 export type KeelsonState = {
   file: string | null;
@@ -83,7 +83,7 @@ export type KeelsonState = {
   submit(draft: Draft): Promise<void>;
   undo(): Promise<void>;
   redo(): Promise<void>;
-  serverEvent(event: ServerEvent): Promise<void>;
+  serverEvent(event: Exclude<ServerEvent, { kind: "toolchain.changed" }>): Promise<void>;
   dismissNotice(): void;
   dismissError(): void;
 };
@@ -241,7 +241,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       setView(view) {
         set({ view, selectedLayer: null, catalogLayer: null, selectedJobId: null });
-        if (view === "catalog") {
+        if (view === "catalog" || view === "toolchain") {
           void get().loadCatalog();
         }
       },

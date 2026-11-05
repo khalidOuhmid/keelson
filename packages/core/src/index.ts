@@ -9,4 +9,5 @@ export * from "./ir.ts";
 export type { MessageCode, MessageParams, ParamsOf } from "./messages/codes.ts";
 export * from "./operations.ts";
 export * from "./result.ts";
+export * from "./toolchain.ts";
 export * from "./validate.ts";

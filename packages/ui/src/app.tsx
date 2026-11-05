@@ -1,4 +1,10 @@
-import { emptyPipeline, isPartial } from "@keelson/core";
+import {
+  emptyPipeline,
+  isPartial,
+  TOOLCHAIN_INVALID,
+  type ToolchainOperation,
+} from "@keelson/core";
+import type { Positions } from "@keelson/toolchain";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
@@ -7,6 +13,8 @@ import {
   type DocumentPayload,
   KeelsonClient,
   type OperationPayload,
+  type ToolchainOperationPayload,
+  type ToolchainPayload,
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
@@ -20,6 +28,7 @@ import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type KeelsonStore } from "./state/store.ts";
+import { createToolchainStore, type ToolchainStore } from "./state/toolchain.ts";
 import { DocumentRemoved } from "./states/DocumentRemoved.tsx";
 import { InvalidDocument } from "./states/InvalidDocument.tsx";
 import { Loading } from "./states/Loading.tsx";
@@ -29,9 +38,13 @@ import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
 import { CatalogView } from "./views/catalog/CatalogView.tsx";
 import { CoveragePanel } from "./views/coverage/CoveragePanel.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
+import { ServicePanel } from "./views/toolchain/ServicePanel.tsx";
+import { ToolchainCanvas } from "./views/toolchain/ToolchainCanvas.tsx";
+import { ToolchainPanel } from "./views/toolchain/ToolchainPanel.tsx";
 
 const VIEWS = [
   { view: "pipeline", label: "Pipeline" },
+  { view: "toolchain", label: "Toolchain" },
   { view: "coverage", label: "Coverage" },
   { view: "catalog", label: "Catalog" },
 ] as const;
@@ -45,6 +58,12 @@ type ClientSurface = {
     opId: string,
   ) => Promise<ApiResult<OperationPayload>>;
   catalog: () => Promise<ApiResult<CatalogPayload>>;
+  toolchain: () => Promise<ApiResult<ToolchainPayload>>;
+  submitToolchain: (
+    op: ToolchainOperation,
+    opId: string,
+  ) => Promise<ApiResult<ToolchainOperationPayload>>;
+  savePositions: (positions: Positions) => Promise<ApiResult<{ positions: Positions }>>;
   eventsUrl: () => string;
 };
 
@@ -92,7 +111,29 @@ export function App({ deps }: AppProps = {}) {
     [resolved],
   );
 
+  const toolchainStore = useMemo<ToolchainStore>(
+    () =>
+      createToolchainStore({
+        load: () => resolved.client.toolchain(),
+        submit: (op, opId) => resolved.client.submitToolchain(op, opId),
+        savePositions: (positions) => resolved.client.savePositions(positions),
+        newOpId: resolved.newOpId ?? (() => crypto.randomUUID()),
+      }),
+    [resolved],
+  );
   const state = useStore(store);
+  const toolchainState = useStore(toolchainStore);
+
+  useEffect(() => {
+    void toolchainStore.getState().load();
+  }, [toolchainStore]);
+
+  // Les propositions dépendent du pipeline : un job ajouté ou renommé les change.
+  useEffect(() => {
+    if (state.hash !== null) {
+      void toolchainStore.getState().refresh();
+    }
+  }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const loaded = useRef(false);
@@ -129,10 +170,18 @@ export function App({ deps }: AppProps = {}) {
   useEffect(() => {
     const listen = resolved.subscribe ?? subscribeToEvents;
     const subscription = listen(resolved.client.eventsUrl(), (event: ServerEvent) => {
+      if (event.kind === "toolchain.changed") {
+        void toolchainStore.getState().changed(event.hash);
+        return;
+      }
       void store.getState().serverEvent(event);
+      // `layout.json` a pu changer : les positions d'une autre main arrivent par ici.
+      if (event.kind === "coverage.changed") {
+        void toolchainStore.getState().refresh();
+      }
     });
     return () => subscription.close();
-  }, [resolved, store]);
+  }, [resolved, store, toolchainStore]);
 
   // Quand le panneau de détail disparaît — Échap, bouton de fermeture ou suppression confirmée —
   // le focus revient au graphe plutôt que de retomber sur <body>.
@@ -145,17 +194,33 @@ export function App({ deps }: AppProps = {}) {
     hadSelection.current = open;
   }, [state.selectedJobId]);
 
+  const serviceOpen =
+    state.view === "toolchain" &&
+    (toolchainState.payload?.toolchain.services.some(
+      (service) => service.id === toolchainState.selectedService,
+    ) ??
+      false);
+  const hadService = useRef(false);
+  useEffect(() => {
+    const typing = document.activeElement?.matches("input, select, textarea") ?? false;
+    if (hadService.current && !serviceOpen && !typing) {
+      document.querySelector<HTMLElement>('[aria-label="Toolchain graph"]')?.focus();
+    }
+    hadService.current = serviceOpen;
+  }, [serviceOpen]);
+
   // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
   // désigne au canevas mais se referme depuis n'importe où, panneau compris.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         store.getState().selectJob(null);
+        toolchainStore.getState().selectService(null);
       }
     };
     document.addEventListener("keydown", handle);
     return () => document.removeEventListener("keydown", handle);
-  }, [store]);
+  }, [store, toolchainStore]);
 
   // Une opération en vol désactive l'édition : sans cela chaque contrôle reste actif et une
   // seconde soumission part sur un hash déjà périmé.
@@ -166,6 +231,38 @@ export function App({ deps }: AppProps = {}) {
     onUndo: () => void store.getState().undo(),
     onRedo: () => void store.getState().redo(),
   });
+
+  const toolchainPayload = toolchainState.payload;
+  const toolchainInvalid =
+    toolchainPayload?.diagnostics.some((entry) => entry.code === TOOLCHAIN_INVALID) ?? false;
+  const toolchainEditable =
+    !toolchainState.pending && toolchainPayload !== null && !toolchainInvalid;
+  const inToolchain = state.view === "toolchain";
+
+  useHistoryShortcuts({
+    enabled: toolchainEditable && inToolchain,
+    onUndo: () => void toolchainStore.getState().undo(),
+    onRedo: () => void toolchainStore.getState().redo(),
+  });
+
+  const selectedService = inToolchain
+    ? (toolchainPayload?.toolchain.services.find(
+        (service) => service.id === toolchainState.selectedService,
+      ) ?? null)
+    : null;
+  const toolLabels = useMemo(
+    () =>
+      new Map(
+        (state.catalog?.tools ?? []).map((tool) => [
+          tool.id,
+          {
+            name: tool.name,
+            logo: tool.logo === null ? null : (state.catalog?.logos[tool.logo]?.path ?? null),
+          },
+        ]),
+      ),
+    [state.catalog],
+  );
 
   const selected =
     state.selectedJobId === null
@@ -198,6 +295,20 @@ export function App({ deps }: AppProps = {}) {
     }
     if (blocking) {
       return <InvalidDocument diagnostics={state.diagnostics} />;
+    }
+    if (inToolchain) {
+      return toolchainPayload === null ? (
+        <Loading />
+      ) : (
+        <ToolchainCanvas
+          payload={toolchainPayload}
+          labels={toolLabels}
+          selectedService={toolchainState.selectedService}
+          onSelectService={(id) => toolchainStore.getState().selectService(id)}
+          onMove={(node, position) => void toolchainStore.getState().move(node, position)}
+          invalid={toolchainInvalid}
+        />
+      );
     }
     if (state.view === "catalog") {
       return state.catalog === null ? (
@@ -233,7 +344,15 @@ export function App({ deps }: AppProps = {}) {
   return (
     <div className="flex h-full flex-col bg-surface-0">
       <NoticeBar notice={state.notice} onDismiss={() => store.getState().dismissNotice()} />
+      <NoticeBar
+        notice={toolchainState.notice}
+        onDismiss={() => toolchainStore.getState().dismissNotice()}
+      />
       <ErrorBanner error={state.error} onDismiss={() => store.getState().dismissError()} />
+      <ErrorBanner
+        error={toolchainState.error}
+        onDismiss={() => toolchainStore.getState().dismissError()}
+      />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
         <span className="flex items-baseline gap-2 overflow-hidden">
@@ -256,7 +375,7 @@ export function App({ deps }: AppProps = {}) {
           )}
         </span>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {state.pending ? (
+          {state.pending || toolchainState.pending ? (
             <span
               data-testid="pending-indicator"
               role="status"
@@ -273,7 +392,9 @@ export function App({ deps }: AppProps = {}) {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className={`lg:hidden ${BUTTON}`}
             >
-              Panel
+              {inToolchain && (toolchainPayload?.proposed.length ?? 0) > 0
+                ? `Panel, ${toolchainPayload?.proposed.length} proposed`
+                : "Panel"}
             </button>
           ) : null}
           <nav aria-label="Views" className="flex items-center gap-1">
@@ -300,6 +421,14 @@ export function App({ deps }: AppProps = {}) {
               onRedo={() => void store.getState().redo()}
             />
           ) : null}
+          {inToolchain ? (
+            <HistoryControls
+              canUndo={toolchainEditable && toolchainState.canUndo()}
+              canRedo={toolchainEditable && toolchainState.canRedo()}
+              onUndo={() => void toolchainStore.getState().undo()}
+              onRedo={() => void toolchainStore.getState().redo()}
+            />
+          ) : null}
         </span>
       </header>
 
@@ -308,7 +437,7 @@ export function App({ deps }: AppProps = {}) {
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null && state.view !== "catalog" ? (
           <aside
-            aria-label={reading ? "Coverage" : "Edit pipeline"}
+            aria-label={reading ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
             className={`flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:w-full ${sidebarOpen ? "" : "max-lg:hidden"}`}
           >
             <button
@@ -318,7 +447,22 @@ export function App({ deps }: AppProps = {}) {
             >
               Close panel
             </button>
-            {reading && state.coverage !== null ? (
+            {inToolchain ? (
+              toolchainPayload === null ? null : (
+                <ToolchainPanel
+                  payload={toolchainPayload}
+                  tools={state.catalog?.tools ?? []}
+                  disabled={!toolchainEditable}
+                  invalid={toolchainInvalid}
+                  selectedService={toolchainState.selectedService}
+                  onSubmit={(draft) => toolchainStore.getState().submit(draft)}
+                  onSelectService={(id) => {
+                    setSidebarOpen(false);
+                    toolchainStore.getState().selectService(id);
+                  }}
+                />
+              )
+            ) : reading && state.coverage !== null ? (
               <CoveragePanel
                 coverage={state.coverage}
                 selected={state.selectedLayer}
@@ -351,7 +495,28 @@ export function App({ deps }: AppProps = {}) {
 
         <main className="min-w-[var(--keelson-canvas-min-width)] flex-1">{body}</main>
 
-        {selected === null || state.pipeline === null || state.view === "catalog" ? null : (
+        {selectedService === null || toolchainPayload === null ? null : (
+          <aside
+            aria-label="Service"
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
+          >
+            <ServicePanel
+              key={`${selectedService.id}:${selectedService.url}:${selectedService.environment}`}
+              service={selectedService}
+              toolchain={toolchainPayload.toolchain}
+              tool={state.catalog?.tools.find((tool) => tool.id === selectedService.tool)}
+              jobs={state.pipeline?.jobs.map((job) => job.id) ?? []}
+              disabled={!toolchainEditable}
+              onSubmit={(draft) => void toolchainStore.getState().submit(draft)}
+              onClose={() => toolchainStore.getState().selectService(null)}
+            />
+          </aside>
+        )}
+
+        {selected === null ||
+        state.pipeline === null ||
+        state.view === "catalog" ||
+        inToolchain ? null : (
           <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1">
             <JobDetailPanel
               job={selected}

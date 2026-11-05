@@ -6,6 +6,7 @@ import { createToken, LOOPBACK } from "./security.ts";
 import { createSseHub } from "./sse.ts";
 import { createStaticHandler } from "./static.ts";
 import { DocumentStore } from "./store.ts";
+import { ToolchainStore } from "./toolchain.ts";
 import { watchDocuments } from "./watcher.ts";
 import { detectWorkspace } from "./workspace.ts";
 
@@ -30,6 +31,7 @@ export { MAX_BODY_BYTES } from "./app.ts";
 export { createToken, isAllowedHost, LOOPBACK, TOKEN_HEADER, tokensMatch } from "./security.ts";
 export { HEARTBEAT_MS } from "./sse.ts";
 export { DocumentStore, OPID_HISTORY } from "./store.ts";
+export { ToolchainStore } from "./toolchain.ts";
 export type { DocumentEvent } from "./watcher.ts";
 export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
 export { writeAtomic } from "./write.ts";
@@ -38,6 +40,7 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
   const root = resolve(options.root);
   const token = options.token ?? createToken();
   const store = new DocumentStore(root, detectWorkspace(root));
+  const toolchain = new ToolchainStore(root, store);
   const hub = createSseHub();
 
   let port = 0;
@@ -45,6 +48,7 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
 
   const handler = createRequestHandler({
     store,
+    toolchain,
     hub,
     token,
     port: () => port,

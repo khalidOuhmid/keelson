@@ -38,7 +38,8 @@ function renderText(result: Coverage, messages: readonly string[]): string {
   const lines = result.layers.map((entry) => {
     const state = entry.covered ? "covered" : "missing";
     const jobs = entry.jobs.length === 0 ? "" : `  ${entry.jobs.join(", ")}`;
-    return `${state}  ${entry.layer.padEnd(26)}${findLayer(entry.layer).name}${jobs}`;
+    const services = entry.services.map((service) => `  service ${service}`).join("");
+    return `${state}  ${entry.layer.padEnd(26)}${findLayer(entry.layer).name}${jobs}${services}`;
   });
   if (result.partial) {
     lines.push("", "partial: part of the pipeline could not be read, so coverage is a lower bound");
@@ -94,10 +95,16 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
     loadCatalog().tools,
     analysis.layout.overrides,
     analysis.result.diagnostics,
+    analysis.toolchain.toolchain.services,
   );
   const missing = missingRequired(requested.filter(isLayerId), result, file);
   const unreadable = analysis.result.diagnostics.filter((entry) => entry.code === INVALID_YAML);
-  const notes = [...unreadable, ...analysis.layout.diagnostics, ...missing];
+  const notes = [
+    ...unreadable,
+    ...analysis.layout.diagnostics,
+    ...analysis.toolchain.diagnostics,
+    ...missing,
+  ];
 
   return {
     stdout:

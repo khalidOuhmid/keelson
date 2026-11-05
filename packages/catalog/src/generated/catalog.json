@@ -21,7 +21,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "artifactory",
@@ -45,7 +46,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "push"
     },
     {
       "id": "bandit",
@@ -70,7 +72,8 @@
         "gitlab": "bandit:\n  stage: test\n  image:\n    name: ghcr.io/pycqa/bandit/bandit:latest\n    entrypoint: [\"\"]\n  script:\n    - bandit -r .\n",
         "github": "- name: Run Bandit\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/pycqa/bandit/bandit:latest bandit -r .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "burp-dast",
@@ -91,7 +94,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "checkov",
@@ -116,7 +120,8 @@
         "gitlab": "checkov:\n  stage: test\n  image:\n    name: bridgecrew/checkov:latest\n    entrypoint: [\"\"]\n  script:\n    - checkov --directory .\n",
         "github": "- name: Run Checkov\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" bridgecrew/checkov:latest checkov --directory .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "codeql",
@@ -139,7 +144,8 @@
         "gitlab": null,
         "github": "- name: Initialize CodeQL\n  uses: github/codeql-action/init@v3\n- name: Analyze\n  uses: github/codeql-action/analyze@v3\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "conftest",
@@ -165,7 +171,8 @@
         "gitlab": "conftest:\n  stage: test\n  image:\n    name: openpolicyagent/conftest:latest\n    entrypoint: [\"\"]\n  script:\n    - conftest test deployment.yaml\n",
         "github": "- name: Run Conftest\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" openpolicyagent/conftest:latest conftest test deployment.yaml\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "contrast-assess",
@@ -188,7 +195,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "cosign",
@@ -213,7 +221,8 @@
         "gitlab": null,
         "github": "- name: Run Cosign\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/sigstore/cosign/cosign:latest sign $IMAGE\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "cyclonedx-cli",
@@ -238,7 +247,8 @@
         "gitlab": "cyclonedx-cli:\n  stage: build\n  image:\n    name: cyclonedx/cyclonedx-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - cyclonedx validate --input-file sbom.cdx.json --fail-on-errors\n",
         "github": "- name: Run CycloneDX CLI\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" cyclonedx/cyclonedx-cli:latest cyclonedx validate --input-file sbom.cdx.json --fail-on-errors\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "defectdojo",
@@ -261,7 +271,8 @@
         "gitlab": "defectdojo:\n  stage: deploy\n  script:\n    - |\n      curl -X POST \"$DOJO_URL/api/v2/import-scan/\" -H \"Authorization: Token $DOJO_TOKEN\" -F scan_type=\"Trivy Scan\" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT\n",
         "github": "- name: Upload to DefectDojo\n  run: |\n    curl -X POST \"$DOJO_URL/api/v2/import-scan/\" -H \"Authorization: Token $DOJO_TOKEN\" -F scan_type=\"Trivy Scan\" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "upload-report"
     },
     {
       "id": "dependency-check",
@@ -286,7 +297,8 @@
         "gitlab": "dependency-check:\n  stage: test\n  image:\n    name: owasp/dependency-check:latest\n    entrypoint: [\"\"]\n  script:\n    - dependency-check.sh --out report --scan .\n",
         "github": "- name: Run OWASP Dependency-Check\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" owasp/dependency-check:latest dependency-check.sh --out report --scan .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "dependency-track",
@@ -311,7 +323,8 @@
         "gitlab": "dependency-track:\n  stage: deploy\n  script:\n    - |\n      curl -X POST \"$DTRACK_URL/api/v1/bom\" -H \"X-Api-Key: $DTRACK_KEY\" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json\n",
         "github": "- name: Upload the SBOM\n  run: |\n    curl -X POST \"$DTRACK_URL/api/v1/bom\" -H \"X-Api-Key: $DTRACK_KEY\" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "upload-report"
     },
     {
       "id": "detect-secrets",
@@ -334,7 +347,8 @@
         "gitlab": "detect-secrets:\n  stage: test\n  script:\n    - detect-secrets scan --baseline .secrets.baseline\n",
         "github": "- name: Run detect-secrets\n  run: detect-secrets scan --baseline .secrets.baseline\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "dongtai",
@@ -357,7 +371,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "falco",
@@ -383,7 +398,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "garak",
@@ -406,7 +422,8 @@
         "gitlab": "garak:\n  stage: test\n  script:\n    - python -m garak --target_type openai --target_name $MODEL\n",
         "github": "- name: Run garak\n  run: python -m garak --target_type openai --target_name $MODEL\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "ggshield",
@@ -431,7 +448,8 @@
         "gitlab": "ggshield:\n  stage: test\n  image:\n    name: gitguardian/ggshield:latest\n    entrypoint: [\"\"]\n  script:\n    - ggshield secret scan repo .\n",
         "github": "- name: Run ggshield\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" gitguardian/ggshield:latest ggshield secret scan repo .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "gitea",
@@ -452,7 +470,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "github",
@@ -473,7 +492,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "gitlab",
@@ -494,7 +514,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "gitleaks",
@@ -519,7 +540,8 @@
         "gitlab": "gitleaks:\n  stage: test\n  image:\n    name: ghcr.io/gitleaks/gitleaks:latest\n    entrypoint: [\"\"]\n  script:\n    - gitleaks git --report-path gitleaks-report.json\n",
         "github": "- name: Run Gitleaks\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/gitleaks/gitleaks:latest gitleaks git --report-path gitleaks-report.json\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "gosec",
@@ -544,7 +566,8 @@
         "gitlab": "gosec:\n  stage: test\n  image:\n    name: ghcr.io/securego/gosec:latest\n    entrypoint: [\"\"]\n  script:\n    - gosec ./...\n",
         "github": "- name: Run gosec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/securego/gosec:latest gosec ./...\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "grafana",
@@ -570,7 +593,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "grype",
@@ -596,7 +620,8 @@
         "gitlab": null,
         "github": "- name: Run Grype\n  run: docker run --rm -v \"$PWD:/src\" -w /src anchore/grype:latest dir:.\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "harbor",
@@ -619,7 +644,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "push"
     },
     {
       "id": "inspec",
@@ -644,7 +670,8 @@
         "gitlab": "inspec:\n  stage: deploy\n  image:\n    name: chef/inspec:latest\n    entrypoint: [\"\"]\n  script:\n    - inspec exec test.rb\n",
         "github": "- name: Run Chef InSpec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" chef/inspec:latest inspec exec test.rb\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "kics",
@@ -669,7 +696,8 @@
         "gitlab": "kics:\n  stage: test\n  image:\n    name: checkmarx/kics:latest\n    entrypoint: [\"\"]\n  script:\n    - /app/bin/kics scan -p .\n",
         "github": "- name: Run KICS\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" checkmarx/kics:latest /app/bin/kics scan -p .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "kube-bench",
@@ -695,7 +723,8 @@
         "gitlab": "kube-bench:\n  stage: test\n  image:\n    name: aquasec/kube-bench:latest\n    entrypoint: [\"\"]\n  script:\n    - kube-bench run\n",
         "github": "- name: Run kube-bench\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" aquasec/kube-bench:latest kube-bench run\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "kubescape",
@@ -720,7 +749,8 @@
         "gitlab": "kubescape:\n  stage: test\n  script:\n    - kubescape scan .\n",
         "github": "- name: Run Kubescape\n  run: kubescape scan .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "kyverno",
@@ -743,7 +773,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "lynis",
@@ -767,7 +798,8 @@
         "gitlab": "lynis:\n  stage: test\n  script:\n    - lynis audit system\n",
         "github": "- name: Run Lynis\n  run: lynis audit system\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "modelscan",
@@ -790,7 +822,8 @@
         "gitlab": "modelscan:\n  stage: test\n  script:\n    - modelscan -p model.pkl\n",
         "github": "- name: Run ModelScan\n  run: modelscan -p model.pkl\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "nexus",
@@ -813,7 +846,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "push"
     },
     {
       "id": "nikto",
@@ -839,7 +873,8 @@
         "gitlab": "nikto:\n  stage: test\n  image:\n    name: ghcr.io/sullo/nikto:latest\n    entrypoint: [\"\"]\n  script:\n    - nikto.pl -h $TARGET_URL\n",
         "github": "- name: Run Nikto\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/sullo/nikto:latest nikto.pl -h $TARGET_URL\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "nuclei",
@@ -865,7 +900,8 @@
         "gitlab": "nuclei:\n  stage: test\n  image:\n    name: projectdiscovery/nuclei:latest\n    entrypoint: [\"\"]\n  script:\n    - nuclei -target $TARGET_URL\n",
         "github": "- name: Run Nuclei\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" projectdiscovery/nuclei:latest nuclei -target $TARGET_URL\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "opa",
@@ -890,7 +926,8 @@
         "gitlab": "opa:\n  stage: test\n  image:\n    name: openpolicyagent/opa:latest\n    entrypoint: [\"\"]\n  script:\n    - opa test policy/\n",
         "github": "- name: Test policies\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" openpolicyagent/opa:latest test policy/\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "openbao",
@@ -915,7 +952,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "fetch-secret"
     },
     {
       "id": "openscap",
@@ -938,7 +976,8 @@
         "gitlab": "openscap:\n  stage: test\n  script:\n    - oscap oval eval --results oval-results.xml scap-oval.xml\n",
         "github": "- name: Run OpenSCAP\n  run: oscap oval eval --results oval-results.xml scap-oval.xml\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "openvas",
@@ -964,7 +1003,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "osv-scanner",
@@ -989,7 +1029,8 @@
         "gitlab": "osv-scanner:\n  stage: test\n  image:\n    name: ghcr.io/google/osv-scanner:latest\n    entrypoint: [\"\"]\n  script:\n    - osv-scanner scan source -r .\n",
         "github": "- name: Run OSV-Scanner\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/google/osv-scanner:latest osv-scanner scan source -r .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "prometheus",
@@ -1014,7 +1055,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "promptfoo",
@@ -1037,7 +1079,8 @@
         "gitlab": "promptfoo:\n  stage: test\n  script:\n    - npx promptfoo eval\n",
         "github": "- name: Run promptfoo\n  run: npx promptfoo eval\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "prowler",
@@ -1064,7 +1107,8 @@
         "gitlab": "prowler:\n  stage: test\n  image:\n    name: prowlercloud/prowler:latest\n    entrypoint: [\"\"]\n  script:\n    - prowler aws\n",
         "github": "- name: Run Prowler\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" prowlercloud/prowler:latest prowler aws\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "renovate",
@@ -1089,7 +1133,8 @@
         "gitlab": "renovate:\n  stage: build\n  image:\n    name: renovate/renovate:latest\n    entrypoint: [\"\"]\n  script:\n    - renovate --platform=gitlab\n",
         "github": "- name: Run Renovate\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" renovate/renovate:latest renovate --platform=gitlab\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "schemathesis",
@@ -1114,7 +1159,8 @@
         "gitlab": "schemathesis:\n  stage: test\n  image:\n    name: schemathesis/schemathesis:stable\n    entrypoint: [\"\"]\n  script:\n    - schemathesis run $API_URL/openapi.json\n",
         "github": "- name: Run Schemathesis\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" schemathesis/schemathesis:stable schemathesis run $API_URL/openapi.json\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "scorecard",
@@ -1139,7 +1185,8 @@
         "gitlab": null,
         "github": "- name: Run OpenSSF Scorecard\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/ossf/scorecard:latest --repo=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "semgrep",
@@ -1165,7 +1212,8 @@
         "gitlab": "semgrep:\n  stage: test\n  image:\n    name: semgrep/semgrep:latest\n    entrypoint: [\"\"]\n  script:\n    - semgrep scan --config auto --error\n",
         "github": "- name: Run Semgrep\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" semgrep/semgrep:latest semgrep scan --config auto --error\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "sentry",
@@ -1190,7 +1238,8 @@
         "gitlab": "sentry-release:\n  stage: deploy\n  image:\n    name: getsentry/sentry-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - sentry-cli releases new --finalize \"$CI_COMMIT_SHA\"\n",
         "github": "- name: Create a Sentry release\n  run: sentry-cli releases new --finalize \"$GITHUB_SHA\"\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "notify"
     },
     {
       "id": "snyk",
@@ -1217,7 +1266,8 @@
         "gitlab": "snyk:\n  stage: test\n  script:\n    - npx snyk test\n",
         "github": "- name: Run Snyk\n  run: npx snyk test\n  env:\n    SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "sonarqube",
@@ -1247,7 +1297,8 @@
         "gitlab": "sonarqube:\n  stage: test\n  image:\n    name: sonarsource/sonar-scanner-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - sonar-scanner\n",
         "github": "- name: Run SonarScanner\n  run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v \"$PWD:/usr/src\" sonarsource/sonar-scanner-cli\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "upload-report"
     },
     {
       "id": "spectral",
@@ -1272,7 +1323,8 @@
         "gitlab": "spectral:\n  stage: test\n  image:\n    name: stoplight/spectral:latest\n    entrypoint: [\"\"]\n  script:\n    - spectral lint openapi.yaml\n",
         "github": "- name: Run Spectral\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" stoplight/spectral:latest spectral lint openapi.yaml\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "syft",
@@ -1297,7 +1349,8 @@
         "gitlab": null,
         "github": "- name: Run Syft\n  run: docker run --rm -v \"$PWD:/src\" -w /src anchore/syft:latest dir:. -o cyclonedx-json=sbom.cdx.json\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "tetragon",
@@ -1322,7 +1375,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "tflint",
@@ -1347,7 +1401,8 @@
         "gitlab": "tflint:\n  stage: test\n  image:\n    name: ghcr.io/terraform-linters/tflint:latest\n    entrypoint: [\"\"]\n  script:\n    - tflint\n",
         "github": "- name: Run TFLint\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/terraform-linters/tflint:latest tflint\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "trivy-operator",
@@ -1370,7 +1425,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "trivy",
@@ -1397,7 +1453,8 @@
         "gitlab": "trivy:\n  stage: test\n  image:\n    name: aquasec/trivy:latest\n    entrypoint: [\"\"]\n  script:\n    - trivy fs --scanners vuln,secret,misconfig .\n",
         "github": "- name: Run Trivy\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" aquasec/trivy:latest trivy fs --scanners vuln,secret,misconfig .\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "trufflehog",
@@ -1422,7 +1479,8 @@
         "gitlab": "trufflehog:\n  stage: test\n  image:\n    name: trufflesecurity/trufflehog:latest\n    entrypoint: [\"\"]\n  script:\n    - trufflehog git file://. --results=verified,unknown --fail\n",
         "github": "- name: Run TruffleHog\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" trufflesecurity/trufflehog:latest trufflehog git file://. --results=verified,unknown --fail\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "vault",
@@ -1447,7 +1505,8 @@
         "gitlab": "vault:\n  stage: build\n  image:\n    name: hashicorp/vault:latest\n    entrypoint: [\"\"]\n  script:\n    - vault kv get -mount=secret -field=passcode creds\n",
         "github": "- name: Read a secret from Vault\n  run: vault kv get -mount=secret -field=passcode creds\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": "fetch-secret"
     },
     {
       "id": "witness",
@@ -1470,7 +1529,8 @@
         "gitlab": "witness:\n  stage: build\n  script:\n    - witness run --step build --attestations environment -- make\n",
         "github": "- name: Run Witness\n  run: witness run --step build --attestations environment -- make\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "wiz",
@@ -1493,7 +1553,8 @@
         "gitlab": null,
         "github": null
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     },
     {
       "id": "zap",
@@ -1523,7 +1584,8 @@
         "gitlab": "zap:\n  stage: test\n  image:\n    name: zaproxy/zap-stable:latest\n    entrypoint: [\"\"]\n  script:\n    - zap-baseline.py -t $TARGET_URL\n",
         "github": "- name: Run ZAP\n  run: docker run --rm -t zaproxy/zap-stable:latest zap-baseline.py -t ${{ vars.TARGET_URL }}\n"
       },
-      "lastVerified": "2026-11-04"
+      "lastVerified": "2026-11-04",
+      "integration": null
     }
   ],
   "logos": {

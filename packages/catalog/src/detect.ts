@@ -1,4 +1,4 @@
-import type { JobSignals } from "@keelson/core";
+import type { IntegrationKind, JobSignals } from "@keelson/core";
 import type { LayerId } from "@keelson/taxonomy";
 import type { Tool } from "./schema.ts";
 
@@ -55,6 +55,20 @@ function commands(script: readonly string[]): string[] {
 function onScript(tool: Tool, script: readonly string[]): boolean {
   const patterns = tool.detect.scripts.map((source) => new RegExp(source, "i"));
   return commands(script).some((command) => patterns.some((pattern) => pattern.test(command)));
+}
+
+export type DetectedIntegration = { tool: string; kind: IntegrationKind };
+
+/** Sur le script seul : l'image d'un client ne prouve pas qu'un job parle au service. */
+export function detectIntegrations(
+  signals: JobSignals,
+  tools: readonly Tool[],
+): DetectedIntegration[] {
+  return tools.flatMap((tool): DetectedIntegration[] =>
+    tool.integration !== null && onScript(tool, signals.script)
+      ? [{ tool: tool.id, kind: tool.integration }]
+      : [],
+  );
 }
 
 /** Un job peut correspondre à plusieurs outils. */

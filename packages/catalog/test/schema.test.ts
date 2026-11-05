@@ -35,6 +35,18 @@ describe("schéma d'une fiche", () => {
     ["une couche inconnue", "layers: [sast]", "layers: [inventee]", "layers.0"],
     ["une licence inconnue", "license: MIT", "license: WTFPL", "license"],
     ["un identifiant en capitales", "id: outil", "id: Outil", "id"],
+    [
+      "une intégration inconnue",
+      "lastVerified: 2026-11-04",
+      "integration: deploy\nlastVerified: 2026-11-04",
+      "integration",
+    ],
+    [
+      "une intégration sur un outil job",
+      "lastVerified: 2026-11-04",
+      "integration: push\nlastVerified: 2026-11-04",
+      "integration",
+    ],
     ["une date invalide", "lastVerified: 2026-11-04", "lastVerified: hier", "lastVerified"],
     ["une URL invalide", "homepage: https://exemple.org", "homepage: exemple", "homepage"],
     ["une regex invalide", "'\\boutil\\b'", "'('", "detect.scripts.0"],

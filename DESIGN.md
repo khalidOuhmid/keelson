@@ -514,7 +514,9 @@ on the job nodes of the chosen layer on the coverage overlay, with no offset, dr
 one-pixel border, which keeps its own colour. Dependency edges are curves between
 left/right handles and are the one place stroke weight carries meaning: 1.5px
 (`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
-`accent` when the edge touches the selection, dashed at 4px when the dependency is optional.
+`accent` when the edge touches the selection, dashed at 4px when the dependency is optional or, on the
+Toolchain view, when the integration is only proposed. A toolchain edge also carries its type in
+words and an arrowhead, so neither dash nor colour speaks alone.
 
 Icons are inline SVG on a 16-unit viewBox, 1.75 stroke, sized `1em` and coloured `currentColor`, so
 a mark always matches the size and colour of the text beside it. Severity marks are distinguished by
@@ -623,8 +625,8 @@ and gets no editor.
 The header is an identity-and-state bar of at least 44px holding the product's one navigation group:
 the product name at 13px semibold, the open file path beside it in 12px monospace `text-muted`
 truncating from the end, a tag counting the included files when there are any, and on the right the
-write indicator, the `Panel` button below `lg`, the `Views` navigation of three ghost buttons
-(Pipeline, Coverage, Catalog), and on the Pipeline view the undo/redo ghost pair with their shortcuts
+write indicator, the `Panel` button below `lg`, the `Views` navigation of four ghost buttons
+(Pipeline, Toolchain, Coverage, Catalog), and on the Pipeline and Toolchain views the undo/redo ghost pair with their shortcuts
 in the `title` attribute. It is underlined by a hairline and sits on the floor colour.
 
 ### Diagnostics Strip
@@ -685,6 +687,18 @@ sentence.
   transparent one-pixel border that turns `accent` when pressed; `surface-3` fill on hover. A layer
   tag sits beside the layer's name in 13px `text-secondary`, over its job ids in 11px monospace
   `text-muted`. Pressing it emphasises that layer's job nodes on the graph.
+
+### Toolchain
+
+The Toolchain view keeps the three-column frame. The side column leads with the pending decisions,
+`Proposed integrations` and their count, then `Services` with each service's integrations listed in
+monospace, which is the keyboard reading of the graph, then `New service`, then `Dismissed` when it
+has entries. The canvas places involved jobs left and services right, biased so a service sits near
+its jobs; nodes drag freely and their positions live in `layout.json`, not in a token. A job node is
+a plain `surface-1` card, since nothing about it is edited here; a service node is `surface-2` with
+its logo or the generic mark, its name, and its tool. Service nodes leave the tab order because the
+list already reaches them. An unreadable `toolchain.yaml` replaces the side column and the empty
+canvas sentence with the reason, instead of reading as an empty toolchain.
 
 ### Catalogue
 

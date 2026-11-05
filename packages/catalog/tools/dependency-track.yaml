@@ -20,4 +20,5 @@ snippets:
     - name: Upload the SBOM
       run: |
         curl -X POST "$DTRACK_URL/api/v1/bom" -H "X-Api-Key: $DTRACK_KEY" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json
+integration: upload-report
 lastVerified: 2026-11-04

@@ -22,6 +22,7 @@ function coverage(covered: Partial<Record<LayerId, string[]>>, partial = false):
       layer: id,
       covered: covered[id] !== undefined,
       jobs: covered[id] ?? [],
+      services: [],
     })),
   };
 }
@@ -39,6 +40,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     detect: { images: [], scripts: [] },
     snippets: { gitlab: "a:\n  script: x\n", github: null },
     lastVerified: "2026-11-04",
+    integration: null,
     ...overrides,
   };
 }
@@ -63,6 +65,18 @@ describe("panneau de couverture", () => {
     expect(screen.getByTestId("coverage-count").textContent).toBe(
       "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
     );
+  });
+
+  test("une couche couverte par un service le nomme", () => {
+    const covered = coverage({});
+    renderPanel({
+      ...covered,
+      layers: covered.layers.map((entry) =>
+        entry.layer === "scm" ? { ...entry, covered: true, services: ["git"] } : entry,
+      ),
+    });
+    const group = screen.getByRole("group", { name: "Covered layers" });
+    expect(group.textContent).toContain("service git");
   });
 
   test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {

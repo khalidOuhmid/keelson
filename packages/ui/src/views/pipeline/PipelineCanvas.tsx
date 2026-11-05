@@ -30,7 +30,7 @@ export type PipelineCanvasProps = {
 /** `fitView` de xyflow ne s'applique qu'au montage. Ouvrir le panneau de détail retire au canevas
  *  la largeur du panneau sans le recadrer, donc les colonnes de droite passent sous le panneau et sont
  *  tronquées. On réajuste quand la largeur disponible change. */
-function RefitOnResize({ container }: { container: React.RefObject<HTMLElement | null> }) {
+export function RefitOnResize({ container }: { container: React.RefObject<HTMLElement | null> }) {
   const flow = useReactFlow();
   const lastWidth = useRef<number | null>(null);
 

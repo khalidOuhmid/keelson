@@ -15,9 +15,9 @@ import type {
   SourceRange,
   SpliceOperation,
 } from "@keelson/core";
-import { parseOperation, validate } from "@keelson/core";
+import { parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
 import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
-import { LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
+import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
@@ -28,10 +28,17 @@ type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
 /** Ce que l'écran sait d'un pipeline, calculé au même endroit au chargement et après une opération :
  *  la CLI fait le même calcul, et les deux doivent dire la même chose. */
 function analyse(root: string, parsing: readonly Diagnostic[], pipeline: Pipeline): Analysis {
+  const { tools } = loadCatalog();
   const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
+  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), pipeline, tools);
   return {
-    diagnostics: [...parsing, ...validate(pipeline), ...layout.diagnostics],
-    coverage: coverage(pipeline, loadCatalog().tools, layout.overrides, parsing),
+    diagnostics: [
+      ...parsing,
+      ...validate(pipeline),
+      ...layout.diagnostics,
+      ...toolchain.diagnostics,
+    ],
+    coverage: coverage(pipeline, tools, layout.overrides, parsing, toolchain.toolchain.services),
   };
 }
 
@@ -172,6 +179,10 @@ export class DocumentStore {
     return this.loaded.get(file)?.hash;
   }
 
+  currentPipeline(file: string): Pipeline | undefined {
+    return this.loaded.get(file)?.pipeline;
+  }
+
   currentText(file: string): string | undefined {
     return this.loaded.get(file)?.text;
   }
@@ -245,6 +256,11 @@ export class DocumentStore {
       return { status: 400, body: validated.error };
     }
 
+    // Le watcher a 40 ms de retard sur le disque : sans cette relecture, une écriture externe dans
+    // cette fenêtre serait écrasée par une opération fondée sur le texte en cache.
+    if (this.loaded.has(file) && this.reader.read(file) !== this.loaded.get(file)?.text) {
+      await this.load(file);
+    }
     const current =
       this.loaded.get(file) ?? (await this.load(file).then(() => this.loaded.get(file)));
     if (current === undefined) {

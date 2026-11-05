@@ -53,6 +53,15 @@ export const EN: Catalogue = {
   CATALOG_MISSING_SNIPPET: (p) => `job tool ${quoted(p.tool)} has no snippet`,
   CATALOG_STALE_TOOL: (p) =>
     `tool ${quoted(p.tool)} was last verified on ${p.lastVerified}, more than six months ago`,
+  // `detail` vient de `yaml` ou de zod, en anglais.
+  TOOLCHAIN_INVALID: (p) => `.devsecops/toolchain.yaml is not usable: ${p.detail}`,
+  TOOLCHAIN_UNKNOWN_TOOL: (p) =>
+    `service ${quoted(p.service)} names ${quoted(p.tool)}, which is not in the catalog`,
+  TOOLCHAIN_UNKNOWN_SERVICE: (p) =>
+    `job ${quoted(p.job)} is integrated with ${quoted(p.service)}, which is not a declared service`,
+  TOOLCHAIN_UNKNOWN_JOB: (p) => `toolchain.yaml names job ${quoted(p.job)}, which does not exist`,
+  TOOLCHAIN_DUPLICATE_INTEGRATION: (p) =>
+    `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.service)} is listed twice`,
 
   STALE_DOCUMENT: () => "the document changed since the operation was computed",
   JOB_NOT_FOUND: (p) => `job ${quoted(p.job)} does not exist in this file`,
@@ -61,6 +70,7 @@ export const EN: Catalogue = {
   INVALID_NAME: {
     job: (p) => `${quoted(p.name)} is not a usable job name`,
     stage: () => "a stage name cannot be empty",
+    service: (p) => `${quoted(p.name)} is not a usable service name`,
   },
   STAGE_NOT_FOUND: (p) => `stage ${quoted(p.stage)} is not declared`,
   STAGE_EXISTS: (p) => `stage ${quoted(p.stage)} already exists`,
@@ -87,6 +97,11 @@ export const EN: Catalogue = {
       `the environment of ${quoted(p.job)} is inherited (${p.origin}) and cannot be removed locally`,
     sharedValue: (p) =>
       `the ${p.key} of ${quoted(p.job)} comes through an anchor or a !reference that Keelson cannot rewrite in place`,
+    flowStyleToolchain: (p) =>
+      `the ${p.section} section is written in flow style, in-place editing is not supported`,
+    invalidToolchain: () => "toolchain.yaml is not usable, fix it before editing it here",
+    invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
+    outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,
     noRootMap: () => "this file has no YAML map at its root",
     wouldBreakYaml: (p) =>
       `operation ${p.operation} would produce invalid YAML, nothing was written`,
@@ -115,6 +130,12 @@ export const EN: Catalogue = {
     referencedByInclude: (p) =>
       `job ${quoted(p.job)} is needed by ${p.referencedBy.map((entry) => `${entry.job} in ${entry.file}`).join(", ")}, and Keelson never writes an included file`,
   },
+  SERVICE_NOT_FOUND: (p) => `service ${quoted(p.service)} is not declared`,
+  SERVICE_REFERENCED: (p) => `service ${quoted(p.service)} is integrated with ${p.jobs.join(", ")}`,
+  INTEGRATION_EXISTS: (p) =>
+    `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.target)} already exists`,
+  INTEGRATION_NOT_FOUND: (p) =>
+    `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.target)} does not exist`,
 
   FORBIDDEN_HOST: () => "the local server refused the Host header",
   FORBIDDEN_TOKEN: () => "the session token is missing or invalid",

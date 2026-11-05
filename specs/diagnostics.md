@@ -60,6 +60,11 @@ compilation.
 | `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | La fiche nomme un logo absent du catalogue embarqué. |
 | `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | Un outil de type `job` n'a aucun snippet. |
 | `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | La fiche n'a pas été vérifiée depuis plus de six mois. |
+| `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` n'est pas du YAML valide ou ne suit pas son schéma. La toolchain est alors vide, et aucune opération ne l'édite. |
+| `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | Un service nomme un outil absent du catalogue. |
+| `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | Une intégration nomme un service non déclaré. |
+| `TOOLCHAIN_UNKNOWN_JOB` | error, ou warning | `validateToolchain` | `{ job }` | Une intégration nomme un job absent du pipeline. Warning sur un pipeline partiel : le job peut venir d'un include non résolu. |
+| `TOOLCHAIN_DUPLICATE_INTEGRATION` | warning | `validateToolchain` | `{ job, service, kind }` | La même intégration figure deux fois. |
 
 ### Exemples
 
@@ -193,7 +198,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `JOB_NOT_FOUND` | `{ job }` | Le job visé n'existe pas. Un template n'est pas un job. |
 | `JOB_REFERENCED` | `{ job, referencedBy }` | `removeJob` sur un job dont d'autres jobs ont besoin. `referencedBy` liste leurs identifiants ; la suppression en cascade se compose en plusieurs opérations. C'est le seul code que l'UI traite spécialement : elle lit `params.referencedBy` pour lister les référents. |
 | `NAME_CONFLICT` | `{ name }` | Le nom cible est déjà pris par une clé de premier niveau (job, template ou clé réservée). |
-| `INVALID_NAME` | `{ reason: "job", name }` ou `{ reason: "stage" }` | `reason: "job"` : le nom est vide, commence par `.`, ou est un mot réservé — `stages`, `variables`, `include`, `default`, `workflow`, `image`, `services`, `cache`, `before_script`, `after_script`. `reason: "stage"` : nom de stage vide. |
+| `INVALID_NAME` | `{ reason: "job", name }` ou `{ reason: "stage" }` | `reason: "job"` : le nom est vide, commence par `.`, ou est un mot réservé — `stages`, `variables`, `include`, `default`, `workflow`, `image`, `services`, `cache`, `before_script`, `after_script`. `reason: "stage"` : nom de stage vide. `reason: "service"`, avec `name` : un identifiant de service suit `^[a-z0-9][a-z0-9._-]*$`. |
 | `STAGE_NOT_FOUND` | `{ stage }` | Le stage visé n'est pas déclaré. Les stages implicites (`.pre`, `build`, `test`, `deploy`, `.post`) comptent comme déclarés. |
 | `STAGE_EXISTS` | `{ stage }` | `addStage` sur un stage déjà présent, implicite compris. |
 | `NEED_EXISTS` | `{ job, need }` | `addNeed` sur un need déjà présent dans la valeur effective. |
@@ -203,6 +208,10 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `INVALID_OPERATION` | union sur `reason`, voir ci-dessous | L'opération ne respecte pas son schéma, ou l'édition demandée n'est pas supportée. |
 | `RANGE_OUT_OF_BOUNDS` | union sur `reason`, voir ci-dessous | Une plage de source est introuvable, ou un index sort de sa liste. |
 | `FROM_INCLUDED_FILE` | union sur `reason`, voir ci-dessous | L'opération visait un élément qui ne vit pas dans le fichier principal. Keelson ne réécrit **jamais** un fichier inclus. |
+| `SERVICE_NOT_FOUND` | `{ service }` | L'opération de toolchain vise un service non déclaré. |
+| `SERVICE_REFERENCED` | `{ service, jobs }` | `removeService` sur un service encore relié à des jobs. |
+| `INTEGRATION_EXISTS` | `{ job, target, kind }` | L'intégration, ou son écart, figure déjà dans le fichier. `target` est le service ou l'outil. |
+| `INTEGRATION_NOT_FOUND` | `{ job, target, kind }` | L'intégration, ou son écart, ne figure pas dans le fichier. |
 
 ### `FROM_INCLUDED_FILE`
 
@@ -223,6 +232,10 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `jobWithoutScript` | — | `addJob` sans aucune ligne de script. |
 | `inheritedEnvironment` | `job`, `origin` | Retrait d'un environnement hérité : GitLab n'a pas de clé d'annulation. `origin` dit d'où il vient (`extends`, `anchor`, `default`). |
 | `sharedValue` | `job`, `key` | La valeur vient d'un alias d'anchor ou d'un `!reference` et l'écrire en place perdrait quelque chose : `addNeed` sur une liste partagée, ou `setJobStage` sur un `!reference` portant une ancre, un commentaire ou une clé explicite `?`. |
+| `flowStyleToolchain` | `section` | Une section de `toolchain.yaml` est écrite en flow style et n'est pas vide. |
+| `invalidToolchain` | — | `toolchain.yaml` porte un `TOOLCHAIN_INVALID` : Keelson n'édite pas un fichier qu'il ne comprend pas. |
+| `invalidLayout` | — | **Serveur** : `layout.json` n'est pas lisible. Keelson n'écrase pas ce qu'il ne comprend pas. |
+| `outsideRoot` | `path` | **Serveur** : `.devsecops` mène hors du dépôt. Rien n'est écrit. |
 | `noRootMap` | — | Le fichier n'a pas de map YAML à la racine, et l'opération n'est pas un `splice`. |
 | `wouldBreakYaml` | `operation` | Le texte résultant serait un YAML invalide ; rien n'a été écrit. |
 | `unreadableBody` | — | **Serveur** : le corps de la requête n'est pas du JSON lisible. |

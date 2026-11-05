@@ -12,4 +12,5 @@ detect:
 snippets:
   gitlab: null
   github: null
+integration: push
 lastVerified: 2026-11-04

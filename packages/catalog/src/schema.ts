@@ -1,3 +1,4 @@
+import { INTEGRATION_KINDS } from "@keelson/core";
 import { LAYER_IDS } from "@keelson/taxonomy";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
@@ -31,22 +32,29 @@ function isStepList(text: string): boolean {
   return Array.isArray(value) && value.length > 0;
 }
 
-export const toolSchema = z.strictObject({
-  id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
-  name: z.string().min(1),
-  kind: z.enum(["job", "service"]),
-  layers: z.array(z.enum(LAYER_IDS)).min(1),
-  license: z.enum([...OPEN_SOURCE_LICENSES, ...OTHER_LICENSES]),
-  homepage: z.url(),
-  verifiedAt: z.url(),
-  logo: z.string().min(1).nullable(),
-  detect: z.strictObject({ images: z.array(z.string().min(1)), scripts: z.array(pattern) }),
-  snippets: z.strictObject({
-    gitlab: z.string().refine(isJobMap, "not a map of jobs").nullable(),
-    github: z.string().refine(isStepList, "not a list of steps").nullable(),
-  }),
-  lastVerified: z.iso.date(),
-});
+export const toolSchema = z
+  .strictObject({
+    id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
+    name: z.string().min(1),
+    kind: z.enum(["job", "service"]),
+    layers: z.array(z.enum(LAYER_IDS)).min(1),
+    license: z.enum([...OPEN_SOURCE_LICENSES, ...OTHER_LICENSES]),
+    homepage: z.url(),
+    verifiedAt: z.url(),
+    logo: z.string().min(1).nullable(),
+    detect: z.strictObject({ images: z.array(z.string().min(1)), scripts: z.array(pattern) }),
+    snippets: z.strictObject({
+      gitlab: z.string().refine(isJobMap, "not a map of jobs").nullable(),
+      github: z.string().refine(isStepList, "not a list of steps").nullable(),
+    }),
+    lastVerified: z.iso.date(),
+    /** Le type d'intégration qu'un job a avec ce service. Absent sur les outils de type `job`. */
+    integration: z.enum(INTEGRATION_KINDS).nullable().default(null),
+  })
+  .refine((tool) => tool.kind === "service" || tool.integration === null, {
+    path: ["integration"],
+    message: "only a service has an integration",
+  });
 
 export type Tool = z.infer<typeof toolSchema>;
 

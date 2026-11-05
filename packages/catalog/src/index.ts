@@ -8,7 +8,12 @@ export {
   type LayerCoverage,
   type LayerOverrides,
 } from "./coverage.ts";
-export { type Detection, detectTools } from "./detect.ts";
+export {
+  type DetectedIntegration,
+  type Detection,
+  detectIntegrations,
+  detectTools,
+} from "./detect.ts";
 export { isOpenSource } from "./licenses.ts";
 export { lintCatalog, STALE_AFTER_MONTHS, type ToolFile } from "./lint.ts";
 export { type ParsedTool, parseTool, type Tool, toolSchema } from "./schema.ts";

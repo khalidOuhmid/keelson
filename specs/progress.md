@@ -1,8 +1,8 @@
 # Suivi des lots
 
 Statut : EN COURS
-Lot courant : **L4 — toolchain**, à cadrer depuis `main`
-Prochaine action : cadrage de L4, `specs/lots/l4.md`, branche `lot/l4-toolchain`.
+Lot courant : **L4 — toolchain**, sur `lot/l4-toolchain`
+Prochaine action : contre-revue des correctifs, vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -655,3 +655,53 @@ terminé.
 **Clôture.** Fusion `36caaa1`. Depuis un clone sans `dist/` : `bun run check` 1443 tests, propriétés à
 500 runs, 56 E2E, smoke test Node (`validate`, `coverage`, `catalog lint`, `start`). `check` vert sur
 `main`.
+
+### 2026-11-05 — L4
+
+**Livré.** Modèle et opérations de toolchain dans `core` ; `.devsecops/toolchain.yaml` lu, validé et
+édité en place, quatre propriétés fast-check sur un corpus de douze fichiers ; champ `integration`
+sur les fiches de service, propositions jamais écrites seules, `dismissed` ; couverture par service
+déclaré ; positions dans `layout.json` ; routes `/api/toolchain`, `/api/toolchain/operations`,
+`/api/layout/positions`, événement `toolchain.changed` ; `keelson validate` et `coverage` ; vue
+Toolchain avec panneau, panneau de service et historique. ADR 0009 à 0011. Écarts clos : relecture
+du disque avant écriture (y compris sur le CI), `scm` jamais couvert.
+
+**Revue indépendante : le lot n'était pas fusionnable.** Dix constats, dont cinq écritures fausses
+que des propriétés vertes à 500 runs ne voyaient pas :
+1. un scalaire `|` ou `>` en fin de valeur faisait avaler la ligne suivante, donc un service ou une
+   section entière ;
+2. `services: ~` laissait `~` collé à la dernière valeur insérée ;
+3. une mise à jour sur une ancre changeait ses alias ;
+4. un fichier illisible valait un fichier vide, puis était écrasé ;
+5. un lien interne était remplacé, un fichier non UTF-8 corrompu.
+
+**Tests incapables d'échouer.** Les propriétés rendaient vert sur tout refus : une `applyToolchain`
+qui refuse tout passait à 500 runs, et le corpus ne contenait ni bloc, ni `~`, ni ancre. Corrigé par
+un corpus adverse et une liste fermée des refus attendus. `applyToolchain` relit désormais son
+résultat contre un modèle calculé sans le texte, et refuse s'ils divergent : une forme de YAML
+imprévue devient un refus, jamais une écriture fausse.
+
+**Aussi.** `PUT` des positions fusionné plutôt que remplacé, corps JSON `null` qui laissait une
+requête sans réponse sur les trois routes, trois courses du store.
+
+**`critique` et `audit`.** Cinq P1 corrigés : Échap et focus, Retour arrière retirait un nœud de
+l'écran, état invalide présenté comme vide, décisions invisibles sous `lg`, graphe illisible hors du
+cas nominal, arêtes inatteignables au clavier (la liste des services les porte). Cette passe n'a pas
+exécuté de navigateur : son cadre l'interdit. Les mesures de débordement à 320, 768 et 1024 px n'ont
+donc pas été faites par elle ; l'E2E couvre 375 px.
+
+**`polish`.** Captures à 1280 et 375 px après correctifs, sans constat nouveau.
+
+**`document`.** Aucun token changé. `DESIGN.md` reçoit la vue Toolchain et le sens du pointillé.
+
+**Une erreur de méthode.** Un commit de L4 (`ffeb4e3`) est parti avec un test en échec, parce que la
+sortie a été lue après le `git commit`. Le suivant le corrige. L'enchaînement `bun test`, puis commit
+seulement sur zéro échec.
+
+**Contre-revues.** Cinq passes, chacune sur le commit de la précédente. Elles ont trouvé : l'écho d'une
+écriture pris pour une modification externe sous `Ctrl+Z` tenu ; un `written` qui n'expirait jamais et
+laissait l'écran faux ; un job disparu écrit quand même ; un focus volé en pleine saisie ; `8080:` et
+`"8080":` qui faisaient écrire dans une entrée invisible. Tous prouvés rouges, E2E compris. La dernière
+ne rouvre rien de bloquant, et son unique reste est consigné. Le premier essai de preuve de la garde de
+focus n'avait pas de code de sortie fiable : refait avec un script qui rend celui de Playwright.
+

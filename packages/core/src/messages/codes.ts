@@ -19,6 +19,11 @@ export const CATALOG_DUPLICATE_TOOL = "CATALOG_DUPLICATE_TOOL";
 export const CATALOG_UNKNOWN_LOGO = "CATALOG_UNKNOWN_LOGO";
 export const CATALOG_MISSING_SNIPPET = "CATALOG_MISSING_SNIPPET";
 export const CATALOG_STALE_TOOL = "CATALOG_STALE_TOOL";
+export const TOOLCHAIN_INVALID = "TOOLCHAIN_INVALID";
+export const TOOLCHAIN_UNKNOWN_TOOL = "TOOLCHAIN_UNKNOWN_TOOL";
+export const TOOLCHAIN_UNKNOWN_SERVICE = "TOOLCHAIN_UNKNOWN_SERVICE";
+export const TOOLCHAIN_UNKNOWN_JOB = "TOOLCHAIN_UNKNOWN_JOB";
+export const TOOLCHAIN_DUPLICATE_INTEGRATION = "TOOLCHAIN_DUPLICATE_INTEGRATION";
 
 export const DIAGNOSTIC_CODES = [
   INVALID_YAML,
@@ -42,6 +47,11 @@ export const DIAGNOSTIC_CODES = [
   CATALOG_UNKNOWN_LOGO,
   CATALOG_MISSING_SNIPPET,
   CATALOG_STALE_TOOL,
+  TOOLCHAIN_INVALID,
+  TOOLCHAIN_UNKNOWN_TOOL,
+  TOOLCHAIN_UNKNOWN_SERVICE,
+  TOOLCHAIN_UNKNOWN_JOB,
+  TOOLCHAIN_DUPLICATE_INTEGRATION,
 ] as const;
 
 export const STALE_DOCUMENT = "STALE_DOCUMENT";
@@ -58,6 +68,10 @@ export const UNSUPPORTED_VERSION = "UNSUPPORTED_VERSION";
 export const INVALID_OPERATION = "INVALID_OPERATION";
 export const RANGE_OUT_OF_BOUNDS = "RANGE_OUT_OF_BOUNDS";
 export const FROM_INCLUDED_FILE = "FROM_INCLUDED_FILE";
+export const SERVICE_NOT_FOUND = "SERVICE_NOT_FOUND";
+export const SERVICE_REFERENCED = "SERVICE_REFERENCED";
+export const INTEGRATION_EXISTS = "INTEGRATION_EXISTS";
+export const INTEGRATION_NOT_FOUND = "INTEGRATION_NOT_FOUND";
 
 export const OPERATION_ERROR_CODES = [
   STALE_DOCUMENT,
@@ -74,6 +88,10 @@ export const OPERATION_ERROR_CODES = [
   INVALID_OPERATION,
   RANGE_OUT_OF_BOUNDS,
   FROM_INCLUDED_FILE,
+  SERVICE_NOT_FOUND,
+  SERVICE_REFERENCED,
+  INTEGRATION_EXISTS,
+  INTEGRATION_NOT_FOUND,
 ] as const;
 
 export const FORBIDDEN_HOST = "FORBIDDEN_HOST";
@@ -145,12 +163,20 @@ export type MessageParams = {
   CATALOG_UNKNOWN_LOGO: { tool: string; logo: string };
   CATALOG_MISSING_SNIPPET: { tool: string };
   CATALOG_STALE_TOOL: { tool: string; lastVerified: string };
+  TOOLCHAIN_INVALID: { detail: string };
+  TOOLCHAIN_UNKNOWN_TOOL: { service: string; tool: string };
+  TOOLCHAIN_UNKNOWN_SERVICE: { job: string; service: string };
+  TOOLCHAIN_UNKNOWN_JOB: { job: string };
+  TOOLCHAIN_DUPLICATE_INTEGRATION: { job: string; service: string; kind: string };
 
   STALE_DOCUMENT: { expected: string; received: string };
   JOB_NOT_FOUND: { job: string };
   JOB_REFERENCED: { job: string; referencedBy: readonly string[] };
   NAME_CONFLICT: { name: string };
-  INVALID_NAME: { reason: "job"; name: string } | { reason: "stage" };
+  INVALID_NAME:
+    | { reason: "job"; name: string }
+    | { reason: "stage" }
+    | { reason: "service"; name: string };
   STAGE_NOT_FOUND: { stage: string };
   STAGE_EXISTS: { stage: string };
   NEED_EXISTS: { job: string; need: string };
@@ -166,6 +192,10 @@ export type MessageParams = {
     | { reason: "jobWithoutScript" }
     | { reason: "inheritedEnvironment"; job: string; origin: string }
     | { reason: "sharedValue"; job: string; key: string }
+    | { reason: "flowStyleToolchain"; section: string }
+    | { reason: "invalidToolchain" }
+    | { reason: "invalidLayout" }
+    | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }
     | { reason: "unreadableBody" }
@@ -190,6 +220,11 @@ export type MessageParams = {
         job: string;
         referencedBy: readonly { job: string; file: string }[];
       };
+
+  SERVICE_NOT_FOUND: { service: string };
+  SERVICE_REFERENCED: { service: string; jobs: readonly string[] };
+  INTEGRATION_EXISTS: { job: string; target: string; kind: string };
+  INTEGRATION_NOT_FOUND: { job: string; target: string; kind: string };
 
   FORBIDDEN_HOST: Empty;
   FORBIDDEN_TOKEN: Empty;

@@ -1,0 +1,8 @@
+version: 1
+services:
+  nexus:
+    tool: nexus
+integrations:
+  - job: build
+    service: nexus
+    kind: push
