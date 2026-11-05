@@ -30,9 +30,11 @@ const KEELSON_THEME = EditorView.theme({
 export type OpaqueBlockViewProps = {
   blockKey: string;
   source: string;
+  /** Un extrait à recopier défile : replié, il perdrait son indentation à l'œil. */
+  wrap?: boolean;
 };
 
-export function OpaqueBlockView({ blockKey, source }: OpaqueBlockViewProps) {
+export function OpaqueBlockView({ blockKey, source, wrap = true }: OpaqueBlockViewProps) {
   const host = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export function OpaqueBlockView({ blockKey, source }: OpaqueBlockViewProps) {
           yaml(),
           syntaxHighlighting(KEELSON_HIGHLIGHT),
           KEELSON_THEME,
-          EditorView.lineWrapping,
+          ...(wrap ? [EditorView.lineWrapping] : []),
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
         ],
@@ -57,7 +59,7 @@ export function OpaqueBlockView({ blockKey, source }: OpaqueBlockViewProps) {
     });
 
     return () => view.destroy();
-  }, [source]);
+  }, [source, wrap]);
 
   return (
     <div

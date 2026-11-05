@@ -158,6 +158,13 @@ export class KeelsonClient {
     return this.call("/api/catalog");
   }
 
+  preview(file: string, op: Operation): Promise<ApiResult<OperationPayload>> {
+    return this.call(`/api/documents/${encodeURIComponent(file)}/preview`, {
+      method: "POST",
+      body: JSON.stringify({ op }),
+    });
+  }
+
   toolchain(): Promise<ApiResult<ToolchainPayload>> {
     return this.call("/api/toolchain");
   }

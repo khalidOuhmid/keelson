@@ -331,6 +331,7 @@ describe("catalogue", () => {
     expect(within(card).getByRole("link", { name: "Homepage" })).toBeDefined();
     expect(card.textContent).toContain("script: x");
     expect(card.textContent).toContain("No GitHub Actions snippet.");
+    expect(card.querySelector(".cm-lineWrapping")).toBeNull();
     expect(card.querySelector('svg path[d="M0 0h24v24H0z"]')).not.toBeNull();
   });
 

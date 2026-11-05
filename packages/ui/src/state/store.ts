@@ -80,7 +80,8 @@ export type KeelsonState = {
   canEdit(): boolean;
   canUndo(): boolean;
   canRedo(): boolean;
-  submit(draft: Draft): Promise<void>;
+  /** `true` si l'écriture a eu lieu. */
+  submit(draft: Draft): Promise<boolean>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   serverEvent(event: Exclude<ServerEvent, { kind: "toolchain.changed" }>): Promise<void>;
@@ -156,10 +157,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       op: Operation,
       entry: HistoryEntry | null,
       onSuccess: () => void,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const file = get().file;
       if (file === null || !get().canEdit()) {
-        return;
+        return false;
       }
 
       set({ pending: true });
@@ -174,7 +175,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           entry.inverse = result.value.inverse;
         }
         onSuccess();
-        return;
+        return true;
       }
 
       if (result.error.status === 409) {
@@ -186,13 +187,14 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
             "The file changed on disk. Your change was not applied; the document has been reloaded.",
         });
         set({ error: result.error });
-        return;
+        return false;
       }
 
       if (owed) {
         await reload(file, RELOADED);
       }
       set({ error: result.error });
+      return false;
     };
 
     return {
@@ -305,7 +307,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       async submit(draft) {
         const hash = get().hash;
         if (hash === null) {
-          return;
+          return false;
         }
         const op = { v: 1, baseHash: hash, ...draft } as Operation;
         const entry: HistoryEntry = {
@@ -313,7 +315,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           inverse: { v: 1, baseHash: hash, kind: "splice", start: 0, end: 0, text: "" },
         };
 
-        await send(op, entry, () => {
+        return send(op, entry, () => {
           undoStack = [...undoStack, entry];
           redoStack = [];
         });

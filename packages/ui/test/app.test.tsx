@@ -154,6 +154,7 @@ function harness(
           submitted.push({ op, opId });
           return submits.shift() ?? { ok: true, value: ok };
         },
+        preview: async () => ({ ok: true, value: ok }),
         toolchain: async () => ({ ok: true, value: TOOLCHAIN }),
         submitToolchain: async () => ({ ok: true, value: { ...TOOLCHAIN, inverse: INVERSE } }),
         savePositions: async (positions) => ({ ok: true, value: { positions } }),

@@ -97,8 +97,10 @@ et `keelson catalog lint`.
 **Livré au lot L4** : `.devsecops/toolchain.yaml` édité par opérations, inférence des intégrations
 confirmée ou écartée, vue Toolchain à positions libres.
 
-**Pas encore livré** : propositions d'outils et
-insertion de jobs (L5), GitHub Actions (L6), packaging npm (L7), flotte (L8). Rien n'est utilisable
+**Livré au lot L5** : insertion d'un outil du catalogue avec diff préalable, annulée d'un coup,
+`keelson export`.
+
+**Pas encore livré** : GitHub Actions (L6), packaging npm (L7), flotte (L8). Rien n'est utilisable
 par un utilisateur final à ce jour.
 
 **Terminologie du modèle** (noms de code, à traduire dans l'UI) : `Pipeline`, `Stage`, `Job`,

@@ -10,14 +10,16 @@ import {
   filterTools,
   type LicenseFilter,
 } from "./filter.ts";
+import type { Insertion } from "./InsertTool.tsx";
 import { ToolCard } from "./ToolCard.tsx";
 
 export type CatalogViewProps = {
   catalog: CatalogPayload;
   initialLayer: LayerId | null;
+  insertion?: Insertion | undefined;
 };
 
-export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
+export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewProps) {
   const [filter, setFilter] = useState<CatalogFilter>({
     layer: initialLayer ?? "any",
     license: "any",
@@ -144,6 +146,7 @@ export function CatalogView({ catalog, initialLayer }: CatalogViewProps) {
             tool={selected}
             logo={selected.logo === null ? null : (catalog.logos[selected.logo] ?? null)}
             onClose={() => setSelectedId(null)}
+            insertion={insertion}
           />
         </aside>
       )}
