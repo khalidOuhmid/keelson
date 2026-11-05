@@ -412,29 +412,27 @@ export function resolveNeeds(
 }
 
 /** Un item `project:` ou `pipeline:` dans la liste effective de `needs`. */
-export function hasCrossProjectNeed(sources: readonly Source[], context: ResolveContext): boolean {
+export function hasUnmodelledNeeds(sources: readonly Source[], context: ResolveContext): boolean {
   const found = matches(sources, "needs").at(-1);
-  if (found === undefined) {
-    return false;
-  }
-  const document = documentOf(context, found.file);
-  if (document === null) {
+  const document = found === undefined ? null : documentOf(context, found.file);
+  if (found === undefined || document === null) {
     return false;
   }
 
-  // GitLab aplatit `needs` : un `!reference` ou une liste imbriquée y vaut ses items.
-  const carries = (node: AnyNode, depth: number): boolean => {
-    const target = dereference(node, found.file, context).node;
-    if (isSeq(target)) {
-      return depth > 0 && target.items.some((item) => carries(item as AnyNode, depth - 1));
-    }
-    return (
-      isMap(target) &&
-      (entryAt(target, "project", document) !== undefined ||
-        entryAt(target, "pipeline", document) !== undefined)
-    );
-  };
-  return carries(found.node, 8);
+  const list = dereference(found.node, found.file, context).node;
+  return (
+    isSeq(list) &&
+    list.items.some((item) => {
+      const target = dereference(item as AnyNode, found.file, context).node;
+      // GitLab aplatit une liste imbriquée ou un `!reference` en item : `needFrom` ne les voit pas.
+      return (
+        isSeq(target) ||
+        (isMap(target) &&
+          (entryAt(target, "project", document) !== undefined ||
+            entryAt(target, "pipeline", document) !== undefined))
+      );
+    })
+  );
 }
 
 function plainObject(node: AnyNode): Record<string, unknown> | null {

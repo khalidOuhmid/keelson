@@ -738,7 +738,7 @@ jobs d'un stage non déclaré et laissait passer `%%{init}%%`, et 6 Ko de `$(` f
 Elle a aussi trouvé la cause de l'instabilité E2E : une assertion déjà vraie avant l'action.
 
 **Trois erreurs de méthode.** `pkill -f` a tué mon propre shell, ce que le journal de L2b notait déjà.
-Un premier correctif de `crossProjectNeeds` a marqué tous les jobs à `needs` : `entryAt` rend `null`
+Un premier correctif de `unmodelledNeeds` a marqué tous les jobs à `needs` : `entryAt` rend `null`
 hors d'une map, et les goldens l'ont attrapé sans être régénérés.
 
 La troisième : la preuve rouge de la borne du découpage shell bloquait, comme prévu, et son `timeout`

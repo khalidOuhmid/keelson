@@ -248,6 +248,18 @@ describe("needs inter-projets", () => {
     expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
   });
 
+  test("un item imbriqué ordinaire n'est pas perdu non plus", () => {
+    const text = `.n:\n  needs:\n    - b\n\n.t:\n  needs:\n    - a\n    - !reference [.n, needs]\n\na:\n  stage: test\n  script: x\n\nb:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n`;
+    expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
+  });
+
+  test("des références larges ne font pas exploser l'analyse", () => {
+    const refs = "    - !reference [.n, needs]\n".repeat(30);
+    const started = performance.now();
+    parse(`.n:\n  needs:\n${refs}\na:\n  extends: .n\n  script: x\n`);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   test("une liste locale s'étend sans perdre l'item", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";

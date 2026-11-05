@@ -340,6 +340,32 @@ describe("découpage shell sur une entrée hostile", () => {
     ).toEqual([]);
   });
 
+  test.each([
+    ["echo sh -c trivy fs ."],
+    ['git commit -m "fix: use sh -c trivy fs ."'],
+    ['grep -r "run sh -c trivy fs ." .'],
+    ["ls /bin/sh -c trivy fs ."],
+  ])("%s ne lance rien", (line) => {
+    expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
+  });
+
+  test.each([
+    ['ssh -i key host "trivy fs ."'],
+    ['su - bob -c "trivy fs ."'],
+    ['find . -exec sh -c "trivy fs ." ;'],
+    ['/bin/bash -c "trivy fs ."'],
+  ])("%s lance l'outil aussi", (line) => {
+    expect(
+      detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
+    ).toContain("trivy");
+  });
+
+  test("une liste d'options répétées reste linéaire", () => {
+    const started = performance.now();
+    detectTools({ image: null, script: [`sh ${"-o ".repeat(20000)}`] }, catalog.tools);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   test("command lance, command -v interroge", () => {
     const found = (line: string) =>
       detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);

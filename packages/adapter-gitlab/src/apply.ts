@@ -458,12 +458,12 @@ function itemPrefix(text: string, offset: number): string {
   return dash === undefined ? here : `${/^\s*/.exec(dash)?.[0] ?? ""}- `;
 }
 
-function rewritesCrossProject(pipeline: Pipeline, id: string): boolean {
-  return pipeline.jobs.find((job) => job.id === id)?.crossProjectNeeds === true;
+function rewritesUnmodelled(pipeline: Pipeline, id: string): boolean {
+  return pipeline.jobs.find((job) => job.id === id)?.unmodelledNeeds === true;
 }
 
 /** L'IR ne porte pas ces items : réécrire la liste les perdrait sans un mot. */
-function crossProjectRefusal(job: string): Planned {
+function unmodelledRefusal(job: string): Planned {
   return fail(INVALID_OPERATION, { reason: "sharedValue", job, key: "needs" });
 }
 
@@ -493,8 +493,8 @@ function planAddNeed(
   const local = localPair(located.value.map, "needs");
 
   if (local === undefined) {
-    if (rewritesCrossProject(pipeline, operation.id)) {
-      return crossProjectRefusal(operation.id);
+    if (rewritesUnmodelled(pipeline, operation.id)) {
+      return unmodelledRefusal(operation.id);
     }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
@@ -574,9 +574,9 @@ function planRemoveNeed(
 
   if (
     (local === undefined || remaining.length === 0) &&
-    rewritesCrossProject(pipeline, operation.id)
+    rewritesUnmodelled(pipeline, operation.id)
   ) {
-    return crossProjectRefusal(operation.id);
+    return unmodelledRefusal(operation.id);
   }
 
   if (local === undefined) {

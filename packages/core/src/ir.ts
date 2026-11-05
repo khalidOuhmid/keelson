@@ -61,9 +61,9 @@ export type Job = {
   id: string;
   stage: Valued<string>;
   needs: Valued<Need[]> | null;
-  /** La liste `needs` porte des items inter-projets, que l'IR ne modélise pas : la réécrire les
-   *  perdrait. Absent quand il n'y en a pas. */
-  crossProjectNeeds?: true;
+  /** La liste `needs` porte des items que l'IR ne modélise pas, inter-projets ou imbriqués : la
+   *  réécrire les perdrait. Absent quand il n'y en a pas. */
+  unmodelledNeeds?: true;
   environment: Valued<Environment> | null;
   extends: string[];
   opaque: OpaqueBlock[];

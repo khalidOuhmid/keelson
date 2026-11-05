@@ -154,12 +154,55 @@ function unquoted(word: string): string {
 }
 
 /** Le script passé à `sh -c`, ou `null`. */
+const isShell = (word: string): boolean =>
+  /^(?:ba|z|da)?sh$/.test(word.slice(word.lastIndexOf("/") + 1));
+
+/** Les commandes qui lancent le shell qu'on leur passe en argument. */
+const CARRIERS = new Set(["docker", "podman", "xargs", "find"]);
+
+/** Le script passé à `sh -c`, `su -c`, `eval` ou `ssh`, ou `null`. Mot à mot : un `sh -c` cité par
+ *  `echo` ou `git commit` n'est pas une exécution, et une regex à options répétées peut exploser. */
 function shellArgument(command: string): string | null {
-  const nested = /(?:^|[\s/])(?:ba|z|da)?sh\s+(?:-o\s+\S+\s+|-\w+\s+)*-\w*c\s+(.+)$/s.exec(command);
-  const direct =
-    nested ?? /^eval\s+(.+)$/s.exec(command) ?? /^su\s+(?:-\S*\s+)*-c\s+(.+)$/s.exec(command);
-  const distant = direct ?? /^ssh\s+(?:-\S+\s+)*\S+\s+(.+)$/s.exec(command);
-  return distant?.[1] === undefined ? null : unquoted(distant[1].trim());
+  const words = [...command.matchAll(/\S+/g)];
+  const head = words[0]?.[0] ?? "";
+  const rest = (index: number): string | null => {
+    const start = words[index]?.index;
+    return start === undefined ? null : unquoted(command.slice(start).trim());
+  };
+
+  if (head === "eval") {
+    return rest(1);
+  }
+  if (head === "ssh") {
+    const host = words.findIndex((word, index) => index > 0 && !word[0].startsWith("-"));
+    // `-i key` : l'option prend une valeur, le mot suivant est l'hôte.
+    const flagged = words[1]?.[0] === "-i" || words[1]?.[0] === "-p" || words[1]?.[0] === "-l";
+    return host === -1 ? null : rest(host + (flagged ? 2 : 1));
+  }
+
+  const shell = isShell(head)
+    ? 0
+    : head === "su"
+      ? 0
+      : CARRIERS.has(head)
+        ? words.findIndex((word) => isShell(word[0]))
+        : -1;
+  if (shell === -1) {
+    return null;
+  }
+
+  for (let index = shell + 1; index < words.length; index += 1) {
+    const word = words[index]?.[0] ?? "";
+    if (/^-\w*c$/.test(word)) {
+      return rest(index + 1);
+    }
+    if (word === "-o") {
+      index += 1;
+    } else if (!word.startsWith("-") && head !== "su") {
+      return null;
+    }
+  }
+  return null;
 }
 
 function resolved(raw: string, depth: number): string[] {
