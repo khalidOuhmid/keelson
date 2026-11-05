@@ -1,0 +1,125 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/crlf.yml"
+      },
+      {
+        "name": "level 2",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/crlf.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "a",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 27,
+              "end": 49
+            },
+            "file": ".github/workflows/crlf.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 55,
+              "end": 79
+            },
+            "file": ".github/workflows/crlf.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["x"]
+        },
+        "range": {
+          "start": 19,
+          "end": 79
+        },
+        "file": ".github/workflows/crlf.yml"
+      },
+      {
+        "id": "b",
+        "stage": {
+          "value": "level 2",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": {
+          "value": [
+            {
+              "job": "a",
+              "optional": false,
+              "artifacts": true
+            }
+          ],
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 103,
+              "end": 125
+            },
+            "file": ".github/workflows/crlf.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 131,
+              "end": 155
+            },
+            "file": ".github/workflows/crlf.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["y"]
+        },
+        "range": {
+          "start": 81,
+          "end": 155
+        },
+        "file": ".github/workflows/crlf.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "on",
+        "range": {
+          "start": 0,
+          "end": 8
+        },
+        "file": ".github/workflows/crlf.yml"
+      }
+    ],
+    "main": ".github/workflows/crlf.yml",
+    "files": [".github/workflows/crlf.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

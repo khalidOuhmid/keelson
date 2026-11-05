@@ -14,7 +14,7 @@ function tool(id: string, integration: Tool["integration"]): Tool {
     verifiedAt: "https://exemple.org",
     logo: null,
     integration,
-    detect: { images: [], scripts: [`\\b${id}\\b`] },
+    detect: { images: [], scripts: [`\\b${id}\\b`], actions: [] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
   };

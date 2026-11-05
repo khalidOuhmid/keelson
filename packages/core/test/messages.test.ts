@@ -138,6 +138,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
   ],
 
+  WORKFLOW_UNRESOLVED: [
+    {
+      params: { job: "call", target: "o/r/.github/workflows/x.yml@v1" },
+      text: 'job "call" calls the reusable workflow "o/r/.github/workflows/x.yml@v1", which Keelson does not read, so its jobs are not shown',
+    },
+  ],
   TOOLCHAIN_INVALID: [
     {
       params: { detail: "version: Invalid input" },
@@ -238,6 +244,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     {
       params: { reason: "invalidSnippet" },
       text: "this snippet is not a single job Keelson can copy as it is",
+    },
+    {
+      params: { reason: "notForProvider", operation: "addStage" },
+      text: "operation addStage has no meaning in a GitHub Actions workflow",
     },
     {
       params: { reason: "invalidLayout" },

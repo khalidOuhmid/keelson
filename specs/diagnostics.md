@@ -60,6 +60,7 @@ compilation.
 | `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | La fiche nomme un logo absent du catalogue embarqué. |
 | `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | Un outil de type `job` n'a aucun snippet. |
 | `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | La fiche n'a pas été vérifiée depuis plus de six mois. |
+| `WORKFLOW_UNRESOLVED` | info | `parse` GitHub | `{ job, target }` | Un job `uses:` appelle un workflow réutilisable, que Keelson ne lit pas. Compté dans `Pipeline.unresolved`, donc le pipeline est partiel ([ADR 0013](adr/0013-github-sans-stages.md)). |
 | `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` n'est pas du YAML valide ou ne suit pas son schéma. La toolchain est alors vide, et aucune opération ne l'édite. |
 | `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | Un service nomme un outil absent du catalogue. |
 | `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | Une intégration nomme un service non déclaré. |
@@ -235,6 +236,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `flowStyleToolchain` | `section` | Une section de `toolchain.yaml` est écrite en flow style et n'est pas vide. |
 | `invalidToolchain` | — | `toolchain.yaml` porte un `TOOLCHAIN_INVALID` : Keelson n'édite pas un fichier qu'il ne comprend pas. |
 | `invalidSnippet` | — | `addSnippet` : le texte n'est pas le YAML d'un seul job en bloc, sans ancre ni alias. |
+| `notForProvider` | `operation` | GitHub Actions : l'opération n'a pas de sens, faute de stages ou d'options de need. |
 | `invalidLayout` | — | **Serveur** : `layout.json` n'est pas lisible. Keelson n'écrase pas ce qu'il ne comprend pas. |
 | `outsideRoot` | `path` | **Serveur** : `.devsecops` mène hors du dépôt. Rien n'est écrit. |
 | `noRootMap` | — | Le fichier n'a pas de map YAML à la racine, et l'opération n'est pas un `splice`. |

@@ -1,0 +1,141 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/block-scalars.yml"
+      },
+      {
+        "name": "level 2",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/block-scalars.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "a",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 35,
+              "end": 57
+            },
+            "file": ".github/workflows/block-scalars.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 62,
+              "end": 119
+            },
+            "file": ".github/workflows/block-scalars.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["make\nmake test\n"]
+        },
+        "range": {
+          "start": 28,
+          "end": 119
+        },
+        "file": ".github/workflows/block-scalars.yml"
+      },
+      {
+        "id": "b",
+        "stage": {
+          "value": "level 2",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": {
+          "value": [
+            {
+              "job": "a",
+              "optional": false,
+              "artifacts": true
+            }
+          ],
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 171,
+              "end": 193
+            },
+            "file": ".github/workflows/block-scalars.yml"
+          },
+          {
+            "key": "env",
+            "range": {
+              "start": 198,
+              "end": 250
+            },
+            "file": ".github/workflows/block-scalars.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 254,
+              "end": 283
+            },
+            "file": ".github/workflows/block-scalars.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["echo fin"]
+        },
+        "range": {
+          "start": 143,
+          "end": 283
+        },
+        "file": ".github/workflows/block-scalars.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 10
+        },
+        "file": ".github/workflows/block-scalars.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 11,
+          "end": 19
+        },
+        "file": ".github/workflows/block-scalars.yml"
+      }
+    ],
+    "main": ".github/workflows/block-scalars.yml",
+    "files": [".github/workflows/block-scalars.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

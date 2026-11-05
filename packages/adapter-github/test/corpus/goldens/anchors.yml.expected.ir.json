@@ -1,0 +1,163 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/anchors.yml"
+      },
+      {
+        "name": "level 2",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/anchors.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "a",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 49,
+              "end": 71
+            },
+            "file": ".github/workflows/anchors.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 76,
+              "end": 98
+            },
+            "file": ".github/workflows/anchors.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["x"]
+        },
+        "range": {
+          "start": 37,
+          "end": 98
+        },
+        "file": ".github/workflows/anchors.yml"
+      },
+      {
+        "id": "b",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [],
+        "signals": {
+          "image": null,
+          "script": ["x"]
+        },
+        "range": {
+          "start": 100,
+          "end": 107
+        },
+        "file": ".github/workflows/anchors.yml"
+      },
+      {
+        "id": "c",
+        "stage": {
+          "value": "level 2",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": {
+          "value": [
+            {
+              "job": "a",
+              "optional": false,
+              "artifacts": true
+            }
+          ],
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "env",
+            "range": {
+              "start": 132,
+              "end": 144
+            },
+            "file": ".github/workflows/anchors.yml"
+          },
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 149,
+              "end": 171
+            },
+            "file": ".github/workflows/anchors.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 176,
+              "end": 198
+            },
+            "file": ".github/workflows/anchors.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["y"]
+        },
+        "range": {
+          "start": 110,
+          "end": 198
+        },
+        "file": ".github/workflows/anchors.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "on",
+        "range": {
+          "start": 0,
+          "end": 8
+        },
+        "file": ".github/workflows/anchors.yml"
+      },
+      {
+        "key": "env",
+        "range": {
+          "start": 9,
+          "end": 29
+        },
+        "file": ".github/workflows/anchors.yml"
+      }
+    ],
+    "main": ".github/workflows/anchors.yml",
+    "files": [".github/workflows/anchors.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

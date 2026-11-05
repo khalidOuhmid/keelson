@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['zaproxy/zap-stable', 'zaproxy/zap-weekly', 'zaproxy/zaproxy', 'owasp/zap2docker-stable', 'owasp/zap2docker-weekly']
   scripts: ['\bzap-(baseline|full-scan|api-scan)\.py\b']
+  actions: ['zaproxy/action-baseline', 'zaproxy/action-full-scan', 'zaproxy/action-api-scan']
 snippets:
   gitlab: |
     zap:

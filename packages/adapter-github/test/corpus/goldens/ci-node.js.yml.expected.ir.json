@@ -1,0 +1,86 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/ci-node.js.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 412,
+              "end": 434
+            },
+            "file": ".github/workflows/ci-node.js.yml"
+          },
+          {
+            "key": "strategy",
+            "range": {
+              "start": 440,
+              "end": 600
+            },
+            "file": ".github/workflows/ci-node.js.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 600,
+              "end": 882
+            },
+            "file": ".github/workflows/ci-node.js.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["npm ci", "npm run build --if-present", "npm test"],
+          "actions": ["actions/checkout@v4", "actions/setup-node@v4"]
+        },
+        "range": {
+          "start": 400,
+          "end": 882
+        },
+        "file": ".github/workflows/ci-node.js.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 277,
+          "end": 293
+        },
+        "file": ".github/workflows/ci-node.js.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 295,
+          "end": 391
+        },
+        "file": ".github/workflows/ci-node.js.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-node.js.yml",
+    "files": [".github/workflows/ci-node.js.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

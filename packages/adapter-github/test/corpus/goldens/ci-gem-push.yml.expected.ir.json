@@ -1,0 +1,100 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/ci-gem-push.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "name",
+            "range": {
+              "start": 132,
+              "end": 153
+            },
+            "file": ".github/workflows/ci-gem-push.yml"
+          },
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 158,
+              "end": 180
+            },
+            "file": ".github/workflows/ci-gem-push.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 185,
+              "end": 241
+            },
+            "file": ".github/workflows/ci-gem-push.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 246,
+              "end": 1444
+            },
+            "file": ".github/workflows/ci-gem-push.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "mkdir -p $HOME/.gem\ntouch $HOME/.gem/credentials\nchmod 0600 $HOME/.gem/credentials\nprintf -- \"---\\n:github: ${GEM_HOST_API_KEY}\\n\" > $HOME/.gem/credentials\ngem build *.gemspec\ngem push --KEY github --host https://rubygems.pkg.github.com/${OWNER} *.gem\n",
+            "mkdir -p $HOME/.gem\ntouch $HOME/.gem/credentials\nchmod 0600 $HOME/.gem/credentials\nprintf -- \"---\\n:rubygems_api_key: ${GEM_HOST_API_KEY}\\n\" > $HOME/.gem/credentials\ngem build *.gemspec\ngem push *.gem\n"
+          ],
+          "actions": [
+            "actions/checkout@v4",
+            "ruby/setup-ruby@55283cc23133118229fd3f97f9336ee23a179fcf"
+          ]
+        },
+        "range": {
+          "start": 121,
+          "end": 1444
+        },
+        "file": ".github/workflows/ci-gem-push.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 14
+        },
+        "file": ".github/workflows/ci-gem-push.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 16,
+          "end": 112
+        },
+        "file": ".github/workflows/ci-gem-push.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-gem-push.yml",
+    "files": [".github/workflows/ci-gem-push.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

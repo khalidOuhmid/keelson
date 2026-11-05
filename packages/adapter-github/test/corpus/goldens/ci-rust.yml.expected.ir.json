@@ -1,0 +1,86 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/ci-rust.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 162,
+              "end": 184
+            },
+            "file": ".github/workflows/ci-rust.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 190,
+              "end": 334
+            },
+            "file": ".github/workflows/ci-rust.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["cargo build --verbose", "cargo test --verbose"],
+          "actions": ["actions/checkout@v4"]
+        },
+        "range": {
+          "start": 150,
+          "end": 334
+        },
+        "file": ".github/workflows/ci-rust.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 10
+        },
+        "file": ".github/workflows/ci-rust.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 12,
+          "end": 108
+        },
+        "file": ".github/workflows/ci-rust.yml"
+      },
+      {
+        "key": "env",
+        "range": {
+          "start": 109,
+          "end": 141
+        },
+        "file": ".github/workflows/ci-rust.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-rust.yml",
+    "files": [".github/workflows/ci-rust.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

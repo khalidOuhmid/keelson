@@ -1,0 +1,117 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/deployments-aws.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "deploy",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": {
+          "value": {
+            "name": "production"
+          },
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "extends": [],
+        "opaque": [
+          {
+            "key": "name",
+            "range": {
+              "start": 2812,
+              "end": 2824
+            },
+            "file": ".github/workflows/deployments-aws.yml"
+          },
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 2829,
+              "end": 2851
+            },
+            "file": ".github/workflows/deployments-aws.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 2885,
+              "end": 4468
+            },
+            "file": ".github/workflows/deployments-aws.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "# Build a docker container and\n# push it to ECR so that it can\n# be deployed to ECS.\ndocker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .\ndocker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG\necho \"image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG\" >> $GITHUB_OUTPUT\n"
+          ],
+          "actions": [
+            "actions/checkout@v4",
+            "aws-actions/configure-aws-credentials@v1",
+            "aws-actions/amazon-ecr-login@v1",
+            "aws-actions/amazon-ecs-render-task-definition@v1",
+            "aws-actions/amazon-ecs-deploy-task-definition@v1"
+          ]
+        },
+        "range": {
+          "start": 2800,
+          "end": 4468
+        },
+        "file": ".github/workflows/deployments-aws.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 1923,
+          "end": 1949
+        },
+        "file": ".github/workflows/deployments-aws.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 1951,
+          "end": 1997
+        },
+        "file": ".github/workflows/deployments-aws.yml"
+      },
+      {
+        "key": "env",
+        "range": {
+          "start": 1998,
+          "end": 2760
+        },
+        "file": ".github/workflows/deployments-aws.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 2761,
+          "end": 2791
+        },
+        "file": ".github/workflows/deployments-aws.yml"
+      }
+    ],
+    "main": ".github/workflows/deployments-aws.yml",
+    "files": [".github/workflows/deployments-aws.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

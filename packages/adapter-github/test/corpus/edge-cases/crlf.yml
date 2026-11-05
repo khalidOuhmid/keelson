@@ -1,0 +1,11 @@
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: x
+  b:
+    needs: a
+    runs-on: ubuntu-latest
+    steps:
+      - run: y

@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['gitleaks']
   scripts: ['\bgitleaks\b']
+  actions: ['gitleaks/gitleaks-action']
 snippets:
   gitlab: |
     gitleaks:

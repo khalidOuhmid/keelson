@@ -24,7 +24,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     verifiedAt: "https://exemple.org",
     logo: null,
     integration: null,
-    detect: { images: [`exemple/${id}`], scripts: [`\\b${id}\\b`] },
+    detect: { images: [`exemple/${id}`], scripts: [`\\b${id}\\b`], actions: [] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
     ...overrides,
@@ -203,7 +203,7 @@ describe("détection", () => {
   test("un miroir ou un registre privé reste la même image", () => {
     const found = (image: string) =>
       detectTools({ image, script: [] }, [
-        tool("trivy", { detect: { images: ["aquasec/trivy"], scripts: [] } }),
+        tool("trivy", { detect: { images: ["aquasec/trivy"], scripts: [], actions: [] } }),
       ]);
     expect(found("ghcr.io/aquasecurity/trivy:0.5")).toHaveLength(1);
     expect(found("registry.example.org:5000/mirror/trivy@sha256:abc")).toHaveLength(1);

@@ -1,0 +1,29 @@
+# en tête
+name: "matrice"
+on:
+  push:
+    branches: [main]
+
+jobs:
+
+  # premier
+  "quoted":
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: un
+        run: echo 1
+
+  # second
+  second:
+    needs:
+      - quoted # le premier
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: https://x.example
+    steps:
+      - run: echo 2
+# fin

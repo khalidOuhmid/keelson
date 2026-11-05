@@ -1,0 +1,78 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/ci-c-cpp.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 133,
+              "end": 155
+            },
+            "file": ".github/workflows/ci-c-cpp.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 161,
+              "end": 376
+            },
+            "file": ".github/workflows/ci-c-cpp.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["./configure", "make", "make check", "make distcheck"],
+          "actions": ["actions/checkout@v4"]
+        },
+        "range": {
+          "start": 121,
+          "end": 376
+        },
+        "file": ".github/workflows/ci-c-cpp.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 14
+        },
+        "file": ".github/workflows/ci-c-cpp.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 16,
+          "end": 112
+        },
+        "file": ".github/workflows/ci-c-cpp.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-c-cpp.yml",
+    "files": [".github/workflows/ci-c-cpp.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

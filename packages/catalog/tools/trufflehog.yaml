@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['trufflehog']
   scripts: ['\btrufflehog\b']
+  actions: ['trufflesecurity/trufflehog']
 snippets:
   gitlab: |
     trufflehog:

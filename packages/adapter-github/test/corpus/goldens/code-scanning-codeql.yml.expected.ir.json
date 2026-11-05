@@ -1,0 +1,108 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/code-scanning-codeql.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "analyze",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "name",
+            "range": {
+              "start": 676,
+              "end": 714
+            },
+            "file": ".github/workflows/code-scanning-codeql.yml"
+          },
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 1108,
+              "end": 1189
+            },
+            "file": ".github/workflows/code-scanning-codeql.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 1194,
+              "end": 1454
+            },
+            "file": ".github/workflows/code-scanning-codeql.yml"
+          },
+          {
+            "key": "strategy",
+            "range": {
+              "start": 1459,
+              "end": 2464
+            },
+            "file": ".github/workflows/code-scanning-codeql.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 2468,
+              "end": 4603
+            },
+            "file": ".github/workflows/code-scanning-codeql.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "echo 'If you are using a \"manual\" build mode for one or more of the' \\\n  'languages you are analyzing, replace this with the commands to build' \\\n  'your code, for example:'\necho '  make bootstrap'\necho '  make release'\nexit 1\n"
+          ],
+          "actions": [
+            "actions/checkout@v7",
+            "github/codeql-action/init@v4",
+            "github/codeql-action/analyze@v4"
+          ]
+        },
+        "range": {
+          "start": 663,
+          "end": 4603
+        },
+        "file": ".github/workflows/code-scanning-codeql.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 454,
+          "end": 477
+        },
+        "file": ".github/workflows/code-scanning-codeql.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 479,
+          "end": 654
+        },
+        "file": ".github/workflows/code-scanning-codeql.yml"
+      }
+    ],
+    "main": ".github/workflows/code-scanning-codeql.yml",
+    "files": [".github/workflows/code-scanning-codeql.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

@@ -55,6 +55,8 @@ export type Stage = {
 export type JobSignals = {
   image: string | null;
   script: string[];
+  /** Les actions GitHub (`owner/repo@ref`) des étapes du job. Absent ailleurs. */
+  actions?: string[];
 };
 
 export type Job = {
@@ -83,7 +85,7 @@ export type Template = {
  *  `detail` est la valeur telle qu'elle est écrite, pour que l'écran puisse dire ce qui manque et
  *  non seulement qu'il manque quelque chose. */
 export type UnresolvedInclude = {
-  form: "local" | "remote" | "project" | "template" | "component";
+  form: "local" | "remote" | "project" | "template" | "component" | "workflow";
   detail: string;
   /** Le fichier qui porte la clé `include`, pas la cible. */
   from: string;
@@ -100,6 +102,8 @@ export type Pipeline = {
   /** Le fichier principal et chaque fichier inclus résolu, dans l'ordre de fusion. */
   files: string[];
   unresolved: UnresolvedInclude[];
+  /** Absent sur GitLab. `github` : les stages sont dérivés de `needs` (ADR 0013). */
+  provider?: "github";
 };
 
 /** Un pipeline sans rien dedans, nommé une seule fois : l'UI en a besoin tant que rien n'est

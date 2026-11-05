@@ -20,6 +20,8 @@ export const EN: Catalogue = {
   // Seuls les includes **distants** restent non résolus : les locaux le sont depuis le lot L2b.
   INCLUDE_UNRESOLVED: (p) =>
     `this ${p.form} include is not resolved (${p.detail}), so the pipeline shown may be incomplete`,
+  WORKFLOW_UNRESOLVED: (p) =>
+    `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.target)}, which Keelson does not read, so its jobs are not shown`,
   INCLUDE_NOT_FOUND: {
     missing: (p) => `included file ${quoted(p.path)} does not exist`,
     notYaml: (p) => `included file ${quoted(p.path)} is not a .yml or .yaml file`,
@@ -101,6 +103,7 @@ export const EN: Catalogue = {
       `the ${p.section} section is written in flow style, in-place editing is not supported`,
     invalidToolchain: () => "toolchain.yaml is not usable, fix it before editing it here",
     invalidSnippet: () => "this snippet is not a single job Keelson can copy as it is",
+    notForProvider: (p) => `operation ${p.operation} has no meaning in a GitHub Actions workflow`,
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,
     noRootMap: () => "this file has no YAML map at its root",

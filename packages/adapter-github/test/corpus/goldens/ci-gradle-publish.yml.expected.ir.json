@@ -1,0 +1,90 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/ci-gradle-publish.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 512,
+              "end": 534
+            },
+            "file": ".github/workflows/ci-gradle-publish.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 539,
+              "end": 595
+            },
+            "file": ".github/workflows/ci-gradle-publish.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 600,
+              "end": 1435
+            },
+            "file": ".github/workflows/ci-gradle-publish.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["./gradlew build", "./gradlew publish"],
+          "actions": [
+            "actions/checkout@v4",
+            "actions/setup-java@v4",
+            "gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582"
+          ]
+        },
+        "range": {
+          "start": 500,
+          "end": 1435
+        },
+        "file": ".github/workflows/ci-gradle-publish.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 433,
+          "end": 453
+        },
+        "file": ".github/workflows/ci-gradle-publish.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 455,
+          "end": 491
+        },
+        "file": ".github/workflows/ci-gradle-publish.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-gradle-publish.yml",
+    "files": [".github/workflows/ci-gradle-publish.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

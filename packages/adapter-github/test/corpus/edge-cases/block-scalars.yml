@@ -1,0 +1,20 @@
+name: bloc
+on: push
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          make
+          make test
+    # entre deux jobs
+  b:
+    needs:
+      - a
+    runs-on: ubuntu-latest
+    env:
+      NOTE: >-
+        un texte
+        replié
+    steps:
+      - run: echo fin

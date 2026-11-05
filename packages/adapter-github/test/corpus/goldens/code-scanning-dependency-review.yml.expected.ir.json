@@ -1,0 +1,86 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/code-scanning-dependency-review.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "dependency-review",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 1229,
+              "end": 1251
+            },
+            "file": ".github/workflows/code-scanning-dependency-review.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 1256,
+              "end": 1759
+            },
+            "file": ".github/workflows/code-scanning-dependency-review.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [],
+          "actions": ["actions/checkout@v4", "actions/dependency-review-action@v4"]
+        },
+        "range": {
+          "start": 1206,
+          "end": 1759
+        },
+        "file": ".github/workflows/code-scanning-dependency-review.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 595,
+          "end": 620
+        },
+        "file": ".github/workflows/code-scanning-dependency-review.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 621,
+          "end": 696
+        },
+        "file": ".github/workflows/code-scanning-dependency-review.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 1001,
+          "end": 1197
+        },
+        "file": ".github/workflows/code-scanning-dependency-review.yml"
+      }
+    ],
+    "main": ".github/workflows/code-scanning-dependency-review.yml",
+    "files": [".github/workflows/code-scanning-dependency-review.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

@@ -1,0 +1,69 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/no-final-newline.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "a",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 24,
+              "end": 46
+            },
+            "file": ".github/workflows/no-final-newline.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 51,
+              "end": 72
+            },
+            "file": ".github/workflows/no-final-newline.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["x"]
+        },
+        "range": {
+          "start": 17,
+          "end": 72
+        },
+        "file": ".github/workflows/no-final-newline.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "on",
+        "range": {
+          "start": 0,
+          "end": 8
+        },
+        "file": ".github/workflows/no-final-newline.yml"
+      }
+    ],
+    "main": ".github/workflows/no-final-newline.yml",
+    "files": [".github/workflows/no-final-newline.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

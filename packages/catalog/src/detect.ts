@@ -26,6 +26,15 @@ function onScript(tool: Tool, commands: readonly string[]): boolean {
   return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
+function onAction(tool: Tool, actions: readonly string[]): boolean {
+  return actions.some((action) => {
+    const name = (action.split("@")[0] ?? "").toLowerCase();
+    return tool.detect.actions.some(
+      (known) => name === known.toLowerCase() || name.startsWith(`${known.toLowerCase()}/`),
+    );
+  });
+}
+
 const commandsOf = (signals: JobSignals): string[] =>
   signals.script.flatMap((line) => executedCommands(line));
 
@@ -48,7 +57,9 @@ export function detectIntegrations(
 export function detectTools(signals: JobSignals, tools: readonly Tool[]): Detection[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): Detection[] =>
-    onImage(tool, signals.image) || onScript(tool, commands)
+    onImage(tool, signals.image) ||
+    onScript(tool, commands) ||
+    onAction(tool, signals.actions ?? [])
       ? [{ tool: tool.id, layers: tool.layers }]
       : [],
   );

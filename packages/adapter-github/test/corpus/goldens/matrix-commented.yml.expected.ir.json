@@ -1,0 +1,149 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/matrix-commented.yml"
+      },
+      {
+        "name": "level 2",
+        "implicit": true,
+        "range": null,
+        "file": ".github/workflows/matrix-commented.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "quoted",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 95,
+              "end": 120
+            },
+            "file": ".github/workflows/matrix-commented.yml"
+          },
+          {
+            "key": "strategy",
+            "range": {
+              "start": 125,
+              "end": 193
+            },
+            "file": ".github/workflows/matrix-commented.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 197,
+              "end": 241
+            },
+            "file": ".github/workflows/matrix-commented.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["echo 1"]
+        },
+        "range": {
+          "start": 81,
+          "end": 241
+        },
+        "file": ".github/workflows/matrix-commented.yml"
+      },
+      {
+        "id": "second",
+        "stage": {
+          "value": "level 2",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": {
+          "value": [
+            {
+              "job": "quoted",
+              "optional": false,
+              "artifacts": true
+            }
+          ],
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "environment": {
+          "value": {
+            "name": "prod",
+            "url": "https://x.example"
+          },
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 306,
+              "end": 328
+            },
+            "file": ".github/workflows/matrix-commented.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 396,
+              "end": 423
+            },
+            "file": ".github/workflows/matrix-commented.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["echo 2"]
+        },
+        "range": {
+          "start": 255,
+          "end": 423
+        },
+        "file": ".github/workflows/matrix-commented.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 10,
+          "end": 25
+        },
+        "file": ".github/workflows/matrix-commented.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 26,
+          "end": 59
+        },
+        "file": ".github/workflows/matrix-commented.yml"
+      }
+    ],
+    "main": ".github/workflows/matrix-commented.yml",
+    "files": [".github/workflows/matrix-commented.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

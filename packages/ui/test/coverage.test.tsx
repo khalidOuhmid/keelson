@@ -37,7 +37,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     homepage: "https://exemple.org/",
     verifiedAt: "https://exemple.org/verif",
     logo: null,
-    detect: { images: [], scripts: [] },
+    detect: { images: [], scripts: [], actions: [] },
     snippets: { gitlab: "a:\n  script: x\n", github: null },
     lastVerified: "2026-11-04",
     integration: null,

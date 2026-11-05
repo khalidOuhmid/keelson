@@ -1,0 +1,15 @@
+on: push
+env: &common
+  A: 1
+jobs:
+  a: &job
+    runs-on: ubuntu-latest
+    steps:
+      - run: x
+  b: *job
+  c:
+    needs: [a]
+    env: *common
+    runs-on: ubuntu-latest
+    steps:
+      - run: y

@@ -42,7 +42,12 @@ export const toolSchema = z
     homepage: z.url(),
     verifiedAt: z.url(),
     logo: z.string().min(1).nullable(),
-    detect: z.strictObject({ images: z.array(z.string().min(1)), scripts: z.array(pattern) }),
+    detect: z.strictObject({
+      images: z.array(z.string().min(1)),
+      scripts: z.array(pattern),
+      /** Les actions GitHub officielles de l'outil, sans leur `@ref`. */
+      actions: z.array(z.string().min(1)).default([]),
+    }),
     snippets: z.strictObject({
       gitlab: z.string().refine(isJobMap, "not a map of jobs").nullable(),
       github: z.string().refine(isStepList, "not a list of steps").nullable(),
