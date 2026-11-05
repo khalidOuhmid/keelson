@@ -22,6 +22,39 @@ beforeAll(() => {
 
 afterAll(() => rmSync(root, { recursive: true }));
 
+describe("hors d'un dépôt git", () => {
+  test("le chemin du fichier suffit à choisir l'adaptateur", async () => {
+    const bare = mkdtempSync(join(tmpdir(), "keelson-bare-"));
+    mkdirSync(join(bare, ".github/workflows"), { recursive: true });
+    writeFileSync(
+      join(bare, ".github/workflows/one.yml"),
+      "jobs:\n  a:\n    runs-on: x\n    steps:\n      - run: trivy fs .\n",
+    );
+    const result = await run(["validate", ".github/workflows/one.yml"], { cwd: bare });
+    expect(result.stdout).toBe("no diagnostics\n");
+    expect((await run(["coverage", "--require", "sca"], { cwd: bare })).exitCode).toBe(0);
+    rmSync(bare, { recursive: true });
+  });
+});
+
+describe("deux jobs de même nom", () => {
+  test("coverage garde les deux", async () => {
+    const twin = mkdtempSync(join(tmpdir(), "keelson-twin-"));
+    mkdirSync(join(twin, ".git"));
+    mkdirSync(join(twin, ".github/workflows"), { recursive: true });
+    writeFileSync(
+      join(twin, ".github/workflows/a.yml"),
+      "jobs:\n  scan:\n    steps:\n      - run: gitleaks detect\n",
+    );
+    writeFileSync(
+      join(twin, ".github/workflows/b.yml"),
+      "jobs:\n  scan:\n    steps:\n      - run: trivy fs .\n",
+    );
+    expect((await run(["coverage", "--require", "sca,secrets"], { cwd: twin })).exitCode).toBe(0);
+    rmSync(twin, { recursive: true });
+  });
+});
+
 describe("la CLI sur GitHub Actions", () => {
   test("validate sans argument couvre tous les workflows", async () => {
     const result = await run(["validate"], { cwd: root });

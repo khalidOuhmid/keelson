@@ -113,17 +113,12 @@ export function emptyPipeline(main: string): Pipeline {
 }
 
 /** Plusieurs fichiers vus comme un seul dépôt, pour ce qui porte sur le dépôt et non sur un fichier :
- *  la toolchain, `keelson coverage` sans argument. Un job de même nom garde sa première définition. */
+ *  la toolchain, `keelson coverage` sans argument. Deux workflows peuvent porter un job du même nom :
+ *  les deux restent, leur couverture compte. */
 export function mergePipelines(pipelines: readonly Pipeline[]): Pipeline {
   const first = pipelines[0];
   if (first === undefined) {
     return emptyPipeline("");
-  }
-  const jobs = new Map<string, Job>();
-  for (const job of pipelines.flatMap((pipeline) => pipeline.jobs)) {
-    if (!jobs.has(job.id)) {
-      jobs.set(job.id, job);
-    }
   }
   const stages = new Map<string, Stage>();
   for (const stage of pipelines.flatMap((pipeline) => pipeline.stages)) {
@@ -133,7 +128,7 @@ export function mergePipelines(pipelines: readonly Pipeline[]): Pipeline {
   }
   return {
     ...first,
-    jobs: [...jobs.values()],
+    jobs: pipelines.flatMap((pipeline) => pipeline.jobs),
     stages: [...stages.values()],
     templates: pipelines.flatMap((pipeline) => pipeline.templates),
     opaque: pipelines.flatMap((pipeline) => pipeline.opaque),

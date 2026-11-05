@@ -49,5 +49,6 @@ const GITHUB: Adapter = {
 };
 
 export function adapterFor(file: string): Adapter {
-  return file.startsWith(`${WORKFLOWS_DIR}/`) ? GITHUB : GITLAB;
+  const directory = file.replaceAll("\\", "/").split("/").slice(0, -1).join("/");
+  return directory === WORKFLOWS_DIR || directory.endsWith(`/${WORKFLOWS_DIR}`) ? GITHUB : GITLAB;
 }

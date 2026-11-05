@@ -277,6 +277,80 @@ describe("garde-fous", () => {
   });
 });
 
+describe("ce qui parle du job ailleurs que dans needs", () => {
+  const LINKED = `on:
+  workflow_call:
+    outputs:
+      v:
+        value: \${{ jobs.build.outputs.v }}
+jobs:
+  build:
+    runs-on: x
+    steps:
+      - run: a
+  deploy:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: x
+    steps:
+      - run: b
+`;
+
+  test("renommer un job que des expressions citent est refusé", () => {
+    expect(run(LINKED, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
+      error: { params: { reason: "sharedValue", key: "expressions" } },
+    });
+  });
+
+  test("retirer un need que le job cite est refusé", () => {
+    expect(run(LINKED, { kind: "removeNeed", id: "deploy", job: "build" })).toMatchObject({
+      error: { params: { reason: "sharedValue", key: "expressions" } },
+    });
+  });
+
+  test("un id d'étape homonyme n'empêche rien", () => {
+    const text =
+      "jobs:\n  build:\n    steps:\n      - id: build\n        run: a\n  c:\n    steps:\n      - run: echo ${{ steps.build.outcome }}\n";
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
+  });
+
+  test("environment sur un job uses: est refusé", () => {
+    const text = "jobs:\n  a:\n    uses: o/r/.github/workflows/x.yml@v1\n";
+    expect(
+      run(text, { kind: "setEnvironment", id: "a", environment: { name: "p" } }),
+    ).toMatchObject({
+      error: { params: { reason: "notForProvider" } },
+    });
+  });
+});
+
+describe("rien ne change à côté", () => {
+  test.each([
+    [
+      "un bloc |+ en fin de job",
+      "jobs:\n  a:\n    steps:\n      - run: |+\n          foo\n\n\n",
+      { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } },
+    ],
+    [
+      "un needs ancré cité ailleurs",
+      "jobs:\n  z:\n    steps:\n      - run: x\n  a:\n    needs: &n z\n    env:\n      D: *n\n    steps:\n      - run: y\n  b:\n    steps:\n      - run: x\n",
+      { kind: "addNeed", id: "a", need: { job: "b" } },
+    ],
+    [
+      "une ancre redéfinie",
+      "x-1: &x one\njobs:\n  a:\n    env:\n      V: &x two\n    steps:\n      - run: x\n  b:\n    env:\n      V: *x\n    steps:\n      - run: y\n",
+      { kind: "removeJob", id: "a" },
+    ],
+    [
+      "une clé ancrée",
+      "jobs:\n  &k a:\n    env:\n      N: *k\n    steps:\n      - run: x\n",
+      { kind: "renameJob", from: "a", to: "c" },
+    ],
+  ])("%s : refus plutôt que valeur voisine changée", (_label, text, draft) => {
+    expect(run(text, draft as Draft).ok).toBe(false);
+  });
+});
+
 describe("composite et inverse", () => {
   test("une composite s'annule d'un seul splice", () => {
     const result = run(BASE, {

@@ -9,7 +9,7 @@ import type {
   SourceRange,
   SpliceOperation,
 } from "@keelson/core";
-import { parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
+import { mergePipelines, parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
 import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { adapterFor } from "./adapters.ts";
@@ -22,10 +22,16 @@ type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
 
 /** Ce que l'écran sait d'un pipeline, calculé au même endroit au chargement et après une opération :
  *  la CLI fait le même calcul, et les deux doivent dire la même chose. */
-function analyse(root: string, parsing: readonly Diagnostic[], pipeline: Pipeline): Analysis {
+function analyse(
+  root: string,
+  parsing: readonly Diagnostic[],
+  pipeline: Pipeline,
+  repository: Pipeline,
+): Analysis {
   const { tools } = loadCatalog();
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
-  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), pipeline, tools);
+  // `layout.json` et la toolchain portent sur le dépôt : un job d'un autre workflow n'y est pas inconnu.
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository);
+  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), repository, tools);
   return {
     diagnostics: [
       ...parsing,
@@ -119,6 +125,19 @@ export class DocumentStore {
     return resolveWorkspaceFile(this.root, this.files, file);
   }
 
+  /** Ce pipeline, plus ceux des autres fichiers du workspace tels qu'ils sont sur le disque. */
+  private repository(file: string, pipeline: Pipeline): Pipeline {
+    const others = this.files
+      .filter((entry) => entry.path !== file)
+      .flatMap((entry) => {
+        const text = this.reader.read(entry.path);
+        return text === null
+          ? []
+          : [adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader }).pipeline];
+      });
+    return mergePipelines([pipeline, ...others]);
+  }
+
   async load(file: string): Promise<DocumentBody | null> {
     const absolute = this.absolute(file);
     if (absolute === null) {
@@ -138,6 +157,7 @@ export class DocumentStore {
       this.root,
       parsed.diagnostics,
       parsed.pipeline,
+      this.repository(file, parsed.pipeline),
     );
     this.loaded.set(file, {
       absolute,
@@ -308,6 +328,7 @@ export class DocumentStore {
       this.root,
       result.value.diagnostics,
       result.value.pipeline,
+      this.repository(file, result.value.pipeline),
     );
 
     if (!write) {

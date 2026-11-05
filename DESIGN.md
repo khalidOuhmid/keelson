@@ -633,7 +633,9 @@ in the `title` attribute. It is underlined by a hairline and sits on the floor c
 
 On a GitHub workflow, stage columns read `level N`, derived from `needs`, and every control that would
 write a stage or a need option is absent rather than disabled: nothing in the file could hold it. When
-a repository has several pipeline files the header path becomes a compact select named `Pipeline file`.
+a repository has several pipeline files the header path becomes a compact select named `Pipeline file`,
+grouped by provider, no wider than a panel, and the coverage panel says which file it speaks of. The
+partial pipeline bar counts reusable workflows there instead of includes.
 
 ### Diff
 

@@ -99,5 +99,7 @@ export function isExpectedRefusal(error: { code: string; params: unknown }): boo
     return true;
   }
   const reason = (error.params as { reason?: string }).reason;
-  return error.code === "INVALID_OPERATION" && reason === "sharedValue";
+  return (
+    error.code === "INVALID_OPERATION" && (reason === "sharedValue" || reason === "notForProvider")
+  );
 }

@@ -302,6 +302,23 @@ describe("couverture", () => {
   });
 });
 
+describe("actions GitHub", () => {
+  const catalog = loadCatalog();
+  const found = (signals: { image: string | null; actions: string[] }) =>
+    detectTools({ ...signals, script: [] }, catalog.tools).map((entry) => entry.tool);
+
+  test("envoyer un SARIF n'est pas analyser", () => {
+    expect(found({ image: null, actions: ["github/codeql-action/upload-sarif@v3"] })).toEqual([]);
+    expect(found({ image: null, actions: ["github/codeql-action/analyze@v3"] })).toContain(
+      "codeql",
+    );
+  });
+
+  test("un docker:// compte comme une image, même derrière un container", () => {
+    expect(found({ image: "node:20", actions: ["docker://aquasec/trivy"] })).toContain("trivy");
+  });
+});
+
 describe("découpage shell sur une entrée hostile", () => {
   const catalog = loadCatalog();
   test.each([

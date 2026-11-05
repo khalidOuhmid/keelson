@@ -91,21 +91,28 @@ export function watchDocuments(
       watchers.get(absolute)?.close();
       watchers.delete(absolute);
     }
-    const known = store.currentHash(entry.main);
-    const loaded = await store.load(entry.main);
-    if (closed) {
-      return;
-    }
-    // Le chargement avance le hash du store : `inspectMain` ne verrait plus rien, et cet événement
-    // doit dire aussi ce qui est arrivé au fichier principal.
-    if (loaded === null) {
-      if (known !== undefined) {
-        emit({ kind: "document.removed", file: entry.main });
+    // Ces fichiers portent sur le dépôt : chaque document chargé doit l'apprendre.
+    const mains = store
+      .workspaceFiles()
+      .map((file) => file.path)
+      .filter((path) => path === entry.main || store.currentHash(path) !== undefined);
+    for (const main of mains) {
+      const known = store.currentHash(main);
+      const loaded = await store.load(main);
+      if (closed) {
+        return;
       }
-    } else if (loaded.hash === known) {
-      emit({ kind: "coverage.changed", file: entry.main });
-    } else {
-      emit({ kind: "document.changed", file: entry.main, hash: loaded.hash });
+      // Le chargement avance le hash du store : `inspectMain` ne verrait plus rien, et cet événement
+      // doit dire aussi ce qui est arrivé au fichier principal.
+      if (loaded === null) {
+        if (known !== undefined) {
+          emit({ kind: "document.removed", file: main });
+        }
+      } else if (loaded.hash === known) {
+        emit({ kind: "coverage.changed", file: main });
+      } else {
+        emit({ kind: "document.changed", file: main, hash: loaded.hash });
+      }
     }
 
     const toolchain = toolchainHash();

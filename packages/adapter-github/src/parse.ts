@@ -91,11 +91,11 @@ function signalsOf(job: Raw): JobSignals {
       script.push(step.run);
     }
     if (typeof step.uses === "string") {
+      // Une étape `docker://` garde sa place dans `actions` : un `container` n'efface pas son image.
       if (step.uses.startsWith("docker://")) {
         image ??= step.uses.slice("docker://".length);
-      } else {
-        actions.push(step.uses);
       }
+      actions.push(step.uses);
     }
   }
   return { image, script, ...(actions.length === 0 ? {} : { actions }) };
@@ -246,7 +246,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     { length: deepest },
     (_, index): Stage => ({
       name: `level ${index + 1}`,
-      implicit: true,
+      implicit: false,
       range: null,
       file,
     }),

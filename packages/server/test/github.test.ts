@@ -63,6 +63,41 @@ describe("workspace GitHub Actions", () => {
   });
 });
 
+describe("plusieurs fichiers", () => {
+  test("une intégration vers un job d'un autre workflow n'est pas une erreur à l'écran", async () => {
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(
+      join(root, ".devsecops/toolchain.yaml"),
+      "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: publish\n    service: n\n    kind: push\n",
+    );
+    const body = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      diagnostics: { code: string }[];
+    };
+    expect(body.diagnostics.map((entry) => entry.code)).not.toContain("TOOLCHAIN_UNKNOWN_JOB");
+  });
+
+  test("layout.json prévient chaque fichier ouvert", async () => {
+    await api(documentPath(".github/workflows/ci.yml"));
+    await api(documentPath(".github/workflows/release.yaml"));
+    const stream = await fetch(`http://127.0.0.1:${server.port}/api/events?token=${server.token}`);
+    const reader = stream.body?.getReader();
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(join(root, ".devsecops/layout.json"), '{"version":1}');
+    let seen = "";
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline && !(seen.includes("ci.yml") && seen.includes("release.yaml"))) {
+      const chunk = await Promise.race([
+        reader?.read(),
+        new Promise<undefined>((settle) => setTimeout(settle, 100)),
+      ]);
+      seen += chunk?.value === undefined ? "" : new TextDecoder().decode(chunk.value);
+    }
+    await reader?.cancel();
+    expect(seen).toContain("ci.yml");
+    expect(seen).toContain("release.yaml");
+  });
+});
+
 describe("documents GitHub", () => {
   test("GET rend l'IR, le fournisseur et la couverture", async () => {
     const body = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {

@@ -1,6 +1,6 @@
 # Corpus de workflows GitHub Actions
 
-Fichiers copiés sans modification depuis [actions/starter-workflows](https://github.com/actions/starter-workflows), commit `e3c451d60f119b71caebf13c98ac45da6e15b4b7`, sous licence MIT. La licence a été lue dans le `LICENSE` de ce commit. Aucun fichier de CI d'un employeur ou d'un client.
+Fichiers copiés sans modification depuis [actions/starter-workflows](https://github.com/actions/starter-workflows), commit `e3c451d60f119b71caebf13c98ac45da6e15b4b7`, sous licence MIT avec une phrase sur les noms, logos et marques de GitHub, reproduite plus bas. La licence a été lue dans le `LICENSE` de ce commit, l'API GitHub rendant `NOASSERTION`. Aucun fichier de CI d'un employeur ou d'un client.
 
 | Fichier du corpus | Chemin dans le dépôt source |
 | --- | --- |

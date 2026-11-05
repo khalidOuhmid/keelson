@@ -21,9 +21,20 @@ export type JobEditorProps = {
 export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEditorProps) {
   const needs = job.needs?.value ?? [];
   const required = new Set(needs.map((need) => need.job));
+  // Un job qui dépend de celui-ci créerait un cycle : le proposer ne servirait qu'à le refuser.
+  const descendants = new Set<string>();
+  const visit = (id: string): void => {
+    for (const other of pipeline.jobs) {
+      if (other.needs?.value.some((need) => need.job === id) && !descendants.has(other.id)) {
+        descendants.add(other.id);
+        visit(other.id);
+      }
+    }
+  };
+  visit(job.id);
   const candidates = pipeline.jobs
     .map((candidate) => candidate.id)
-    .filter((id) => id !== job.id && !required.has(id));
+    .filter((id) => id !== job.id && !required.has(id) && !descendants.has(id));
 
   const [name, setName] = useState(job.id);
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");

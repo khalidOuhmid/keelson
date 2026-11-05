@@ -79,6 +79,21 @@ describe("Mermaid sur des noms piégés", () => {
   });
 });
 
+describe("deux workflows, un même nom de job", () => {
+  test("les deux nœuds restent, chaque dépendance dans son fichier", () => {
+    const one = { ...job("scan", "build"), file: "a.yml" } as Job;
+    const two = { ...job("scan", "build", ["x"]), file: "b.yml" } as Job;
+    const needed = { ...job("x", "build"), file: "b.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [one, two, needed] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).toContain('j0["scan"]');
+    expect(text).toContain('j1["scan"]');
+    expect(text).toContain("j2 --> j1");
+  });
+});
+
 describe("rapport de couverture", () => {
   const { tools } = loadCatalog();
   const result = coverage(PIPELINE, tools, {}, [], TOOLCHAIN.services);

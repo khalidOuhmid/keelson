@@ -85,7 +85,7 @@ export function analyse(targets: readonly Target[]): Analysis {
   const read = createFileReader(root);
   const parsed = targets.map(({ file, text }) => {
     const main = relativeTo(root, file);
-    return { main, text, result: adapterFor(main).parse(text, { file: main, read }) };
+    return { main, text, result: adapterFor(file).parse(text, { file: main, read }) };
   });
 
   const pipeline = mergePipelines(parsed.map(({ result }) => result.pipeline));

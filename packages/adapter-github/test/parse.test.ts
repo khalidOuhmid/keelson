@@ -47,7 +47,8 @@ describe("lecture d'un workflow", () => {
   test("les stages sont dérivés de needs", () => {
     const { pipeline } = parsed();
     expect(pipeline.stages.map((stage) => stage.name)).toEqual(["level 1", "level 2", "level 3"]);
-    expect(pipeline.stages.every((stage) => stage.implicit)).toBe(true);
+    // `implicit` veut dire « GitLab le suppose » : ici, la colonne ne dit que ce que `needs` dit.
+    expect(pipeline.stages.every((stage) => !stage.implicit)).toBe(true);
     expect(job("build")?.stage.value).toBe("level 1");
     expect(job("test")?.stage.value).toBe("level 2");
     expect(job("deploy")?.stage.value).toBe("level 3");
@@ -79,6 +80,14 @@ describe("lecture d'un workflow", () => {
     expect(job("test")?.signals.image).toBe("aquasec/trivy:0.50");
     expect(job("test")?.signals.script[0]).toContain("trivy fs .");
     expect(job("deploy")?.signals.image).toBe("semgrep/semgrep");
+  });
+
+  test("container et docker:// se cumulent", () => {
+    const text =
+      "jobs:\n  a:\n    container: node:20\n    steps:\n      - uses: docker://aquasec/trivy\n";
+    const { signals } = parse(text, { file: FILE }).pipeline.jobs[0] ?? {};
+    expect(signals?.image).toBe("node:20");
+    expect(signals?.actions).toEqual(["docker://aquasec/trivy"]);
   });
 
   test("un job uses: est signalé, et le pipeline devient partiel", () => {

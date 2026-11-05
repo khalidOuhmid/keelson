@@ -34,6 +34,7 @@ import {
   validate,
 } from "@keelson/core";
 import {
+  type Document,
   isAlias,
   isCollection,
   isMap,
@@ -320,10 +321,20 @@ function referencing(id: string, geometry: Geometry): string[] {
     .map((job) => job.id);
 }
 
+/** `needs.<id>` et `jobs.<id>` dans une expression : le nom vit aussi là, et ne se réécrit pas sans
+ *  comprendre le langage des expressions. Refuser vaut mieux qu'un `if:` qui devient faux en silence. */
+function citesJob(text: string, id: string): boolean {
+  const name = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b(?:needs|jobs)\\.${name}(?![\\w-])`).test(text);
+}
+
 function planRemoveJob(id: string, geometry: Geometry): Planned {
   const located = jobTarget(id, geometry);
   if (!located.ok) {
     return located;
+  }
+  if (citesJob(geometry.text, id)) {
+    return shared(id, "expressions");
   }
   const referencedBy = referencing(id, geometry);
   if (referencedBy.length > 0) {
@@ -348,6 +359,9 @@ function planRename(from: string, to: string, geometry: Geometry): Planned {
   const refused = nameRefusal(to, geometry);
   if (refused !== null) {
     return refuse(refused);
+  }
+  if (citesJob(geometry.text, from)) {
+    return shared(from, "expressions");
   }
   const map = jobsMap(geometry) as YAMLMap;
   const key = (pairOf(map, from) as Pair).key;
@@ -436,6 +450,10 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
   }
 
   const { text } = geometry;
+  const [from, to] = rangeOf(located.value);
+  if (citesJob(text.slice(from, to), operation.job)) {
+    return shared(operation.id, "expressions");
+  }
   const pair = pairOf(located.value, "needs") as Pair;
   const value = pair.value as Node | null;
   const remaining = names.filter((name) => name !== operation.job);
@@ -468,7 +486,7 @@ function planSetEnvironment(operation: SetEnvironmentOperation, geometry: Geomet
     return located;
   }
   const { environment } = operation;
-  if (environment?.action !== undefined) {
+  if (environment?.action !== undefined || pairOf(located.value, "uses") !== undefined) {
     return notFor("setEnvironment");
   }
 
@@ -595,6 +613,55 @@ function expectedModel(
 const sorted = (model: Model): string =>
   JSON.stringify([...model].sort((left, right) => (left.id < right.id ? -1 : 1)));
 
+const stripped = (job: unknown): unknown => {
+  if (typeof job !== "object" || job === null) {
+    return job;
+  }
+  const { needs: _needs, environment: _environment, ...rest } = job as Record<string, unknown>;
+  return rest;
+};
+
+/** Tout ce que l'opération ne vise pas doit se relire à l'identique : les clés de fichier et, pour
+ *  chaque job, ce qui n'est ni `needs` ni `environment`. C'est ce qui attrape un bloc `|+` raccourci,
+ *  ou un alias qui change de cible. */
+function neighboursIntact(
+  before: Document.Parsed,
+  text: string,
+  operation: Exclude<Operation, CompositeOperation | SpliceOperation>,
+): boolean {
+  const read = (document: Document.Parsed): Record<string, unknown> | null => {
+    try {
+      const value = document.toJS({ mapAsMap: false }) as unknown;
+      return typeof value === "object" && value !== null
+        ? (value as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  };
+  const left = read(before);
+  const right = read(parseDocument(text));
+  if (left === null || right === null) {
+    return left === right;
+  }
+
+  const renamed = operation.kind === "renameJob" ? operation : null;
+  const removed = operation.kind === "removeJob" ? operation.id : null;
+  const { jobs: leftJobs, ...leftRoot } = left;
+  const { jobs: rightJobs, ...rightRoot } = right;
+  if (JSON.stringify(leftRoot) !== JSON.stringify(rightRoot)) {
+    return false;
+  }
+  const after = (rightJobs ?? {}) as Record<string, unknown>;
+  return Object.entries((leftJobs ?? {}) as Record<string, unknown>).every(([id, job]) => {
+    if (id === removed) {
+      return true;
+    }
+    const target = renamed !== null && id === renamed.from ? renamed.to : id;
+    return JSON.stringify(stripped(job)) === JSON.stringify(stripped(after[target]));
+  });
+}
+
 function danglingAliases(text: string): number {
   const anchors = new Set<string>();
   let count = 0;
@@ -716,7 +783,8 @@ export function apply(
       !before.diagnostics.some((entry) => entry.code === INVALID_YAML);
     const expected = expectedModel(before.pipeline, op);
     const faithful = expected === null || sorted(modelOf(after.pipeline)) === sorted(expected);
-    if (broke || !faithful || danglingAliases(spliced.text) > danglingAliases(text)) {
+    const intact = neighboursIntact(document.yaml, spliced.text, op);
+    if (broke || !faithful || !intact || danglingAliases(spliced.text) > danglingAliases(text)) {
       return err({
         code: INVALID_OPERATION,
         params: { reason: "wouldBreakYaml", operation: op.kind },

@@ -4,6 +4,7 @@ const LABEL: Record<Notice["kind"], string> = {
   stale: "Not applied",
   reloaded: "Reloaded",
   written: "Written",
+  opened: "Opened",
   removed: "Deleted",
 };
 
@@ -11,6 +12,7 @@ const TONE: Record<Notice["kind"], string> = {
   stale: "border-warning-muted bg-warning-muted/20 text-warning",
   reloaded: "border-info-muted bg-info-muted/20 text-info",
   written: "border-info-muted bg-info-muted/20 text-info",
+  opened: "border-info-muted bg-info-muted/20 text-info",
   removed: "border-danger-muted bg-danger-muted/20 text-danger",
 };
 
@@ -24,7 +26,7 @@ export function NoticeBar({ notice, onDismiss }: NoticeBarProps) {
     return null;
   }
 
-  const consequential = notice.kind !== "reloaded" && notice.kind !== "written";
+  const consequential = notice.kind === "stale" || notice.kind === "removed";
 
   return (
     <div

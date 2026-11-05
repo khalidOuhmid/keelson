@@ -152,11 +152,21 @@ export function App({ deps }: AppProps = {}) {
   const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
 
+  const opening = useRef(0);
   const openFile = async (path: string): Promise<void> => {
+    opening.current += 1;
+    const turn = opening.current;
+    const hadHistory = store.getState().canUndo();
     const document = await resolved.client.document(path);
-    if (document.ok) {
-      store.getState().documentLoaded(path, document.value);
+    if (turn !== opening.current) {
+      return;
     }
+    if (!document.ok) {
+      store.setState({ error: document.error });
+      return;
+    }
+    store.getState().documentLoaded(path, document.value);
+    store.getState().announceOpened(path, hadHistory);
   };
 
   useEffect(() => {
@@ -367,7 +377,7 @@ export function App({ deps }: AppProps = {}) {
         <Loading />
       ) : (
         <CatalogView
-          key={state.catalogLayer ?? "any"}
+          key={`${state.file}:${state.catalogLayer ?? "any"}`}
           catalog={state.catalog}
           initialLayer={state.catalogLayer}
           insertion={insertion}
@@ -408,20 +418,39 @@ export function App({ deps }: AppProps = {}) {
       />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
-        <span className="flex items-baseline gap-2 overflow-hidden">
+        <span className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
           {state.file === null ? null : files.length > 1 ? (
             <select
               aria-label="Pipeline file"
-              className={`${FIELD} w-auto min-w-0`}
+              title={state.file}
+              disabled={state.pending}
+              className={`${FIELD} w-auto min-w-0 max-w-[var(--keelson-panel-width)]`}
               value={state.file}
               onChange={(event) => void openFile(event.target.value)}
             >
-              {files.map((entry) => (
-                <option key={entry.path} value={entry.path}>
-                  {entry.path}
-                </option>
-              ))}
+              {files.some((entry) => entry.adapter === "gitlab") ? (
+                <optgroup label="GitLab CI">
+                  {files
+                    .filter((entry) => entry.adapter === "gitlab")
+                    .map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        {entry.path}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
+              {files.some((entry) => entry.adapter === "github") ? (
+                <optgroup label="GitHub Actions">
+                  {files
+                    .filter((entry) => entry.adapter === "github")
+                    .map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        {entry.path.slice(entry.path.lastIndexOf("/") + 1)}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
             </select>
           ) : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
@@ -531,6 +560,7 @@ export function App({ deps }: AppProps = {}) {
             ) : reading && state.coverage !== null ? (
               <CoveragePanel
                 coverage={state.coverage}
+                scope={files.length > 1 ? { file: state.file ?? "", count: files.length } : null}
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}
                 onShowTools={(layer) => {
@@ -551,6 +581,7 @@ export function App({ deps }: AppProps = {}) {
                 )}
                 <Section title="New job">
                   <NewJobForm
+                    key={state.file}
                     pipeline={state.pipeline}
                     onSubmit={(draft) => void store.getState().submit(draft)}
                     disabled={!editable}
@@ -590,6 +621,7 @@ export function App({ deps }: AppProps = {}) {
               job={selected}
               textOf={(file) => state.textOf(file)}
               main={state.pipeline.main}
+              derivedStages={state.pipeline.provider === "github"}
               coverage={
                 reading
                   ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)

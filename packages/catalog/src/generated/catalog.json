@@ -147,7 +147,8 @@
           "\\bcodeql\\s+(database|github)\\b"
         ],
         "actions": [
-          "github/codeql-action"
+          "github/codeql-action/init",
+          "github/codeql-action/analyze"
         ]
       },
       "snippets": {

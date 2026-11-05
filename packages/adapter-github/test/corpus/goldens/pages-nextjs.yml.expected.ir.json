@@ -3,13 +3,13 @@
     "stages": [
       {
         "name": "level 1",
-        "implicit": true,
+        "implicit": false,
         "range": null,
         "file": ".github/workflows/pages-nextjs.yml"
       },
       {
         "name": "level 2",
-        "implicit": true,
+        "implicit": false,
         "range": null,
         "file": ".github/workflows/pages-nextjs.yml"
       }

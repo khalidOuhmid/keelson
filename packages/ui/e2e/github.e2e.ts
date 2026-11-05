@@ -89,7 +89,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
       await page.getByRole("button", { name: "Gitleaks", exact: true }).click();
       await page.getByRole("button", { name: "Add to pipeline" }).click();
       await expect(page.getByTestId("insert-diff")).toContainText("gitleaks:");
-      await expect(page.getByLabel("Stage", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("combobox", { name: "Stage", exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: `Insert into ${CI}` }).click();
       await expect(page.locator("[data-job-id=gitleaks]")).toBeAttached();
       expect(keelson.readAt(CI)).toContain("uses: actions/checkout@");
@@ -101,12 +101,45 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
+  test("passer de GitHub à GitLab ne garde pas un niveau comme stage", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      ".gitlab-ci.yml": "stages:\n  - build\n\ncompile:\n  stage: build\n  script:\n    - make\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(CI);
+      await expect(page.locator("[data-job-id=test]")).toBeVisible();
+      await page.getByLabel("Pipeline file").selectOption(".gitlab-ci.yml");
+      await expect(page.locator("[data-job-id=compile]")).toBeVisible();
+      await page.getByLabel("New job id").fill("lint");
+      await page.getByLabel("Script").fill("make lint");
+      await page.getByRole("button", { name: "Create job" }).click();
+      await expect(page.locator("[data-job-id=lint]")).toBeVisible();
+      expect(keelson.read()).toContain("lint:\n  stage: build\n");
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("le panneau d'un job ne parle pas de stage", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.locator("[data-job-id=build]").click();
+      await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
+      await expect(page.getByTestId("job-stage")).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("ajouter un need sans options, et renommer met à jour needs", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
       await page.locator("[data-job-id=build]").click();
-      await expect(page.getByLabel("Stage", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("combobox", { name: "Stage", exact: true })).toHaveCount(0);
       await expect(page.getByLabel("Optional")).toHaveCount(0);
       await page.getByRole("textbox", { name: "Job id", exact: true }).fill("compile");
       await page.getByRole("button", { name: "Rename" }).click();

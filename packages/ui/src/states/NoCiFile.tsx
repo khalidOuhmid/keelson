@@ -13,7 +13,7 @@ export function NoCiFile({ root }: NoCiFileProps) {
         <code className="font-mono break-all text-text-primary">{root}</code> and found none.
       </p>
       <p className="text-sm text-text-muted">
-        Create that file in the folder you started Keelson from, and this view will pick it up.
+        Create one in the folder you started Keelson from, then restart Keelson.
       </p>
     </EmptyState>
   );
