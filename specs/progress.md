@@ -2,7 +2,7 @@
 
 Statut : EN COURS
 Lot courant : **L6 — adaptateur GitHub Actions**, sur `lot/l6-github`
-Prochaine action : contre-revue des correctifs, vérification depuis un clone, fusion.
+Prochaine action : contre-revue du dernier correctif, vérification depuis un clone, fusion.
 Blocage : aucun
 
 
@@ -775,6 +775,11 @@ ne vise pas : `|+` raccourci, alias qui change de cible, clé ancrée sont refus
 au changement de fournisseur, couverture d'un seul fichier sans le dire, `NoCiFile` qui promettait un
 rechargement, badge `implicit` faux sur GitHub.
 
+**Contre-revues.** Quatre passes. `citesJob` a demandé le plus de travail : crochets et casse échappaient
+à une regex sur le texte, puis lire toutes les valeurs refusait des phrases ordinaires, puis une
+coupure au premier `}}` manquait `format('{{0}}', …)`. Le contrôle lit désormais les valeurs, de `${{`
+à leur fin, et les clés `if`. Six surfaces sans preuve (`descendants`, `scope`, notice, `opening`,
+garde de `reload`) ont reçu un test.
+
 **Une erreur de méthode.** Le commit `feat(adapter-github)` est parti avec une erreur de typage de test,
 lue après le `git commit`. Corrigée au commit suivant.
-

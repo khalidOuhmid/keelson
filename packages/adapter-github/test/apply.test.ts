@@ -340,6 +340,13 @@ jobs:
     });
   });
 
+  test("des accolades dans une chaîne d'expression ne la coupent pas", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "\${{ format('{{0}}', needs.a.outputs.v) }}"\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "citedInExpression" } },
+    });
+  });
+
   test("un fichier dont les valeurs ne se lisent pas n'est pas réécrit", () => {
     const uses = Array.from({ length: 120 }, (_, index) => `  v${index}: *x\n`).join("");
     const text = `env:\n  a: &x [1]\n${uses}jobs:\n  build:\n    steps:\n      - run: a\n  b:\n    needs: build\n    if: needs.build.result\n    steps:\n      - run: y\n`;

@@ -328,14 +328,16 @@ function referencing(id: string, geometry: Geometry): string[] {
     .map((job) => job.id);
 }
 
-/** Ce qui est une expression : l'intérieur de `${{ }}`, et toute valeur d'une clé `if`. */
+/** Ce qui peut être une expression : tout ce qui suit `${{`, et toute valeur d'une clé `if`. */
 function expressionsIn(value: unknown, found: string[], seen: Set<unknown>, key = ""): void {
   if (typeof value === "string") {
     if (key === "if") {
       found.push(value);
     }
-    for (const match of value.matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
-      found.push(match[1] ?? "");
+    // Jusqu'à la fin de la valeur : un `}}` peut vivre dans une chaîne de l'expression.
+    const start = value.indexOf("${{");
+    if (start !== -1) {
+      found.push(value.slice(start));
     }
   } else if (typeof value === "object" && value !== null && !seen.has(value)) {
     seen.add(value);
