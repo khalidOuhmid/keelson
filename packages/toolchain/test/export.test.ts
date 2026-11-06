@@ -15,6 +15,7 @@ function job(id: string, stage: string, needs: string[] = [], script: string[] =
             origin: { kind: "local" },
           },
     signals: { image: null, script },
+    file: ".gitlab-ci.yml",
   } as unknown as Job;
 }
 
