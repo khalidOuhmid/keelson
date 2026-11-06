@@ -2,7 +2,7 @@
 
 Statut : EN COURS
 Lot courant : **L6 — adaptateur GitHub Actions**, sur `lot/l6-github`
-Prochaine action : contre-revue du dernier correctif, vérification depuis un clone, fusion.
+Prochaine action : contre-revue de `226b88d` (lecture des expressions, interrompue), vérification depuis un clone, fusion de `lot/l6-github`, puis L7 et L8.
 Blocage : aucun
 
 
