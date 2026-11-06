@@ -143,7 +143,10 @@ export class DocumentStore {
         }
         try {
           const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
-          this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
+          // Un workflow ne dépend que de son texte ; un fichier GitLab dépend aussi de ses includes.
+          if (read.pipeline.provider === "github") {
+            this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
+          }
           return [read.pipeline];
         } catch {
           return [];

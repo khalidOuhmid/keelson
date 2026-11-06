@@ -42,8 +42,10 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
 
   const needs = pipeline.jobs.flatMap((job) =>
     (job.needs?.value ?? []).flatMap((need) => {
-      // Dans le même fichier d'abord : GitLab permet un `needs` vers un fichier voisin.
-      const elsewhere = pipeline.jobs.find((other) => other.id === need.job);
+      // GitLab permet un `needs` vers un fichier inclus ; deux workflows, eux, ne se voient pas.
+      const elsewhere = job.file.includes(".github/workflows/")
+        ? undefined
+        : pipeline.jobs.find((other) => other.id === need.job);
       const source =
         jobId.get(keyOf({ id: need.job, file: job.file })) ??
         (elsewhere === undefined ? undefined : jobId.get(keyOf(elsewhere)));

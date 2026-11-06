@@ -105,6 +105,16 @@ describe("needs entre fichiers", () => {
     expect(text).toContain("j0 --> j1");
   });
 
+  test("deux workflows ne se relient pas", () => {
+    const one = { ...job("deploy", "build", ["build"]), file: ".github/workflows/a.yml" } as Job;
+    const two = { ...job("build", "build"), file: ".github/workflows/b.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [one, two] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).not.toContain("-->");
+  });
+
   test("une intégration part de chaque job de ce nom", () => {
     const one = { ...job("compile", "build"), file: "a.yml" } as Job;
     const two = { ...job("compile", "build"), file: "b.yml" } as Job;

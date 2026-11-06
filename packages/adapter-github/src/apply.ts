@@ -328,29 +328,38 @@ function referencing(id: string, geometry: Geometry): string[] {
     .map((job) => job.id);
 }
 
-function stringsIn(value: unknown, found: string[], seen: Set<unknown>): void {
+/** Ce qui est une expression : l'intérieur de `${{ }}`, et toute valeur d'une clé `if`. */
+function expressionsIn(value: unknown, found: string[], seen: Set<unknown>, key = ""): void {
   if (typeof value === "string") {
-    found.push(value);
+    if (key === "if") {
+      found.push(value);
+    }
+    for (const match of value.matchAll(/\$\{\{([\s\S]*?)\}\}/g)) {
+      found.push(match[1] ?? "");
+    }
   } else if (typeof value === "object" && value !== null && !seen.has(value)) {
     seen.add(value);
-    for (const entry of Object.values(value)) {
-      stringsIn(entry, found, seen);
+    for (const [name, entry] of Object.entries(value)) {
+      expressionsIn(entry, found, seen, name);
     }
   }
 }
 
-/** `needs.<id>` et `jobs.<id>` dans une valeur, en point ou en crochets, sans casse : le nom vit aussi
- *  là, et ne se réécrit pas sans comprendre le langage des expressions. Refuser vaut mieux qu'un `if:`
- *  qui devient faux en silence. Les commentaires ne comptent pas : on lit des valeurs. */
+/** `needs.<id>` et `jobs.<id>` dans une expression, en point ou en crochets : le nom vit aussi là, et
+ *  ne se réécrit pas sans comprendre ce langage. Refuser vaut mieux qu'un `if:` qui devient faux en
+ *  silence. Un document qu'on ne peut pas lire en valeurs se refuse pour la même raison. */
 function citesJob(values: unknown, id: string): boolean {
+  if (values === null) {
+    return true;
+  }
   const name = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const cited = new RegExp(
     `\\b(?:needs|jobs)\\s*(?:\\.\\s*${name}(?![\\w-])|\\[\\s*['"]${name}['"]\\s*\\])`,
     "i",
   );
-  const strings: string[] = [];
-  stringsIn(values, strings, new Set());
-  return strings.some((value) => cited.test(value));
+  const expressions: string[] = [];
+  expressionsIn(values, expressions, new Set());
+  return expressions.some((value) => cited.test(value));
 }
 
 const cited = (job: string): Planned =>
@@ -487,7 +496,7 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
 
   const { text } = geometry;
   const values = (geometry.values as { jobs?: Record<string, unknown> } | null)?.jobs;
-  if (citesJob(values?.[operation.id], operation.job)) {
+  if (citesJob(values?.[operation.id] ?? (values === undefined ? null : {}), operation.job)) {
     return cited(operation.job);
   }
   const pair = pairOf(located.value, "needs") as Pair;

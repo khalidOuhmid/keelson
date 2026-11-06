@@ -320,6 +320,32 @@ jobs:
     });
   });
 
+  test.each([
+    [
+      "un commentaire de script",
+      "      - run: |\n          # Wait for the other jobs.\n          test -f ready\n",
+    ],
+    ["une phrase", "      - run: echo Runs all jobs. Test only on main\n"],
+    ["une classe Java", "      - run: java com.acme.Jobs.Test\n"],
+  ])("%s n'est pas une expression", (_label, step) => {
+    const text = `jobs:\n  test:\n    steps:\n${step}`;
+    expect(run(text, { kind: "renameJob", from: "test", to: "other" }).ok).toBe(true);
+  });
+
+  test("un run qui cite le job dans une expression est refusé", () => {
+    const text =
+      "jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo ${{ needs.a.outputs.v }}\n";
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "citedInExpression" } },
+    });
+  });
+
+  test("un fichier dont les valeurs ne se lisent pas n'est pas réécrit", () => {
+    const uses = Array.from({ length: 120 }, (_, index) => `  v${index}: *x\n`).join("");
+    const text = `env:\n  a: &x [1]\n${uses}jobs:\n  build:\n    steps:\n      - run: a\n  b:\n    needs: build\n    if: needs.build.result\n    steps:\n      - run: y\n`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(false);
+  });
+
   test("un commentaire ne bloque rien", () => {
     const text = "jobs:\n  build:\n    # needs.build\n    steps:\n      - run: a\n";
     expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
