@@ -347,6 +347,35 @@ jobs:
     });
   });
 
+  test("le shell après une expression n'est pas une expression", () => {
+    const text = `jobs:\n  test:\n    steps:\n      - run: |\n          echo "\${{ github.sha }}"\n          # Wait for the other jobs.\n          test -f ready\n`;
+    expect(run(text, { kind: "renameJob", from: "test", to: "other" }).ok).toBe(true);
+  });
+
+  test.each([
+    ["un indice de matrice", "${{ needs[matrix.dep].result }}"],
+    ["needs entier", "${{ toJSON(needs) }}"],
+    ["un indice calculé", "${{ needs[format('{0}', 'a')].result }}"],
+  ])("%s peut citer n'importe quel job : refusé", (_label, expression) => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "${expression}"\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "citedInExpression" } },
+    });
+  });
+
+  test("needs.* ne vise aucun nom : renommer reste permis", () => {
+    const text =
+      "jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    if: contains(needs.*.result, 'failure')\n    steps:\n      - run: y\n";
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
+  });
+
+  test("une expression en clé compte", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    env:\n      \${{ needs.a.outputs.k }}: v\n    steps:\n      - run: y\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "citedInExpression" } },
+    });
+  });
+
   test("un fichier dont les valeurs ne se lisent pas n'est pas réécrit", () => {
     const uses = Array.from({ length: 120 }, (_, index) => `  v${index}: *x\n`).join("");
     const text = `env:\n  a: &x [1]\n${uses}jobs:\n  build:\n    steps:\n      - run: a\n  b:\n    needs: build\n    if: needs.build.result\n    steps:\n      - run: y\n`;

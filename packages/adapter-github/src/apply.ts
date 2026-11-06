@@ -328,40 +328,56 @@ function referencing(id: string, geometry: Geometry): string[] {
     .map((job) => job.id);
 }
 
-/** Ce qui peut être une expression : tout ce qui suit `${{`, et toute valeur d'une clé `if`. */
+/** L'intérieur de chaque `${{ }}`. Un `}}` dans une chaîne `'…'` ne ferme rien. */
+function expressionsOf(value: string, found: string[]): void {
+  let start = value.indexOf("${{");
+  while (start !== -1) {
+    let inString = false;
+    let index = start + 3;
+    while (index < value.length && (inString || !value.startsWith("}}", index))) {
+      if (value[index] === "'") {
+        inString = !inString;
+      }
+      index += 1;
+    }
+    found.push(value.slice(start + 3, index));
+    start = value.indexOf("${{", index);
+  }
+}
+
+/** Les expressions d'un document : dans les valeurs, dans les clés, et toute clé `if`. */
 function expressionsIn(value: unknown, found: string[], seen: Set<unknown>, key = ""): void {
   if (typeof value === "string") {
     if (key === "if") {
       found.push(value);
     }
-    // Jusqu'à la fin de la valeur : un `}}` peut vivre dans une chaîne de l'expression.
-    const start = value.indexOf("${{");
-    if (start !== -1) {
-      found.push(value.slice(start));
-    }
+    expressionsOf(value, found);
   } else if (typeof value === "object" && value !== null && !seen.has(value)) {
     seen.add(value);
     for (const [name, entry] of Object.entries(value)) {
+      expressionsOf(name, found);
       expressionsIn(entry, found, seen, name);
     }
   }
 }
 
 /** `needs.<id>` et `jobs.<id>` dans une expression, en point ou en crochets : le nom vit aussi là, et
- *  ne se réécrit pas sans comprendre ce langage. Refuser vaut mieux qu'un `if:` qui devient faux en
- *  silence. Un document qu'on ne peut pas lire en valeurs se refuse pour la même raison. */
+ *  ne se réécrit pas sans comprendre ce langage. Un `needs` entier ou indexé par un calcul peut viser
+ *  n'importe quel job. Refuser vaut mieux qu'un `if:` qui devient faux en silence. Un document qu'on
+ *  ne peut pas lire en valeurs se refuse pour la même raison. */
 function citesJob(values: unknown, id: string): boolean {
   if (values === null) {
     return true;
   }
   const name = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const cited = new RegExp(
+  const named = new RegExp(
     `\\b(?:needs|jobs)\\s*(?:\\.\\s*${name}(?![\\w-])|\\[\\s*['"]${name}['"]\\s*\\])`,
     "i",
   );
+  const dynamic = /\bneeds\b(?!\s*\.\s*[\w*-]+|\s*\[\s*['"][\w-]+['"]\s*\])/i;
   const expressions: string[] = [];
   expressionsIn(values, expressions, new Set());
-  return expressions.some((value) => cited.test(value));
+  return expressions.some((value) => named.test(value) || dynamic.test(value));
 }
 
 const cited = (job: string): Planned =>
