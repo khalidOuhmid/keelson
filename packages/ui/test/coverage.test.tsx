@@ -79,6 +79,21 @@ describe("panneau de couverture", () => {
     expect(group.textContent).toContain("service git");
   });
 
+  test("plusieurs fichiers : le panneau dit lequel", () => {
+    render(
+      <CoveragePanel
+        coverage={coverage({})}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3 }}
+      />,
+    );
+    expect(screen.getByTestId("coverage-scope").textContent).toBe(
+      "In ci.yml, 1 of 3 pipeline files.",
+    );
+  });
+
   test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {
     const { onShowTools } = renderPanel(coverage({ sast: ["a"] }));
     const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });

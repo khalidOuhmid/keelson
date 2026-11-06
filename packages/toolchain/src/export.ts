@@ -42,7 +42,11 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
 
   const needs = pipeline.jobs.flatMap((job) =>
     (job.needs?.value ?? []).flatMap((need) => {
-      const source = jobId.get(keyOf({ id: need.job, file: job.file }));
+      // Dans le même fichier d'abord : GitLab permet un `needs` vers un fichier voisin.
+      const elsewhere = pipeline.jobs.find((other) => other.id === need.job);
+      const source =
+        jobId.get(keyOf({ id: need.job, file: job.file })) ??
+        (elsewhere === undefined ? undefined : jobId.get(keyOf(elsewhere)));
       const target = jobId.get(keyOf(job));
       if (source === undefined || target === undefined) {
         return [];
@@ -52,12 +56,12 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
   );
 
   const integrations = toolchain.integrations.flatMap((entry) => {
-    const owner = pipeline.jobs.find((job) => job.id === entry.job);
-    const source = owner === undefined ? undefined : jobId.get(keyOf(owner));
     const target = serviceId.get(entry.service);
-    return source === undefined || target === undefined
+    return target === undefined
       ? []
-      : [`  ${source} -->|${entry.kind}| ${target}`];
+      : pipeline.jobs
+          .filter((job) => job.id === entry.job)
+          .map((job) => `  ${jobId.get(keyOf(job))} -->|${entry.kind}| ${target}`);
   });
 
   return `${["flowchart LR", ...stages, ...services, ...needs, ...integrations].join("\n")}\n`;

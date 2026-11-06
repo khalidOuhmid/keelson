@@ -122,6 +122,34 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
+  test("un job qui dépend de celui-ci n'est pas proposé comme need", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.locator("[data-job-id=build]").click();
+      await expect(page.getByRole("button", { name: "Add need" })).toBeDisabled();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("changer de fichier s'annonce, les groupes nomment le fournisseur", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      ".gitlab-ci.yml": "compile:\n  stage: build\n  script:\n    - make\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await expect(page.locator("optgroup[label='GitHub Actions'] option")).toHaveCount(2);
+      await page.getByLabel("Pipeline file").selectOption(CI);
+      await expect(page.getByRole("status").filter({ hasText: `${CI} opened.` })).toBeVisible();
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await expect(page.getByTestId("coverage-scope")).toContainText("1 of 3 pipeline files");
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("le panneau d'un job ne parle pas de stage", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {

@@ -98,7 +98,11 @@ export function watchDocuments(
       .filter((path) => path === entry.main || store.currentHash(path) !== undefined);
     for (const main of mains) {
       const known = store.currentHash(main);
-      const loaded = await store.load(main);
+      // Un fichier illisible ne doit priver ni les suivants ni la toolchain de leur événement.
+      const loaded = await store.load(main).catch(() => {
+        store.forget(main);
+        return null;
+      });
       if (closed) {
         return;
       }

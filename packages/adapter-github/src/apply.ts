@@ -135,7 +135,14 @@ function scalar(value: string): string {
     : JSON.stringify(value);
 }
 
-type Geometry = { text: string; eol: string; root: YAMLMap | null; pipeline: Pipeline };
+type Geometry = {
+  text: string;
+  eol: string;
+  root: YAMLMap | null;
+  pipeline: Pipeline;
+  /** Le document en valeurs : c'est là qu'on cherche une expression, pas dans le texte. */
+  values: unknown;
+};
 
 const jobsPair = (geometry: Geometry): Pair | undefined =>
   geometry.root === null ? undefined : pairOf(geometry.root, "jobs");
@@ -321,11 +328,40 @@ function referencing(id: string, geometry: Geometry): string[] {
     .map((job) => job.id);
 }
 
-/** `needs.<id>` et `jobs.<id>` dans une expression : le nom vit aussi là, et ne se réécrit pas sans
- *  comprendre le langage des expressions. Refuser vaut mieux qu'un `if:` qui devient faux en silence. */
-function citesJob(text: string, id: string): boolean {
+function stringsIn(value: unknown, found: string[], seen: Set<unknown>): void {
+  if (typeof value === "string") {
+    found.push(value);
+  } else if (typeof value === "object" && value !== null && !seen.has(value)) {
+    seen.add(value);
+    for (const entry of Object.values(value)) {
+      stringsIn(entry, found, seen);
+    }
+  }
+}
+
+/** `needs.<id>` et `jobs.<id>` dans une valeur, en point ou en crochets, sans casse : le nom vit aussi
+ *  là, et ne se réécrit pas sans comprendre le langage des expressions. Refuser vaut mieux qu'un `if:`
+ *  qui devient faux en silence. Les commentaires ne comptent pas : on lit des valeurs. */
+function citesJob(values: unknown, id: string): boolean {
   const name = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`\\b(?:needs|jobs)\\.${name}(?![\\w-])`).test(text);
+  const cited = new RegExp(
+    `\\b(?:needs|jobs)\\s*(?:\\.\\s*${name}(?![\\w-])|\\[\\s*['"]${name}['"]\\s*\\])`,
+    "i",
+  );
+  const strings: string[] = [];
+  stringsIn(values, strings, new Set());
+  return strings.some((value) => cited.test(value));
+}
+
+const cited = (job: string): Planned =>
+  refuse({ code: INVALID_OPERATION, params: { reason: "citedInExpression", job } });
+
+function readValues(document: Document.Parsed): unknown {
+  try {
+    return document.toJS({ mapAsMap: false });
+  } catch {
+    return null;
+  }
 }
 
 function planRemoveJob(id: string, geometry: Geometry): Planned {
@@ -333,8 +369,8 @@ function planRemoveJob(id: string, geometry: Geometry): Planned {
   if (!located.ok) {
     return located;
   }
-  if (citesJob(geometry.text, id)) {
-    return shared(id, "expressions");
+  if (citesJob(geometry.values, id)) {
+    return cited(id);
   }
   const referencedBy = referencing(id, geometry);
   if (referencedBy.length > 0) {
@@ -360,8 +396,8 @@ function planRename(from: string, to: string, geometry: Geometry): Planned {
   if (refused !== null) {
     return refuse(refused);
   }
-  if (citesJob(geometry.text, from)) {
-    return shared(from, "expressions");
+  if (citesJob(geometry.values, from)) {
+    return cited(from);
   }
   const map = jobsMap(geometry) as YAMLMap;
   const key = (pairOf(map, from) as Pair).key;
@@ -450,9 +486,9 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
   }
 
   const { text } = geometry;
-  const [from, to] = rangeOf(located.value);
-  if (citesJob(text.slice(from, to), operation.job)) {
-    return shared(operation.id, "expressions");
+  const values = (geometry.values as { jobs?: Record<string, unknown> } | null)?.jobs;
+  if (citesJob(values?.[operation.id], operation.job)) {
+    return cited(operation.job);
   }
   const pair = pairOf(located.value, "needs") as Pair;
   const value = pair.value as Node | null;
@@ -613,6 +649,15 @@ function expectedModel(
 const sorted = (model: Model): string =>
   JSON.stringify([...model].sort((left, right) => (left.id < right.id ? -1 : 1)));
 
+/** Une ancre cyclique ne se sérialise pas : on ne sait pas la comparer, donc on refuse. */
+function sameValue(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
 const stripped = (job: unknown): unknown => {
   if (typeof job !== "object" || job === null) {
     return job;
@@ -629,27 +674,15 @@ function neighboursIntact(
   text: string,
   operation: Exclude<Operation, CompositeOperation | SpliceOperation>,
 ): boolean {
-  const read = (document: Document.Parsed): Record<string, unknown> | null => {
-    try {
-      const value = document.toJS({ mapAsMap: false }) as unknown;
-      return typeof value === "object" && value !== null
-        ? (value as Record<string, unknown>)
-        : null;
-    } catch {
-      return null;
-    }
-  };
-  const left = read(before);
-  const right = read(parseDocument(text));
-  if (left === null || right === null) {
-    return left === right;
-  }
+  // Un fichier vide vaut un document sans clé : ajouter un job n'y change rien d'autre.
+  const left = (readValues(before) ?? {}) as Record<string, unknown>;
+  const right = (readValues(parseDocument(text)) ?? {}) as Record<string, unknown>;
 
   const renamed = operation.kind === "renameJob" ? operation : null;
   const removed = operation.kind === "removeJob" ? operation.id : null;
   const { jobs: leftJobs, ...leftRoot } = left;
   const { jobs: rightJobs, ...rightRoot } = right;
-  if (JSON.stringify(leftRoot) !== JSON.stringify(rightRoot)) {
+  if (!sameValue(leftRoot, rightRoot)) {
     return false;
   }
   const after = (rightJobs ?? {}) as Record<string, unknown>;
@@ -658,7 +691,7 @@ function neighboursIntact(
       return true;
     }
     const target = renamed !== null && id === renamed.from ? renamed.to : id;
-    return JSON.stringify(stripped(job)) === JSON.stringify(stripped(after[target]));
+    return sameValue(stripped(job), stripped(after[target]));
   });
 }
 
@@ -769,6 +802,7 @@ export function apply(
     eol: text.includes("\r\n") ? "\r\n" : "\n",
     root: isMap(root) ? root : null,
     pipeline: before.pipeline,
+    values: readValues(document.yaml),
   };
   const planned = planFor(op, geometry);
   if (!planned.ok) {

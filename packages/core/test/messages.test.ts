@@ -246,6 +246,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: "this snippet is not a single job Keelson can copy as it is",
     },
     {
+      params: { reason: "citedInExpression", job: "build" },
+      text: 'job "build" is cited in an expression that Keelson cannot rewrite, so this change would break it',
+    },
+    {
       params: { reason: "notForProvider", operation: "addStage" },
       text: "operation addStage has no meaning in a GitHub Actions workflow",
     },

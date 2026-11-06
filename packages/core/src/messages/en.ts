@@ -103,6 +103,8 @@ export const EN: Catalogue = {
       `the ${p.section} section is written in flow style, in-place editing is not supported`,
     invalidToolchain: () => "toolchain.yaml is not usable, fix it before editing it here",
     invalidSnippet: () => "this snippet is not a single job Keelson can copy as it is",
+    citedInExpression: (p) =>
+      `job ${quoted(p.job)} is cited in an expression that Keelson cannot rewrite, so this change would break it`,
     notForProvider: (p) => `operation ${p.operation} has no meaning in a GitHub Actions workflow`,
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,

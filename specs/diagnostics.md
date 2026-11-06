@@ -236,6 +236,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `flowStyleToolchain` | `section` | Une section de `toolchain.yaml` est écrite en flow style et n'est pas vide. |
 | `invalidToolchain` | — | `toolchain.yaml` porte un `TOOLCHAIN_INVALID` : Keelson n'édite pas un fichier qu'il ne comprend pas. |
 | `invalidSnippet` | — | `addSnippet` : le texte n'est pas le YAML d'un seul job en bloc, sans ancre ni alias. |
+| `citedInExpression` | `job` | GitHub Actions : `needs.<id>` ou `jobs.<id>` figure dans une expression, que Keelson ne réécrit pas. |
 | `notForProvider` | `operation` | GitHub Actions : l'opération n'a pas de sens, faute de stages ou d'options de need. |
 | `invalidLayout` | — | **Serveur** : `layout.json` n'est pas lisible. Keelson n'écrase pas ce qu'il ne comprend pas. |
 | `outsideRoot` | `path` | **Serveur** : `.devsecops` mène hors du dépôt. Rien n'est écrit. |

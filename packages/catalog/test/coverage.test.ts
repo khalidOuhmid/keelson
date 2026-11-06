@@ -302,6 +302,16 @@ describe("couverture", () => {
   });
 });
 
+describe("deux workflows, un même nom de job", () => {
+  test("une couche ne nomme le job qu'une fois", () => {
+    const twice = [job("x", null, ["a"]), job("x", null, ["a"])];
+    const entry = coverage(pipeline(twice), [
+      tool("a", { detect: { images: [], scripts: ["\\ba\\b"], actions: [] } }),
+    ]).layers.find((layer) => layer.layer === "sast");
+    expect(entry?.jobs).toEqual(["x"]);
+  });
+});
+
 describe("actions GitHub", () => {
   const catalog = loadCatalog();
   const found = (signals: { image: string | null; actions: string[] }) =>

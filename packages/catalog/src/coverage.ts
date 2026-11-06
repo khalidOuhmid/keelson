@@ -58,7 +58,10 @@ export function coverage(
   return {
     jobs,
     layers: LAYERS.map(({ id }) => {
-      const covering = jobs.filter((job) => job.layers.includes(id)).map((job) => job.job);
+      // Deux workflows peuvent porter un job du même nom : il ne se nomme qu'une fois.
+      const covering = [
+        ...new Set(jobs.filter((job) => job.layers.includes(id)).map((job) => job.job)),
+      ];
       const declared = services
         .filter((service) =>
           tools.some((tool) => tool.id === service.tool && tool.layers.includes(id)),

@@ -94,6 +94,26 @@ describe("deux workflows, un même nom de job", () => {
   });
 });
 
+describe("needs entre fichiers", () => {
+  test("une dépendance vers un job d'un autre fichier reste dessinée", () => {
+    const main = { ...job("a", "build"), file: ".gitlab-ci.yml" } as Job;
+    const included = { ...job("b", "build", ["a"]), file: "ci/inc.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [main, included] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).toContain("j0 --> j1");
+  });
+
+  test("une intégration part de chaque job de ce nom", () => {
+    const one = { ...job("compile", "build"), file: "a.yml" } as Job;
+    const two = { ...job("compile", "build"), file: "b.yml" } as Job;
+    const text = renderMermaid({ ...PIPELINE, jobs: [one, two] }, TOOLCHAIN);
+    expect(text).toContain("j0 -->|push| v0");
+    expect(text).toContain("j1 -->|push| v0");
+  });
+});
+
 describe("rapport de couverture", () => {
   const { tools } = loadCatalog();
   const result = coverage(PIPELINE, tools, {}, [], TOOLCHAIN.services);

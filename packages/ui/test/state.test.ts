@@ -474,6 +474,29 @@ describe("changer de fichier pendant une écriture", () => {
   });
 });
 
+describe("changer de fichier pendant un rechargement", () => {
+  test("la réponse du fichier quitté ne remplace pas le fichier ouvert", async () => {
+    let settle: (value: ApiResult<DocumentPayload>) => void = () => {};
+    const held = createStore({
+      submit: api.submit,
+      document: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    held.getState().documentLoaded("a.yml", documentPayload(HASH_A));
+    const handled = held
+      .getState()
+      .serverEvent({ kind: "document.changed", file: "a.yml", hash: HASH_C });
+    held.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    settle({ ok: true, value: documentPayload(HASH_C) });
+    await handled;
+    expect(held.getState().hash).toBe(HASH_B);
+  });
+});
+
 describe("annonce d'écriture", () => {
   test("elle ne survit pas à l'annulation qui la dément", async () => {
     await addStage("verify");

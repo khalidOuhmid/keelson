@@ -200,6 +200,7 @@ export type MessageParams = {
     | { reason: "invalidLayout" }
     | { reason: "invalidSnippet" }
     | { reason: "notForProvider"; operation: string }
+    | { reason: "citedInExpression"; job: string }
     | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }

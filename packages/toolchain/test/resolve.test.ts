@@ -80,6 +80,14 @@ describe("propositions", () => {
   });
 });
 
+describe("deux workflows, un même nom de job", () => {
+  test("une proposition ne se répète pas", () => {
+    const twice = pipeline({ build: ["nexus x"] });
+    const merged = { ...twice, jobs: [...twice.jobs, ...twice.jobs] };
+    expect(proposeIntegrations(merged, chain(), TOOLS)).toHaveLength(1);
+  });
+});
+
 describe("validation", () => {
   const codes = (toolchain: Toolchain, piped: Pipeline = pipeline({ build: [] })) =>
     validateToolchain(toolchain, piped, TOOLS).map((entry) => [entry.code, entry.severity]);

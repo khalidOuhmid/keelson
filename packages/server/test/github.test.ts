@@ -98,6 +98,15 @@ describe("plusieurs fichiers", () => {
   });
 });
 
+describe("un fichier voisin que le parseur ne sait pas lire", () => {
+  test("le document sain s'ouvre quand même", async () => {
+    await server.close();
+    writeFileSync(join(root, ".gitlab-ci.yml"), "job:\n  script: &s [x, *s]\n");
+    server = await createServer({ root, port: 0 });
+    expect((await api(documentPath(".github/workflows/ci.yml"))).status).toBe(200);
+  });
+});
+
 describe("documents GitHub", () => {
   test("GET rend l'IR, le fournisseur et la couverture", async () => {
     const body = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {

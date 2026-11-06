@@ -96,6 +96,7 @@ export class DocumentStore {
   private readonly loaded = new Map<string, Loaded>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private readonly seen = new Map<string, Map<string, StoreResponse>>();
+  private readonly neighbours = new Map<string, { text: string; pipeline: Pipeline }>();
 
   /** Un lecteur par store, donc un seul parcours du dépôt pour les candidats d'un joker, quel que
    *  soit le nombre de requêtes. */
@@ -125,15 +126,28 @@ export class DocumentStore {
     return resolveWorkspaceFile(this.root, this.files, file);
   }
 
-  /** Ce pipeline, plus ceux des autres fichiers du workspace tels qu'ils sont sur le disque. */
+  /** Ce pipeline, plus ceux des autres fichiers du workspace tels qu'ils sont sur le disque. Un voisin
+   *  que le parseur ne sait pas lire ne doit pas empêcher d'ouvrir ce fichier. Par texte : le
+   *  relire pour chaque document rendrait l'ouverture du dépôt quadratique. */
   private repository(file: string, pipeline: Pipeline): Pipeline {
     const others = this.files
       .filter((entry) => entry.path !== file)
       .flatMap((entry) => {
         const text = this.reader.read(entry.path);
-        return text === null
-          ? []
-          : [adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader }).pipeline];
+        if (text === null) {
+          return [];
+        }
+        const known = this.neighbours.get(entry.path);
+        if (known?.text === text) {
+          return [known.pipeline];
+        }
+        try {
+          const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
+          this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
+          return [read.pipeline];
+        } catch {
+          return [];
+        }
       });
     return mergePipelines([pipeline, ...others]);
   }

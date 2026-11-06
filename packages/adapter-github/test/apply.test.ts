@@ -298,14 +298,31 @@ jobs:
 
   test("renommer un job que des expressions citent est refusé", () => {
     expect(run(LINKED, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
-      error: { params: { reason: "sharedValue", key: "expressions" } },
+      error: { params: { reason: "citedInExpression" } },
     });
   });
 
   test("retirer un need que le job cite est refusé", () => {
     expect(run(LINKED, { kind: "removeNeed", id: "deploy", job: "build" })).toMatchObject({
-      error: { params: { reason: "sharedValue", key: "expressions" } },
+      error: { params: { reason: "citedInExpression" } },
     });
+  });
+
+  test.each([
+    ["crochets", "if: needs['build'].result == 'success'"],
+    ["guillemets", 'if: needs["build"].result'],
+    ["casse", "if: NEEDS.Build.result"],
+    ["espaces", "if: needs . build . result"],
+  ])("la forme %s est vue aussi", (_label, line) => {
+    const text = `jobs:\n  build:\n    steps:\n      - run: a\n  deploy:\n    needs: build\n    ${line}\n    steps:\n      - run: b\n`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
+      error: { params: { reason: "citedInExpression", job: "build" } },
+    });
+  });
+
+  test("un commentaire ne bloque rien", () => {
+    const text = "jobs:\n  build:\n    # needs.build\n    steps:\n      - run: a\n";
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
   });
 
   test("un id d'étape homonyme n'empêche rien", () => {
@@ -321,6 +338,19 @@ jobs:
     ).toMatchObject({
       error: { params: { reason: "notForProvider" } },
     });
+  });
+});
+
+describe("fichiers presque vides", () => {
+  test.each([[""], ["# rien\n"], ["name: x\n"]])("addJob sur %j", (text) => {
+    expect(run(text, { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } }).ok).toBe(true);
+  });
+
+  test("une ancre cyclique ne fait pas lever", () => {
+    const text = "x: &a\n  b: *a\njobs:\n  c:\n    steps:\n      - run: y\n";
+    expect(() =>
+      run(text, { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } }),
+    ).not.toThrow();
   });
 });
 
