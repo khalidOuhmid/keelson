@@ -807,4 +807,22 @@ publiable (`0.1.0`, aucune dépendance d'exécution, dépôt, mots-clés, proven
 `npm pack` puis `npm install` et exécution sous Node.
 
 **Vérification** : `bun run check` vert hors les 4 tests `chmod` connus, qui échouent seulement parce
-que le conteneur tourne en root ; `bun run e2e` 75 / 75.
+que le conteneur tourne en root ; `bun run e2e` 73 / 73.
+
+### 2026-11-11 — ménage avant présentation
+
+Audit en lecture seule sur cinq axes (hygiène des fichiers suivis, cohérence de la documentation,
+code, build et CI, première impression), chaque proposition revue par un vérificateur
+contradictoire. Appliqué :
+
+- `keelson <commande> --help` affiche l'usage de la commande au lieu de « Unknown option » (test
+  d'abord) ;
+- paquet npm : `LICENSE` et `THIRD_PARTY_NOTICES.md` (34 composants, elkjs sous EPL-2.0), le test
+  recalcule les dépendances embarquées et exige chacune avec sa licence ;
+- `packages/ui/.impeccable/review/` hors suivi (l'écart du 2026-10-22 est clos), `.gitkeep`
+  obsolète retiré, `baseURL` mort de Playwright retiré, CI du binaire sur Node 20, 22 et 24 ;
+- modèles d'issue et de PR, `specs/README.md`, `pilote.md` marqué archivé ;
+- README : démarrage depuis les sources vérifié, badges, schéma, usage exact des commandes, feuille
+  de route ; écarts périmés clos ou renvoyés à un lot à définir ; `findJob`, export mort, retiré.
+
+Non fait, à la main du propriétaire : `CODE_OF_CONDUCT.md`, qui demande un contact de modération.

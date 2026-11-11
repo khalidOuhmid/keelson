@@ -53,8 +53,8 @@ bun run check && bun run e2e
 
 ### Contrainte de runtime Node (impérative)
 
-Les packages exécutés chez l'utilisateur — `cli`, `core`, `taxonomy`, `catalog`, `adapter-gitlab`,
-`adapter-github`, `toolchain` — n'utilisent **aucune API propre à Bun** dans leurs `src/` : ni
+Les packages exécutés chez l'utilisateur — `cli`, `core`, `server`, `taxonomy`, `catalog`,
+`adapter-gitlab`, `adapter-github`, `toolchain` — n'utilisent **aucune API propre à Bun** dans leurs `src/` : ni
 `Bun.*`, ni `bun:*`. Ils sont buildés avec `bun build --target=node` pour que `npx keelson`
 fonctionne sur Node ≥ 20 sans Bun installé. Bun reste l'outillage de développement.
 
@@ -166,6 +166,7 @@ packages/catalog/         tools/*.yaml, schéma, catalog.json compilé
 packages/adapter-gitlab/  GitLab CI ↔ IR
 packages/adapter-github/  GitHub Actions ↔ IR
 packages/toolchain/       .devsecops/toolchain.yaml, layout.json, propositions d'intégration
+packages/server/          serveur local de keelson start : API, SSE, écriture atomique
 packages/ui/              React + Vite + Tailwind
 packages/cli/             binaire `keelson`
 scripts/                  outillage de dev (garde-fou runtime, preload des tests)

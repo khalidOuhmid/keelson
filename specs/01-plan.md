@@ -185,14 +185,17 @@ navigateur. Il doit donc se défendre contre elles.
 
 ## 8. CLI
 
-| Commande                        | Effet                                                        |
+| Commande | Effet |
 | ------------------------------- | ------------------------------------------------------------ |
-| `keelson start`                 | ouvre l'UI web locale                                        |
-| `keelson validate`              | valide pipeline et toolchain                                  |
-| `keelson coverage [--require <couches>] [--format json]` | 1 si une couche requise manque, 2 si une couche demandée n'existe pas |
-| `keelson export [--format markdown\|mermaid\|json]` | exporte le modèle, formats dans [export.md](export.md) |
-| `keelson catalog lint [dossier]` | 1 sur une erreur, 0 sur un simple signalement de fraîcheur    |
+| `keelson start [dossier] [--port <n>] [--no-open]` | ouvre l'UI web locale, port libre par défaut |
+| `keelson validate [fichier] [--format text\|json]` | valide pipeline et toolchain ; 1 sur une erreur |
+| `keelson coverage [fichier] [--require <couches>] [--format text\|json]` | 1 si une couche requise manque, 2 si une couche demandée n'existe pas |
+| `keelson export [fichier] [--format markdown\|mermaid\|json]` | exporte le modèle, formats dans [export.md](export.md) |
+| `keelson catalog lint [dossier]` | sans dossier, le catalogue embarqué ; 1 sur une erreur, 0 sur un simple signalement de fraîcheur |
 | `keelson apply <ops.json> [<dépôt>...] [--file <chemin>] [--rebase] [--dry-run] [--json]` | applique une séquence d'opérations à chaque dépôt, tout ou rien par dépôt ; 1 si un dépôt échoue, 2 sur un fichier d'opérations invalide |
+
+Chaque commande accepte `-h` / `--help`, qui affiche son usage sans l'exécuter. `[fichier]` vaut
+`.gitlab-ci.yml` par défaut ; un chemin `.github/workflows/<nom>.yml` passe par l'adaptateur GitHub.
 
 ## 9. Logos et licences
 

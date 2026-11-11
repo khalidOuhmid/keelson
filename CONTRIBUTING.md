@@ -9,6 +9,7 @@ Requirements: [Bun](https://bun.com) ≥ 1.4 for tooling, Node ≥ 20 to run the
 ```sh
 bun install --frozen-lockfile
 bun run check        # lint + typecheck + build + unit tests (what CI runs)
+bunx playwright install chromium   # once, before the first e2e run
 bun run e2e          # Playwright end-to-end tests on the real binary
 bun run dev          # local server on a dev fixture + Vite UI on http://localhost:5283
 ```
@@ -35,6 +36,15 @@ bun run dev          # local server on a dev fixture + Vite UI on http://localho
    licence, detection (`images`, `scripts` regexes, GitHub `actions`), GitLab and GitHub snippets,
    `lastVerified`.
 2. `bun run catalog:build` and commit the regenerated `catalog.json`.
-3. `keelson catalog lint packages/catalog/tools`.
+3. `bun run build && node packages/cli/dist/keelson.js catalog lint packages/catalog/tools`.
+
+## Releasing
+
+1. Bump `version` in `packages/cli/package.json`. It is the only published package; every other
+   workspace package is private and stays at `0.0.0`.
+2. Commit, tag `vX.Y.Z` matching that version, and push the tag.
+3. `.github/workflows/release.yml` runs `bun run check`, checks that the tag matches the version, and
+   runs `npm publish --provenance`. It needs a repository secret `NPM_TOKEN` (an npm automation
+   token with publish rights on `keelson`).
 
 Project conventions in depth: [CLAUDE.md](CLAUDE.md). Specs, plan and ADRs: [specs/](specs/).
