@@ -46,7 +46,6 @@
       "Task"
     ],
     "deny": [
-      "Bash(git push:*)",
       "Bash(git reset --hard:*)",
       "Bash(git rebase:*)",
       "Bash(git filter-branch:*)",
