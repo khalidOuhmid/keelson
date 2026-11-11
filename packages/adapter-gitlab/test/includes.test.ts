@@ -12,6 +12,8 @@ import {
   MAX_INCLUDED_FILES,
   matchesWildcard,
   normaliseIncludePath,
+  parseIncludedFile,
+  resolveIncludes,
 } from "../src/includes.ts";
 import { GITLAB_CI_FILE, parse } from "../src/parse.ts";
 
@@ -176,6 +178,37 @@ describe("resolution", () => {
     });
     expect(parsed.pipeline.files).toEqual(["ci/a.yml", "ci/a.yml", GITLAB_CI_FILE]);
     expect(parsed.pipeline.jobs.map((job) => job.id)).toEqual(["a"]);
+  });
+
+  test("a file included several times is read and parsed once per resolution", () => {
+    const files: Record<string, string> = {
+      [GITLAB_CI_FILE]: ["include:", "  - ci/a.yml", "  - ci/b.yml", "  - ci/a.yml", ""].join("\n"),
+      "ci/a.yml": "include: ci/common.yml\n",
+      "ci/b.yml": "include: ci/common.yml\n",
+      "ci/common.yml": JOB("common", "build"),
+    };
+    const reads: string[] = [];
+    const read: IncludeReader = {
+      read: (path) => {
+        reads.push(path);
+        return files[path] ?? null;
+      },
+      candidates: () => Object.keys(files),
+    };
+    const main = parseIncludedFile(GITLAB_CI_FILE, files[GITLAB_CI_FILE] ?? "");
+    const resolution = resolveIncludes(main, read);
+
+    expect(resolution.files.map((file) => file.file)).toEqual([
+      "ci/common.yml",
+      "ci/a.yml",
+      "ci/common.yml",
+      "ci/b.yml",
+      "ci/common.yml",
+      "ci/a.yml",
+    ]);
+    expect(reads.toSorted()).toEqual(["ci/a.yml", "ci/b.yml", "ci/common.yml"]);
+    const commons = resolution.files.filter((file) => file.file === "ci/common.yml");
+    expect(new Set(commons).size).toBe(1);
   });
 
   test("a cycle is reported and resolution completes", () => {

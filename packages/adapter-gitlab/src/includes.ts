@@ -193,7 +193,18 @@ type State = {
    *  would never trigger on a deep chain. */
   entered: number;
   stopped: boolean;
+  /** Each path is read and parsed once per resolution, even when it enters several times: the
+   *  merge order keeps every entry, the cost does not multiply with them. */
+  parsed: Map<string, ParsedFile | null>;
 };
+
+function load(state: State, read: IncludeReader, path: string): ParsedFile | null {
+  if (!state.parsed.has(path)) {
+    const text = read.read(path);
+    state.parsed.set(path, text === null ? null : parseIncludedFile(path, text));
+  }
+  return state.parsed.get(path) ?? null;
+}
 
 /** A failing local include is **two** things at once: an error to fix, and a hole in the
  *  displayed pipeline. The diagnostic states the first; `failed` states the second, without which
@@ -313,8 +324,8 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
         return;
       }
 
-      const text = read.read(path);
-      if (text === null) {
+      const parsed = load(state, read, path);
+      if (parsed === null) {
         notFound(state, parent.file, path, entry.range, {
           reason: read.outsideRoot?.(path) === true ? "outsideRoot" : "missing",
           path,
@@ -323,7 +334,6 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
       }
 
       state.entered += 1;
-      const parsed = parseIncludedFile(path, text);
       // The included file's includes go **before** it: “nested includes are resolved
       // recursively”, and the last included wins.
       walk(state, parsed, [...trail, path]);
@@ -342,6 +352,7 @@ export function resolveIncludes(main: ParsedFile, read: IncludeReader | null): I
     candidates: null,
     entered: 0,
     stopped: false,
+    parsed: new Map(),
   };
   walk(state, main, [main.file]);
   return {
