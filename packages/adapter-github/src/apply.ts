@@ -806,13 +806,19 @@ function danglingAliases(text: string): number {
   return count;
 }
 
+/** Every re-read goes through here: without the reader, the re-read IR would lose the jobs of the
+ *  local workflows it calls. */
+function reparse(document: GithubDocument, text: string) {
+  return parse(text, { file: document.file, read: document.read });
+}
+
 function finish(
   document: GithubDocument,
   text: string,
   touched: SourceRange[],
   inverse: { start: number; end: number; text: string },
 ): Result<ApplyOk, OperationError> {
-  const after = parse(text, { file: document.file });
+  const after = reparse(document, text);
   return ok({
     text,
     document: after.document,
@@ -821,7 +827,7 @@ function finish(
     hash: after.hash,
     inverse: { v: 1, baseHash: after.hash, kind: "splice", ...inverse },
     touched,
-    included: {},
+    included: after.included,
   });
 }
 
@@ -880,7 +886,7 @@ export function apply(
   }
 
   const { text } = document;
-  const before = parse(text, { file: document.file });
+  const before = reparse(document, text);
   const root = document.yaml.contents;
   if (root !== null && !isMap(root) && op.kind !== "splice") {
     return err({ code: INVALID_OPERATION, params: { reason: "noRootMap" } });
@@ -903,7 +909,7 @@ export function apply(
 
   const spliced = applySplices(text, planned.value);
   if (op.kind !== "splice") {
-    const after = parse(spliced.text, { file: document.file });
+    const after = reparse(document, spliced.text);
     const broke =
       after.diagnostics.some((entry) => entry.code === INVALID_YAML) &&
       !before.diagnostics.some((entry) => entry.code === INVALID_YAML);

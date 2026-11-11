@@ -75,7 +75,7 @@ Keelson answers it from the repository itself:
 
 | | |
 | --- | --- |
-| 🧭 **Pipeline view** | Stages, jobs, `needs` and environments — local `include:`, `extends` and anchors resolved on GitLab; dependency levels on GitHub, like GitHub's own graph. |
+| 🧭 **Pipeline view** | Stages, jobs, `needs` and environments — local `include:`, `extends` and anchors resolved on GitLab; dependency levels on GitHub, like GitHub's own graph, local reusable workflows and composite actions read for coverage. |
 | ✍️ **Lossless editing** | Add, rename, remove jobs and needs, move stages, set environments, insert catalogue snippets. Every edit is a byte-level patch with an exact inverse, so undo always restores the original bytes. |
 | 🛡️ **Coverage overlay** | 13 OWASP DevSecOps layers + 8 platform categories, detected from images, scripts (read as a minimal shell, so `echo "trivy"` is not Trivy) and `uses:` actions. |
 | 🧰 **Catalogue** | 62 tools — Gitleaks, Semgrep, CodeQL, Trivy, Syft, Cosign, ZAP, Checkov, DefectDojo, Vault, Harbor… — with licence, detection rules and GitLab / GitHub snippets. |
@@ -280,7 +280,7 @@ All planned milestones (L0–L8) are delivered — see the [delivery log](specs/
 
 - [ ] Publish `keelson@0.1.0` on npm with provenance
 - [ ] `keelson apply` on GitHub workflows and on `.devsecops/toolchain.yaml`
-- [ ] Resolve local reusable workflows and composite actions on GitHub
+- [x] Resolve local reusable workflows and composite actions on GitHub
 - [ ] Cached resolution of remote GitLab includes
 - [ ] More CI systems (Azure Pipelines, Jenkins, CircleCI)
 
