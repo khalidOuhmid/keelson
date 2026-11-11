@@ -15,3 +15,6 @@ packages/ui/.impeccable/review/
 
 # Machine-specific Playwright configuration (local browser path)
 playwright.local.config.ts
+
+# Temporary git worktrees of agent sessions
+.claude/worktrees/
