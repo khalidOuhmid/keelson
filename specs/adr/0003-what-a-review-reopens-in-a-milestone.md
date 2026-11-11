@@ -1,65 +1,64 @@
-# ADR 0003 — Ce qu'une revue rouvre dans un lot
+# ADR 0003 — What a review reopens in a milestone
 
-Date : 2026-10-22 · Décidé par : le pilote · Statut : accepté
+Date: 2026-10-22 · Decided by: the autopilot · Status: accepted
 
-## Contexte
+## Context
 
-La passe `/impeccable critique` du lot L2 (étape 9) a rendu **20/40** et remonté trois défauts P0.
-Deux d'entre eux ne sont pas des défauts de finition mais des **défauts de correction dans des
-étapes déjà livrées et déjà commitées** du même lot :
+The `/impeccable critique` pass of milestone L2 (step 9) scored **20/40** and raised three P0
+defects. Two of them are not polish defects but **correctness defects in steps already delivered
+and already committed** in the same milestone:
 
-- la vue Pipeline dessine `lint`, un job de stage `test`, à l'intérieur de la colonne `build`, dont
-  l'en-tête annonce « 1 job » — sur la fixture de dev du projet, dans la capture livrée (étape 3) ;
-- `JobEditor` est monté sans `key`, donc l'état local d'un job sélectionné survit à la sélection du
-  suivant : le champ « Job id » propose l'ancien nom et `Rename` réécrit le YAML avec une valeur que
-  l'utilisateur n'a jamais tapée (étape 5).
+- the Pipeline view draws `lint`, a job of stage `test`, inside the `build` column, whose header
+  says "1 job" — on the project's dev fixture, in the delivered screenshot (step 3);
+- `JobEditor` is mounted without a `key`, so the local state of a selected job survives selecting
+  the next one: the "Job id" field offers the old name, and `Rename` rewrites the YAML with a value
+  the user never typed (step 5).
 
-Les deux étaient verts au test. `layout.test.ts` et `graph.test.ts` vérifient que la mise en page est
-**calculée**, jamais qu'elle est **vraie** ; aucun test ne monte `JobEditor` deux fois avec deux jobs
-différents.
+Both were green in tests. `layout.test.ts` and `graph.test.ts` check that the layout is
+**computed**, never that it is **true**; no test mounts `JobEditor` twice with two different jobs.
 
-La règle de pilotage dit : « ce qui est hors périmètre du lot en cours va dans `specs/gaps.md`,
-jamais dans le lot ». Appliquée à la lettre, elle enverrait ces deux défauts en écart et permettrait
-de fusionner L2 en sachant que sa vue principale affiche un job dans la mauvaise colonne.
+The steering rule says: "anything outside the scope of the current milestone goes into
+`specs/gaps.md`, never into the milestone". Applied to the letter, it would send these two defects
+to the gaps and allow L2 to be merged knowing that its main view shows a job in the wrong column.
 
 ## Options
 
-1. **Tout en écart, fusionner L2 tel quel.** Respecte la lettre de la règle. Fusionne dans `main` une
-   vue qui ment sur la donnée qu'elle existe pour montrer, et un éditeur qui peut réécrire un nom que
-   l'utilisateur n'a pas saisi. L'écart deviendrait le lieu où l'on range ce qu'on ne veut pas
-   corriger, ce qui le vide de son sens.
-2. **Tout traiter dans L2.** Inclut la navigation clavier complète du graphe et l'affichage du diff
-   après écriture, qui sont des surfaces d'interaction nouvelles exigeant une passe `shape`. Le lot
-   n'aurait plus de bord : chaque revue en ajouterait un morceau.
-3. **Trancher par nature du défaut, pas par date de découverte.**
+1. **Everything to the gaps, merge L2 as is.** Respects the letter of the rule. Merges into `main`
+   a view that lies about the very data it exists to show, and an editor that can rewrite a name the
+   user never entered. The gaps file would become the place where we put what we don't want to fix,
+   which empties it of its meaning.
+2. **Handle everything in L2.** Includes full keyboard navigation of the graph and showing the diff
+   after a write, which are new interaction surfaces requiring a `shape` pass. The milestone would
+   no longer have an edge: every review would add a piece to it.
+3. **Decide by the nature of the defect, not by its discovery date.**
 
-## Décision
+## Decision
 
-Option 3. Le critère est **ce que le lot a promis**, pas la date à laquelle le défaut est apparu.
+Option 3. The criterion is **what the milestone promised**, not when the defect appeared.
 
-- **Rouvre le lot** : tout défaut qui fait qu'une étape déjà livrée *ne tient pas ce qu'elle
-  annonçait* — la vue affiche faux, l'édition écrit une valeur non saisie, un contrôle rendu est
-  mort, un état déclaré load-bearing par le surface brief n'est pas rendu, un engagement explicite de
-  `PRODUCT.md` (WCAG 2.1 AA) n'est pas tenu. Ce sont des `fix:` sous TDD dans la branche du lot, avec
-  d'abord le test qui échoue.
-- **Part en écart** : toute **surface d'interaction nouvelle**, même si la revue la juge
-  souhaitable — navigation du graphe aux flèches, palette de commandes, recherche, affichage du diff
-  après écriture, posture de lecture seule. Ces sujets exigent une passe `/impeccable shape` avant
-  d'être codés, et `shape` ouvre un lot, il n'en termine pas un.
+- **Reopens the milestone**: any defect that makes an already delivered step *fail to deliver what
+  it announced* — the view shows something wrong, editing writes a value that was not entered, a
+  rendered control is dead, a state declared load-bearing by the surface brief is not rendered, an
+  explicit commitment of `PRODUCT.md` (WCAG 2.1 AA) is not met. These are `fix:` commits under TDD
+  in the milestone branch, failing test first.
+- **Goes to the gaps**: any **new interaction surface**, even if the review deems it desirable —
+  arrow-key graph navigation, command palette, search, showing the diff after a write, read-only
+  posture. These subjects require an `/impeccable shape` pass before being coded, and `shape` opens
+  a milestone, it does not finish one.
 
-La ligne de partage, en une phrase : **une revue peut rouvrir une promesse, jamais en ajouter une.**
+The dividing line, in one sentence: **a review may reopen a promise, never add one.**
 
-## Conséquences
+## Consequences
 
-- La règle « hors périmètre → écart » se lit désormais : hors périmètre signifie *non promis par le
-  lot*, pas *découvert tard*. `specs/gaps.md` reste le registre de ce qui est reporté, jamais celui
-  de ce qui est abandonné.
-- L2 ne peut pas fusionner tant que les défauts de la première catégorie ne sont pas corrigés, test
-  d'abord. Sa définition de terminé dans `specs/milestones/l2.md` est donc étendue d'un point : *aucun
-  défaut ouvert de catégorie « promesse non tenue »*.
-- Un test d'invariant de mise en page est ajouté : le centre de tout nœud de job tombe dans la boîte
-  de la colonne de **son** stage, vérifié sur l'ensemble des fixtures. Le défaut P0 de colonne est né
-  de tests qui vérifiaient un calcul sans vérifier une vérité ; c'est cette classe de test qui
-  manquait, pas un cas particulier.
-- Conséquence assumée : les lots s'allongent quand une revue est sévère. C'est le prix du « mode
-  final, pas de POC ». Un lot fusionné doit pouvoir être montré.
+- The "out of scope → gap" rule now reads: out of scope means *not promised by the milestone*, not
+  *discovered late*. `specs/gaps.md` remains the register of what is deferred, never of what is
+  abandoned.
+- L2 cannot be merged until the defects of the first category are fixed, test first. Its definition
+  of done in `specs/milestones/l2.md` is therefore extended by one item: *no open defect of the
+  "broken promise" category*.
+- A layout invariant test is added: the center of every job node falls inside the box of **its**
+  stage's column, checked across all fixtures. The P0 column defect was born of tests that checked a
+  computation without checking a truth; that class of test was what was missing, not a particular
+  case.
+- Accepted consequence: milestones get longer when a review is harsh. That is the price of "final
+  mode, no POC". A merged milestone must be fit to show.

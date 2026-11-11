@@ -19,14 +19,13 @@ export type JobNodeData = {
   environment: string | null;
   extendsFrom: string[];
   selected: boolean;
-  /** Le fichier où vit la définition du job, et `included` quand ce n'est pas le fichier
-   *  principal. Keelson n'écrit jamais dans un fichier inclus : le nœud doit le dire avant que
-   *  l'utilisateur ne clique. */
+  /** The file where the job's definition lives, and `included` when it is not the main file.
+   *  Keelson never writes to an included file: the node must say so before the user clicks. */
   file: string;
   included: boolean;
-  /** Sur l'overlay seulement : `null` hors de la vue Coverage. */
+  /** On the overlay only: `null` outside the Coverage view. */
   layers: readonly LayerId[] | null;
-  /** Le job porte la couche choisie dans le panneau. */
+  /** The job carries the layer chosen in the panel. */
   emphasised: boolean;
 };
 
@@ -112,7 +111,7 @@ export function toFlowGraph(
           selected: job.id === selectedJobId,
           file: job.file,
           included: job.file !== pipeline.main,
-          // La couche choisie passe en tête : sinon elle peut rester cachée derrière « +2 ».
+          // The chosen layer goes first: otherwise it can stay hidden behind "+2".
           layers:
             overlay === null
               ? null
@@ -150,9 +149,9 @@ export function toFlowGraph(
           ? `${edge.target} optionally needs ${edge.source}`
           : `${edge.target} needs ${edge.source}`,
         style: {
-          // L'arête mise en avant consomme la graisse forte et l'accent ; les autres restent en
-          // retrait. Sans cela la sélection n'a aucun effet visible sur le graphe, et les deux
-          // tokens d'épaisseur ne sont consommés nulle part.
+          // The highlighted edge uses the strong weight and the accent; the others stay in the
+          // background. Without this the selection has no visible effect on the graph, and the two
+          // width tokens are consumed nowhere.
           stroke: highlighted ? "var(--color-accent)" : "var(--color-border-strong)",
           strokeWidth: highlighted
             ? "var(--keelson-edge-width-strong)"

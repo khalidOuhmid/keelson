@@ -76,7 +76,7 @@ export type AppDeps = {
   newOpId?: () => string;
 };
 
-/** La mise en page du graphe est asynchrone : le nœud n'existe pas encore au prochain rendu. */
+/** Graph layout is asynchronous: the node does not exist yet on the next render. */
 function focusWhenDrawn(selector: string, frames = 120): void {
   const found = document.querySelector<HTMLElement>(selector);
   if (found !== null) {
@@ -95,11 +95,11 @@ export type AppProps = {
   deps?: AppDeps;
 };
 
-/** Une section titrée, séparée de la suivante par un filet. `role="group"` plutôt que `<section>` :
- *  la barre latérale ne doit pas ajouter un repère de navigation par bloc de contrôles. */
+/** A titled section, separated from the next one by a rule. `role="group"` rather than `<section>`:
+ *  the sidebar must not add a navigation landmark per block of controls. */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: un groupe de contrôles ne doit pas devenir un landmark ; fieldset est réservé aux formulaires
+    // biome-ignore lint/a11y/useSemanticElements: a group of controls must not become a landmark; fieldset is reserved for forms
     <div
       role="group"
       aria-label={title}
@@ -141,7 +141,7 @@ export function App({ deps }: AppProps = {}) {
     void toolchainStore.getState().load();
   }, [toolchainStore]);
 
-  // Les propositions dépendent du pipeline : un job ajouté ou renommé les change.
+  // Proposals depend on the pipeline: an added or renamed job changes them.
   useEffect(() => {
     if (state.hash !== null) {
       void toolchainStore.getState().refresh();
@@ -207,7 +207,7 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
       void store.getState().serverEvent(event);
-      // `layout.json` a pu changer : les positions d'une autre main arrivent par ici.
+      // `layout.json` may have changed: positions written by someone else arrive here.
       if (event.kind === "coverage.changed") {
         void toolchainStore.getState().refresh();
       }
@@ -215,8 +215,8 @@ export function App({ deps }: AppProps = {}) {
     return () => subscription.close();
   }, [resolved, store, toolchainStore]);
 
-  // Quand le panneau de détail disparaît — Échap, bouton de fermeture ou suppression confirmée —
-  // le focus revient au graphe plutôt que de retomber sur <body>.
+  // When the detail panel goes away — Escape, close button or confirmed deletion — focus returns
+  // to the graph rather than falling back to <body>.
   const hadSelection = useRef(false);
   useEffect(() => {
     const open = state.selectedJobId !== null;
@@ -241,8 +241,8 @@ export function App({ deps }: AppProps = {}) {
     hadService.current = serviceOpen;
   }, [serviceOpen]);
 
-  // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
-  // désigne au canevas mais se referme depuis n'importe où, panneau compris.
+  // Escape closes the detail panel. The listener sits on the document: a selection is made on the
+  // canvas but can be closed from anywhere, the panel included.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
@@ -254,8 +254,8 @@ export function App({ deps }: AppProps = {}) {
     return () => document.removeEventListener("keydown", handle);
   }, [store, toolchainStore]);
 
-  // Une opération en vol désactive l'édition : sans cela chaque contrôle reste actif et une
-  // seconde soumission part sur un hash déjà périmé.
+  // An operation in flight disables editing: otherwise every control stays active and a second
+  // submission goes out on an already stale hash.
   const editable = state.canEdit() && !state.pending;
 
   useHistoryShortcuts({
@@ -334,7 +334,7 @@ export function App({ deps }: AppProps = {}) {
               }
               store.getState().setView("pipeline");
               store.getState().announce(`${job} added to ${file}.`);
-              // Sous `lg`, sélectionner ouvrirait une superposition par-dessus Undo et le nœud.
+              // Below `lg`, selecting would open an overlay on top of Undo and the node.
               if (window.matchMedia("(min-width: 64rem)").matches) {
                 store.getState().selectJob(job);
               }
@@ -394,9 +394,9 @@ export function App({ deps }: AppProps = {}) {
     );
   })();
 
-  /** Les fichiers résolus autres que le principal. `files` peut contenir deux fois le même —
-   *  GitLab ne dédoublonne pas les includes — mais le compte annoncé à l'écran est un compte de
-   *  **fichiers**, pas d'entrées. */
+  /** Resolved files other than the main one. `files` may contain the same one twice — GitLab
+   *  does not deduplicate includes — but the count shown on screen is a count of **files**, not of
+   *  entries. */
   const resolvedIncludes = [
     ...new Set((state.pipeline?.files ?? []).filter((file) => file !== state.pipeline?.main)),
   ];
@@ -455,10 +455,9 @@ export function App({ deps }: AppProps = {}) {
           ) : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
           )}
-          {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
-              testé et invisible — ce que `CLAUDE.md` interdit. Il dit à l'utilisateur que ce qu'il
-              lit vient de plusieurs fichiers, ce que ni le graphe ni le chemin de l'en-tête ne
-              disent. */}
+          {/* The only on-screen consumer of `pipeline.files`. Without it, the field was computed,
+              tested and invisible — which `CLAUDE.md` forbids. It tells the user that what they
+              read comes from several files, which neither the graph nor the header path says. */}
           {includedCount === 0 ? null : (
             <span
               data-testid="included-files-tag"

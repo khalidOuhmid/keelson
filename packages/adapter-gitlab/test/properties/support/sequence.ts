@@ -42,7 +42,7 @@ export function undoAll(run: SequenceRun): string {
     const document = parse(text).document;
     const result = apply(document, { ...inverse, baseHash: hashText(text) });
     if (!result.ok) {
-      throw new Error(`inverse refusé : ${result.error.code} — ${renderMessage(result.error)}`);
+      throw new Error(`inverse refused: ${result.error.code} — ${renderMessage(result.error)}`);
     }
     text = result.value.text;
   }

@@ -7,7 +7,7 @@ const TONE: Record<LayerFamily, string> = {
   platform: "border-border-default text-text-secondary",
 };
 
-/** La couleur groupe la famille, le mot nomme la couche : une couche ne se lit jamais à la teinte. */
+/** Colour groups the family, the word names the layer: a layer is never read from its hue. */
 export function LayerTag({ layer }: { layer: LayerId }) {
   const { short, family, name } = findLayer(layer);
   return (

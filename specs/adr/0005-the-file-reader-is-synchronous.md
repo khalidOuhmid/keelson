@@ -1,53 +1,52 @@
-# ADR 0005 — Le lecteur de fichiers inclus est synchrone
+# ADR 0005 — The included-file reader is synchronous
 
-Date : 2026-10-23 · Décidé par : le pilote · Statut : accepté
+Date: 2026-10-23 · Decided by: the autopilot · Status: accepted
 
-## Contexte
+## Context
 
-Résoudre les `include: local` oblige `parse` à lire d'autres fichiers que celui qu'on lui donne.
-`parse` est aujourd'hui une fonction pure de `texte → IR`, synchrone, et `apply` l'appelle deux fois
-par opération pour obtenir l'IR d'avant et celle d'après.
+Resolving `include: local` forces `parse` to read files other than the one it is given. `parse` is
+today a pure `text → IR` function, synchronous, and `apply` calls it twice per operation to get the
+IR before and after.
 
-Les packages exécutés chez l'utilisateur n'ont pas le droit d'utiliser une API propre à Bun
-(`CLAUDE.md`), mais `node:fs` leur est permis — la CLI et le serveur s'en servent déjà.
+Packages that run on the user's machine may not use any Bun-specific API (`CLAUDE.md`), but
+`node:fs` is allowed — the CLI and the server already use it.
 
 ## Options
 
-**A. Rendre `parse` asynchrone.** C'est la forme naturelle d'une lecture de disque en Node. Elle
-contamine `apply`, donc toute la chaîne d'édition, donc `planFor` et les dix `plan*`, pour un gain
-nul : les fichiers inclus sont peu nombreux, petits, et déjà dans le cache du système de fichiers au
-moment où le serveur les relit. Elle rendrait aussi `apply` réentrant d'une façon que la file
-d'attente par document du serveur devrait reprendre.
+**A. Make `parse` asynchronous.** That is the natural shape of a disk read in Node. It contaminates
+`apply`, hence the whole editing chain, hence `planFor` and the ten `plan*` functions, for zero
+gain: included files are few, small, and already in the file system cache when the server reads
+them again. It would also make `apply` reentrant in a way the server's per-document queue would
+have to absorb.
 
-**B. Pré-lire les fichiers inclus avant `parse`.** Impossible : savoir *quels* fichiers lire demande
-d'avoir résolu le graphe d'include, c'est-à-dire d'avoir parsé chaque fichier pour y trouver sa
-propre clé `include`. On ne peut pas pré-lire ce qu'on découvre en lisant.
+**B. Pre-read the included files before `parse`.** Impossible: knowing *which* files to read
+requires having resolved the include graph, that is, having parsed each file to find its own
+`include` key. You cannot pre-read what you discover by reading.
 
-**C. Injecter un lecteur synchrone.** `parse(text, { file, read })` où `read` est une interface à
-deux méthodes, `read(path)` et `candidates()`. L'adaptateur ne connaît pas le disque ; l'appelant
-fournit l'implémentation.
+**C. Inject a synchronous reader.** `parse(text, { file, read })` where `read` is a two-method
+interface, `read(path)` and `candidates()`. The adapter knows nothing about the disk; the caller
+provides the implementation.
 
-## Décision
+## Decision
 
-**C.** Le lecteur est une interface synchrone injectée, et son implémentation sur `node:fs` vit dans
-`packages/adapter-gitlab/src/reader.ts`, partagée par la CLI et par le serveur.
+**C.** The reader is an injected synchronous interface, and its `node:fs` implementation lives in
+`packages/adapter-gitlab/src/reader.ts`, shared by the CLI and the server.
 
-## Conséquences
+## Consequences
 
-- `parse` reste synchrone, donc `apply` aussi, donc rien de la chaîne d'édition ne change de forme.
-- Le module de résolution se teste sur un **objet littéral** — un dépôt en mémoire — donc sans
-  disque, et aucun test ne peut passer parce qu'un fichier traîne quelque part.
-- Le serveur paie une lecture bloquante par fichier inclus et par chargement. C'est assumé : il sert
-  un seul utilisateur sur sa propre machine, et le coût est celui d'un `readFileSync` sur un fichier
-  de quelques kilo-octets déjà chaud.
-- Une seule implémentation tient la **frontière de la racine** du dépôt. C'est délibéré : deux
-  copies de cette frontière seraient deux endroits où la perdre. Elle est vérifiée deux fois — une
-  fois sur le chemin normalisé avant toute lecture, une fois sur le chemin résolu juste avant
-  `readFileSync` — parce que c'est la dernière ligne avant qu'un serveur local lise le disque pour
-  le compte d'une page web ouverte dans le navigateur de l'utilisateur.
-- `GitlabDocument` porte `file` et `read`, ce qu'il faut pour **reparser le même pipeline**. Sans
-  eux, `apply` relirait le texte sans ses `include` : le garde de cycle et le refus d'éditer un
-  fichier inclus porteraient alors sur un pipeline amputé.
-- Si un jour les `include` distants sont résolus — lot ultérieur —, leur lecture est une requête
-  réseau et cette décision ne tiendra plus telle quelle. Le cache sur disque qu'ils exigeront devra
-  être rempli **hors** de `parse`, et le lecteur synchrone lira ce cache.
+- `parse` stays synchronous, so does `apply`, so nothing in the editing chain changes shape.
+- The resolution module is tested against an **object literal** — an in-memory repository — so
+  without a disk, and no test can pass because a file happens to be lying around.
+- The server pays one blocking read per included file per load. This is accepted: it serves a
+  single user on their own machine, and the cost is that of a `readFileSync` on an already-hot file
+  of a few kilobytes.
+- A single implementation holds the repository's **root boundary**. This is deliberate: two copies
+  of that boundary would be two places to lose it. It is checked twice — once on the normalized
+  path before any read, once on the resolved path just before `readFileSync` — because it is the
+  last line before a local server reads the disk on behalf of a web page open in the user's browser.
+- `GitlabDocument` carries `file` and `read`, which is what it takes to **reparse the same
+  pipeline**. Without them, `apply` would reread the text without its `include`s: the cycle guard
+  and the refusal to edit an included file would then apply to a truncated pipeline.
+- If remote `include`s are ever resolved — a later milestone — reading them is a network request
+  and this decision will no longer hold as is. The disk cache they will require must be filled
+  **outside** `parse`, and the synchronous reader will read that cache.

@@ -24,7 +24,8 @@ export type ToolchainGraph = {
 export const jobNodeId = (job: string): string => `job:${job}`;
 export const serviceNodeId = (service: string): string => `service:${service}`;
 
-/** `tool` et `logo` viennent du catalogue : la vue passe ce qu'elle sait, le graphe reste pur. */
+/** `tool` and `logo` come from the catalogue: the view passes what it knows, the graph stays
+ *  pure. */
 export type ToolLabels = ReadonlyMap<string, { name: string; logo: string | null }>;
 
 const edgeStyle = (highlighted: boolean, dashed: boolean) => ({
@@ -33,8 +34,8 @@ const edgeStyle = (highlighted: boolean, dashed: boolean) => ({
   ...(dashed ? { strokeDasharray: "var(--keelson-edge-dash) var(--keelson-edge-dash)" } : {}),
 });
 
-/** Sans position enregistrée : jobs à gauche, services à droite. Le placement par défaut doit rester
- *  lisible, puisqu'une position n'est pas une information et n'a pas d'équivalent au clavier. */
+/** Without a saved position: jobs on the left, services on the right. The default placement must
+ *  stay readable, since a position is not information and has no keyboard equivalent. */
 export function toolchainGraph(
   toolchain: Toolchain,
   proposed: readonly ProposedIntegration[],
@@ -53,8 +54,8 @@ export function toolchainGraph(
   const serviceColumn = metrics.nodeWidth + metrics.columnGap * 3;
   const placed = (id: string, x: number, y: number) => positions[id] ?? { x, y };
 
-  /** La position moyenne de ses jobs : un service suit ceux qui lui parlent, ce qui évite la plupart
-   *  des croisements du placement par défaut. Un service sans lien passe à la fin. */
+  /** The mean position of its jobs: a service follows those that talk to it, which avoids most
+   *  crossings in the default placement. A service with no link goes last. */
   const links = [...toolchain.integrations, ...pending];
   const barycentre = (service: string): number => {
     const rows = links
@@ -127,7 +128,7 @@ export function toolchainGraph(
     ];
   };
 
-  /** Deux types sur un même lien auraient le même tracé, donc des libellés superposés. */
+  /** Two kinds on the same link would share the same path, hence overlapping labels. */
   const grouped = (entries: readonly { job: string; service: string; kind: string }[]) => {
     const pairs = new Map<string, { job: string; service: string; kinds: string[] }>();
     for (const { job, service, kind } of entries) {

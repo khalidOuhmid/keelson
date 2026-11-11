@@ -5,26 +5,26 @@ import { isMap, isScalar, isSeq, LineCounter, parseDocument, type YAMLMap } from
 import type { AnyNode } from "./resolve.ts";
 import { contentRange, localPair, REFERENCE_TAG } from "./resolve.ts";
 
-/** « The maximum number of nested included files for a pipeline is 150. »
- *  <https://docs.gitlab.com/ci/yaml/includes/>, consulté le 2026-10-23. C'est un **compte total**,
- *  pas une profondeur de nid : GitLab ne documente aucune limite de profondeur, et en inventer une
- *  rendrait Keelson plus strict que sa cible. La récursion est bornée par la détection de cycle. */
+/** “The maximum number of nested included files for a pipeline is 150.”
+ *  <https://docs.gitlab.com/ci/yaml/includes/>, retrieved on 2026-10-23. It is a **total count**,
+ *  not a nesting depth: GitLab documents no depth limit, and inventing one would make Keelson
+ *  stricter than its target. Recursion is bounded by cycle detection. */
 export const MAX_INCLUDED_FILES = 150;
 
 const YAML_EXTENSIONS = [".yml", ".yaml"] as const;
 
 const REMOTE_URL = /^https?:\/\//i;
 
-/** Les formes d'include qui sortent du dépôt, et que Keelson ne résout donc pas. Le vocabulaire
- *  est celui de GitLab. */
+/** The include forms that leave the repository, and that Keelson therefore does not resolve. The
+ *  vocabulary is GitLab's. */
 const REMOTE_KEYS = ["remote", "project", "template", "component"] as const;
 
 export type IncludeReader = {
-  /** `path` normalisé : relatif à la racine du dépôt, séparateurs `/`, sans `/` de tête.
-   *  `null` si le fichier n'existe pas ou n'est pas lisible. */
+  /** Normalised `path`: relative to the repository root, `/` separators, no leading `/`.
+   *  `null` if the file does not exist or is not readable. */
   read(path: string): string | null;
-  /** Tous les fichiers `.yml` et `.yaml` du dépôt, normalisés de la même façon. N'est appelé que
-   *  pour un include qui porte un joker. */
+  /** Every `.yml` and `.yaml` file in the repository, normalised the same way. Only called for an
+   *  include that carries a wildcard. */
   candidates(): readonly string[];
 };
 
@@ -44,10 +44,10 @@ export type Normalised =
   | { ok: true; path: string }
   | { ok: false; reason: "notYaml" | "outsideRoot"; path: string };
 
-/** GitLab exige « a full path relative to the root directory (`/`) » et l'extension `.yml` ou
- *  `.yaml`. Le refus d'un chemin qui sort de la racine est une mesure de sécurité et non une
- *  conformité : le serveur de Keelson lit le disque pour le compte d'une page web ouverte dans le
- *  navigateur de l'utilisateur. */
+/** GitLab requires “a full path relative to the root directory (`/`)” and the `.yml` or `.yaml`
+ *  extension. Refusing a path that leaves the root is a security measure, not a matter of
+ *  conformance: Keelson's server reads the disk on behalf of a web page open in the user's
+ *  browser. */
 export function normaliseIncludePath(raw: string): Normalised {
   const unified = raw.replaceAll("\\", "/").replace(/^\/+/, "");
   const segments = unified.split("/").filter((segment) => segment !== "" && segment !== ".");
@@ -68,10 +68,10 @@ export function hasWildcard(path: string): boolean {
   return path.includes("*");
 }
 
-/** Traduction des jokers de GitLab. « You can use `*` and `**` wildcards in the file path » :
- *  `*` reste dans un segment, `**` traverse les `/`. Les exemples de la documentation le fixent —
- *  `configs/*.yml` ignore les sous-dossiers, `configs/**.yml` les prend, et `configs/**` suivi de
- *  `/*.yml` ne prend **que** les sous-dossiers. */
+/** Translation of GitLab's wildcards. “You can use `*` and `**` wildcards in the file path”:
+ *  `*` stays within a segment, `**` crosses `/`. The documentation's examples pin this down —
+ *  `configs/*.yml` ignores subfolders, `configs/**.yml` takes them, and `configs/**` followed by
+ *  `/*.yml` takes **only** the subfolders. */
 export function matchesWildcard(pattern: string, path: string): boolean {
   let source = "";
   let index = 0;
@@ -95,8 +95,8 @@ function stringOf(node: AnyNode): string | null {
   return isScalar(node) && typeof node.value === "string" ? node.value : null;
 }
 
-/** Détail lisible d'un include non résolu : la valeur telle qu'elle est écrite, et le `file:`
- *  quand la forme en porte un — un `project:` sans son `file:` ne dit pas ce qui manque. */
+/** Readable detail of an unresolved include: the value as written, and the `file:` when the form
+ *  carries one — a `project:` without its `file:` does not say what is missing. */
 function detailOf(map: YAMLMap, key: string, value: string): string {
   const file = stringOf(localPair(map, "file")?.value as AnyNode);
   return key === "project" && file !== null ? `${value} / ${file}` : value;
@@ -107,9 +107,9 @@ function entryOf(node: AnyNode): Entry {
 
   const literal = stringOf(node);
   if (literal !== null) {
-    // La forme courte vaut `include:remote` pour une URL : « If the file is a remote file, it is
-    // the same as include:remote ». La traiter en chemin local la réécrivait et accusait à tort un
-    // fichier absent.
+    // The short form means `include:remote` for a URL: “If the file is a remote file, it is
+    // the same as include:remote”. Treating it as a local path rewrote it and wrongly blamed a
+    // missing file.
     return REMOTE_URL.test(literal)
       ? { kind: "remote", form: "remote", detail: literal, range }
       : { kind: "local", value: literal, range };
@@ -130,8 +130,8 @@ function entryOf(node: AnyNode): Entry {
   return local === null ? { kind: "malformed", range } : { kind: "local", value: local, range };
 }
 
-/** Les entrées de la clé `include` d'un fichier, dans leur ordre d'écriture — qui est leur ordre
- *  de fusion. */
+/** The entries of a file's `include` key, in their written order — which is their merge
+ *  order. */
 export function includeEntries(root: YAMLMap): Entry[] {
   const pair = localPair(root, "include");
   if (pair === undefined) {
@@ -154,17 +154,16 @@ export function parseIncludedFile(file: string, text: string): ParsedFile {
 }
 
 export type IncludeResolution = {
-  /** Les fichiers inclus **sans** le fichier principal, dans l'ordre de fusion de GitLab : les
-   *  includes d'un fichier viennent avant lui, et le fichier principal vient en dernier — c'est
-   *  pourquoi il n'est pas dans cette liste. */
+  /** The included files **without** the main file, in GitLab's merge order: a file's includes
+   *  come before it, and the main file comes last — which is why it is not in this list. */
   files: ParsedFile[];
-  /** Les includes qu'on ne sait pas résoudre : les formes distantes, et `local` quand l'appelant
-   *  n'a fourni aucun lecteur. Chacun donne un `INCLUDE_UNRESOLVED` en info. */
+  /** The includes we cannot resolve: remote forms, and `local` when the caller provided no
+   *  reader. Each one yields an info-level `INCLUDE_UNRESOLVED`. */
   unresolved: UnresolvedInclude[];
-  /** Les `include: local` qu'on a cherché à résoudre et qui ont **échoué** : chemin absent, hors
-   *  racine, mauvaise extension, entrée illisible. Ils sont déjà signalés par un
-   *  `INCLUDE_NOT_FOUND` en **erreur**, donc ils n'en reçoivent pas un second en info — mais le
-   *  pipeline leur manque tout autant, et c'est pourquoi ils comptent comme non résolus. */
+  /** The `include: local` entries we tried to resolve and that **failed**: missing path, outside
+   *  the root, wrong extension, unreadable entry. They are already reported by an error-level
+   *  `INCLUDE_NOT_FOUND`, so they do not get a second, info-level one — but the pipeline lacks
+   *  them all the same, which is why they count as unresolved. */
   failed: UnresolvedInclude[];
   diagnostics: Diagnostic[];
 };
@@ -176,18 +175,18 @@ type State = {
   failed: UnresolvedInclude[];
   diagnostics: Diagnostic[];
   candidates: readonly string[] | null;
-  /** Fichiers **entrés** dans la résolution. Compté à l'entrée et non à la sortie : `walk`
-   *  descend avant d'empiler, donc un compte sur `files` resterait à zéro pendant toute la
-   *  descente et la limite ne se déclencherait jamais sur une chaîne profonde. */
+  /** Files **entered** during resolution. Counted on entry, not on exit: `walk` descends before
+   *  pushing, so a count based on `files` would stay at zero throughout the descent and the limit
+   *  would never trigger on a deep chain. */
   entered: number;
   stopped: boolean;
 };
 
-/** Un include local qui échoue est **deux** choses à la fois : une erreur à corriger, et un trou
- *  dans le pipeline affiché. Le diagnostic dit la première ; `failed` dit la seconde, sans quoi
- *  `isPartial()` resterait faux sur le défaut le plus courant d'un dépôt réel — une faute de frappe
- *  dans un chemin — et l'écran laisserait croire le pipeline complet alors qu'il lui manque tout
- *  ce que ce fichier apportait. */
+/** A failing local include is **two** things at once: an error to fix, and a hole in the
+ *  displayed pipeline. The diagnostic states the first; `failed` states the second, without which
+ *  `isPartial()` would stay false on the most common defect of a real repository — a typo in a
+ *  path — and the screen would suggest the pipeline is complete while it lacks everything that
+ *  file contributed. */
 function notFound(
   state: State,
   from: string,
@@ -219,9 +218,9 @@ function expand(
   }
 
   state.candidates ??= [...read.candidates()].sort();
-  // Un joker qui ne correspond à rien n'est pas une erreur chez GitLab : la liste est simplement
-  // vide. L'ordre est lexicographique (décision D8 du lot L2b) parce que l'ordre de fusion décide
-  // quelle valeur gagne, et qu'un ordre non spécifié serait un résultat non spécifié.
+  // A wildcard that matches nothing is not an error in GitLab: the list is simply empty. The
+  // order is lexicographic (decision D8 of milestone L2b) because the merge order decides which
+  // value wins, and an unspecified order would be an unspecified result.
   return state.candidates.filter((candidate) => matchesWildcard(normalised.path, candidate));
 }
 
@@ -237,8 +236,8 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
     }
 
     if (entry.kind === "malformed") {
-      // `detail` est la valeur telle qu'elle est écrite, comme partout ailleurs. Une phrase ici
-      // serait du texte produit hors du module de messages, ce que l'ADR 0002 interdit.
+      // `detail` is the value as written, as everywhere else. A sentence here would be text
+      // produced outside the messages module, which ADR 0002 forbids.
       const written =
         entry.range === null ? "" : parent.text.slice(entry.range.start, entry.range.end);
       notFound(state, parent.file, written.trim(), entry.range, { reason: "malformed" });
@@ -257,9 +256,9 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
 
     const read = state.read;
     if (read === null) {
-      // Aucun lecteur : l'include n'est pas introuvable, il n'a pas été cherché. Le dire
-      // « missing » accuserait le fichier de l'utilisateur d'un choix de l'appelant. Le pipeline
-      // est partiel, et c'est tout ce que Keelson peut en dire.
+      // No reader: the include is not missing, it was not looked up. Calling it “missing” would
+      // blame the user's file for a choice made by the caller. The pipeline is partial, and that
+      // is all Keelson can say about it.
       state.unresolved.push({
         form: "local",
         detail: entry.value,
@@ -289,8 +288,8 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
           range: entry.range,
           file: parent.file,
         });
-        // Ce qu'on coupe ici n'a pas été lu : il manque au pipeline, et une cible `extends` absente
-        // peut s'y trouver. Seule la première entrée coupée est nommée : la suite n'a pas été vue.
+        // What is cut here was not read: the pipeline lacks it, and a missing `extends` target
+        // may be in it. Only the first cut entry is named: the rest was not seen.
         state.unresolved.push({
           form: "local",
           detail: path,
@@ -309,8 +308,8 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
 
       state.entered += 1;
       const parsed = parseIncludedFile(path, text);
-      // Les includes du fichier inclus passent **avant** lui : « nested includes are resolved
-      // recursively », et le dernier inclus gagne.
+      // The included file's includes go **before** it: “nested includes are resolved
+      // recursively”, and the last included wins.
       walk(state, parsed, [...trail, path]);
       state.files.push(parsed);
     }

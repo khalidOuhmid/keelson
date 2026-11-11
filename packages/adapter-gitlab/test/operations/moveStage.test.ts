@@ -2,28 +2,28 @@ import { describe, expect, test } from "bun:test";
 import { BASE, expectOk, expectUnchanged, roundTrip } from "../support/apply.ts";
 
 describe("moveStage", () => {
-  test("déplace un stage vers le début", () => {
+  test("moves a stage to the start", () => {
     const applied = expectOk(BASE, { kind: "moveStage", name: "deploy", toIndex: 0 });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual(["deploy", "build", "test"]);
   });
 
-  test("déplace un stage vers la fin", () => {
+  test("moves a stage to the end", () => {
     const applied = expectOk(BASE, { kind: "moveStage", name: "build", toIndex: 2 });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual(["test", "deploy", "build"]);
   });
 
-  test("déplacer au même index laisse l'ordre inchangé", () => {
+  test("moving to the same index leaves the order unchanged", () => {
     const applied = expectOk(BASE, { kind: "moveStage", name: "test", toIndex: 1 });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual(["build", "test", "deploy"]);
   });
 
-  test("ne touche pas aux jobs", () => {
+  test("does not touch the jobs", () => {
     const applied = expectOk(BASE, { kind: "moveStage", name: "deploy", toIndex: 0 });
     expect(applied.text).toContain("compile:\n  stage: build\n  script:\n    - make\n");
     expect(applied.pipeline.jobs.map((job) => job.id)).toEqual(["compile", "unit"]);
   });
 
-  test("matérialise la liste quand les stages sont implicites", () => {
+  test("materialises the list when the stages are implicit", () => {
     const applied = expectOk("solo:\n  script:\n    - x\n", {
       kind: "moveStage",
       name: "deploy",
@@ -38,38 +38,38 @@ describe("moveStage", () => {
     ]);
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(BASE, { kind: "moveStage", name: "deploy", toIndex: 0 });
     roundTrip(BASE, { kind: "moveStage", name: "build", toIndex: 2 });
     roundTrip("solo:\n  script:\n    - x\n", { kind: "moveStage", name: "deploy", toIndex: 0 });
   });
 
-  test("STAGE_NOT_FOUND si le stage n'existe pas", () => {
+  test("STAGE_NOT_FOUND if the stage does not exist", () => {
     expectUnchanged(BASE, { kind: "moveStage", name: "absent", toIndex: 0 }, "STAGE_NOT_FOUND");
   });
 
-  test("RANGE_OUT_OF_BOUNDS si l'index cible dépasse la liste", () => {
+  test("RANGE_OUT_OF_BOUNDS if the target index is past the list", () => {
     expectUnchanged(BASE, { kind: "moveStage", name: "build", toIndex: 9 }, "RANGE_OUT_OF_BOUNDS");
   });
 });
 
-describe("moveStage sans effet", () => {
-  test("déplacer un stage à sa propre position ne touche rien", () => {
+describe("moveStage without effect", () => {
+  test("moving a stage to its own position touches nothing", () => {
     const applied = expectOk(BASE, { kind: "moveStage", name: "test", toIndex: 1 });
     expect(applied.text).toBe(BASE);
     expect(applied.touched).toEqual([]);
   });
 
-  test("le cas sans effet reste annulable", () => {
+  test("the no-effect case stays undoable", () => {
     roundTrip(BASE, { kind: "moveStage", name: "test", toIndex: 1 });
   });
 
-  test("déplacer le premier stage à l'index 0 ne touche rien", () => {
+  test("moving the first stage to index 0 touches nothing", () => {
     const applied = expectOk(BASE, { kind: "moveStage", name: "build", toIndex: 0 });
     expect(applied.text).toBe(BASE);
   });
 
-  test("ne lève jamais d'exception sur un fichier commenté", () => {
+  test("never throws on a commented file", () => {
     const commente = [
       "stages:",
       "  - build # un commentaire",

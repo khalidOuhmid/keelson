@@ -68,8 +68,8 @@ function unreadable(): Diagnostic {
   };
 }
 
-/** `.devsecops/toolchain.yaml`. Une seule file d'écriture : deux opérations concurrentes ne peuvent
- *  pas se fonder sur le même texte. */
+/** `.devsecops/toolchain.yaml`. A single write queue: two concurrent operations cannot be based on
+ *  the same text. */
 export class ToolchainStore {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly seen = new Map<string, ToolchainResponse>();
@@ -79,9 +79,9 @@ export class ToolchainStore {
     private readonly documents: DocumentStore,
   ) {}
 
-  /** Un fichier qu'on ne peut pas lire n'est pas un fichier absent : le traiter comme vide
-   *  l'écraserait. Sont illisibles ce qui sort de la racine, ce qui refuse la lecture, un dossier,
-   *  et ce qui n'est pas de l'UTF-8, que le patch réécrirait avec des caractères de remplacement. */
+  /** A file that cannot be read is not a missing file: treating it as empty would overwrite it.
+   *  Unreadable means: what escapes the root, what refuses reading, a directory, and anything that
+   *  is not UTF-8, which the patch would rewrite with replacement characters. */
   private read(path: string): Disk {
     const absolute = join(this.root, path);
     try {
@@ -103,7 +103,7 @@ export class ToolchainStore {
     }
   }
 
-  /** Une toolchain porte sur le dépôt : ses jobs sont ceux de tous les fichiers du workspace. */
+  /** A toolchain is repository-wide: its jobs are those of every file in the workspace. */
   private async pipeline(): Promise<Pipeline> {
     const files = this.documents.workspaceFiles().map((entry) => entry.path);
     const pipelines: Pipeline[] = [];
@@ -208,7 +208,7 @@ export class ToolchainStore {
     };
   }
 
-  /** Dans la même file que les opérations : `layout.json` se relit juste avant d'être réécrit. */
+  /** In the same queue as operations: `layout.json` is re-read just before being rewritten. */
   savePositions(raw: unknown): Promise<PositionsResponse> {
     const next = this.queue.then(() => this.writePositions(raw));
     this.queue = next.catch(() => undefined);

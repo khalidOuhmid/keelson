@@ -2,8 +2,8 @@ import type { Coverage } from "@keelson/catalog";
 import type { Pipeline, Toolchain } from "@keelson/core";
 import { findLayer, LAYERS } from "@keelson/taxonomy";
 
-/** `#` d'abord : les entités qui suivent en contiennent un. `%` neutralise les directives `%%`, et
- *  un saut de ligne ouvrirait une ligne que Mermaid lirait comme un commentaire ou une directive. */
+/** `#` first: the entities that follow contain one. `%` defuses `%%` directives, and a line break
+ *  would open a line that Mermaid would read as a comment or a directive. */
 const label = (text: string): string =>
   `"${text
     .replaceAll("#", "#35;")
@@ -11,14 +11,14 @@ const label = (text: string): string =>
     .replaceAll("%", "#37;")
     .replace(/\s*\n\s*/g, " ")}"`;
 
-/** Identifiants par position : les noms de jobs n'ont aucune forme garantie, Mermaid si. */
+/** Positional ids: job names have no guaranteed shape, Mermaid ids do. */
 export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string {
-  // Par fichier : deux workflows peuvent porter un job du même nom.
+  // Per file: two workflows can carry a job with the same name.
   const keyOf = (job: { id: string; file: string }): string => JSON.stringify([job.file, job.id]);
   const jobId = new Map(pipeline.jobs.map((job, index) => [keyOf(job), `j${index}`]));
   const serviceId = new Map(toolchain.services.map((service, index) => [service.id, `v${index}`]));
 
-  // Un job peut viser un stage que ce fichier ne déclare pas, un include distant par exemple.
+  // A job can target a stage this file does not declare, a remote include for instance.
   const names = [
     ...new Set([
       ...pipeline.stages.map((stage) => stage.name),
@@ -42,7 +42,7 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
 
   const needs = pipeline.jobs.flatMap((job) =>
     (job.needs?.value ?? []).flatMap((need) => {
-      // GitLab permet un `needs` vers un fichier inclus ; deux workflows, eux, ne se voient pas.
+      // GitLab allows a `needs` on an included file; two workflows, however, cannot see each other.
       const elsewhere = job.file.includes(".github/workflows/")
         ? undefined
         : pipeline.jobs.find((other) => other.id === need.job);

@@ -8,8 +8,8 @@ const scenario = fc
   .constantFrom(...corpusTexts())
   .chain((text) => operationArb(text).map((draft) => ({ text, draft })));
 
-describe("propriété : mêmes entrées, mêmes sorties", () => {
-  test("deux applications identiques", () => {
+describe("property: same inputs, same outputs", () => {
+  test("two identical applications", () => {
     fc.assert(
       fc.property(scenario, ({ text, draft }) => {
         const operation = { v: 1, baseHash: hashText(text), ...draft } as ToolchainOperation;
@@ -19,7 +19,7 @@ describe("propriété : mêmes entrées, mêmes sorties", () => {
     );
   });
 
-  test("le parsing ne lève jamais et rend toujours la même chose", () => {
+  test("parsing never throws and always returns the same thing", () => {
     fc.assert(
       fc.property(fc.string(), (text) => {
         expect(parseToolchain(text)).toEqual(parseToolchain(text));

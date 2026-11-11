@@ -48,8 +48,8 @@ function positionOf(text: string, offset: number): { line: number; column: numbe
   return { line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 };
 }
 
-/** `--format json` expose **et** les `params` **et** le `message` rendu : les `params` sont le
- *  contrat, que des scripts lisent ; le message est ce qu'un humain lit dans la sortie d'une CI. */
+/** `--format json` exposes **both** the `params` **and** the rendered `message`: the `params` are
+ *  the contract, which scripts read; the message is what a human reads in CI output. */
 type Reported = {
   file: string;
   code: string;
@@ -60,9 +60,8 @@ type Reported = {
   column: number;
 };
 
-/** Chaque diagnostic est situé dans le texte de **son** fichier. Convertir un offset d'un fichier
- *  inclus avec le texte du fichier principal donnerait une ligne et une colonne qui existent, mais
- *  qui ne désignent rien. */
+/** Each diagnostic is located in the text of **its own** file. Converting an included file's offset
+ *  with the main file's text would give a line and column that exist but point at nothing. */
 function report(
   root: string,
   texts: ReadonlyMap<string, string>,
@@ -74,9 +73,9 @@ function report(
       diagnostic.range?.start ?? 0,
     );
     return {
-      // Chemin absolu, comme avant ce lot : c'est ce qu'un terminal rend cliquable et ce qu'un
-      // script de CI attendait déjà. Le diagnostic, lui, porte le chemin relatif à la racine,
-      // qui est la forme du contrat.
+      // Absolute path, as before this milestone: it is what a terminal makes clickable and what a
+      // CI script already expected. The diagnostic itself carries the root-relative path, which
+      // is the contract's form.
       file: resolve(root, diagnostic.file),
       code: diagnostic.code,
       severity: diagnostic.severity,

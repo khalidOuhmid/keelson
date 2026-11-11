@@ -39,7 +39,7 @@ async function waitForEvent(kind: DocumentEvent["kind"], timeout = 2500): Promis
     }
     await settle(25);
   }
-  throw new Error(`aucun événement « ${kind} » reçu ; reçus : ${JSON.stringify(events)}`);
+  throw new Error(`no "${kind}" event received; received: ${JSON.stringify(events)}`);
 }
 
 beforeEach(async () => {
@@ -57,8 +57,8 @@ afterEach(() => {
   watcher = undefined;
 });
 
-describe("modification externe", () => {
-  test("une écriture extérieure émet document.changed avec le nouveau hash", async () => {
+describe("external modification", () => {
+  test("an outside write emits document.changed with the new hash", async () => {
     writeFileSync(path(), `${BASE}\nautre:\n  stage: build\n  script:\n    - echo\n`);
     const event = await waitForEvent("document.changed");
     expect(event).toMatchObject({ file: ".gitlab-ci.yml" });
@@ -68,13 +68,13 @@ describe("modification externe", () => {
     }
   });
 
-  test("le store est rechargé après une modification externe", async () => {
+  test("the store is reloaded after an external modification", async () => {
     writeFileSync(path(), `${BASE}\nautre:\n  stage: build\n  script:\n    - echo\n`);
     await waitForEvent("document.changed");
     expect(store.currentText(".gitlab-ci.yml")).toContain("autre:");
   });
 
-  test("un remplacement par rename est détecté", async () => {
+  test("a replacement by rename is detected", async () => {
     const temporary = join(root, "remplacant.tmp");
     writeFileSync(temporary, `${BASE}\nremplace:\n  stage: build\n  script:\n    - echo\n`);
     renameSync(temporary, path());
@@ -82,15 +82,15 @@ describe("modification externe", () => {
     expect(store.currentText(".gitlab-ci.yml")).toContain("remplace:");
   });
 
-  test("la suppression du fichier émet document.removed", async () => {
+  test("deleting the file emits document.removed", async () => {
     rmSync(path());
     const event = await waitForEvent("document.removed");
     expect(event).toMatchObject({ file: ".gitlab-ci.yml" });
   });
 });
 
-describe("écritures propres du serveur", () => {
-  test("une opération appliquée par le serveur n'émet pas document.changed", async () => {
+describe("the server's own writes", () => {
+  test("an operation applied by the server does not emit document.changed", async () => {
     const result = await store.applyOperation(
       ".gitlab-ci.yml",
       {
@@ -106,13 +106,13 @@ describe("écritures propres du serveur", () => {
     expect(events).toEqual([]);
   });
 
-  test("une réécriture du même contenu n'émet rien", async () => {
+  test("rewriting the same content emits nothing", async () => {
     writeFileSync(path(), BASE);
     await settle(400);
     expect(events).toEqual([]);
   });
 
-  test("une modification externe après une écriture propre est bien détectée", async () => {
+  test("an external modification after an own write is detected", async () => {
     await store.applyOperation(
       ".gitlab-ci.yml",
       {
@@ -132,8 +132,8 @@ describe("écritures propres du serveur", () => {
   });
 });
 
-describe("cycle de vie", () => {
-  test("close arrête l'émission d'événements", async () => {
+describe("lifecycle", () => {
+  test("close stops emitting events", async () => {
     watcher?.close();
     watcher = undefined;
     writeFileSync(path(), `${BASE}\napres:\n  stage: build\n  script:\n    - echo\n`);
@@ -141,14 +141,14 @@ describe("cycle de vie", () => {
     expect(events).toEqual([]);
   });
 
-  test("close est idempotent", () => {
+  test("close is idempotent", () => {
     expect(() => {
       watcher?.close();
       watcher?.close();
     }).not.toThrow();
   });
 
-  test("le watcher surveille le dossier, pas seulement le fichier", async () => {
+  test("the watcher watches the directory, not just the file", async () => {
     rmSync(path());
     await waitForEvent("document.removed");
     events = [];
@@ -159,7 +159,7 @@ describe("cycle de vie", () => {
     expect(store.currentText(".gitlab-ci.yml")).toContain("recree:");
   });
 
-  test("un autre fichier du dossier est ignoré", async () => {
+  test("another file in the directory is ignored", async () => {
     writeFileSync(join(root, "sans-rapport.txt"), "bruit\n");
     await settle(400);
     expect(events).toEqual([]);

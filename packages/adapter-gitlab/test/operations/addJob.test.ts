@@ -7,7 +7,7 @@ const minimal = {
 };
 
 describe("addJob", () => {
-  test("insère le job en fin de fichier après une ligne vide", () => {
+  test("inserts the job at the end of the file after an empty line", () => {
     const applied = expectOk(BASE, minimal);
     expect(applied.text).toStartWith(BASE);
     expect(applied.text.slice(BASE.length)).toBe(
@@ -15,19 +15,19 @@ describe("addJob", () => {
     );
   });
 
-  test("le job inséré est présent dans l'IR rendue", () => {
+  test("the inserted job is present in the returned IR", () => {
     const applied = expectOk(BASE, minimal);
     const added = applied.pipeline.jobs.find((job) => job.id === "paquet");
     expect(added?.stage.value).toBe("deploy");
     expect(added?.stage.origin).toEqual({ kind: "local" });
   });
 
-  test("rend un YAML qui reparse sans erreur", () => {
+  test("returns YAML that reparses without error", () => {
     const applied = expectOk(BASE, minimal);
     expect(applied.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
   });
 
-  test("écrit les needs demandés", () => {
+  test("writes the requested needs", () => {
     const applied = expectOk(BASE, {
       kind: "addJob",
       job: { id: "paquet", stage: "deploy", script: ["x"], needs: [{ job: "compile" }] },
@@ -37,7 +37,7 @@ describe("addJob", () => {
     ]);
   });
 
-  test("écrit un need en forme objet quand il porte des options", () => {
+  test("writes a need in object form when it carries options", () => {
     const applied = expectOk(BASE, {
       kind: "addJob",
       job: {
@@ -52,7 +52,7 @@ describe("addJob", () => {
     ]);
   });
 
-  test("écrit l'environnement demandé", () => {
+  test("writes the requested environment", () => {
     const applied = expectOk(BASE, {
       kind: "addJob",
       job: {
@@ -68,38 +68,38 @@ describe("addJob", () => {
     });
   });
 
-  test("respecte l'indentation détectée du fichier", () => {
+  test("follows the file's detected indentation", () => {
     const quatre = BASE.replaceAll("\n  ", "\n    ").replaceAll("\n      - ", "\n        - ");
     const applied = expectOk(quatre, minimal);
     expect(applied.text.slice(quatre.length)).toContain("\n    stage: deploy");
   });
 
-  test("ajoute un retour à la ligne si le fichier n'en a pas en fin", () => {
+  test("adds a line break if the file has none at the end", () => {
     const sansEol = BASE.trimEnd();
     const applied = expectOk(sansEol, minimal);
     expect(applied.text).toContain("\n\npaquet:\n");
     expect(jobOf(applied.text, "paquet").id).toBe("paquet");
   });
 
-  test("préserve les fins de ligne CRLF", () => {
+  test("preserves CRLF line endings", () => {
     const crlf = BASE.replaceAll("\n", "\r\n");
     const applied = expectOk(crlf, minimal);
     expect(applied.text.slice(crlf.length)).not.toContain("\n\n");
     expect(applied.text.slice(crlf.length)).toContain("\r\n");
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(BASE, minimal);
     roundTrip(BASE.trimEnd(), minimal);
   });
 
-  test("touched couvre uniquement le texte ajouté", () => {
+  test("touched covers only the added text", () => {
     const applied = expectOk(BASE, minimal);
     expect(applied.touched).toHaveLength(1);
     expect(applied.text.slice(0, applied.touched[0]?.start)).toBe(BASE);
   });
 
-  test("NAME_CONFLICT si le job existe déjà", () => {
+  test("NAME_CONFLICT if the job already exists", () => {
     expectUnchanged(
       BASE,
       {
@@ -110,7 +110,7 @@ describe("addJob", () => {
     );
   });
 
-  test("NAME_CONFLICT si un template porte ce nom", () => {
+  test("NAME_CONFLICT if a template has this name", () => {
     const avecTemplate = `.base:\n  image: node\n\n${BASE}`;
     expectUnchanged(
       avecTemplate,
@@ -122,7 +122,7 @@ describe("addJob", () => {
     );
   });
 
-  test("INVALID_NAME si le nom est vide", () => {
+  test("INVALID_NAME if the name is empty", () => {
     expectUnchanged(
       BASE,
       { kind: "addJob", job: { id: "", stage: "build", script: ["x"] } },
@@ -130,7 +130,7 @@ describe("addJob", () => {
     );
   });
 
-  test("INVALID_NAME si le nom commence par un point", () => {
+  test("INVALID_NAME if the name starts with a dot", () => {
     expectUnchanged(
       BASE,
       { kind: "addJob", job: { id: ".cache", stage: "build", script: ["x"] } },
@@ -138,7 +138,7 @@ describe("addJob", () => {
     );
   });
 
-  test("INVALID_NAME pour chaque mot réservé", () => {
+  test("INVALID_NAME for each reserved word", () => {
     for (const reserved of [
       "stages",
       "variables",
@@ -162,7 +162,7 @@ describe("addJob", () => {
     }
   });
 
-  test("STAGE_NOT_FOUND si le stage n'est pas déclaré", () => {
+  test("STAGE_NOT_FOUND if the stage is not declared", () => {
     expectUnchanged(
       BASE,
       {
@@ -173,7 +173,7 @@ describe("addJob", () => {
     );
   });
 
-  test("INVALID_OPERATION si le script est vide", () => {
+  test("INVALID_OPERATION if the script is empty", () => {
     expectUnchanged(
       BASE,
       { kind: "addJob", job: { id: "paquet", stage: "build", script: [] } },

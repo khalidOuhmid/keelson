@@ -48,7 +48,7 @@ async function waitForEvent(timeout = 2500): Promise<DocumentEvent> {
     }
     await settle();
   }
-  throw new Error("aucun événement reçu");
+  throw new Error("no event received");
 }
 
 beforeEach(() => {
@@ -65,36 +65,36 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-describe("chargement d'un document à includes", () => {
-  test("le pipeline contient les jobs des fichiers inclus", async () => {
+describe("loading a document with includes", () => {
+  test("the pipeline contains the included files' jobs", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded?.pipeline.jobs.map((job) => job.id).sort()).toEqual(["compile", "unit"]);
   });
 
-  /** Sans les textes des fichiers inclus sur le fil, l'UI découperait les plages des blocs opaques
-   *  d'un job inclus dans le texte du fichier principal : des octets pris ailleurs, affichés sous
-   *  la seule promesse « ceci est verbatim ». */
-  test("la charge porte le texte de chaque fichier inclus", async () => {
+  /** Without the included files' texts on the wire, the UI would slice the ranges of an included
+   *  job's opaque blocks out of the main file's text: bytes taken from elsewhere, displayed under
+   *  the sole promise "this is verbatim". */
+  test("the payload carries the text of each included file", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded?.included).toEqual({ "ci/jobs.yml": INCLUDED });
   });
 
-  test("un need vers un job inclus n'est plus un UNKNOWN_NEED", async () => {
+  test("a need on an included job is no longer an UNKNOWN_NEED", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded?.diagnostics.map((entry) => entry.code)).toEqual([]);
   });
 
-  test("le store expose les fichiers inclus du document", async () => {
+  test("the store exposes the document's included files", async () => {
     await store.load(".gitlab-ci.yml");
     expect(store.includedFiles(".gitlab-ci.yml")).toEqual(["ci/jobs.yml"]);
   });
 });
 
-describe("un lien symbolique qui sort de la racine", () => {
-  /** La conséquence réelle du défaut trouvé par la revue de L2b n'est pas qu'un `read()` rende une
-   *  valeur : c'est que le contenu d'un fichier arbitraire parte dans la charge envoyée au
-   *  navigateur. `reader.test.ts` garde le lecteur, ce test garde la charge. */
-  test("son contenu n'entre pas dans la charge du document", async () => {
+describe("a symbolic link that escapes the root", () => {
+  /** The real consequence of the defect found by the L2b review is not that a `read()` returns a
+   *  value: it is that the content of an arbitrary file ends up in the payload sent to the browser.
+   *  `reader.test.ts` guards the reader, this test guards the payload. */
+  test("its content does not enter the document payload", async () => {
     const outside = mkdtempSync(join(tmpdir(), "keelson-srv-dehors-"));
     try {
       writeFileSync(join(outside, "secret.txt"), "SECRET-HORS-DEPOT\n");
@@ -112,10 +112,10 @@ describe("un lien symbolique qui sort de la racine", () => {
   });
 });
 
-describe("un fichier principal lié hors de la racine", () => {
-  /** Le fichier principal ne passait pas par le lecteur : `.gitlab-ci.yml` lié vers n'importe quel
-   *  fichier partait tel quel dans la charge, sans même de contrôle d'extension. Même scénario que
-   *  le lien inclus, par la seule voie que le correctif de L2b n'avait pas fermée. */
+describe("a main file linked outside the root", () => {
+  /** The main file did not go through the reader: a `.gitlab-ci.yml` linked to any file went into
+   *  the payload as is, without even an extension check. Same scenario as the included link,
+   *  through the only path the L2b fix had not closed. */
   function linkMainOutside(): string {
     const outside = mkdtempSync(join(tmpdir(), "keelson-srv-main-"));
     writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
@@ -124,7 +124,7 @@ describe("un fichier principal lié hors de la racine", () => {
     return outside;
   }
 
-  test("il n'est pas détecté comme fichier de l'espace de travail", () => {
+  test("it is not detected as a workspace file", () => {
     const outside = linkMainOutside();
     try {
       expect(detectWorkspace(root)).toEqual([]);
@@ -133,7 +133,7 @@ describe("un fichier principal lié hors de la racine", () => {
     }
   });
 
-  test("le store ne le charge pas, même si la liste le nomme", async () => {
+  test("the store does not load it, even if the list names it", async () => {
     const outside = linkMainOutside();
     try {
       const forced = new DocumentStore(root, [{ path: ".gitlab-ci.yml", adapter: "gitlab" }]);
@@ -144,8 +144,8 @@ describe("un fichier principal lié hors de la racine", () => {
   });
 });
 
-describe("écriture bornée au fichier principal", () => {
-  test("une opération sur un job inclus est refusée en 422", async () => {
+describe("writes bounded to the main file", () => {
+  test("an operation on an included job is refused with 422", async () => {
     await store.load(".gitlab-ci.yml");
     const response = await store.applyOperation(
       ".gitlab-ci.yml",
@@ -165,9 +165,9 @@ describe("écriture bornée au fichier principal", () => {
     });
   });
 
-  /** La garantie du produit, mesurée sur le disque et non sur l'intention : le fichier inclus doit
-   *  être **octet pour octet** celui d'avant, après une opération acceptée. */
-  test("une opération acceptée ne réécrit pas le fichier inclus", async () => {
+  /** The product's guarantee, measured on disk and not on intent: the included file must be
+   *  **byte for byte** the one from before, after an accepted operation. */
+  test("an accepted operation does not rewrite the included file", async () => {
     await store.load(".gitlab-ci.yml");
     const response = await store.applyOperation(
       ".gitlab-ci.yml",
@@ -184,15 +184,15 @@ describe("écriture bornée au fichier principal", () => {
     expect(readFileSync(join(root, "ci/jobs.yml"), "utf8")).toBe(INCLUDED);
   });
 
-  /** `resolveWorkspaceFile` ne connaît que le fichier détecté. Un fichier inclus n'entre donc
-   *  jamais dans la liste blanche d'écriture, même si le client en demande le nom. */
-  test("un fichier inclus n'est pas adressable comme document", async () => {
+  /** `resolveWorkspaceFile` only knows the detected file. An included file therefore never enters
+   *  the write allowlist, even if the client asks for its name. */
+  test("an included file is not addressable as a document", async () => {
     expect(await store.load("ci/jobs.yml")).toBeNull();
   });
 });
 
-describe("surveillance des fichiers inclus", () => {
-  test("modifier un fichier inclus émet document.changed sur le fichier principal", async () => {
+describe("watching included files", () => {
+  test("modifying an included file emits document.changed on the main file", async () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
 
@@ -206,11 +206,11 @@ describe("surveillance des fichiers inclus", () => {
     expect(loaded?.pipeline.jobs.map((job) => job.id).sort()).toEqual(["compile", "extra", "unit"]);
   });
 
-  /** Le piège que le hook `onLoaded` évite : le watcher est construit **avant** tout chargement,
-   *  donc `includedFiles` est vide à ce moment-là. Sans abonnement au chargement, le dossier de
-   *  `ci/` ne serait surveillé qu'après un premier changement — c'est-à-dire que le premier
-   *  changement serait toujours manqué. */
-  test("le fichier inclus est surveillé même si le watcher démarre avant tout chargement", async () => {
+  /** The trap the `onLoaded` hook avoids: the watcher is built **before** any load, so
+   *  `includedFiles` is empty at that point. Without subscribing to loads, the `ci/` directory
+   *  would only be watched after a first change — that is, the first change would always be
+   *  missed. */
+  test("the included file is watched even if the watcher starts before any load", async () => {
     watcher = watchDocuments(root, store, (event) => events.push(event));
     await store.load(".gitlab-ci.yml");
 
@@ -220,9 +220,9 @@ describe("surveillance des fichiers inclus", () => {
     expect(event.kind === "document.changed" ? event.file : "").toBe(".gitlab-ci.yml");
   });
 
-  /** Le store purge le document, donc l'écran doit l'apprendre : sinon il reste sur un pipeline qui
-   *  n'existe plus, jusqu'au 404 de la prochaine opération. */
-  test("un fichier principal remplacé par un lien refusé émet document.removed", async () => {
+  /** The store purges the document, so the screen must learn it: otherwise it stays on a pipeline
+   *  that no longer exists, until the next operation's 404. */
+  test("a main file replaced by a refused link emits document.removed", async () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
 
@@ -239,7 +239,7 @@ describe("surveillance des fichiers inclus", () => {
     }
   });
 
-  test("un include ajouté après coup entre dans la surveillance", async () => {
+  test("an include added afterwards enters the watch", async () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
 
@@ -256,7 +256,7 @@ describe("surveillance des fichiers inclus", () => {
     expect(event.kind === "document.changed" ? event.file : "").toBe(".gitlab-ci.yml");
   });
 
-  test("un fichier hors de l'arbre résolu n'émet rien", async () => {
+  test("a file outside the resolved tree emits nothing", async () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
 

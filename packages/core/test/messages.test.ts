@@ -5,9 +5,9 @@ import { EN, MESSAGE_CODES, type MessageCode, render } from "../src/messages/ind
 
 const DIAGNOSTICS_DOC = join(import.meta.dir, "..", "..", "..", "specs", "diagnostics.md");
 
-/** Les codes documentés : première cellule des lignes de table, quand elle est un code en
- *  capitales entre accents graves. Lire le document plutôt qu'une liste parallèle est le point du
- *  test : c'est la documentation qui est le contrat public, pas une copie de la documentation. */
+/** The documented codes: the first cell of table rows, when it is an uppercase code between
+ *  backticks. Reading the document rather than a parallel list is the point of the test: the
+ *  documentation is the public contract, not a copy of the documentation. */
 function documentedCodes(): string[] {
   const markdown = readFileSync(DIAGNOSTICS_DOC, "utf8");
   const found = new Set<string>();
@@ -22,13 +22,14 @@ function documentedCodes(): string[] {
 
 type Case = { params: unknown; text: string };
 
-/** Des `params` représentatifs **et le texte attendu**, par code et par branche.
+/** Representative `params` **and the expected text**, per code and per branch.
  *
- *  Le texte attendu est là parce qu'il est la seule assertion qui tienne réellement `en.ts`. La
- *  revue indépendante du 2026-10-22 a cassé `EXTENDS_CYCLE` — une faute de nom de `params` — sans
- *  faire rougir un seul test : le repli de `render()` changeait l'exception en phrase valide, et
- *  les gardes « non vide, pas d'`undefined`, pas de français » étaient tous satisfaits par ce
- *  repli. Les cas ci-dessous sont donc exercés **sans** le repli, par `EN` directement. */
+ *  The expected text is here because it is the only assertion that really holds `en.ts` in place.
+ *  The independent review of 2026-10-22 broke `EXTENDS_CYCLE` — a misnamed `params` field —
+ *  without turning a single test red: the `render()` fallback turned the exception into a valid
+ *  sentence, and the "non-empty, no `undefined`, no French" guards were all satisfied by that
+ *  fallback. The cases below are therefore exercised **without** the fallback, through `EN`
+ *  directly. */
 const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   INVALID_YAML: [
     {
@@ -369,8 +370,8 @@ function branchesOf(code: MessageCode): string[] {
   return typeof renderer === "function" ? [] : Object.keys(renderer);
 }
 
-/** Appelle le renderer **sans** passer par `render()`, donc sans son repli : une exception ou une
- *  valeur absente remonte au test au lieu d'être changée en phrase valide. */
+/** Calls the renderer **without** going through `render()`, hence without its fallback: an
+ *  exception or a missing value reaches the test instead of being turned into a valid sentence. */
 function renderDirect(code: MessageCode, params: unknown): unknown {
   const renderer = EN[code] as AnyRenderer;
   if (typeof renderer === "function") {
@@ -378,20 +379,20 @@ function renderDirect(code: MessageCode, params: unknown): unknown {
   }
   const branch = renderer[(params as { reason: string }).reason];
   if (branch === undefined) {
-    throw new Error(`branche absente pour ${code}`);
+    throw new Error(`missing branch for ${code}`);
   }
   return branch(params);
 }
 
 const rendered = (code: MessageCode, params: unknown): string => render(code, params as never);
 
-describe("registre des messages", () => {
-  test("tout code a un message, et tout message a un code", () => {
+describe("message registry", () => {
+  test("every code has a message, and every message has a code", () => {
     const registered: string[] = [...MESSAGE_CODES];
     expect(registered.sort()).toEqual(Object.keys(EN).sort());
   });
 
-  test("l'ensemble des codes est exactement celui de specs/diagnostics.md", () => {
+  test("the set of codes is exactly that of specs/diagnostics.md", () => {
     const documented = documentedCodes();
     const registered: string[] = [...MESSAGE_CODES].sort();
 
@@ -399,7 +400,7 @@ describe("registre des messages", () => {
     expect(registered.filter((code) => !documented.includes(code))).toEqual([]);
   });
 
-  test("chaque code a une fixture, et chaque branche la sienne", () => {
+  test("every code has a fixture, and every branch its own", () => {
     expect(Object.keys(FIXTURES).sort()).toEqual([...MESSAGE_CODES].sort());
 
     for (const code of MESSAGE_CODES) {
@@ -419,11 +420,11 @@ describe("registre des messages", () => {
   });
 });
 
-describe("rendu anglais", () => {
-  /** L'assertion forte du module : chaque branche de chaque code rend **exactement** ce texte,
-   *  renderer appelé directement. Changer une phrase de `en.ts` fait rougir ici, et c'est voulu —
-   *  les formulations sont du produit, pas un détail d'implémentation. */
-  test("chaque branche rend exactement son texte", () => {
+describe("English rendering", () => {
+  /** The module's strong assertion: every branch of every code renders **exactly** this text, with
+   *  the renderer called directly. Changing a sentence in `en.ts` turns this red, on purpose —
+   *  wordings are part of the product, not an implementation detail. */
+  test("every branch renders exactly its text", () => {
     for (const code of MESSAGE_CODES) {
       for (const entry of FIXTURES[code]) {
         expect({ code, text: renderDirect(code, entry.params) }).toEqual({
@@ -434,7 +435,7 @@ describe("rendu anglais", () => {
     }
   });
 
-  test("aucun rendu ne laisse de trou ni de gabarit", () => {
+  test("no rendering leaves a hole or a placeholder", () => {
     for (const code of MESSAGE_CODES) {
       for (const entry of FIXTURES[code]) {
         const text = renderDirect(code, entry.params);
@@ -450,7 +451,7 @@ describe("rendu anglais", () => {
     }
   });
 
-  test("aucun rendu ne contient de caractère français", () => {
+  test("no rendering contains a French character", () => {
     const french = /[éèêëàâçùûüôîïœ«»]/i;
     for (const code of MESSAGE_CODES) {
       for (const entry of FIXTURES[code]) {
@@ -462,15 +463,15 @@ describe("rendu anglais", () => {
     }
   });
 
-  /** Trouvé en migrant l'UI : `ErrorBanner` plantait sur un `JOB_REFERENCED` dont les `params` ne
-   *  portaient pas `referencedBy`. Le type l'exige, le fil ne le garantit pas, et l'exception
-   *  survenait pendant l'affichage d'une autre erreur.
+  /** Found while migrating the UI: `ErrorBanner` crashed on a `JOB_REFERENCED` whose `params` did
+   *  not carry `referencedBy`. The type requires it, the wire does not guarantee it, and the
+   *  exception happened while displaying another error.
    *
-   *  Les cas `INVALID_YAML` viennent de la revue du 2026-10-22 : c'est le seul renderer dont le
-   *  corps est une lecture de `params` nue, donc il ne levait pas — il rendait `undefined`, que la
-   *  CLI passait ensuite à `.replace()`. Le `try/catch` ne suffisait pas : `render()` doit aussi
-   *  refuser ce que le renderer rend quand ce n'est pas une phrase. */
-  test("un rendu ne lève jamais et rend toujours une phrase", () => {
+   *  The `INVALID_YAML` cases come from the 2026-10-22 review: it is the only renderer whose body
+   *  is a bare read of `params`, so it did not throw — it returned `undefined`, which the CLI then
+   *  passed to `.replace()`. The `try/catch` was not enough: `render()` must also reject what the
+   *  renderer returns when it is not a sentence. */
+  test("rendering never throws and always returns a sentence", () => {
     expect(rendered("JOB_REFERENCED", { job: "compile" })).toBe("unexpected server response");
     expect(rendered("NOT_FOUND", { reason: "inventé" })).toBe("unexpected server response");
     expect(rendered("NEEDS_CYCLE", {})).toBe("unexpected server response");
@@ -479,7 +480,7 @@ describe("rendu anglais", () => {
     expect(rendered("INCLUDE_UNRESOLVED", undefined)).toBe("unexpected server response");
   });
 
-  test("les deux branches d'un code à reason rendent des textes distincts", () => {
+  test("the two branches of a reason code render distinct texts", () => {
     expect(rendered("INVALID_NAME", { reason: "job", name: ".tpl" })).not.toBe(
       rendered("INVALID_NAME", { reason: "stage" }),
     );

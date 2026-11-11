@@ -54,7 +54,7 @@ const needsOf = (text: string, id: string) => jobOf(text, id)?.needs?.value.map(
 const newJob = { id: "lint", stage: "", script: ["make lint"] };
 
 describe("addJob", () => {
-  test("en fin de jobs, à l'indentation trouvée, le reste intact", () => {
+  test("at the end of jobs, at the detected indentation, the rest intact", () => {
     const text = written(BASE, { kind: "addJob", job: newJob });
     expect(text).toContain(
       "      - run: ./deploy\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make lint\n",
@@ -62,7 +62,7 @@ describe("addJob", () => {
     expect(text.startsWith(BASE)).toBe(true);
   });
 
-  test("avec needs et environnement", () => {
+  test("with needs and environment", () => {
     const text = written(BASE, {
       kind: "addJob",
       job: {
@@ -75,12 +75,12 @@ describe("addJob", () => {
     expect(jobOf(text, "lint")?.environment?.value).toEqual({ name: "prod", url: "https://u" });
   });
 
-  test("crée jobs: s'il manque", () => {
+  test("creates jobs: when missing", () => {
     const text = written("name: x\non: push\n", { kind: "addJob", job: newJob });
     expect(jobOf(text, "lint")).toBeDefined();
   });
 
-  test("refus : nom pris, nom illégal", () => {
+  test("refusals: name taken, illegal name", () => {
     expect(run(BASE, { kind: "addJob", job: { ...newJob, id: "build" } })).toMatchObject({
       error: { code: "NAME_CONFLICT" },
     });
@@ -92,7 +92,7 @@ describe("addJob", () => {
     });
   });
 
-  test("un script multiligne ou piégé reste une valeur", () => {
+  test("a multiline or booby-trapped script stays a value", () => {
     const text = written(BASE, { kind: "addJob", job: { ...newJob, script: ["a: b #c", "x\ny"] } });
     expect(jobOf(text, "lint")?.signals.script).toEqual(["a: b #c", "x\ny"]);
   });
@@ -101,7 +101,7 @@ describe("addJob", () => {
 describe("addSnippet", () => {
   const snippet = "- name: Scan\n  run: trivy fs .\n";
 
-  test("un job avec checkout puis les étapes de la fiche", () => {
+  test("a job with checkout then the catalogue entry's steps", () => {
     const text = written(BASE, { kind: "addSnippet", id: "trivy", stage: "", snippet });
     const job = jobOf(text, "trivy");
     expect(job?.signals.script).toEqual(["trivy fs ."]);
@@ -110,40 +110,40 @@ describe("addSnippet", () => {
   });
 
   test.each([
-    ["une map", "a: b\n"],
-    ["une liste vide", "[]\n"],
-    ["une liste de scalaires", "- a\n"],
-    ["du YAML cassé", "- [\n"],
-    ["une ancre", "- &a\n  run: x\n"],
-    ["un commentaire indenté", "    # x\n- run: x\n"],
-  ])("%s est refusé", (_label, bad) => {
+    ["a map", "a: b\n"],
+    ["an empty list", "[]\n"],
+    ["a list of scalars", "- a\n"],
+    ["broken YAML", "- [\n"],
+    ["an anchor", "- &a\n  run: x\n"],
+    ["an indented comment", "    # x\n- run: x\n"],
+  ])("%s is refused", (_label, bad) => {
     expect(run(BASE, { kind: "addSnippet", id: "x", stage: "", snippet: bad })).toMatchObject({
       error: { params: { reason: "invalidSnippet" } },
     });
   });
 });
 
-describe("removeJob et renameJob", () => {
-  test("retirer garde le commentaire du voisin", () => {
+describe("removeJob and renameJob", () => {
+  test("removing keeps the neighbour's comment", () => {
     const text = written(BASE, { kind: "removeJob", id: "deploy" });
     expect(jobOf(text, "deploy")).toBeUndefined();
     expect(text).toContain("make check");
   });
 
-  test("retirer un job dont d'autres ont besoin est refusé", () => {
+  test("removing a job others need is refused", () => {
     expect(run(BASE, { kind: "removeJob", id: "build" })).toMatchObject({
       error: { code: "JOB_REFERENCED", params: { referencedBy: ["test", "deploy"] } },
     });
   });
 
-  test("renommer suit needs, en scalaire et en flow", () => {
+  test("renaming follows needs, scalar and flow", () => {
     const text = written(BASE, { kind: "renameJob", from: "build", to: "compile" });
     expect(needsOf(text, "test")).toEqual(["compile"]);
     expect(needsOf(text, "deploy")).toEqual(["compile", "test"]);
     expect(text).toContain("# compile tout\n  compile:\n    runs-on: ubuntu-latest # vite\n");
   });
 
-  test("refus : introuvable, nom pris", () => {
+  test("refusals: not found, name taken", () => {
     expect(run(BASE, { kind: "removeJob", id: "x" })).toMatchObject({
       error: { code: "JOB_NOT_FOUND" },
     });
@@ -154,7 +154,7 @@ describe("removeJob et renameJob", () => {
 });
 
 describe("needs", () => {
-  test("ajouter à un scalaire, à une liste flow, à une liste en bloc, à rien", () => {
+  test("adding to a scalar, a flow list, a block list, nothing", () => {
     expect(
       needsOf(written(BASE, { kind: "addNeed", id: "test", need: { job: "deploy2" } }), "test"),
     ).toEqual(["build", "deploy2"]);
@@ -170,7 +170,7 @@ describe("needs", () => {
     expect(text).toContain("      - b # c\n      - z\n");
   });
 
-  test("retirer d'un scalaire enlève la clé, d'une liste garde le reste", () => {
+  test("removing from a scalar drops the key, from a list keeps the rest", () => {
     expect(
       jobOf(written(BASE, { kind: "removeNeed", id: "test", job: "build" }), "test")?.needs,
     ).toBeNull();
@@ -179,7 +179,7 @@ describe("needs", () => {
     ).toEqual(["test"]);
   });
 
-  test("refus : déjà là, absent, cycle, options", () => {
+  test("refusals: already there, absent, cycle, options", () => {
     expect(run(BASE, { kind: "addNeed", id: "test", need: { job: "build" } })).toMatchObject({
       error: { code: "NEED_EXISTS" },
     });
@@ -197,8 +197,8 @@ describe("needs", () => {
   });
 });
 
-describe("environnement", () => {
-  test("ajouter, remplacer, retirer", () => {
+describe("environment", () => {
+  test("add, replace, remove", () => {
     const added = written(BASE, {
       kind: "setEnvironment",
       id: "build",
@@ -216,7 +216,7 @@ describe("environnement", () => {
     expect(removed).toBe(BASE);
   });
 
-  test("action n'existe pas ici", () => {
+  test("action does not exist here", () => {
     expect(
       run(BASE, {
         kind: "setEnvironment",
@@ -229,18 +229,18 @@ describe("environnement", () => {
   });
 });
 
-describe("ce qui n'a pas de sens ici", () => {
+describe("what makes no sense here", () => {
   test.each([
     [{ kind: "addStage", name: "x" }],
     [{ kind: "moveStage", name: "x", toIndex: 0 }],
     [{ kind: "setJobStage", id: "build", stage: "x" }],
-  ])("%j est refusé", (draft) => {
+  ])("%j is refused", (draft) => {
     expect(run(BASE, draft)).toMatchObject({ error: { params: { reason: "notForProvider" } } });
   });
 });
 
-describe("garde-fous", () => {
-  test("un hash périmé", () => {
+describe("safeguards", () => {
+  test("a stale hash", () => {
     const result = apply(parse(BASE, { file: FILE }).document, {
       v: 1,
       baseHash: "a".repeat(64),
@@ -250,19 +250,19 @@ describe("garde-fous", () => {
     expect(result.ok ? null : result.error.code).toBe("STALE_DOCUMENT");
   });
 
-  test("une section en flow n'est pas réécrite", () => {
+  test("a flow section is not rewritten", () => {
     expect(run("jobs: {a: {steps: [{run: x}]}}\n", { kind: "addJob", job: newJob })).toMatchObject({
       error: { code: "INVALID_OPERATION" },
     });
   });
 
-  test("une forme que le patch ne sait pas écrire est refusée, pas écrite", () => {
+  test("a shape the patch cannot write is refused, not written", () => {
     const text = "jobs:\n  a: &a\n    steps:\n      - run: x\n  b: *a\n";
     expect(run(text, { kind: "addNeed", id: "a", need: { job: "z" } }).ok).toBe(false);
     expect(run(text, { kind: "removeJob", id: "a" }).ok).toBe(false);
   });
 
-  test("un doublon que le patch ne retirerait qu'à moitié est refusé à la relecture", () => {
+  test("a duplicate the patch would only half remove is refused on re-read", () => {
     const text =
       "jobs:\n  a:\n    needs:\n      - b\n      - b\n      - c\n    steps:\n      - run: x\n";
     expect(run(text, { kind: "removeNeed", id: "a", job: "b" })).toMatchObject({
@@ -270,14 +270,14 @@ describe("garde-fous", () => {
     });
   });
 
-  test("un job en valeur de bloc en dernière position garde son voisin", () => {
+  test("a job as a block value in last position keeps its neighbour", () => {
     const text =
       "jobs:\n  a:\n    steps:\n      - run: |\n          x\n  b:\n    steps:\n      - run: y\n";
     expect(jobOf(written(text, { kind: "removeJob", id: "a" }), "b")).toBeDefined();
   });
 });
 
-describe("ce qui parle du job ailleurs que dans needs", () => {
+describe("what refers to the job outside needs", () => {
   const LINKED = `on:
   workflow_call:
     outputs:
@@ -296,24 +296,24 @@ jobs:
       - run: b
 `;
 
-  test("renommer un job que des expressions citent est refusé", () => {
+  test("renaming a job cited by expressions is refused", () => {
     expect(run(LINKED, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
       error: { params: { reason: "citedInExpression" } },
     });
   });
 
-  test("retirer un need que le job cite est refusé", () => {
+  test("removing a need the job cites is refused", () => {
     expect(run(LINKED, { kind: "removeNeed", id: "deploy", job: "build" })).toMatchObject({
       error: { params: { reason: "citedInExpression" } },
     });
   });
 
   test.each([
-    ["crochets", "if: needs['build'].result == 'success'"],
-    ["guillemets", 'if: needs["build"].result'],
-    ["casse", "if: NEEDS.Build.result"],
-    ["espaces", "if: needs . build . result"],
-  ])("la forme %s est vue aussi", (_label, line) => {
+    ["brackets", "if: needs['build'].result == 'success'"],
+    ["double quotes", 'if: needs["build"].result'],
+    ["case", "if: NEEDS.Build.result"],
+    ["spaces", "if: needs . build . result"],
+  ])("the %s form is caught too", (_label, line) => {
     const text = `jobs:\n  build:\n    steps:\n      - run: a\n  deploy:\n    needs: build\n    ${line}\n    steps:\n      - run: b\n`;
     expect(run(text, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
       error: { params: { reason: "citedInExpression", job: "build" } },
@@ -322,17 +322,17 @@ jobs:
 
   test.each([
     [
-      "un commentaire de script",
+      "a script comment",
       "      - run: |\n          # Wait for the other jobs.\n          test -f ready\n",
     ],
-    ["une phrase", "      - run: echo Runs all jobs. Test only on main\n"],
-    ["une classe Java", "      - run: java com.acme.Jobs.Test\n"],
-  ])("%s n'est pas une expression", (_label, step) => {
+    ["a sentence", "      - run: echo Runs all jobs. Test only on main\n"],
+    ["a Java class", "      - run: java com.acme.Jobs.Test\n"],
+  ])("%s is not an expression", (_label, step) => {
     const text = `jobs:\n  test:\n    steps:\n${step}`;
     expect(run(text, { kind: "renameJob", from: "test", to: "other" }).ok).toBe(true);
   });
 
-  test("un run qui cite le job dans une expression est refusé", () => {
+  test("a run citing the job in an expression is refused", () => {
     const text =
       "jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo ${{ needs.a.outputs.v }}\n";
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
@@ -340,23 +340,23 @@ jobs:
     });
   });
 
-  test("des accolades dans une chaîne d'expression ne la coupent pas", () => {
+  test("braces in an expression string do not cut it", () => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "\${{ format('{{0}}', needs.a.outputs.v) }}"\n`;
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
       error: { params: { reason: "citedInExpression" } },
     });
   });
 
-  test("le shell après une expression n'est pas une expression", () => {
+  test("the shell after an expression is not an expression", () => {
     const text = `jobs:\n  test:\n    steps:\n      - run: |\n          echo "\${{ github.sha }}"\n          # Wait for the other jobs.\n          test -f ready\n`;
     expect(run(text, { kind: "renameJob", from: "test", to: "other" }).ok).toBe(true);
   });
 
   test.each([
-    ["un indice de matrice", "${{ needs[matrix.dep].result }}"],
-    ["needs entier", "${{ toJSON(needs) }}"],
-    ["un indice calculé", "${{ needs[format('{0}', 'a')].result }}"],
-  ])("%s peut citer n'importe quel job : refusé", (_label, expression) => {
+    ["a matrix index", "${{ needs[matrix.dep].result }}"],
+    ["whole needs", "${{ toJSON(needs) }}"],
+    ["a computed index", "${{ needs[format('{0}', 'a')].result }}"],
+  ])("%s can cite any job: refused", (_label, expression) => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "${expression}"\n`;
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
       error: { params: { reason: "dynamicExpression", job: "a" } },
@@ -364,9 +364,9 @@ jobs:
   });
 
   test.each([
-    ["un jobs indexé par une entrée", "${{ jobs[inputs.which].outputs.v }}"],
-    ["jobs entier", "${{ toJSON(jobs) }}"],
-  ])("%s dans les sorties d'un workflow réutilisable : refusé", (_label, expression) => {
+    ["jobs indexed by an input", "${{ jobs[inputs.which].outputs.v }}"],
+    ["whole jobs", "${{ toJSON(jobs) }}"],
+  ])("%s in the outputs of a reusable workflow: refused", (_label, expression) => {
     const text = `on:\n  workflow_call:\n    outputs:\n      v:\n        value: ${expression}\njobs:\n  a:\n    steps:\n      - run: x\n`;
     for (const op of [
       { kind: "renameJob", from: "a", to: "c" },
@@ -380,35 +380,35 @@ jobs:
 
   test.each([
     [
-      "un libellé entre apostrophes",
+      "a label in single quotes",
       "if: contains(github.event.pull_request.labels.*.name, 'needs-review')",
     ],
-    ["une phrase entre apostrophes", "if: github.event.label.name == 'needs triage'"],
-    ["une propriété d'env, en capitales", "if: env.NEEDS == 'x'"],
-    ["une entrée", "if: inputs.needs"],
-    ["une variable de matrice", "if: matrix.needs"],
-    ["un libellé qui contient jobs", "if: github.event.label.name == 'jobs'"],
-  ])("%s ne lit pas le contexte needs : renommer et retirer restent permis", (_label, line) => {
+    ["a sentence in single quotes", "if: github.event.label.name == 'needs triage'"],
+    ["an env property, in capitals", "if: env.NEEDS == 'x'"],
+    ["an input", "if: inputs.needs"],
+    ["a matrix variable", "if: matrix.needs"],
+    ["a label containing jobs", "if: github.event.label.name == 'jobs'"],
+  ])("%s does not read the needs context: renaming and removing stay allowed", (_label, line) => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n  b:\n    needs: z\n    ${line}\n    steps:\n      - run: y\n`;
     expect(run(text, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
     expect(run(text, { kind: "removeJob", id: "a" }).ok).toBe(true);
   });
 
-  test("needs['z'] vise z seulement : renommer un autre job reste permis", () => {
+  test("needs['z'] targets z only: renaming another job stays allowed", () => {
     for (const index of ["needs['z']", 'needs["z"]']) {
       const text = `jobs:\n  a:\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n  b:\n    needs: [a, z]\n    if: ${index}.result == 'success'\n    steps:\n      - run: y\n`;
       expect(run(text, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
     }
   });
 
-  test("chaque expression d'une valeur est lue, pas seulement la première", () => {
+  test("every expression in a value is read, not just the first", () => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "\${{ github.sha }} \${{ needs.a.outputs.v }}"\n`;
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
       error: { params: { reason: "citedInExpression", job: "a" } },
     });
   });
 
-  test("needs dynamique ne voit que les needs de son job : un job hors de sa portée reste libre", () => {
+  test("dynamic needs sees only its own job's needs: a job out of its reach stays free", () => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    if: \${{ toJSON(needs) != '' }}\n    steps:\n      - run: y\n  c:\n    steps:\n      - run: z\n`;
     expect(run(text, { kind: "renameJob", from: "c", to: "d" }).ok).toBe(true);
     expect(run(text, { kind: "removeJob", id: "c" }).ok).toBe(true);
@@ -417,7 +417,7 @@ jobs:
     });
   });
 
-  test("le refus dynamique vaut aussi pour removeNeed et removeJob", () => {
+  test("the dynamic refusal also applies to removeNeed and removeJob", () => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    if: \${{ toJSON(needs) != '' }}\n    steps:\n      - run: y\n  c:\n    steps:\n      - run: z\n`;
     expect(run(text, { kind: "removeNeed", id: "b", job: "a" })).toMatchObject({
       error: { params: { reason: "dynamicExpression", job: "a" } },
@@ -428,37 +428,37 @@ jobs:
     });
   });
 
-  test("needs.* ne vise aucun nom : renommer reste permis", () => {
+  test("needs.* targets no name: renaming stays allowed", () => {
     const text =
       "jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    if: contains(needs.*.result, 'failure')\n    steps:\n      - run: y\n";
     expect(run(text, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
   });
 
-  test("une expression en clé compte", () => {
+  test("an expression in a key counts", () => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    env:\n      \${{ needs.a.outputs.k }}: v\n    steps:\n      - run: y\n`;
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
       error: { params: { reason: "citedInExpression" } },
     });
   });
 
-  test("un fichier dont les valeurs ne se lisent pas n'est pas réécrit", () => {
+  test("a file whose values cannot be read is not rewritten", () => {
     const uses = Array.from({ length: 120 }, (_, index) => `  v${index}: *x\n`).join("");
     const text = `env:\n  a: &x [1]\n${uses}jobs:\n  build:\n    steps:\n      - run: a\n  b:\n    needs: build\n    if: needs.build.result\n    steps:\n      - run: y\n`;
     expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(false);
   });
 
-  test("un commentaire ne bloque rien", () => {
+  test("a comment blocks nothing", () => {
     const text = "jobs:\n  build:\n    # needs.build\n    steps:\n      - run: a\n";
     expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
   });
 
-  test("un id d'étape homonyme n'empêche rien", () => {
+  test("a step id with the same name prevents nothing", () => {
     const text =
       "jobs:\n  build:\n    steps:\n      - id: build\n        run: a\n  c:\n    steps:\n      - run: echo ${{ steps.build.outcome }}\n";
     expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
   });
 
-  test("environment sur un job uses: est refusé", () => {
+  test("environment on a uses: job is refused", () => {
     const text = "jobs:\n  a:\n    uses: o/r/.github/workflows/x.yml@v1\n";
     expect(
       run(text, { kind: "setEnvironment", id: "a", environment: { name: "p" } }),
@@ -468,12 +468,12 @@ jobs:
   });
 });
 
-describe("fichiers presque vides", () => {
-  test.each([[""], ["# rien\n"], ["name: x\n"]])("addJob sur %j", (text) => {
+describe("almost empty files", () => {
+  test.each([[""], ["# rien\n"], ["name: x\n"]])("addJob on %j", (text) => {
     expect(run(text, { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } }).ok).toBe(true);
   });
 
-  test("une ancre cyclique ne fait pas lever", () => {
+  test("a cyclic anchor does not throw", () => {
     const text = "x: &a\n  b: *a\njobs:\n  c:\n    steps:\n      - run: y\n";
     expect(() =>
       run(text, { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } }),
@@ -481,35 +481,35 @@ describe("fichiers presque vides", () => {
   });
 });
 
-describe("rien ne change à côté", () => {
+describe("nothing changes alongside", () => {
   test.each([
     [
-      "un bloc |+ en fin de job",
+      "a |+ block at the end of a job",
       "jobs:\n  a:\n    steps:\n      - run: |+\n          foo\n\n\n",
       { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } },
     ],
     [
-      "un needs ancré cité ailleurs",
+      "an anchored needs cited elsewhere",
       "jobs:\n  z:\n    steps:\n      - run: x\n  a:\n    needs: &n z\n    env:\n      D: *n\n    steps:\n      - run: y\n  b:\n    steps:\n      - run: x\n",
       { kind: "addNeed", id: "a", need: { job: "b" } },
     ],
     [
-      "une ancre redéfinie",
+      "a redefined anchor",
       "x-1: &x one\njobs:\n  a:\n    env:\n      V: &x two\n    steps:\n      - run: x\n  b:\n    env:\n      V: *x\n    steps:\n      - run: y\n",
       { kind: "removeJob", id: "a" },
     ],
     [
-      "une clé ancrée",
+      "an anchored key",
       "jobs:\n  &k a:\n    env:\n      N: *k\n    steps:\n      - run: x\n",
       { kind: "renameJob", from: "a", to: "c" },
     ],
-  ])("%s : refus plutôt que valeur voisine changée", (_label, text, draft) => {
+  ])("%s: refusal rather than a changed neighbouring value", (_label, text, draft) => {
     expect(run(text, draft as Draft).ok).toBe(false);
   });
 });
 
-describe("composite et inverse", () => {
-  test("une composite s'annule d'un seul splice", () => {
+describe("composite and inverse", () => {
+  test("a composite is undone by a single splice", () => {
     const result = run(BASE, {
       kind: "composite",
       steps: [
@@ -528,7 +528,7 @@ describe("composite et inverse", () => {
     expect(back.ok && back.value.text).toBe(BASE);
   });
 
-  test("une étape refusée refuse tout", () => {
+  test("a refused step refuses everything", () => {
     expect(
       run(BASE, {
         kind: "composite",
@@ -540,7 +540,7 @@ describe("composite et inverse", () => {
     ).toBe(false);
   });
 
-  test("un splice hors du texte est refusé", () => {
+  test("a splice outside the text is refused", () => {
     expect(run(BASE, { kind: "splice", start: 0, end: 1e6, text: "" })).toMatchObject({
       error: { code: "RANGE_OUT_OF_BOUNDS" },
     });

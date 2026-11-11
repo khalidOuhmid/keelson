@@ -3,7 +3,7 @@ import { JOB_REFERENCED, renderMessage } from "@keelson/core/messages";
 import { BASE, expectOk, expectUnchanged, roundTrip } from "../support/apply.ts";
 
 describe("removeJob", () => {
-  test("retire la paire clé/valeur complète du job", () => {
+  test("removes the job's complete key/value pair", () => {
     const applied = expectOk(BASE, { kind: "removeJob", id: "unit" });
     expect(applied.text).toBe(
       [
@@ -21,12 +21,12 @@ describe("removeJob", () => {
     );
   });
 
-  test("le job disparaît de l'IR", () => {
+  test("the job disappears from the IR", () => {
     const applied = expectOk(BASE, { kind: "removeJob", id: "unit" });
     expect(applied.pipeline.jobs.map((job) => job.id)).toEqual(["compile"]);
   });
 
-  test("retire aussi la ligne vide de séparation qui suit", () => {
+  test("also removes the empty separator line that follows", () => {
     const sansNeeds = [
       "stages:",
       "  - build",
@@ -59,7 +59,7 @@ describe("removeJob", () => {
     );
   });
 
-  test("préserve le commentaire qui précède le job suivant", () => {
+  test("preserves the comment preceding the next job", () => {
     const avecCommentaire = [
       "stages:",
       "  - build",
@@ -81,35 +81,35 @@ describe("removeJob", () => {
     expect(applied.text).toContain("# à propos de unit");
   });
 
-  test("retire le dernier job d'un fichier", () => {
+  test("removes the last job of a file", () => {
     const applied = expectOk(BASE, { kind: "removeJob", id: "unit" });
     expect(applied.text.endsWith("    - make\n")).toBe(true);
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(BASE, { kind: "removeJob", id: "unit" });
   });
 
-  test("JOB_NOT_FOUND si le job n'existe pas", () => {
+  test("JOB_NOT_FOUND if the job does not exist", () => {
     expectUnchanged(BASE, { kind: "removeJob", id: "absent" }, "JOB_NOT_FOUND");
   });
 
-  test("JOB_NOT_FOUND pour un template", () => {
+  test("JOB_NOT_FOUND for a template", () => {
     const avecTemplate = `.base:\n  image: node\n\n${BASE}`;
     expectUnchanged(avecTemplate, { kind: "removeJob", id: ".base" }, "JOB_NOT_FOUND");
   });
 
-  test("JOB_REFERENCED si un autre job en a besoin", () => {
+  test("JOB_REFERENCED if another job needs it", () => {
     const error = expectUnchanged(BASE, { kind: "removeJob", id: "compile" }, "JOB_REFERENCED");
     expect(renderMessage(error)).toContain("unit");
   });
 
-  test("JOB_REFERENCED liste les jobs qui le référencent dans params", () => {
+  test("JOB_REFERENCED lists the jobs that reference it in params", () => {
     const error = expectUnchanged(BASE, { kind: "removeJob", id: "compile" }, "JOB_REFERENCED");
     expect(error.code === JOB_REFERENCED ? error.params.referencedBy : null).toEqual(["unit"]);
   });
 
-  test("retirer d'abord le dépendant permet ensuite de retirer la cible", () => {
+  test("removing the dependent first then allows removing the target", () => {
     const sansUnit = expectOk(BASE, { kind: "removeJob", id: "unit" });
     const sansRien = expectOk(sansUnit.text, { kind: "removeJob", id: "compile" });
     expect(sansRien.pipeline.jobs).toEqual([]);

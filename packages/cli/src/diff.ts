@@ -5,8 +5,8 @@ export type Hunk = {
   added: string[];
 };
 
-/** Au-delà, la table de la plus longue sous-suite commune coûterait plus qu'elle n'apporte : le
- *  milieu est rendu comme remplacé, ce qui reste vrai. */
+/** Beyond this, the longest-common-subsequence table would cost more than it gives: the middle is
+ *  rendered as replaced, which is still true. */
 const MAX_CELLS = 4_000_000;
 
 function linesOf(text: string): string[] {
@@ -68,8 +68,8 @@ function rows(left: readonly string[], right: readonly string[]): Row[] {
   return found;
 }
 
-/** Les blocs d'un diff unifié sans contexte (`-U0`). Un bloc vide d'un côté porte, comme chez
- *  `diff`, le numéro de la ligne **après** laquelle il s'insère. */
+/** The hunks of a unified diff without context (`-U0`). A hunk empty on one side carries, as in
+ *  `diff`, the number of the line **after** which it is inserted. */
 export function hunks(before: string, after: string): Hunk[] {
   const found: Hunk[] = [];
   let line = { before: 0, after: 0 };

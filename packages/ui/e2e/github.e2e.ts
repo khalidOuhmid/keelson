@@ -33,8 +33,8 @@ const TREE: Tree = {
   ].join("\n"),
 };
 
-test.describe("GitHub Actions sur le binaire réel", () => {
-  test("sans .gitlab-ci.yml : les workflows s'ouvrent, niveaux dérivés", async ({ page }) => {
+test.describe("GitHub Actions on the real binary", () => {
+  test("without .gitlab-ci.yml: workflows open, with derived levels", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -47,7 +47,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("changer de fichier change le graphe et vide l'historique", async ({ page }) => {
+  test("switching files changes the graph and clears history", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -67,7 +67,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("un workflow réutilisable se dit partiel, avec ses mots", async ({ page }) => {
+  test("a reusable workflow reports itself as partial, in its own words", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -80,7 +80,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("insérer un outil écrit ses étapes, sans choix de stage", async ({ page }) => {
+  test("inserting a tool writes its steps, with no stage choice", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     const original = keelson.readAt(CI);
     try {
@@ -101,7 +101,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("passer de GitHub à GitLab ne garde pas un niveau comme stage", async ({ page }) => {
+  test("switching from GitHub to GitLab does not keep a level as a stage", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       ".gitlab-ci.yml": "stages:\n  - build\n\ncompile:\n  stage: build\n  script:\n    - make\n",
@@ -122,7 +122,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("un job qui dépend de celui-ci n'est pas proposé comme need", async ({ page }) => {
+  test("a job that depends on this one is not offered as a need", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -133,7 +133,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("changer de fichier s'annonce, les groupes nomment le fournisseur", async ({ page }) => {
+  test("switching files is announced, groups name the provider", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       ".gitlab-ci.yml": "compile:\n  stage: build\n  script:\n    - make\n",
@@ -150,7 +150,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("le panneau d'un job ne parle pas de stage", async ({ page }) => {
+  test("a job's panel does not mention stages", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -162,7 +162,7 @@ test.describe("GitHub Actions sur le binaire réel", () => {
     }
   });
 
-  test("ajouter un need sans options, et renommer met à jour needs", async ({ page }) => {
+  test("adding a need without options, and renaming updates needs", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);

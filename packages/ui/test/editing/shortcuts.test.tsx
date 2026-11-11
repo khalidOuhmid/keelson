@@ -38,58 +38,58 @@ function harness(enabled = true): Calls {
 }
 
 describe("useHistoryShortcuts", () => {
-  test("Ctrl+Z annule", async () => {
+  test("Ctrl+Z undoes", async () => {
     const calls = harness();
     await userEvent.keyboard("{Control>}z{/Control}");
     expect(calls).toEqual({ undo: 1, redo: 0 });
   });
 
-  test("Cmd+Z annule aussi", async () => {
+  test("Cmd+Z undoes too", async () => {
     const calls = harness();
     await userEvent.keyboard("{Meta>}z{/Meta}");
     expect(calls).toEqual({ undo: 1, redo: 0 });
   });
 
-  test("Ctrl+Shift+Z rétablit", async () => {
+  test("Ctrl+Shift+Z redoes", async () => {
     const calls = harness();
     await userEvent.keyboard("{Control>}{Shift>}Z{/Shift}{/Control}");
     expect(calls).toEqual({ undo: 0, redo: 1 });
   });
 
-  test("Cmd+Shift+Z rétablit aussi", async () => {
+  test("Cmd+Shift+Z redoes too", async () => {
     const calls = harness();
     await userEvent.keyboard("{Meta>}{Shift>}Z{/Shift}{/Meta}");
     expect(calls).toEqual({ undo: 0, redo: 1 });
   });
 
-  test("z sans modificateur ne fait rien", async () => {
+  test("z without a modifier does nothing", async () => {
     const calls = harness();
     await userEvent.keyboard("z");
     expect(calls).toEqual({ undo: 0, redo: 0 });
   });
 
-  test("le raccourci est ignoré dans un champ de saisie", async () => {
+  test("the shortcut is ignored in an input field", async () => {
     const calls = harness();
     screen.getByLabelText("champ").focus();
     await userEvent.keyboard("{Control>}z{/Control}");
     expect(calls).toEqual({ undo: 0, redo: 0 });
   });
 
-  test("le raccourci est ignoré dans une zone de texte", async () => {
+  test("the shortcut is ignored in a textarea", async () => {
     const calls = harness();
     screen.getByLabelText("zone").focus();
     await userEvent.keyboard("{Control>}z{/Control}");
     expect(calls).toEqual({ undo: 0, redo: 0 });
   });
 
-  test("les raccourcis sont inertes quand l'édition est désactivée", async () => {
+  test("shortcuts are inert when editing is disabled", async () => {
     const calls = harness(false);
     await userEvent.keyboard("{Control>}z{/Control}");
     await userEvent.keyboard("{Control>}{Shift>}Z{/Shift}{/Control}");
     expect(calls).toEqual({ undo: 0, redo: 0 });
   });
 
-  test("le gestionnaire est retiré au démontage", async () => {
+  test("the handler is removed on unmount", async () => {
     const calls: Calls = { undo: 0, redo: 0 };
     const view = render(<Harness calls={calls} />);
     view.unmount();
@@ -116,41 +116,41 @@ describe("HistoryControls", () => {
     return calls;
   }
 
-  test("le bouton Undo annule", async () => {
+  test("the Undo button undoes", async () => {
     const calls = controls();
     await userEvent.click(screen.getByRole("button", { name: /undo/i }));
     expect(calls.undo).toBe(1);
   });
 
-  test("le bouton Redo rétablit", async () => {
+  test("the Redo button redoes", async () => {
     const calls = controls();
     await userEvent.click(screen.getByRole("button", { name: /redo/i }));
     expect(calls.redo).toBe(1);
   });
 
-  test("les boutons sont désactivés quand les piles sont vides", () => {
+  test("the buttons are disabled when the stacks are empty", () => {
     controls({ canUndo: false, canRedo: false });
     expect(screen.getByRole("button", { name: /undo/i }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByRole("button", { name: /redo/i }).hasAttribute("disabled")).toBe(true);
   });
 
-  test("un bouton désactivé n'appelle rien", async () => {
+  test("a disabled button calls nothing", async () => {
     const calls = controls({ canUndo: false });
     await userEvent.click(screen.getByRole("button", { name: /undo/i }));
     expect(calls.undo).toBe(0);
   });
 
-  test("le raccourci est annoncé dans le nom accessible", () => {
+  test("the shortcut is announced in the accessible name", () => {
     controls();
     expect(screen.getByRole("button", { name: /undo/i }).getAttribute("title")).toMatch(/Z/);
   });
 });
 
 describe("ErrorBanner", () => {
-  /** Les surcharges ne sont pas typées : deux tests ci-dessous envoient volontairement des `params`
-   *  que le type interdit — un `JOB_REFERENCED` sans `referencedBy`, un `CYCLE` qui en porte un.
-   *  C'est exactement ce qu'un serveur d'une autre version peut mettre sur le fil, et le point de
-   *  ces tests est que l'UI n'en invente rien. */
+  /** The overrides are untyped: two tests below deliberately send `params` the type forbids — a
+   *  `JOB_REFERENCED` without `referencedBy`, a `CYCLE` that carries one. That is exactly what a
+   *  server of another version can put on the wire, and the point of these tests is that the UI
+   *  invents nothing from it. */
   function failure(overrides: Record<string, unknown> = {}): ApiFailure {
     return {
       status: 422,
@@ -160,27 +160,27 @@ describe("ErrorBanner", () => {
     } as ApiFailure;
   }
 
-  test("n'affiche rien sans erreur", () => {
+  test("shows nothing without an error", () => {
     const { container } = render(<ErrorBanner error={null} onDismiss={() => {}} />);
     expect(container.textContent).toBe("");
   });
 
-  test("affiche la phrase anglaise rendue depuis le code et les params", () => {
+  test("shows the English sentence rendered from the code and params", () => {
     render(<ErrorBanner error={failure()} onDismiss={() => {}} />);
     expect(screen.getByText('stage "build" already exists')).toBeDefined();
   });
 
-  test("affiche le code du serveur", () => {
+  test("shows the server code", () => {
     render(<ErrorBanner error={failure()} onDismiss={() => {}} />);
     expect(screen.getByText("STAGE_EXISTS")).toBeDefined();
   });
 
-  test("est une alerte pour un lecteur d'écran", () => {
+  test("is an alert for a screen reader", () => {
     render(<ErrorBanner error={failure()} onDismiss={() => {}} />);
     expect(screen.getByRole("alert")).toBeDefined();
   });
 
-  test("sur JOB_REFERENCED, rend la phrase anglaise et chaque référent", () => {
+  test("on JOB_REFERENCED, renders the English sentence and every referrer", () => {
     const { container } = render(
       <ErrorBanner
         error={failure({
@@ -190,14 +190,14 @@ describe("ErrorBanner", () => {
         onDismiss={() => {}}
       />,
     );
-    // La phrase vient de `render()`, les pastilles de `params.referencedBy` : deux chemins
-    // distincts dans le composant, et le test échoue si l'un des deux casse.
+    // The sentence comes from `render()`, the chips from `params.referencedBy`: two separate paths
+    // in the component, and the test fails if either breaks.
     expect(screen.getByText('job "compile" is needed by unit, ship')).toBeDefined();
     const referents = [...container.querySelectorAll("li")].map((node) => node.textContent);
     expect(referents).toEqual(["unit", "ship"]);
   });
 
-  test("un code sans params rend quand même sa phrase", () => {
+  test("a code without params still renders its sentence", () => {
     render(
       <ErrorBanner
         error={failure({ status: 403, code: "FORBIDDEN_TOKEN", params: {} })}
@@ -208,7 +208,7 @@ describe("ErrorBanner", () => {
     expect(screen.getByText("FORBIDDEN_TOKEN")).toBeDefined();
   });
 
-  test("n'invente pas de liste quand JOB_REFERENCED n'a pas de referencedBy", () => {
+  test("invents no list when JOB_REFERENCED has no referencedBy", () => {
     render(
       <ErrorBanner
         error={failure({ code: "JOB_REFERENCED", params: { job: "compile" } })}
@@ -218,7 +218,7 @@ describe("ErrorBanner", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
-  test("ne traite aucun autre code de façon particulière", () => {
+  test("treats no other code specially", () => {
     render(
       <ErrorBanner
         error={failure({ code: "CYCLE", params: { operation: "addNeed", referencedBy: ["unit"] } })}
@@ -228,7 +228,7 @@ describe("ErrorBanner", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
-  test("l'erreur est refermable au clavier", async () => {
+  test("the error can be dismissed from the keyboard", async () => {
     let dismissed = 0;
     render(
       <ErrorBanner
@@ -244,19 +244,19 @@ describe("ErrorBanner", () => {
   });
 });
 
-describe("useHistoryShortcuts — le visualiseur de bloc opaque", () => {
-  /** Trouvé par /impeccable critique le 2026-10-22 : le garde ne reconnaissait que INPUT,
-   *  TEXTAREA et `isContentEditable`. Le `.cm-content` de CodeMirror en lecture seule est un `div`
-   *  en `contenteditable="false"`, donc `isContentEditable` y vaut `false` : Ctrl+Z dans le
-   *  visualiseur déclenchait une opération serveur au lieu de ne rien faire. */
-  test("Ctrl+Z dans un éditeur CodeMirror ne déclenche pas d'annulation", async () => {
+describe("useHistoryShortcuts — the opaque block viewer", () => {
+  /** Found by /impeccable critique on 2026-10-22: the guard only recognised INPUT, TEXTAREA and
+   *  `isContentEditable`. CodeMirror's read-only `.cm-content` is a `div` with
+   *  `contenteditable="false"`, so `isContentEditable` is `false` there: Ctrl+Z in the viewer
+   *  triggered a server operation instead of doing nothing. */
+  test("Ctrl+Z in a CodeMirror editor does not trigger undo", async () => {
     const calls = harness();
     screen.getByTestId("cm-content").focus();
     await userEvent.keyboard("{Control>}z{/Control}");
     expect(calls).toEqual({ undo: 0, redo: 0 });
   });
 
-  test("Ctrl+Z hors de l'éditeur annule toujours", async () => {
+  test("Ctrl+Z outside the editor still undoes", async () => {
     const calls = harness();
     await userEvent.keyboard("{Control>}z{/Control}");
     expect(calls.undo).toBe(1);

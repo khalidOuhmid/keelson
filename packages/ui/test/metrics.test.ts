@@ -16,7 +16,7 @@ function clearTokens(): void {
 beforeEach(clearTokens);
 
 describe("readLayoutMetrics", () => {
-  test("lit les quatre métriques depuis les propriétés personnalisées", () => {
+  test("reads the four metrics from the custom properties", () => {
     setTokens({
       "--keelson-node-width": "232px",
       "--keelson-node-height": "64px",
@@ -32,7 +32,7 @@ describe("readLayoutMetrics", () => {
     });
   });
 
-  test("accepte une valeur décimale", () => {
+  test("accepts a decimal value", () => {
     setTokens({
       "--keelson-node-width": "232.5px",
       "--keelson-node-height": "64px",
@@ -42,7 +42,7 @@ describe("readLayoutMetrics", () => {
     expect(readLayoutMetrics().nodeWidth).toBe(232.5);
   });
 
-  test("tolère les espaces autour de la valeur", () => {
+  test("tolerates whitespace around the value", () => {
     setTokens({
       "--keelson-node-width": "  232px  ",
       "--keelson-node-height": "64px",
@@ -52,12 +52,12 @@ describe("readLayoutMetrics", () => {
     expect(readLayoutMetrics().nodeWidth).toBe(232);
   });
 
-  test("lève quand un token manque, plutôt que de retomber sur une valeur en dur", () => {
+  test("throws when a token is missing, rather than falling back to a hard-coded value", () => {
     setTokens({ "--keelson-node-width": "232px" });
     expect(() => readLayoutMetrics()).toThrow(/--keelson-node-height/);
   });
 
-  test("lève quand un token n'est pas une longueur", () => {
+  test("throws when a token is not a length", () => {
     setTokens({
       "--keelson-node-width": "large",
       "--keelson-node-height": "64px",
@@ -67,7 +67,7 @@ describe("readLayoutMetrics", () => {
     expect(() => readLayoutMetrics()).toThrow(/--keelson-node-width/);
   });
 
-  test("les noms de tokens sont ceux du fichier de tokens", () => {
+  test("token names are the ones in the tokens file", () => {
     expect(Object.values(LAYOUT_TOKENS)).toEqual([
       "--keelson-node-width",
       "--keelson-node-height",

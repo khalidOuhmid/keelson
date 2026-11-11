@@ -158,8 +158,8 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
     ]),
   );
 
-  // elkjs ne décide plus que l'ordre vertical : forcer le x sur la partition peut ramener dans une
-  // même colonne deux nœuds qu'il avait séparés en couches, donc au même y. On les décale.
+  // elkjs now decides only the vertical order: forcing x onto the partition can bring two nodes it
+  // had put in separate layers back into the same column, hence at the same y. We offset them.
   for (const column of laidColumns) {
     const members = column.jobIds
       .map((id) => placed.get(id))

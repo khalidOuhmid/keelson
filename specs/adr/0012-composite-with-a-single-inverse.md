@@ -1,20 +1,21 @@
-# ADR 0012 — Une opération composite a un seul inverse
+# ADR 0012 — A composite operation has a single inverse
 
-**Statut** : accepté, 2026-11-05.
+**Status**: accepted, 2026-11-05.
 
-## Contexte
+## Context
 
-Insérer un outil peut demander un stage et un job. Deux opérations feraient deux pas d'annulation,
-et un échec de la seconde laisserait la première écrite.
+Inserting a tool may require a stage and a job. Two operations would mean two undo steps, and a
+failure of the second would leave the first written.
 
-## Décision
+## Decision
 
-`composite` applique ses étapes en mémoire, dans l'ordre, et n'écrit que si toutes passent. L'inverse
-et `touched` sont calculés sur le texte final : la plage va du premier au dernier octet différent. Les
-étapes admises sont limitées à celles qui ajoutent : `addStage`, `addJob`, `addNeed`, `addSnippet`.
+`composite` applies its steps in memory, in order, and writes only if all of them succeed. The
+inverse and `touched` are computed on the final text: the range runs from the first to the last
+differing byte. Allowed steps are limited to those that add: `addStage`, `addJob`, `addNeed`,
+`addSnippet`.
 
-## Conséquences
+## Consequences
 
-Une composite touche une seule plage, parfois large : un stage en tête et un job en fin de fichier
-couvrent le milieu, qui reste octet pour octet identique. Le diff de l'UI se calcule donc par lignes,
-pas depuis `touched`.
+A composite touches a single range, sometimes a wide one: a stage at the top and a job at the end of
+the file span the middle, which stays byte-for-byte identical. The UI diff is therefore computed by
+lines, not from `touched`.

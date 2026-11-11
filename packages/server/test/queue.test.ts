@@ -37,8 +37,8 @@ beforeEach(() => {
   store = makeStore();
 });
 
-describe("file d'attente par document", () => {
-  test("deux opérations lancées en parallèle sont appliquées en série", async () => {
+describe("per-document queue", () => {
+  test("two operations launched in parallel are applied in series", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded).not.toBeNull();
     const first = store.applyOperation(
@@ -72,7 +72,7 @@ describe("file d'attente par document", () => {
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toContain("publish");
   });
 
-  test("deux opérations concurrentes sur le même hash : la seconde est périmée, aucune n'est perdue", async () => {
+  test("two concurrent operations on the same hash: the second is stale, none is lost", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const baseHash = loaded?.hash ?? "";
 
@@ -102,7 +102,7 @@ describe("file d'attente par document", () => {
     expect(store.currentText(".gitlab-ci.yml")).toBe(onDisk);
   });
 
-  test("dix opérations enchaînées aboutissent toutes", async () => {
+  test("ten chained operations all succeed", async () => {
     await store.load(".gitlab-ci.yml");
     for (let index = 0; index < 10; index += 1) {
       const result = await store.applyOperation(
@@ -123,7 +123,7 @@ describe("file d'attente par document", () => {
     }
   });
 
-  test("le hash courant suit le dernier état écrit", async () => {
+  test("the current hash follows the last written state", async () => {
     await store.load(".gitlab-ci.yml");
     await store.applyOperation(
       ".gitlab-ci.yml",
@@ -139,7 +139,7 @@ describe("file d'attente par document", () => {
     expect(store.currentHash(".gitlab-ci.yml")).toBe(hashText(onDisk));
   });
 
-  test("une erreur métier n'écrit rien et laisse le hash inchangé", async () => {
+  test("a domain error writes nothing and leaves the hash unchanged", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const before = readFileSync(join(root, ".gitlab-ci.yml"), "utf8");
     const result = await store.applyOperation(
@@ -153,7 +153,7 @@ describe("file d'attente par document", () => {
     expect(store.currentHash(".gitlab-ci.yml")).toBe(loaded?.hash);
   });
 
-  test("une opération au schéma invalide rend 400 sans écrire", async () => {
+  test("an operation with an invalid schema returns 400 without writing", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const before = readFileSync(join(root, ".gitlab-ci.yml"), "utf8");
     const result = await store.applyOperation(
@@ -166,7 +166,7 @@ describe("file d'attente par document", () => {
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(before);
   });
 
-  test("un fichier hors de la liste du workspace rend 404", async () => {
+  test("a file outside the workspace list returns 404", async () => {
     const result = await store.applyOperation(
       "autre.yml",
       { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "x" },
@@ -175,7 +175,7 @@ describe("file d'attente par document", () => {
     expect(result.status).toBe(404);
   });
 
-  test("la réponse réussie porte pipeline, diagnostics, hash, inverse et touched", async () => {
+  test("the successful response carries pipeline, diagnostics, hash, inverse and touched", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const result = await store.applyOperation(
       ".gitlab-ci.yml",

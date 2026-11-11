@@ -110,9 +110,9 @@ function anchorMerges(map: YAMLMap, document: Document.Parsed): { map: YAMLMap; 
   return merges;
 }
 
-/** Une définition d'une clé de premier niveau, dans le fichier qui la porte. Une même clé peut en
- *  avoir plusieurs : un job défini dans un fichier inclus puis surchargé dans le principal. Elles
- *  sont toujours rangées dans l'ordre de fusion de GitLab, la dernière gagnant. */
+/** A definition of a top-level key, in the file that carries it. The same key can have several: a
+ *  job defined in an included file then overridden in the main one. They are always kept in
+ *  GitLab's merge order, the last one winning. */
 export type Definition = {
   map: YAMLMap;
   file: string;
@@ -121,20 +121,20 @@ export type Definition = {
 export type Source = {
   map: YAMLMap;
   origin: Origin;
-  /** Le fichier d'où vient cette map. Les alias et les `!reference` se résolvent contre le
-   *  document de **ce** fichier : un anchor n'existe que dans le fichier qui le déclare. */
+  /** The file this map comes from. Aliases and `!reference`s resolve against the document of
+   *  **this** file: an anchor only exists in the file that declares it. */
   file: string;
 };
 
 export type ResolveContext = {
   documents: ReadonlyMap<string, Document.Parsed>;
-  /** Les documents dans l'ordre de fusion. Distinct de `documents`, qui ne garde d'un fichier inclus
-   *  deux fois que sa première position : GitLab retient la dernière. */
+  /** The documents in merge order. Distinct from `documents`, which keeps only the first position
+   *  of a file included twice: GitLab retains the last. */
   merged: readonly Document.Parsed[];
   lookup: ReadonlyMap<string, readonly Definition[]>;
   diagnostics: Diagnostic[];
   extendsSeverity: "error" | "warning";
-  /** Le fichier principal, le seul dont une valeur a l'origine `local`. */
+  /** The main file, the only one whose values have the `local` origin. */
   main: string;
 };
 
@@ -146,15 +146,15 @@ function originOf(context: ResolveContext, definition: Definition, fallback: Ori
   return definition.file === context.main ? fallback : { kind: "include", file: definition.file };
 }
 
-/** L'ordre des sources est l'ordre de précédence croissante : `matches(...).at(-1)` gagne.
+/** The order of the sources is increasing precedence: `matches(...).at(-1)` wins.
  *
- *  Les `extends` de **toutes** les définitions passent d'abord, puis les définitions elles-mêmes.
- *  La version précédente les entrelaçait définition par définition, et le défaut était réel : un
- *  `extends: .base` écrit dans le fichier principal battait une valeur écrite **directement** dans
- *  la définition de l'include, parce que les sources du template arrivaient après la map de
- *  l'include. GitLab fusionne les includes puis le fichier principal, et ne résout `extends`
- *  qu'ensuite, sur le job fusionné : les clés propres d'un job battent toujours ses templates.
- *  Trouvé par la revue indépendante du 2026-10-23, qui plaçait le job dans la mauvaise colonne. */
+ *  The `extends` of **all** definitions come first, then the definitions themselves. The previous
+ *  version interleaved them definition by definition, and the defect was real: an `extends: .base`
+ *  written in the main file beat a value written **directly** in the include's definition,
+ *  because the template's sources arrived after the include's map. GitLab merges the includes
+ *  then the main file, and only resolves `extends` afterwards, on the merged job: a job's own
+ *  keys always beat its templates. Found by the independent review of 2026-10-23, which put the
+ *  job in the wrong column. */
 export function sourcesFor(
   definitions: readonly Definition[],
   selfOrigin: Origin,
@@ -215,9 +215,10 @@ export function sourcesFor(
   return [...inherited, ...own];
 }
 
-/** Sérialisation à clés triées : le dédoublonnage portait sur le message, qui n'existe plus. Deux
- *  diagnostics de même code ne sont le même que si leurs `params` ont le même contenu — et pas
- *  seulement les mêmes clés dans le même ordre, qui dépend de l'ordre d'écriture du littéral. */
+/** Serialisation with sorted keys: deduplication used to rely on the message, which no longer
+ *  exists. Two diagnostics with the same code are only the same if their `params` have the same
+ *  content — and not merely the same keys in the same order, which depends on the literal's
+ *  written order. */
 function stableParams(diagnostic: Diagnostic): string {
   const params = diagnostic.params as Record<string, unknown>;
   return JSON.stringify(
@@ -256,9 +257,9 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
   return matches(sources, key).length > 0;
 }
 
-/** La valeur de `key` dans `node`, à travers les alias et les clés de fusion : `undefined` si la
- *  clé est absente, `null` si `node` n'est pas une map, c'est-à-dire si la valeur a remplacé toute
- *  map que les fichiers antérieurs auraient définie là. */
+/** The value of `key` in `node`, through aliases and merge keys: `undefined` if the key is absent,
+ *  `null` if `node` is not a map, that is if the value replaced any map that earlier files would
+ *  have defined there. */
 function entryAt(
   node: AnyNode,
   key: string,
@@ -275,8 +276,8 @@ function entryAt(
     return pair.value as AnyNode;
   }
 
-  // `job: &a` suivi de `<<: *a` est du YAML valide : une map peut se fusionner sur elle-même. Une
-  // map déjà parcourue n'avait pas la clé : l'ensemble est partagé, un diamant reste linéaire.
+  // `job: &a` followed by `<<: *a` is valid YAML: a map can merge onto itself. A map already
+  // visited did not have the key: the set is shared, a diamond stays linear.
   visited.add(target);
   for (const merge of anchorMerges(target, document)) {
     if (visited.has(merge.map)) {
@@ -290,8 +291,8 @@ function entryAt(
   return undefined;
 }
 
-/** Le chemin dans un seul document, ou `undefined` s'il n'y figure pas. `Document.getIn` ne
- *  traverse ni alias ni clé de fusion : il rendait « absent » pour le fichier gagnant. */
+/** The path in a single document, or `undefined` if it is not there. `Document.getIn` traverses
+ *  neither aliases nor merge keys: it returned “absent” for the winning file. */
 function targetIn(path: readonly string[], document: Document.Parsed): AnyNode {
   let node: AnyNode = document.contents as AnyNode;
   for (const key of path) {
@@ -303,8 +304,8 @@ function targetIn(path: readonly string[], document: Document.Parsed): AnyNode {
   return isAlias(node) ? (node.resolve(document) ?? null) : node;
 }
 
-/** Un `!reference` vise la configuration fusionnée, donc il traverse les fichiers : on remonte
- *  l'ordre de fusion et le premier fichier qui définit le chemin gagne, comme pour une valeur. */
+/** A `!reference` targets the merged configuration, so it crosses files: we walk back up the
+ *  merge order and the first file that defines the path wins, as for a value. */
 function referenceTarget(path: readonly string[], context: ResolveContext): AnyNode {
   for (const document of [...context.merged].reverse()) {
     const target = targetIn(path, document);
@@ -315,9 +316,9 @@ function referenceTarget(path: readonly string[], context: ResolveContext): AnyN
   return null;
 }
 
-/** Un alias ne traverse **pas** les fichiers : chez GitLab, un anchor est local au document qui le
- *  déclare, donc il se résout contre le fichier d'où vient la map qui le porte. Un `!reference`,
- *  lui, les traverse. */
+/** An alias does **not** cross files: in GitLab, an anchor is local to the document that declares
+ *  it, so it resolves against the file the map carrying it comes from. A `!reference`, on the
+ *  other hand, crosses them. */
 function dereference(
   node: AnyNode,
   file: string,
@@ -367,8 +368,8 @@ function needFrom(item: unknown): Need | null {
     return null;
   }
 
-  // DEBT(2026-10-20): les needs inter-projets (clés project / pipeline) sont ignorés de l'IR
-  // — ils doivent devenir un bloc opaque porté par le job ; voir specs/gaps.md (2026-10-20).
+  // DEBT(2026-10-20): cross-project needs (project / pipeline keys) are ignored by the IR
+  // — they should become an opaque block carried by the job; see specs/gaps.md (2026-10-20).
   if (localPair(item, "project") !== undefined || localPair(item, "pipeline") !== undefined) {
     return null;
   }
@@ -411,9 +412,9 @@ export function resolveNeeds(
   return { value, origin: origin ?? found.origin };
 }
 
-/** Un item `project:` ou `pipeline:` dans la liste effective de `needs`. */
-/** Liste blanche, pas liste noire : seul ce que `needFrom` rend à l'identique peut être réécrit depuis
- *  l'IR. Un alias, un `!reference`, une clé de plus, et la réécriture perdrait quelque chose. */
+/** A `project:` or `pipeline:` item in the effective `needs` list. */
+/** Allowlist, not denylist: only what `needFrom` renders identically can be rewritten from the
+ *  IR. An alias, a `!reference`, one more key, and the rewrite would lose something. */
 function modelledNeed(item: AnyNode): boolean {
   if (isScalar(item)) {
     return typeof item.value === "string";
@@ -510,14 +511,14 @@ function scriptLines(node: AnyNode, file: string, context: ResolveContext): stri
 
 const SCRIPT_SECTIONS = ["before_script", "script", "after_script"] as const;
 
-/** Les clés que `inherit: default:` laisse passer : toutes, aucune, ou celles qu'il nomme. */
+/** The keys that `inherit: default:` lets through: all, none, or the ones it names. */
 function inheritedKeys(
   sources: readonly Source[],
   context: ResolveContext,
 ): ReadonlySet<string> | null {
-  // GitLab fusionne `inherit` en profondeur à travers `extends` : le `default` le plus proche gagne,
-  // même si un `inherit` plus proche ne parle que de `variables`. `<<` ne fusionne pas en profondeur :
-  // `entryAt` lit donc l'`inherit` effectif de chaque définition, ancres comprises.
+  // GitLab deep-merges `inherit` across `extends`: the closest `default` wins, even if a closer
+  // `inherit` only mentions `variables`. `<<` does not deep-merge: `entryAt` therefore reads the
+  // effective `inherit` of each definition, anchors included.
   const value = sources
     .filter((source) => source.origin.kind !== "anchor")
     .toReversed()
@@ -534,8 +535,8 @@ function inheritedKeys(
   return isSeq(value) ? new Set(stringsOf(value)) : null;
 }
 
-/** Ce qui s'applique sous tous les jobs d'un fichier : `default:`, et les clés globales dépréciées
- *  mais valides. Le script n'en fait pas partie : un `script` de premier niveau n'existe pas. */
+/** What applies under every job of a file: `default:`, and the deprecated but valid global keys.
+ *  The script is not one of them: a top-level `script` does not exist. */
 export function defaultSources(root: YAMLMap, file: string, context: ResolveContext): Source[] {
   const document = documentOf(context, file);
   const value = localPair(root, "default")?.value as AnyNode;
@@ -554,8 +555,8 @@ export function defaultSources(root: YAMLMap, file: string, context: ResolveCont
   ];
 }
 
-/** `extends` fusionne les maps : `image: { entrypoint }` garde le `name` du template. Un scalaire
- *  arrête la remontée, et un `name` écrit aussi. */
+/** `extends` merges maps: `image: { entrypoint }` keeps the template's `name`. A scalar stops the
+ *  walk up, and so does a written `name`. */
 function imageOf(found: readonly Match[], context: ResolveContext): string | null {
   for (const source of found.toReversed()) {
     const image = dereference(source.node, source.file, context).node;
@@ -579,7 +580,7 @@ export function resolveSignals(
   defaults: readonly Source[],
   context: ResolveContext,
 ): JobSignals {
-  // Un job `trigger` crée un pipeline : ni image ni script ne s'y exécutent, `default:` compris.
+  // A `trigger` job creates a pipeline: neither image nor script runs in it, `default:` included.
   if (matches(sources, "trigger").length > 0) {
     return { image: null, script: [] };
   }

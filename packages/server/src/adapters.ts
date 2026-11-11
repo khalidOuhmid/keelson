@@ -14,7 +14,7 @@ import type {
   SpliceOperation,
 } from "@keelson/core";
 
-/** Un document, vu sans savoir de quel fournisseur il vient. */
+/** A document, seen without knowing which provider it comes from. */
 type Parsed<D> = {
   document: D;
   pipeline: Pipeline;

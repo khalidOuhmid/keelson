@@ -15,8 +15,8 @@ import {
 const run = (text: string, draft: Parameters<typeof op>[1]) =>
   apply(parse(text, { file: FILE }).document, op(hashText(text), draft));
 
-describe("propriétés de l'adaptateur GitHub", () => {
-  test("aller-retour : le parse rend le texte tel quel, sur tout le corpus et sur tout texte", () => {
+describe("GitHub adapter properties", () => {
+  test("round-trip: parse returns the text as is, on the whole corpus and on any text", () => {
     for (const text of corpusTexts()) {
       expect(parse(text, { file: FILE }).document.text).toBe(text);
     }
@@ -28,7 +28,7 @@ describe("propriétés de l'adaptateur GitHub", () => {
     );
   });
 
-  test("refus : seulement ceux qui sont une réponse", () => {
+  test("refusals: only those that are an answer", () => {
     fc.assert(
       fc.property(scenario(), ({ text, draft }) => {
         const result = run(text, draft);
@@ -42,7 +42,7 @@ describe("propriétés de l'adaptateur GitHub", () => {
     );
   });
 
-  test("inversabilité : l'inverse rend les octets, et sa réapplication aussi", () => {
+  test("invertibility: the inverse restores the bytes, and so does reapplying it", () => {
     fc.assert(
       fc.property(scenario(), ({ text, draft }) => {
         const done = run(text, draft);
@@ -66,7 +66,7 @@ describe("propriétés de l'adaptateur GitHub", () => {
     );
   });
 
-  test("déterminisme : mêmes entrées, mêmes sorties", () => {
+  test("determinism: same inputs, same outputs", () => {
     fc.assert(
       fc.property(scenario(), ({ text, draft }) => {
         const first = run(text, draft);
@@ -81,7 +81,7 @@ describe("propriétés de l'adaptateur GitHub", () => {
     );
   });
 
-  test("localité : les octets hors de touched ne bougent pas", () => {
+  test("locality: bytes outside touched do not move", () => {
     fc.assert(
       fc.property(scenario(), ({ text, draft }) => {
         const result = run(text, draft);
@@ -102,7 +102,7 @@ describe("propriétés de l'adaptateur GitHub", () => {
     );
   });
 
-  test("une suite d'opérations reste lisible", () => {
+  test("a sequence of operations stays readable", () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...corpusTexts()),

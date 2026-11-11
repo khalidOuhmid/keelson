@@ -1,56 +1,54 @@
-# ADR 0006 — Jamais de YAML fusionné : la fusion est une chaîne de définitions
+# ADR 0006 — Never merged YAML: merging is a chain of definitions
 
-Date : 2026-10-23 · Décidé par : le pilote · Statut : accepté
+Date: 2026-10-23 · Decided by: the autopilot · Status: accepted
 
-## Contexte
+## Context
 
-GitLab fusionne la configuration des `include` puis applique le fichier principal par-dessus :
-« After all configuration added with `include` is merged together, the main configuration is merged
-with the included configuration » (<https://docs.gitlab.com/ci/yaml/includes/>, consulté le
-2026-10-23). Les maps fusionnent en profondeur, les listes écrasent.
+GitLab merges the configuration of the `include`s and then applies the main file on top:
+"After all configuration added with `include` is merged together, the main configuration is merged
+with the included configuration" (<https://docs.gitlab.com/ci/yaml/includes/>, accessed on
+2026-10-23). Maps are deep-merged, lists overwrite.
 
-Keelson doit rendre une IR qui reflète cette valeur effective, **et** garder la capacité d'éditer en
-place : chaque élément de l'IR porte une plage d'octets, et `apply` réécrit par splice sans jamais
-régénérer le document.
+Keelson must return an IR that reflects this effective value, **and** keep the ability to edit in
+place: every IR element carries a byte range, and `apply` rewrites by splicing without ever
+regenerating the document.
 
 ## Options
 
-**A. Fabriquer un document fusionné.** Construire un YAML — ou un CST — qui soit le résultat de la
-fusion, puis le parser comme un seul fichier. L'IR serait juste, et toutes les plages seraient des
-offsets dans un texte **qui n'existe sur aucun disque**. L'édition en place devient impossible : on
-ne peut pas réécrire un octet d'un fichier à partir d'une position dans un document synthétique, et
-l'invariant « parse → emit sans modification rend des octets identiques » perd son sens.
+**A. Build a merged document.** Construct a YAML — or a CST — that is the result of the merge, then
+parse it as a single file. The IR would be correct, and every range would be an offset into a text
+**that exists on no disk**. In-place editing becomes impossible: you cannot rewrite a byte of a file
+from a position in a synthetic document, and the invariant "parse → emit without changes returns
+identical bytes" loses its meaning.
 
-**B. Une chaîne ordonnée de définitions.** Chaque fichier garde son propre CST. Pour une clé de
-premier niveau définie dans plusieurs fichiers, on conserve la **liste** de ses définitions dans
-l'ordre de fusion, et la résolution d'une valeur prend la dernière qui la déclare — exactement le
-mécanisme qui résout déjà `extends` et les anchors de merge dans `resolve.ts`.
+**B. An ordered chain of definitions.** Each file keeps its own CST. For a top-level key defined in
+several files, we keep the **list** of its definitions in merge order, and resolving a value takes
+the last one that declares it — exactly the mechanism that already resolves `extends` and merge
+anchors in `resolve.ts`.
 
-## Décision
+## Decision
 
-**B.** Keelson ne fabrique jamais de YAML fusionné. `sourcesFor` prend une liste de `Definition`
-(`{ map, file }`) au lieu d'une seule map, et `matches(...).at(-1)` donne la valeur qui gagne.
+**B.** Keelson never builds merged YAML. `sourcesFor` takes a list of `Definition`
+(`{ map, file }`) instead of a single map, and `matches(...).at(-1)` gives the winning value.
 
-## Conséquences
+## Consequences
 
-- Les plages restent **vraies dans leur fichier**. C'est pourquoi `Job`, `Template`, `Stage`,
-  `OpaqueBlock` et `Diagnostic` portent tous un `file` : une plage sans fichier ne situe plus rien
-  dès qu'il y a plus d'un texte. Lire un offset dans le mauvais texte afficherait des octets pris
-  ailleurs, ce qui est le défaut le plus dangereux que ce lot pouvait introduire — la seule surface
-  du produit dont la promesse est « ceci est verbatim ».
-- L'ordre de fusion de GitLab tombe gratuitement : il suffit de ranger les définitions dans le bon
-  ordre et de laisser `at(-1)` faire le reste. Les quatre cas — includes d'abord, dernier inclus
-  gagnant, fichier principal en dernier, doublons non dédoublonnés — sont des propriétés de la liste,
-  pas du code de fusion.
-- Le **propriétaire** d'un élément est son dernier contributeur, donc le fichier qu'un utilisateur
-  éditerait. Un job venu d'un include et redéfini dans le fichier principal appartient au fichier
-  principal et reste éditable ; un job qui n'est que dans l'include ne l'est pas.
-- `Origin` gagne `{ kind: "include", file }` : une valeur qui vient de la définition homonyme d'un
-  autre fichier dit lequel, au même titre qu'une valeur venue d'un `extends` ou d'un anchor.
-- Ce que la décision **ne** donne pas : la fusion profonde complète de GitLab sur les clés que l'IR
-  ne modélise pas. Deux fichiers qui définissent chacun une partie d'un `artifacts:` du même job
-  rendent, à l'écran, le bloc opaque du dernier, et non leur fusion. L'IR ne modélisant pas
-  `artifacts`, elle ne peut pas la fusionner sans fabriquer précisément le document que cette
-  décision refuse. Les blocs opaques d'un job viennent donc de **toutes** ses définitions, dédoublés
-  par clé en gardant la dernière, chacun avec son fichier — ce qui est vrai de chaque bloc pris
-  isolément, et incomplet de leur combinaison.
+- Ranges stay **true within their file**. That is why `Job`, `Template`, `Stage`, `OpaqueBlock` and
+  `Diagnostic` all carry a `file`: a range without a file no longer locates anything as soon as
+  there is more than one text. Reading an offset in the wrong text would display bytes taken from
+  elsewhere, which is the most dangerous defect this milestone could introduce — on the only
+  surface of the product whose promise is "this is verbatim".
+- GitLab's merge order comes for free: it is enough to put the definitions in the right order and
+  let `at(-1)` do the rest. The four cases — includes first, last included file wins, main file
+  last, duplicates not deduplicated — are properties of the list, not of merge code.
+- The **owner** of an element is its last contributor, hence the file a user would edit. A job
+  coming from an include and redefined in the main file belongs to the main file and stays
+  editable; a job that exists only in the include does not.
+- `Origin` gains `{ kind: "include", file }`: a value coming from the same-named definition in
+  another file says which one, just like a value coming from an `extends` or an anchor.
+- What the decision does **not** provide: GitLab's full deep merge on keys the IR does not model.
+  Two files that each define part of an `artifacts:` of the same job render, on screen, the opaque
+  block of the last one, not their merge. Since the IR does not model `artifacts`, it cannot merge
+  it without building precisely the document this decision refuses. A job's opaque blocks therefore
+  come from **all** its definitions, deduplicated by key keeping the last one, each with its file —
+  which is true of each block taken in isolation, and incomplete for their combination.

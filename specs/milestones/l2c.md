@@ -1,37 +1,37 @@
-# Lot L2c — messages : `code` + `params`, anglais unique, `details` fusionné
+# Milestone L2c — messages: `code` + `params`, English only, `details` merged
 
-Document de cadrage écrit **avant** toute ligne de code, depuis l'inventaire du dépôt à
-`b8106c2`. Il exécute l'[ADR 0002](../adr/0002-language-and-messages.md), complété par l'écart du
-2026-10-22 sur `@keelson/server`.
+Scoping document written **before** any line of code, from the inventory of the repository at
+`b8106c2`. It carries out [ADR 0002](../adr/0002-language-and-messages.md), supplemented by the
+2026-10-22 gap on `@keelson/server`.
 
-## Objet
+## Purpose
 
-Séparer le contrat de son rendu. `core`, les adaptateurs et `@keelson/server` ne produisent plus que
-`code` + `params` typés ; un module unique `@keelson/core/messages` en rend le texte anglais, et la
-CLI comme l'UI passent par lui. `details` disparaît, fusionné dans `params`.
+Separate the contract from its rendering. `core`, the adapters and `@keelson/server` now only produce
+typed `code` + `params`; a single module, `@keelson/core/messages`, renders their English text, and
+both the CLI and the UI go through it. `details` disappears, merged into `params`.
 
-## Inventaire
+## Inventory
 
-### 1. Codes existants et leur origine
+### 1. Existing codes and their origin
 
-**Diagnostics** (9 codes, `packages/core/src/diagnostics.ts:12-20`) :
+**Diagnostics** (9 codes, `packages/core/src/diagnostics.ts:12-20`):
 
-| Code | Émis par | Fichier et ligne |
+| Code | Emitted by | File and line |
 |---|---|---|
-| `INVALID_YAML` | adaptateur | `adapter-gitlab/src/parse.ts:74` |
-| `INCLUDE_UNRESOLVED` | adaptateur | `adapter-gitlab/src/parse.ts:88` |
-| `EXTENDS_TARGET_NOT_FOUND` | adaptateur | `adapter-gitlab/src/resolve.ts:138` |
-| `EXTENDS_CYCLE` | adaptateur | `adapter-gitlab/src/resolve.ts:127` |
-| `JOB_WITHOUT_SCRIPT` | adaptateur | `adapter-gitlab/src/parse.ts:153` |
+| `INVALID_YAML` | adapter | `adapter-gitlab/src/parse.ts:74` |
+| `INCLUDE_UNRESOLVED` | adapter | `adapter-gitlab/src/parse.ts:88` |
+| `EXTENDS_TARGET_NOT_FOUND` | adapter | `adapter-gitlab/src/resolve.ts:138` |
+| `EXTENDS_CYCLE` | adapter | `adapter-gitlab/src/resolve.ts:127` |
+| `JOB_WITHOUT_SCRIPT` | adapter | `adapter-gitlab/src/parse.ts:153` |
 | `UNKNOWN_NEED` | core | `core/src/validate.ts:179` |
 | `NEEDS_CYCLE` | core | `core/src/validate.ts:149` |
 | `UNKNOWN_STAGE` | core | `core/src/validate.ts:168` |
 | `NEED_LATER_STAGE` | core | `core/src/validate.ts:191` |
 
-**Erreurs d'opération** (13 codes, `packages/core/src/operations.ts:6-18`). Deux sites dans `core`
-(`parseOperation`), tous les autres dans `adapter-gitlab/src/apply.ts` via son `fail()` local :
+**Operation errors** (13 codes, `packages/core/src/operations.ts:6-18`). Two sites in `core`
+(`parseOperation`), all the others in `adapter-gitlab/src/apply.ts` through its local `fail()`:
 
-| Code | Sites | Fichier et ligne |
+| Code | Sites | File and line |
 |---|---|---|
 | `STALE_DOCUMENT` | 1 | `apply.ts:756` |
 | `JOB_NOT_FOUND` | 2 | `apply.ts:107`, `apply.ts:113` |
@@ -44,13 +44,13 @@ CLI comme l'UI passent par lui. `details` disparaît, fusionné dans `params`.
 | `NEED_NOT_FOUND` | 2 | `apply.ts:447`, `apply.ts:490` |
 | `CYCLE` | 1 | `apply.ts:798` |
 | `UNSUPPORTED_VERSION` | 1 | `core/src/operations.ts:187` |
-| `INVALID_OPERATION` | 8 | voir § 2 |
-| `RANGE_OUT_OF_BOUNDS` | 16 | voir § 2 |
+| `INVALID_OPERATION` | 8 | see § 2 |
+| `RANGE_OUT_OF_BOUNDS` | 16 | see § 2 |
 
-**Codes de transport du serveur** (6 codes, **non documentés dans `specs/diagnostics.md`**, non
-déclarés comme constantes, écrits en littéral à chaque site) :
+**Server transport codes** (6 codes, **not documented in `specs/diagnostics.md`**, not declared as
+constants, written as literals at each site):
 
-| Code | Statut | Sites |
+| Code | Status | Sites |
 |---|---|---|
 | `FORBIDDEN_HOST` | 403 | `server/src/app.ts:63` |
 | `FORBIDDEN_TOKEN` | 403 | `server/src/app.ts:77` |
@@ -59,171 +59,169 @@ déclarés comme constantes, écrits en littéral à chaque site) :
 | `PAYLOAD_TOO_LARGE` | 413 | `app.ts:116` |
 | `INTERNAL_ERROR` | 500 | `server/src/index.ts:58` |
 
-Le serveur réémet par ailleurs `INVALID_OPERATION` pour trois erreurs d'enveloppe
-(`app.ts:133, 139, 143`) et relaie tel quel le `code` de `parseOperation` et d'`apply`
+The server also re-emits `INVALID_OPERATION` for three envelope errors
+(`app.ts:133, 139, 143`) and relays as is the `code` of `parseOperation` and `apply`
 (`store.ts:170, 192`).
 
-### 2. Chaînes de message produites hors du futur module
+### 2. Message strings produced outside the future module
 
-**Toutes** les chaînes ci-dessous disparaissent. Les français sont marqués **FR**.
+**All** the strings below disappear. French ones are marked **FR**.
 
-`packages/core/src/validate.ts` — **FR** : `:152` cycle des needs, `:171` stage inconnu,
-`:182` need inconnu, `:194` need en stage ultérieur. Plus `:10` `throw new Error` interne.
+`packages/core/src/validate.ts` — **FR**: `:152` needs cycle, `:171` unknown stage, `:182` unknown
+need, `:194` need in a later stage. Plus `:10`, an internal `throw new Error`.
 
-`packages/core/src/operations.ts` — **FR** : `:181` « une opération doit être un objet JSON »,
-`:189` version non supportée, `:201` `${path} : ${detail}` depuis zod.
+`packages/core/src/operations.ts` — **FR**: `:181` "an operation must be a JSON object", `:189`
+unsupported version, `:201` `${path} : ${detail}` from zod.
 
-`packages/adapter-gitlab/src/parse.ts` — `:77` `error.message` de la lib `yaml` (anglais, voir D2) ;
-**FR** `:91` include non résolus, `:156` job sans script.
+`packages/adapter-gitlab/src/parse.ts` — `:77` `error.message` from the `yaml` library (English, see
+D2); **FR** `:91` unresolved includes, `:156` job without script.
 
-`packages/adapter-gitlab/src/resolve.ts` — **FR** `:130` cycle d'extends, `:141` cible d'extends
-absente. `:162` dédoublonne **par `code` + `message`**, ce qui doit changer (D5).
+`packages/adapter-gitlab/src/resolve.ts` — **FR** `:130` extends cycle, `:141` missing extends
+target. `:162` deduplicates **by `code` + `message`**, which must change (D5).
 
-`packages/adapter-gitlab/src/apply.ts` — 44 appels à `fail()`, tous **FR**. Les deux codes
-fourre-tout, à l'origine de la décision D1 :
+`packages/adapter-gitlab/src/apply.ts` — 44 calls to `fail()`, all **FR**. The two catch-all codes,
+which led to decision D1:
 
-- `INVALID_OPERATION`, 8 textes distincts : `:121` job en flow style, `:203` job sans script,
-  `:531` environnement hérité non retirable, `:772` pas de map YAML à la racine, `:791` YAML
-  invalide produit, plus `core/src/operations.ts:181` et `:201`, plus les trois d'enveloppe du
-  serveur.
-- `RANGE_OUT_OF_BOUNDS`, 9 textes distincts : `:261` et `:316` plage d'un job, `:343` clé `stage`,
-  `:401/413/473` clé `needs`, `:406/428` dernier need, `:525/545` clé `environment`,
-  `:607/613/621/677/690` liste de stages, `:632/699` liste de stages vide, `:586` et `:655` index
-  hors liste, `:708` plage hors texte.
+- `INVALID_OPERATION`, 8 distinct texts: `:121` flow-style job, `:203` job without script, `:531`
+  inherited environment that cannot be removed, `:772` no YAML map at the root, `:791` invalid YAML
+  produced, plus `core/src/operations.ts:181` and `:201`, plus the server's three envelope ones.
+- `RANGE_OUT_OF_BOUNDS`, 9 distinct texts: `:261` and `:316` range of a job, `:343` `stage` key,
+  `:401/413/473` `needs` key, `:406/428` last need, `:525/545` `environment` key,
+  `:607/613/621/677/690` stage list, `:632/699` empty stage list, `:586` and `:655` index outside
+  the list, `:708` range outside the text.
 
-`packages/adapter-gitlab/src/emit.ts:24` — **FR**, `throw new Error` interne.
+`packages/adapter-gitlab/src/emit.ts:24` — **FR**, internal `throw new Error`.
 
 `packages/server/src/app.ts` — **FR** `:63, 77, 84, 93, 103, 109, 117, 133, 139, 143, 159, 166,
 174, 179, 184`. `packages/server/src/store.ts` — **FR** `:162, 180`.
-`packages/server/src/index.ts:58` — **FR** « erreur interne ».
+`packages/server/src/index.ts:58` — **FR** "internal error".
 
-`packages/cli/src/validate.ts` — **FR** `:21` préfixe d'usage, `:35` fichier en trop, `:41` format
-inconnu, `:82` « aucun diagnostic », `:101` pas un fichier, `:105` fichier introuvable. Plus `:73`,
-qui normalise `diagnostic.message` et devra normaliser le rendu.
+`packages/cli/src/validate.ts` — **FR** `:21` usage prefix, `:35` extra file, `:41` unknown format,
+`:82` "no diagnostics", `:101` not a file, `:105` file not found. Plus `:73`, which normalises
+`diagnostic.message` and will have to normalise the rendering.
 
 `packages/cli/src/start.ts` — **FR** `:51, 72, 81, 83, 90, 106, 107`.
-`packages/cli/src/run.ts` — **FR** `:19-22` descriptions, `:29-36` texte d'aide, `:74` commande non
-implémentée, `:81` commande inconnue.
+`packages/cli/src/run.ts` — **FR** `:19-22` descriptions, `:29-36` help text, `:74` unimplemented
+command, `:81` unknown command.
 
-`packages/ui/src/main.tsx:8` — **FR**, `throw new Error` interne.
+`packages/ui/src/main.tsx:8` — **FR**, internal `throw new Error`.
 
-### 3. Forme actuelle et forme cible des erreurs de l'API
+### 3. Current and target shape of API errors
 
-Actuelle, `ErrorBody` (`server/src/store.ts:34`) et le `fail()` d'`app.ts:29` :
+Current, `ErrorBody` (`server/src/store.ts:34`) and the `fail()` of `app.ts:29`:
 
 ```ts
 { code: string; message: string; details?: unknown; hash?: string }
 ```
 
-Cible :
+Target:
 
 ```ts
 { code: MessageCode; params: ParamsOf<MessageCode>; hash?: string }
 ```
 
-`message` disparaît du fil. `ApiFailure` (`ui/src/api/client.ts:26`) suit : `params` remplace
-`details`, et `message` n'est plus reçu mais **calculé** par `render()`. Son repli actuel
-« unexpected server response » devient le code `UNEXPECTED_RESPONSE`, et `NETWORK_ERROR` —
-aujourd'hui inventé côté client avec le texte de l'exception — devient un code avec
-`params.detail`. Les deux sont des codes du client, pas du serveur ; ils entrent au registre pour
-que le test d'exhaustivité ne les laisse pas dehors.
+`message` disappears from the wire. `ApiFailure` (`ui/src/api/client.ts:26`) follows: `params`
+replaces `details`, and `message` is no longer received but **computed** by `render()`. Its current
+fallback "unexpected server response" becomes the code `UNEXPECTED_RESPONSE`, and `NETWORK_ERROR` —
+today invented on the client side with the exception's text — becomes a code with `params.detail`.
+Both are client codes, not server codes; they enter the registry so that the exhaustiveness test
+does not leave them out.
 
-## Décisions prises au cadrage
+## Decisions made during scoping
 
-Toutes réversibles, donc tranchées ici sans ADR. L'ADR 0002 reçoit en fin de lot la seule ligne
-qu'il lui manque, sur sa portée.
+All reversible, hence settled here without an ADR. At the end of the milestone ADR 0002 receives the
+one line it is missing, about its scope.
 
-**D1 — un discriminant `reason` dans les `params`, pas de nouveau code.** `INVALID_OPERATION` et
-`RANGE_OUT_OF_BOUNDS` couvrent chacun plusieurs situations distinctes (8 et 9 textes). Un code par
-situation serait plus net, mais les codes sont un contrat public et en ajouter treize dépasse le
-périmètre. `ParamsOf<C>` est donc une **union discriminée** sur `reason` pour ces deux codes, et le
-rendu branche dessus. Le discriminant est documenté : il fait partie du contrat au même titre que
-le code.
+**D1 — a `reason` discriminant in the `params`, no new code.** `INVALID_OPERATION` and
+`RANGE_OUT_OF_BOUNDS` each cover several distinct situations (8 and 9 texts). One code per situation
+would be cleaner, but codes are a public contract and adding thirteen exceeds the scope.
+`ParamsOf<C>` is therefore a **discriminated union** on `reason` for these two codes, and the
+rendering branches on it. The discriminant is documented: it is part of the contract just like the
+code.
 
-**D2 — le texte de bibliothèque passe en `params`, il n'est pas réécrit.** `INVALID_YAML` porte
-`{ detail }`, la phrase de la lib `yaml` ; `INVALID_OPERATION` avec `reason: "schema"` porte
-`{ path, detail }`, celle de zod. Les deux sont déjà en anglais. Le module les **encadre** sans les
-rédiger : réécrire les erreurs de parsing YAML à la main serait perdre de la précision pour gagner
-une uniformité de façade.
+**D2 — library text goes into `params`, it is not rewritten.** `INVALID_YAML` carries `{ detail }`,
+the sentence from the `yaml` library; `INVALID_OPERATION` with `reason: "schema"` carries
+`{ path, detail }`, zod's. Both are already in English. The module **frames** them without
+rewriting them: rewriting YAML parse errors by hand would lose precision to gain a superficial
+uniformity.
 
-**D3 — la chrome de la CLI reste dans la CLI, en anglais.** Usage, aide, descriptions de commandes,
-« no diagnostics » : ces textes ne portent aucun code et ne sont consommés par personne d'autre. Les
-mettre au registre obligerait à inventer des codes pour des lignes d'aide. Ils sont traduits sur
-place. La règle « aucune chaîne hors du module » vaut pour tout ce qui **porte un code**.
+**D3 — the CLI chrome stays in the CLI, in English.** Usage, help, command descriptions, "no
+diagnostics": these texts carry no code and are consumed by no one else. Putting them in the
+registry would mean inventing codes for help lines. They are translated in place. The rule "no
+string outside the module" applies to everything that **carries a code**.
 
-**D4 — les six codes de transport du serveur entrent au registre.** Sinon l'UI ne peut pas les
-rendre, et le test « tout code a un message » aurait son trou exactement là où était le français.
-Ils deviennent des constantes exportées et `specs/diagnostics.md` gagne une troisième table.
+**D4 — the server's six transport codes enter the registry.** Otherwise the UI cannot render them,
+and the "every code has a message" test would have its hole exactly where the French was. They
+become exported constants and `specs/diagnostics.md` gains a third table.
 
-**D5 — le dédoublonnage de `resolve.ts` porte sur `code` + `params`.** Il comparait `code` +
-`message`. Avec des `params`, la comparaison se fait sur une sérialisation stable à clés triées.
-Sans cela, deux cibles d'`extends` absentes différentes se confondraient, ou pire, deux diagnostics
-identiques apparaîtraient deux fois.
+**D5 — the deduplication in `resolve.ts` is on `code` + `params`.** It compared `code` + `message`.
+With `params`, the comparison is done on a stable serialisation with sorted keys. Without this, two
+different missing `extends` targets would be conflated, or worse, two identical diagnostics would
+appear twice.
 
-**D6 — `params` est toujours présent.** `Diagnostic` devient
-`{ code, severity, range, params }`, `OperationError` devient `{ code, params }`. Pas d'optionnel :
-un champ absent la moitié du temps se lit comme une donnée facultative, alors que `params` est le
-contrat. Les codes sans donnée portent `Record<string, never>`.
+**D6 — `params` is always present.** `Diagnostic` becomes `{ code, severity, range, params }`,
+`OperationError` becomes `{ code, params }`. No optional: a field absent half the time reads as
+optional data, whereas `params` is the contract. Codes without data carry `Record<string, never>`.
 
-**D7 — le test du module vit dans `packages/core/test/`, pas dans `src/`.** L'arborescence demandée
-le place dans `src/messages/`, ce que la **contrainte de runtime Node** de `CLAUDE.md` interdit : le
-`tsconfig.json` de `core` n'inclut que `src/` avec `"types": ["node"]`, donc `bun:test` n'y
-compile pas, et `scripts/check-runtime.ts` échoue sur tout import `bun:*` dans un `src/` de package
-runtime. Le fichier va donc en `packages/core/test/messages.test.ts`, avec les autres tests de
-`core`. C'est la seule divergence avec l'arborescence demandée.
+**D7 — the module's test lives in `packages/core/test/`, not in `src/`.** The requested tree places
+it in `src/messages/`, which the **Node runtime constraint** of `CLAUDE.md` forbids: `core`'s
+`tsconfig.json` only includes `src/` with `"types": ["node"]`, so `bun:test` does not compile there,
+and `scripts/check-runtime.ts` fails on any `bun:*` import in a runtime package's `src/`. The file
+therefore goes in `packages/core/test/messages.test.ts`, with the other `core` tests. This is the
+only divergence from the requested tree.
 
-## Arborescence cible
+## Target tree
 
 ```
 packages/core/src/messages/
-  codes.ts     MessageCode + ParamsOf<C>, union discriminée là où D1 l'exige
-  en.ts        Record<MessageCode, (p) => string>, exhaustivité garantie à la compilation
-  index.ts     render(code, params) — exporté comme @keelson/core/messages
+  codes.ts     MessageCode + ParamsOf<C>, discriminated union where D1 requires it
+  en.ts        Record<MessageCode, (p) => string>, exhaustiveness guaranteed at compile time
+  index.ts     render(code, params) — exported as @keelson/core/messages
 packages/core/test/messages.test.ts    (D7)
 ```
 
-`packages/core/package.json` gagne l'export `"./messages"`, `tsconfig.base.json` le chemin
-`@keelson/core/messages`.
+`packages/core/package.json` gains the `"./messages"` export, `tsconfig.base.json` the
+`@keelson/core/messages` path.
 
-## Plan de tests
+## Test plan
 
-1. **Exhaustivité, dans les deux sens** (`core/test/messages.test.ts`) : l'ensemble des clés de
-   `en.ts`, celui de `MESSAGE_CODES` et celui des codes listés dans `specs/diagnostics.md` sont
-   **égaux**. Trois comparaisons, pas une inclusion. Un code ajouté sans message, un message sans
-   code, un code non documenté : trois échecs distincts, avec le nom du code dans le message
-   d'échec.
-2. **Chaque rendu est exercé** avec des `params` représentatifs : aucune sortie ne contient
-   `undefined`, `null`, `[object Object]`, un reste de gabarit (`${`, `{{`), ni un caractère
-   français (`éèêàçùûôîâœ«»`). Les unions discriminées sont couvertes **branche par branche** : le
-   test énumère les `reason` et échoue si l'un n'est pas exercé.
-3. **`core` et adaptateurs** : les tests existants qui asservissent `message` passent à `code` +
-   `params`. Un test vérifie qu'aucun diagnostic ni erreur rendu par `parse`, `validate` et `apply`
-   ne porte de clé `message` ni `details`. Le dédoublonnage de D5 est testé sur deux cibles
-   d'`extends` absentes différentes dans un même fichier.
-4. **CLI** : `keelson validate` rend le texte anglais de `render()` pour chaque famille de
-   diagnostic ; `--format json` expose `code`, `params` **et** `message` rendu — le JSON est
-   consommé par des scripts, qui ont besoin des deux.
-5. **Serveur** : pour **chaque chemin d'erreur** — les six de transport, les trois d'enveloppe, le
-   relais de `parseOperation`, le relais d'`apply`, le 409 avec `hash` — un test vérifie la forme
-   exacte du corps et **l'absence de clé `message`**. Le double calcul de hash est couvert par un
-   test qui compte les appels à `hashText` sur une requête.
-6. **UI** : `ErrorBanner` est testé **sur le DOM rendu** avec `JOB_REFERENCED` — la phrase anglaise
-   rendue par `render()` et chacun des référents doivent être visibles. Idem pour un code sans
-   `params`. `referencedBy()` lit `params.referencedBy`.
-7. **E2E sur le binaire réel** : un 409… — en fait un **422** `JOB_REFERENCED`, le 409 étant réservé
-   à `STALE_DOCUMENT` (`store.ts:189`) ; l'énoncé du lot dit « un 409 `JOB_REFERENCED` », ce que le
-   serveur ne peut pas produire. Le test force donc le vrai chemin : supprimer un job dont un autre
-   a besoin, et vérifier que la bannière affiche la phrase anglaise et les référents.
+1. **Exhaustiveness, in both directions** (`core/test/messages.test.ts`): the set of keys of
+   `en.ts`, that of `MESSAGE_CODES` and that of the codes listed in `specs/diagnostics.md` are
+   **equal**. Three comparisons, not an inclusion. A code added without a message, a message
+   without a code, an undocumented code: three distinct failures, with the code's name in the
+   failure message.
+2. **Every rendering is exercised** with representative `params`: no output contains `undefined`,
+   `null`, `[object Object]`, template leftovers (`${`, `{{`), or a French character
+   (`éèêàçùûôîâœ«»`). Discriminated unions are covered **branch by branch**: the test enumerates the
+   `reason`s and fails if one is not exercised.
+3. **`core` and adapters**: existing tests that assert on `message` switch to `code` + `params`. A
+   test checks that no diagnostic or error returned by `parse`, `validate` and `apply` carries a
+   `message` or `details` key. The deduplication of D5 is tested on two different missing
+   `extends` targets in the same file.
+4. **CLI**: `keelson validate` renders the English text from `render()` for each diagnostic family;
+   `--format json` exposes `code`, `params` **and** the rendered `message` — the JSON is consumed by
+   scripts, which need both.
+5. **Server**: for **every error path** — the six transport ones, the three envelope ones, the
+   `parseOperation` relay, the `apply` relay, the 409 with `hash` — a test checks the exact shape of
+   the body and **the absence of a `message` key**. The double hash computation is covered by a
+   test that counts the calls to `hashText` on one request.
+6. **UI**: `ErrorBanner` is tested **on the rendered DOM** with `JOB_REFERENCED` — the English
+   sentence rendered by `render()` and each of the referrers must be visible. Same for a code
+   without `params`. `referencedBy()` reads `params.referencedBy`.
+7. **E2E on the real binary**: a 409… — actually a **422** `JOB_REFERENCED`, 409 being reserved for
+   `STALE_DOCUMENT` (`store.ts:189`); the milestone brief says "a 409 `JOB_REFERENCED`", which the
+   server cannot produce. The test therefore forces the real path: delete a job that another one
+   needs, and check that the banner shows the English sentence and the referrers.
 
-Chaque correctif et chaque invariant est **vérifié rouge en réintroduisant le défaut réel**, sans
-`git stash` : le fichier est restauré par réécriture et `git diff` vérifié vide.
+Every fix and every invariant is **checked red by reintroducing the real defect**, without
+`git stash`: the file is restored by rewriting it and `git diff` checked empty.
 
-## Définition de terminé
+## Definition of done
 
-- `bun install --frozen-lockfile`, puis `bun run check` depuis un arbre **sans aucun `dist/`**, puis
-  `bun run e2e`, puis le binaire buildé exécuté sous `node`.
-- Aucun message français dans `packages/*/src` hors commentaires, vérifié par `grep`.
-- `specs/diagnostics.md` documente les `params` de chaque code, transport du serveur compris.
-- `specs/gaps.md` à jour : écarts traités clos avec leur preuve, nouveaux écarts ajoutés.
-- L'ADR 0002 porte sa ligne de portée complétée, et l'écart du 2026-10-22 qui la motivait est clos.
-- Journal dans `specs/progress.md`, merge `--no-ff` dans `main`, `bun run check` vert sur `main`.
+- `bun install --frozen-lockfile`, then `bun run check` from a tree **without any `dist/`**, then
+  `bun run e2e`, then the built binary run under `node`.
+- No French message in `packages/*/src` outside comments, checked by `grep`.
+- `specs/diagnostics.md` documents the `params` of every code, server transport included.
+- `specs/gaps.md` up to date: addressed gaps closed with their proof, new gaps added.
+- ADR 0002 carries its completed scope line, and the 2026-10-22 gap that motivated it is closed.
+- Log in `specs/progress.md`, `--no-ff` merge into `main`, `bun run check` green on `main`.

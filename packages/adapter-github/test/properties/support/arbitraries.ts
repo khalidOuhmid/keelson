@@ -84,7 +84,7 @@ export const scenario = (): fc.Arbitrary<{ text: string; draft: Draft }> =>
 export const op = (hash: string, draft: Draft): Operation =>
   ({ v: 1, baseHash: hash, ...draft }) as Operation;
 
-/** Les refus attendus sur le corpus : tout autre refus, `wouldBreakYaml` d'abord, est un défaut. */
+/** The refusals expected on the corpus: any other refusal, `wouldBreakYaml` first, is a defect. */
 export function isExpectedRefusal(error: { code: string; params: unknown }): boolean {
   if (
     [

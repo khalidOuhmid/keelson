@@ -36,31 +36,31 @@ jobs:
 const parsed = () => parse(WORKFLOW, { file: FILE });
 const job = (id: string) => parsed().pipeline.jobs.find((entry) => entry.id === id);
 
-describe("lecture d'un workflow", () => {
-  test("le fournisseur, le fichier, l'ordre du fichier", () => {
+describe("reading a workflow", () => {
+  test("the provider, the file, the file order", () => {
     const { pipeline } = parsed();
     expect(pipeline.provider).toBe("github");
     expect(pipeline.main).toBe(FILE);
     expect(pipeline.jobs.map((entry) => entry.id)).toEqual(["build", "test", "deploy", "shared"]);
   });
 
-  test("les stages sont dérivés de needs", () => {
+  test("stages are derived from needs", () => {
     const { pipeline } = parsed();
     expect(pipeline.stages.map((stage) => stage.name)).toEqual(["level 1", "level 2", "level 3"]);
-    // `implicit` veut dire « GitLab le suppose » : ici, la colonne ne dit que ce que `needs` dit.
+    // `implicit` means "GitLab assumes it": here, the column says only what `needs` says.
     expect(pipeline.stages.every((stage) => !stage.implicit)).toBe(true);
     expect(job("build")?.stage.value).toBe("level 1");
     expect(job("test")?.stage.value).toBe("level 2");
     expect(job("deploy")?.stage.value).toBe("level 3");
   });
 
-  test("needs en scalaire et en liste", () => {
+  test("needs as a scalar and as a list", () => {
     expect(job("test")?.needs?.value.map((need) => need.job)).toEqual(["build"]);
     expect(job("deploy")?.needs?.value.map((need) => need.job)).toEqual(["build", "test"]);
     expect(job("build")?.needs).toBeNull();
   });
 
-  test("environnement en scalaire ou en objet", () => {
+  test("environment as a scalar or an object", () => {
     expect(job("deploy")?.environment?.value).toEqual({
       name: "prod",
       url: "https://x.example",
@@ -71,7 +71,7 @@ describe("lecture d'un workflow", () => {
     });
   });
 
-  test("les signaux : run, container, action, docker://", () => {
+  test("the signals: run, container, action, docker://", () => {
     expect(job("build")?.signals).toEqual({
       image: null,
       script: ["make"],
@@ -82,7 +82,7 @@ describe("lecture d'un workflow", () => {
     expect(job("deploy")?.signals.image).toBe("semgrep/semgrep");
   });
 
-  test("container et docker:// se cumulent", () => {
+  test("container and docker:// add up", () => {
     const text =
       "jobs:\n  a:\n    container: node:20\n    steps:\n      - uses: docker://aquasec/trivy\n";
     const { signals } = parse(text, { file: FILE }).pipeline.jobs[0] ?? {};
@@ -90,7 +90,7 @@ describe("lecture d'un workflow", () => {
     expect(signals?.actions).toEqual(["docker://aquasec/trivy"]);
   });
 
-  test("un job uses: est signalé, et le pipeline devient partiel", () => {
+  test("a uses: job is reported, and the pipeline becomes partial", () => {
     const result = parsed();
     expect(result.diagnostics.map((entry) => entry.code)).toEqual(["WORKFLOW_UNRESOLVED"]);
     expect(isPartial(result.pipeline)).toBe(true);
@@ -100,19 +100,19 @@ describe("lecture d'un workflow", () => {
     });
   });
 
-  test("les clés non modélisées restent opaques, au job et au fichier", () => {
+  test("unmodelled keys stay opaque, at job and file level", () => {
     expect(job("build")?.opaque.map((block) => block.key)).toEqual(["runs-on", "steps"]);
     expect(parsed().pipeline.opaque.map((block) => block.key)).toEqual(["name", "on"]);
     const block = job("build")?.opaque[0];
     expect(WORKFLOW.slice(block?.range.start, block?.range.end)).toBe("runs-on: ubuntu-latest");
   });
 
-  test("un job sans étapes est signalé", () => {
+  test("a job without steps is reported", () => {
     const { diagnostics } = parse("jobs:\n  a:\n    runs-on: x\n", { file: FILE });
     expect(diagnostics.map((entry) => entry.code)).toEqual(["JOB_WITHOUT_SCRIPT"]);
   });
 
-  test("un cycle se dessine quand même", () => {
+  test("a cycle still renders", () => {
     const { pipeline } = parse(
       "jobs:\n  a:\n    needs: b\n    steps: [{run: x}]\n  b:\n    needs: a\n    steps: [{run: x}]\n",
       { file: FILE },
@@ -123,10 +123,10 @@ describe("lecture d'un workflow", () => {
   test.each([
     ["vide", ""],
     ["scalaire", "bonjour\n"],
-    ["alias sans ancre", "*x\n"],
-    ["YAML cassé", "jobs: [\n"],
-    ["jobs n'est pas une map", "jobs: 3\n"],
-  ])("%s rend un pipeline vide sans lever", (_label, text) => {
+    ["alias without anchor", "*x\n"],
+    ["broken YAML", "jobs: [\n"],
+    ["jobs is not a map", "jobs: 3\n"],
+  ])("%s yields an empty pipeline without throwing", (_label, text) => {
     expect(parse(text, { file: FILE }).pipeline.jobs).toEqual([]);
   });
 });

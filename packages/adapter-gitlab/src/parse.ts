@@ -47,14 +47,14 @@ import {
   sourcesFor,
 } from "./resolve.ts";
 
-/** Le nom conventionnel du fichier d'entrée. Sert de défaut quand l'appelant n'a pas de chemin à
- *  donner — un `parse(text)` nu, dans un test ou un outil. */
+/** The conventional name of the entry file. Serves as the default when the caller has no path to
+ *  give — a bare `parse(text)`, in a test or a tool. */
 export const GITLAB_CI_FILE = ".gitlab-ci.yml";
 
 export type ParseOptions = {
-  /** Chemin du fichier principal, relatif à la racine du dépôt. */
+  /** Path of the main file, relative to the repository root. */
   file?: string;
-  /** Absent ⇒ aucun `include` n'est résolu, et chacun est signalé par sa forme. */
+  /** Absent ⇒ no `include` is resolved, and each one is reported by its form. */
   read?: IncludeReader | undefined;
 };
 
@@ -63,9 +63,9 @@ export type ParseResult = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
-  /** Le texte de chaque fichier inclus, tel qu'il a été lu pour **cette** analyse. C'est la seule
-   *  source qui soit garantie cohérente avec les plages de l'IR : relire les fichiers plus tard
-   *  donnerait d'autres octets si l'un d'eux a changé entre-temps. */
+  /** The text of each included file, as it was read for **this** parse. It is the only source
+   *  guaranteed to be consistent with the IR's ranges: re-reading the files later would yield
+   *  other bytes if one of them changed in the meantime. */
   included: Record<string, string>;
 };
 
@@ -79,9 +79,9 @@ function defaultStages(main: string): Stage[] {
   return DEFAULT_STAGES.map((name) => ({ name, implicit: true, range: null, file: main }));
 }
 
-/** La liste `stages` d'un fichier, ou `null` s'il n'en déclare pas d'utilisable. Une liste **écrase**
- *  et ne fusionne pas (« arrays cannot be merged ») : c'est pourquoi l'appelant ne garde que la
- *  dernière dans l'ordre de fusion, au lieu de les concaténer. */
+/** A file's `stages` list, or `null` if it declares no usable one. A list **overrides** and does
+ *  not merge (“arrays cannot be merged”): that is why the caller only keeps the last one in merge
+ *  order, instead of concatenating them. */
 function declaredStages(root: YAMLMap, file: string): Stage[] | null {
   const pair = localPair(root, "stages");
   if (pair === undefined) {
@@ -124,9 +124,8 @@ function unresolvedDiagnostics(unresolved: readonly UnresolvedInclude[]): Diagno
 
 type Collected = {
   definitions: Map<string, Definition[]>;
-  /** Dernière nature connue de la clé dans l'ordre de fusion. Une clé qui est une map dans un
-   *  fichier inclus et un scalaire dans le fichier principal n'est pas un job : la dernière
-   *  définition décide, comme pour n'importe quelle valeur. */
+  /** Last known kind of the key in merge order. A key that is a map in an included file and a
+   *  scalar in the main file is not a job: the last definition decides, as for any value. */
   kinds: Map<string, "map" | "opaque">;
   opaque: OpaqueBlock[];
   ranges: Map<string, SourceRange>;
@@ -173,14 +172,14 @@ function collect(order: readonly ParsedFile[]): Collected {
   return collected;
 }
 
-/** Les blocs opaques d'un job, pris sur **toutes** ses définitions et pas seulement sur celle du
- *  fichier qui le possède. Sans cela, un job défini dans un include et surchargé dans le fichier
- *  principal perdait à l'écran son `script` et ses `artifacts` : ils existent chez l'utilisateur,
- *  le job rendu par GitLab les a, et la seule surface du produit dont la promesse est « ceci est
- *  verbatim » affichait « aucun bloc opaque ».
+/** A job's opaque blocks, taken from **all** its definitions and not only from the file that owns
+ *  it. Without this, a job defined in an include and overridden in the main file lost its
+ *  `script` and `artifacts` on screen: they exist in the user's files, the job GitLab renders has
+ *  them, and the only surface of the product whose promise is “this is verbatim” displayed “no
+ *  opaque block”.
  *
- *  Une clé définie deux fois ne garde que la dernière, parce que c'est la valeur qui gagne. Chaque
- *  bloc porte son fichier : sa plage est un offset dans ce texte-là. */
+ *  A key defined twice keeps only the last one, because that is the value that wins. Each block
+ *  carries its file: its range is an offset into that text. */
 function opaqueBlocksOf(definitions: readonly Definition[]): OpaqueBlock[] {
   const blocks = new Map<string, OpaqueBlock>();
 
@@ -223,9 +222,9 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
   ];
 
   const files = order.map((parsed) => parsed.file);
-  /** Les deux familles comptent pour le même : il manque au pipeline affiché ce que cet include
-   *  apportait. Seule la première reçoit un `INCLUDE_UNRESOLVED` — la seconde a déjà son
-   *  `INCLUDE_NOT_FOUND` en erreur, et le dire deux fois ne dirait pas plus. */
+  /** Both families count the same: the displayed pipeline lacks what this include contributed.
+   *  Only the first gets an `INCLUDE_UNRESOLVED` — the second already has its error-level
+   *  `INCLUDE_NOT_FOUND`, and saying it twice would not say more. */
   const unresolved = [...resolution.unresolved, ...resolution.failed];
 
   const included: Record<string, string> = {};
@@ -257,10 +256,10 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     merged: order.map((parsed) => parsed.yaml),
     lookup,
     diagnostics,
-    /** Dégradé en avertissement **seulement** si un include qu'on n'a pas pu lire peut expliquer
-     *  l'absence : une forme distante, ou un `local` sans lecteur. Un `local` cassé n'en est pas
-     *  un, sa cause est déjà une erreur nommée. D'où `resolution.unresolved` et non `unresolved`,
-     *  qui compte aussi les cassés parce qu'ils manquent à l'écran (ADR 0007). */
+    /** Downgraded to a warning **only** if an include we could not read may explain the absence:
+     *  a remote form, or a `local` without a reader. A broken `local` is not one, its cause is
+     *  already a named error. Hence `resolution.unresolved` and not `unresolved`, which also
+     *  counts the broken ones because they are missing from the screen (ADR 0007). */
     extendsSeverity: resolution.unresolved.length === 0 ? "error" : "warning",
     main,
   };
@@ -270,8 +269,8 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
 
   for (const [key, definitions] of lookup) {
     const range = collected.ranges.get(key) ?? emptyRange();
-    // Le propriétaire est le **dernier** contributeur dans l'ordre de fusion : celui qu'un
-    // utilisateur éditerait, et le seul fichier que Keelson acceptera de réécrire.
+    // The owner is the **last** contributor in merge order: the one a user would edit, and the
+    // only file Keelson will agree to rewrite.
     const owner = definitions[definitions.length - 1]?.file ?? main;
 
     if (key.startsWith(".")) {
@@ -313,8 +312,8 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       needs: resolveNeeds(sources, context),
       ...(hasUnmodelledNeeds(sources) ? { unmodelledNeeds: true as const } : {}),
       environment: resolveEnvironment(sources, context),
-      // L'union des `extends` de toutes les définitions, dédoublée : le fichier principal peut
-      // ajouter un template sans retirer celui de l'include, et GitLab les applique tous les deux.
+      // The union of the `extends` of every definition, deduplicated: the main file can add a
+      // template without removing the include's, and GitLab applies both.
       extends: [...new Set(entry.definitions.flatMap((definition) => extendsOf(definition.map)))],
       opaque: jobOpaque,
       signals: resolveSignals(sources, defaults, context),

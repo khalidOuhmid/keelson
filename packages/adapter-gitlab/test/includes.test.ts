@@ -15,8 +15,8 @@ import {
 } from "../src/includes.ts";
 import { GITLAB_CI_FILE, parse } from "../src/parse.ts";
 
-/** Un dépôt littéral. Tout le module se teste ainsi : aucune écriture sur disque, donc aucun test
- *  qui passe parce qu'un fichier traîne. */
+/** A literal repository. The whole module is tested this way: no write to disk, hence no test
+ *  that passes because a stray file is lying around. */
 function reader(files: Record<string, string>): IncludeReader {
   return {
     read: (path) => files[path] ?? null,
@@ -27,7 +27,7 @@ function reader(files: Record<string, string>): IncludeReader {
 function parseTree(files: Record<string, string>, main = GITLAB_CI_FILE) {
   const text = files[main];
   if (text === undefined) {
-    throw new Error(`l'arbre n'a pas de ${main}`);
+    throw new Error(`the tree has no ${main}`);
   }
   return parse(text, { file: main, read: reader(files) });
 }
@@ -43,17 +43,17 @@ function jobIds(files: Record<string, string>): string[] {
 const JOB = (id: string, stage: string): string =>
   [`${id}:`, `  stage: ${stage}`, "  script:", "    - make", ""].join("\n");
 
-describe("normalisation des chemins d'include", () => {
-  test("le / de tête est optionnel : GitLab compte depuis la racine du dépôt", () => {
+describe("include path normalisation", () => {
+  test("the leading / is optional: GitLab counts from the repository root", () => {
     expect(normaliseIncludePath("/ci/jobs.yml")).toEqual({ ok: true, path: "ci/jobs.yml" });
     expect(normaliseIncludePath("ci/jobs.yml")).toEqual({ ok: true, path: "ci/jobs.yml" });
   });
 
-  test("les segments vides et « . » sont réduits", () => {
+  test("empty segments and “.” are collapsed", () => {
     expect(normaliseIncludePath("//ci//./jobs.yml")).toEqual({ ok: true, path: "ci/jobs.yml" });
   });
 
-  test("un chemin qui sort de la racine est refusé avant toute lecture", () => {
+  test("a path that leaves the root is refused before any read", () => {
     expect(normaliseIncludePath("../../etc/passwd")).toEqual({
       ok: false,
       reason: "outsideRoot",
@@ -66,7 +66,7 @@ describe("normalisation des chemins d'include", () => {
     });
   });
 
-  test("un antislash ne contourne pas le contrôle", () => {
+  test("a backslash does not bypass the check", () => {
     expect(normaliseIncludePath("..\\..\\etc\\passwd.yml")).toEqual({
       ok: false,
       reason: "outsideRoot",
@@ -74,7 +74,7 @@ describe("normalisation des chemins d'include", () => {
     });
   });
 
-  test("GitLab exige .yml ou .yaml", () => {
+  test("GitLab requires .yml or .yaml", () => {
     expect(normaliseIncludePath("ci/jobs.yaml").ok).toBe(true);
     expect(normaliseIncludePath("ci/jobs.txt")).toEqual({
       ok: false,
@@ -83,37 +83,37 @@ describe("normalisation des chemins d'include", () => {
     });
   });
 
-  test("un chemin vide est refusé", () => {
+  test("an empty path is refused", () => {
     expect(normaliseIncludePath("/").ok).toBe(false);
   });
 });
 
-describe("jokers", () => {
-  /** Les trois exemples de la documentation GitLab, dans les deux sens : ce qui correspond et ce
-   *  qui ne correspond pas. Sans la seconde moitié, un motif traduit en `.*` passerait partout. */
-  test("* ne traverse pas un séparateur", () => {
+describe("wildcards", () => {
+  /** The three examples from the GitLab documentation, both ways: what matches and what does
+   *  not. Without the second half, a pattern translated to `.*` would pass everywhere. */
+  test("* does not cross a separator", () => {
     expect(matchesWildcard("configs/*.yml", "configs/a.yml")).toBe(true);
     expect(matchesWildcard("configs/*.yml", "configs/sous/a.yml")).toBe(false);
   });
 
-  test("** traverse les séparateurs, y compris zéro", () => {
+  test("** crosses separators, including zero", () => {
     expect(matchesWildcard("configs/**.yml", "configs/a.yml")).toBe(true);
     expect(matchesWildcard("configs/**.yml", "configs/sous/a.yml")).toBe(true);
     expect(matchesWildcard("configs/**.yml", "autre/a.yml")).toBe(false);
   });
 
-  test("**/ * .yml ne prend que les sous-dossiers", () => {
+  test("**/ * .yml takes only the subfolders", () => {
     expect(matchesWildcard("configs/**/*.yml", "configs/sous/a.yml")).toBe(true);
     expect(matchesWildcard("configs/**/*.yml", "configs/a.yml")).toBe(false);
   });
 
-  test("le point d'un motif est un point littéral, pas un joker de regex", () => {
+  test("the dot in a pattern is a literal dot, not a regex wildcard", () => {
     expect(matchesWildcard("ci/jobs.yml", "ci/jobsXyml")).toBe(false);
   });
 });
 
-describe("résolution", () => {
-  test("un include local simple apporte ses jobs", () => {
+describe("resolution", () => {
+  test("a simple local include brings its jobs", () => {
     expect(
       jobIds({
         [GITLAB_CI_FILE]: ["include: ci/jobs.yml", "", "stages:", "  - build", ""].join("\n"),
@@ -122,7 +122,7 @@ describe("résolution", () => {
     ).toEqual(["compile"]);
   });
 
-  test("un include imbriqué est résolu récursivement", () => {
+  test("a nested include is resolved recursively", () => {
     expect(
       jobIds({
         [GITLAB_CI_FILE]: "include: ci/a.yml\n",
@@ -132,7 +132,7 @@ describe("résolution", () => {
     ).toEqual(["depuis-b", "depuis-a"]);
   });
 
-  test("une liste mêlant les formes résout les locales et signale les distantes", () => {
+  test("a list mixing forms resolves the local ones and reports the remote ones", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include:",
@@ -151,7 +151,7 @@ describe("résolution", () => {
     expect(isPartial(parsed.pipeline)).toBe(true);
   });
 
-  test("un pipeline dont tous les includes sont résolus n'est pas partiel", () => {
+  test("a pipeline whose includes are all resolved is not partial", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/a.yml\n",
       "ci/a.yml": JOB("a", "build"),
@@ -160,7 +160,7 @@ describe("résolution", () => {
     expect(parsed.pipeline.unresolved).toEqual([]);
   });
 
-  test("le fichier principal vient en dernier dans l'ordre de fusion", () => {
+  test("the main file comes last in the merge order", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/a.yml\n",
       "ci/a.yml": `include: ci/b.yml\n`,
@@ -169,7 +169,7 @@ describe("résolution", () => {
     expect(parsed.pipeline.files).toEqual(["ci/b.yml", "ci/a.yml", GITLAB_CI_FILE]);
   });
 
-  test("un fichier inclus deux fois entre deux fois : GitLab ne dédoublonne pas", () => {
+  test("a file included twice enters twice: GitLab does not deduplicate", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include:", "  - ci/a.yml", "  - ci/a.yml", ""].join("\n"),
       "ci/a.yml": JOB("a", "build"),
@@ -178,7 +178,7 @@ describe("résolution", () => {
     expect(parsed.pipeline.jobs.map((job) => job.id)).toEqual(["a"]);
   });
 
-  test("un cycle est signalé et la résolution aboutit", () => {
+  test("a cycle is reported and resolution completes", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/a.yml\n",
       "ci/a.yml": "include: .gitlab-ci.yml\n",
@@ -189,14 +189,14 @@ describe("résolution", () => {
     expect(cycle?.file).toBe("ci/a.yml");
   });
 
-  test("un fichier absent est signalé avec son chemin normalisé", () => {
+  test("a missing file is reported with its normalised path", () => {
     const parsed = parseTree({ [GITLAB_CI_FILE]: "include: /ci/absent.yml\n" });
     const found = parsed.diagnostics.find((entry) => entry.code === INCLUDE_NOT_FOUND);
     expect(found?.params).toEqual({ reason: "missing", path: "ci/absent.yml" });
     expect(found?.severity).toBe("error");
   });
 
-  test("une entrée d'include illisible est signalée et n'arrête pas les autres", () => {
+  test("an unreadable include entry is reported and does not stop the others", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include:", "  - 42", "  - ci/a.yml", ""].join("\n"),
       "ci/a.yml": JOB("a", "build"),
@@ -207,7 +207,7 @@ describe("résolution", () => {
     expect(parsed.pipeline.jobs.map((job) => job.id)).toEqual(["a"]);
   });
 
-  test("un joker prend les fichiers dans l'ordre lexicographique", () => {
+  test("a wildcard takes files in lexicographic order", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: configs/*.yml\n",
       "configs/c.yml": JOB("c", "build"),
@@ -215,7 +215,7 @@ describe("résolution", () => {
       "configs/b.yml": JOB("b", "build"),
       "configs/sous/z.yml": JOB("z", "build"),
     });
-    // `configs/sous/z.yml` est exclu : `*` ne traverse pas un séparateur.
+    // `configs/sous/z.yml` is excluded: `*` does not cross a separator.
     expect(parsed.pipeline.files).toEqual([
       "configs/a.yml",
       "configs/b.yml",
@@ -224,7 +224,7 @@ describe("résolution", () => {
     ]);
   });
 
-  test("la limite de fichiers inclus arrête la résolution", () => {
+  test("the included-file limit stops resolution", () => {
     const files: Record<string, string> = {
       [GITLAB_CI_FILE]: "include: ci/f0.yml\n",
     };
@@ -241,11 +241,11 @@ describe("résolution", () => {
     expect(
       parsed.diagnostics.filter((entry) => entry.code === INCLUDE_LIMIT_EXCEEDED),
     ).toHaveLength(1);
-    // Le fichier principal est toujours dans la liste : la limite borne les inclus, pas lui.
+    // The main file is always in the list: the limit bounds the included files, not it.
     expect(parsed.pipeline.files.length).toBe(MAX_INCLUDED_FILES + 1);
   });
 
-  test("sans lecteur, un include local est non résolu et non introuvable", () => {
+  test("without a reader, a local include is unresolved and not missing", () => {
     const text = "include: ci/jobs.yml\n";
     const parsed = parse(text, { file: GITLAB_CI_FILE });
 
@@ -256,8 +256,8 @@ describe("résolution", () => {
   });
 });
 
-describe("fusion des définitions", () => {
-  test("le fichier principal surcharge un job venu d'un include", () => {
+describe("merging definitions", () => {
+  test("the main file overrides a job coming from an include", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -275,13 +275,13 @@ describe("fusion des définitions", () => {
 
     const compile = parsed.pipeline.jobs.find((job) => job.id === "compile");
     expect(compile?.stage.value).toBe("test");
-    // Surchargé dans le principal, donc le principal le possède, donc il reste éditable.
+    // Overridden in the main file, so the main file owns it, so it stays editable.
     expect(compile?.file).toBe(GITLAB_CI_FILE);
-    // Le `script` vient toujours de l'include : rien n'est perdu par la surcharge.
+    // The `script` still comes from the include: nothing is lost by the override.
     expect(parsed.diagnostics.map((entry) => entry.code)).toEqual([]);
   });
 
-  test("un job qui n'est que dans un include appartient à ce fichier", () => {
+  test("a job that is only in an include belongs to that file", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include: ci/jobs.yml", "", "stages:", "  - build", ""].join("\n"),
       "ci/jobs.yml": JOB("compile", "build"),
@@ -289,7 +289,7 @@ describe("fusion des définitions", () => {
     expect(parsed.pipeline.jobs[0]?.file).toBe("ci/jobs.yml");
   });
 
-  test("entre deux includes, le dernier gagne", () => {
+  test("between two includes, the last one wins", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include:",
@@ -310,7 +310,7 @@ describe("fusion des définitions", () => {
     expect(compile?.file).toBe("ci/b.yml");
   });
 
-  test("la valeur héritée d'un include porte son fichier dans son origine", () => {
+  test("a value inherited from an include carries its file in its origin", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -332,7 +332,7 @@ describe("fusion des définitions", () => {
     });
   });
 
-  test("une liste stages déclarée dans un include est utilisée telle quelle", () => {
+  test("a stages list declared in an include is used as is", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/stages.yml\n",
       "ci/stages.yml": ["stages:", "  - preparer", "  - livrer", ""].join("\n"),
@@ -342,7 +342,7 @@ describe("fusion des définitions", () => {
     expect(parsed.pipeline.stages.every((stage) => stage.file === "ci/stages.yml")).toBe(true);
   });
 
-  test("une liste stages du fichier principal écrase celle de l'include, elle ne s'y ajoute pas", () => {
+  test("a stages list in the main file overrides the include's, it does not add to it", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include: ci/stages.yml", "", "stages:", "  - unique", ""].join("\n"),
       "ci/stages.yml": ["stages:", "  - preparer", "  - livrer", ""].join("\n"),
@@ -350,7 +350,7 @@ describe("fusion des définitions", () => {
     expect(parsed.pipeline.stages.map((stage) => stage.name)).toEqual(["unique"]);
   });
 
-  test("un extends traverse les fichiers", () => {
+  test("an extends crosses files", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/templates.yml",
@@ -381,7 +381,7 @@ describe("fusion des définitions", () => {
   });
 });
 
-describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
+describe("severity of EXTENDS_TARGET_NOT_FOUND", () => {
   const MAIN_WITH_ORPHAN = [
     "stages:",
     "  - build",
@@ -393,10 +393,10 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
     "",
   ].join("\n");
 
-  /** C'est l'écart du 2026-10-20 : la cible manquante était dégradée en avertissement dès qu'une
-   *  clé `include` existait, ce qui masquait de vraies erreurs. La dégradation suit désormais les
-   *  includes **non résolus**, pas la présence de la clé. */
-  test("tous les includes résolus : l'erreur retrouve sa sévérité", () => {
+  /** This is the gap of 2026-10-20: the missing target was downgraded to a warning as soon as an
+   *  `include` key existed, which masked real errors. The downgrade now follows **unresolved**
+   *  includes, not the presence of the key. */
+  test("all includes resolved: the error regains its severity", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: `include: ci/vide.yml\n\n${MAIN_WITH_ORPHAN}`,
       "ci/vide.yml": "variables:\n  A: 1\n",
@@ -407,7 +407,7 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
     ).toBe("error");
   });
 
-  test("un include distant non résolu peut expliquer l'absence : avertissement", () => {
+  test("an unresolved remote include may explain the absence: warning", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: `include:\n  - template: Jobs/SAST.gitlab-ci.yml\n\n${MAIN_WITH_ORPHAN}`,
     });
@@ -417,11 +417,11 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
     ).toBe("warning");
   });
 
-  /** Un include local cassé ne cache rien d'inconnu : sa cause est déjà une erreur nommée, à
-   *  corriger. Le dégrader remplacerait un fait par une hypothèse. Ce n'est vrai que parce que la
-   *  sévérité suit les includes **non cherchés ou hors de portée**, et non `Pipeline.unresolved`,
-   *  qui compte aussi les cassés parce qu'ils manquent à l'écran. */
-  test("un include local cassé, seul : erreur", () => {
+  /** A broken local include hides nothing unknown: its cause is already a named error, to be
+   *  fixed. Downgrading it would replace a fact with a hypothesis. This only holds because the
+   *  severity follows includes **not looked up or out of reach**, and not `Pipeline.unresolved`,
+   *  which also counts the broken ones because they are missing from the screen. */
+  test("a broken local include, alone: error", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: `include: /ci/absent.yml\n\n${MAIN_WITH_ORPHAN}`,
     });
@@ -432,7 +432,7 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
     ).toBe("error");
   });
 
-  test("un include local cassé à côté d'un distant : avertissement, le distant reste inconnu", () => {
+  test("a broken local include next to a remote one: warning, the remote one stays unknown", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include:",
@@ -448,14 +448,14 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
     ).toBe("warning");
   });
 
-  test("sans lecteur : avertissement, le local n'est pas cassé, il n'a pas été cherché", () => {
+  test("without a reader: warning, the local one is not broken, it was not looked up", () => {
     const parsed = parse(`include: /ci/jobs.yml\n\n${MAIN_WITH_ORPHAN}`);
     expect(
       parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
     ).toBe("warning");
   });
 
-  test("aucun include du tout : erreur, comme avant ce lot", () => {
+  test("no include at all: error, as before this milestone", () => {
     const parsed = parseTree({ [GITLAB_CI_FILE]: MAIN_WITH_ORPHAN });
     expect(
       parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
@@ -463,8 +463,8 @@ describe("sévérité d'EXTENDS_TARGET_NOT_FOUND", () => {
   });
 });
 
-describe("diagnostics attribués au bon fichier", () => {
-  test("un job sans script dans un include est reproché à l'include", () => {
+describe("diagnostics attributed to the right file", () => {
+  test("a job without script in an include is blamed on the include", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include: ci/jobs.yml", "", "stages:", "  - build", ""].join("\n"),
       "ci/jobs.yml": ["muet:", "  stage: build", ""].join("\n"),
@@ -473,20 +473,20 @@ describe("diagnostics attribués au bon fichier", () => {
     const found = parsed.diagnostics.find((entry) => entry.code === "JOB_WITHOUT_SCRIPT");
     expect(found?.file).toBe("ci/jobs.yml");
 
-    /* La plage est un offset dans le texte de **ce** fichier, et l'assertion le **découpe**. La
-       première version écrivait `expect(range ? "muet:" : "").toBe("muet:")` : un ternaire qui
-       rendait la chaîne littérale attendue dès que la plage existait, donc elle ne lisait aucun
-       octet et son commentaire surestimait tout ce qu'elle protégeait. Trouvée par la revue
-       indépendante du 2026-10-23, qui l'a mise en défaut avec une plage absurde. */
+    /* The range is an offset into the text of **this** file, and the assertion **slices** it. The
+       first version wrote `expect(range ? "muet:" : "").toBe("muet:")`: a ternary that returned
+       the expected literal string as soon as the range existed, so it read no byte and its
+       comment overstated everything it protected. Found by the independent review of
+       2026-10-23, which defeated it with an absurd range. */
     const range = found?.range;
     if (range === null || range === undefined) {
-      throw new Error("JOB_WITHOUT_SCRIPT sans plage");
+      throw new Error("JOB_WITHOUT_SCRIPT without a range");
     }
     const included = parsed.pipeline.files.includes("ci/jobs.yml") ? "muet:\n  stage: build\n" : "";
     expect(included.slice(range.start, range.end)).toStartWith("muet:");
   });
 
-  test("un YAML invalide dans un include est signalé avec son fichier", () => {
+  test("invalid YAML in an include is reported with its file", () => {
     expect(
       codes({
         [GITLAB_CI_FILE]: "include: ci/casse.yml\n",
@@ -506,17 +506,17 @@ describe("diagnostics attribués au bon fichier", () => {
   });
 });
 
-describe("un include local cassé rend le pipeline partiel", () => {
-  /** Trouvé par la passe `critique` du 2026-10-23, sur le golden du lot lui-même : l'arbre
-   *  `missing` rendait `jobs: []` et `unresolved: []`, donc `isPartial()` était **faux** sur le
-   *  défaut le plus courant d'un dépôt réel — une faute de frappe dans un chemin d'include. La
-   *  bande de pipeline partiel ne s'affichait pas, et l'écran laissait croire le pipeline complet
-   *  alors qu'il lui manquait tout ce que ce fichier apportait. */
+describe("a broken local include makes the pipeline partial", () => {
+  /** Found by the `critique` pass of 2026-10-23, on the milestone's own golden: the `missing`
+   *  tree returned `jobs: []` and `unresolved: []`, so `isPartial()` was **false** on the most
+   *  common defect of a real repository — a typo in an include path. The partial pipeline banner
+   *  did not show, and the screen suggested the pipeline was complete while it lacked everything
+   *  that file contributed. */
   const BROKEN = {
     [GITLAB_CI_FILE]: ["include: /ci/absent.yml", "", "stages:", "  - build", ""].join("\n"),
   };
 
-  test("un chemin absent rend le pipeline partiel", () => {
+  test("a missing path makes the pipeline partial", () => {
     const parsed = parseTree(BROKEN);
     expect(isPartial(parsed.pipeline)).toBe(true);
     expect(parsed.pipeline.unresolved).toEqual([
@@ -529,11 +529,11 @@ describe("un include local cassé rend le pipeline partiel", () => {
     ]);
   });
 
-  test("l'erreur n'est pas redite en info : un seul diagnostic par include cassé", () => {
+  test("the error is not repeated as info: a single diagnostic per broken include", () => {
     expect(codes(BROKEN)).toEqual([INCLUDE_NOT_FOUND]);
   });
 
-  test("les trois formes d'échec comptent toutes", () => {
+  test("all three failure forms count", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include:",
@@ -554,14 +554,14 @@ describe("un include local cassé rend le pipeline partiel", () => {
     ]);
   });
 
-  test("une entrée illisible garde sa valeur écrite, et aucune phrase de l'adaptateur", () => {
+  test("an unreadable entry keeps its written value, and no adapter sentence", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include:", "  - 42", ""].join("\n"),
     });
     expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["42"]);
   });
 
-  test("un include résolu ne compte pas, même à côté d'un cassé", () => {
+  test("a resolved include does not count, even next to a broken one", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include:", "  - /ci/bon.yml", "  - /ci/absent.yml", ""].join("\n"),
       "ci/bon.yml": JOB("a", "build"),
@@ -570,10 +570,10 @@ describe("un include local cassé rend le pipeline partiel", () => {
     expect(parsed.pipeline.jobs.map((entry) => entry.id)).toEqual(["a"]);
   });
 
-  /** Le cycle s'arrête sur un fichier **déjà lu** : le pipeline a bien reçu son contenu, donc il ne
-   *  devient pas partiel. La mesurer évite de transformer `isPartial` en « il y a eu un problème
-   *  quelque part ». La limite, elle, coupe du contenu : voir plus bas. */
-  test("un cycle ne rend pas le pipeline partiel : le contenu a bien été lu", () => {
+  /** The cycle stops on a file **already read**: the pipeline did receive its content, so it does
+   *  not become partial. Measuring this avoids turning `isPartial` into “there was a problem
+   *  somewhere”. The limit, on the other hand, cuts content: see below. */
+  test("a cycle does not make the pipeline partial: the content was read", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/a.yml\n",
       "ci/a.yml": `include: .gitlab-ci.yml\n\n${JOB("a", "build")}`,
@@ -584,13 +584,13 @@ describe("un include local cassé rend le pipeline partiel", () => {
   });
 });
 
-describe("précédence entre extends et définitions inter-fichiers", () => {
-  /** Trouvé par la revue indépendante du 2026-10-23. GitLab fusionne les includes puis le fichier
-   *  principal, et ne résout `extends` qu'ensuite, sur le job fusionné : les clés propres d'un job
-   *  battent toujours ses templates. Keelson faisait l'inverse, parce que les sources du template
-   *  du fichier principal arrivaient après la map de l'include — et la vue Pipeline plaçait donc le
-   *  job dans la mauvaise colonne. */
-  test("une valeur écrite dans l'include bat un extends écrit dans le fichier principal", () => {
+describe("precedence between extends and cross-file definitions", () => {
+  /** Found by the independent review of 2026-10-23. GitLab merges the includes then the main
+   *  file, and only resolves `extends` afterwards, on the merged job: a job's own keys always beat
+   *  its templates. Keelson did the opposite, because the main file's template sources arrived
+   *  after the include's map — and the Pipeline view therefore put the job in the wrong
+   *  column. */
+  test("a value written in the include beats an extends written in the main file", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -615,7 +615,7 @@ describe("précédence entre extends et définitions inter-fichiers", () => {
     });
   });
 
-  test("un extends apporte ce que le job ne déclare nulle part", () => {
+  test("an extends brings what the job declares nowhere", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -639,7 +639,7 @@ describe("précédence entre extends et définitions inter-fichiers", () => {
     expect(parsed.pipeline.jobs[0]?.stage.value).toBe("build");
   });
 
-  test("les extends des deux fichiers s'additionnent sans doublon", () => {
+  test("the extends of both files add up without duplicates", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -671,16 +671,15 @@ describe("précédence entre extends et définitions inter-fichiers", () => {
   });
 });
 
-describe("blocs opaques d'un job surchargé", () => {
-  /** Le défaut que la revue a trouvé **sur le golden du lot lui-même** : les blocs opaques étaient
-   *  pris sur la seule définition propriétaire, donc un job défini dans un include et surchargé
-   *  dans le fichier principal perdait à l'écran son `script` et ses `artifacts`. Le golden
-   *  `override` figeait `"opaque": []`.
+describe("opaque blocks of an overridden job", () => {
+  /** The defect the review found **on the milestone's own golden**: opaque blocks were taken from
+   *  the owning definition alone, so a job defined in an include and overridden in the main file
+   *  lost its `script` and `artifacts` on screen. The `override` golden froze `"opaque": []`.
    *
-   *  Pire que le défaut : le correctif existait, et l'une de mes restaurations de fichier pendant
-   *  une vérification rouge l'a détruit sans bruit. La régénération des goldens a ensuite béni la
-   *  régression. C'est pourquoi ce test lit les **clés et les fichiers**, pas un compte. */
-  test("les blocs opaques viennent de toutes les définitions, chacun avec son fichier", () => {
+   *  Worse than the defect: the fix existed, and one of my file restorations during a red check
+   *  destroyed it silently. Regenerating the goldens then blessed the regression. That is why
+   *  this test reads the **keys and files**, not a count. */
+  test("opaque blocks come from every definition, each with its file", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -716,7 +715,7 @@ describe("blocs opaques d'un job surchargé", () => {
     ]);
   });
 
-  test("une clé redéfinie ne garde que la dernière, avec le fichier qui gagne", () => {
+  test("a redefined key keeps only the last one, with the winning file", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -738,10 +737,10 @@ describe("blocs opaques d'un job surchargé", () => {
   });
 });
 
-describe("un !reference traverse les fichiers", () => {
-  /** Exigé par le lot L2b et annoncé dans son cadrage, puis jamais livré : la référence était
-   *  cherchée dans le seul fichier qui la porte, et un commentaire présentait cette limite comme
-   *  une règle de GitLab. Résultat : `stage` retombait sur le défaut, sans diagnostic. */
+describe("a !reference crosses files", () => {
+  /** Required by milestone L2b and announced in its scoping, then never delivered: the reference
+   *  was looked up in the single file carrying it, and a comment presented that limitation as a
+   *  GitLab rule. Result: `stage` fell back to the default, without a diagnostic. */
   const TREE = {
     [GITLAB_CI_FILE]: [
       "include: /ci/base.yml",
@@ -778,19 +777,19 @@ describe("un !reference traverse les fichiers", () => {
     return parseTree(TREE).pipeline.jobs.find((job) => job.id === "livrer");
   }
 
-  test("le stage référencé est celui du fichier inclus", () => {
+  test("the referenced stage is the included file's", () => {
     expect(livrer()?.stage).toEqual({
       value: "deploy",
       origin: { kind: "reference", path: [".base", "stage"] },
     });
   });
 
-  test("les needs et l'environnement référencés aussi", () => {
+  test("the referenced needs and environment too", () => {
     expect(livrer()?.needs?.value.map((need) => need.job)).toEqual(["compile"]);
     expect(livrer()?.environment?.value.name).toBe("production");
   });
 
-  test("le fichier principal gagne quand les deux définissent la cible", () => {
+  test("the main file wins when both define the target", () => {
     const parsed = parseTree({
       ...TREE,
       [GITLAB_CI_FILE]: `${TREE[GITLAB_CI_FILE]}\n.base:\n  stage: build\n`,
@@ -799,7 +798,7 @@ describe("un !reference traverse les fichiers", () => {
   });
 });
 
-describe("la cible d'un !reference suit la configuration fusionnée", () => {
+describe("the target of a !reference follows the merged configuration", () => {
   const ref = "deploy:\n  stage: !reference [.b, stage]\n  script:\n    - make\n";
 
   function stageOf(main: string, included: string): string | undefined {
@@ -810,28 +809,28 @@ describe("la cible d'un !reference suit la configuration fusionnée", () => {
     return parsed.pipeline.jobs.find((job) => job.id === "deploy")?.stage.value;
   }
 
-  /** `getIn` ne traverse ni alias ni clé de fusion : il rendait « absent », et la recherche
-   *  retombait sur un fichier antérieur, donc sur la valeur perdante. */
-  test("le fichier gagnant passe par un alias", () => {
+  /** `getIn` traverses neither aliases nor merge keys: it returned “absent”, and the lookup fell
+   *  back to an earlier file, hence to the losing value. */
+  test("the winning file goes through an alias", () => {
     expect(stageOf(".a: &a\n  stage: b\n.b: *a", ".b:\n  stage: c\n")).toBe("b");
   });
 
-  test("le fichier gagnant passe par une clé de fusion", () => {
+  test("the winning file goes through a merge key", () => {
     expect(stageOf(".a: &a\n  stage: b\n.b:\n  <<: *a", ".b:\n  stage: c\n")).toBe("b");
   });
 
-  test("la valeur visée est elle-même un alias", () => {
+  test("the targeted value is itself an alias", () => {
     expect(stageOf("x: &v b\n.b:\n  stage: *v", "")).toBe("b");
   });
 
-  /** Une valeur qui n'est pas une map remplace celle de l'include : il n'y a plus rien à trouver. */
-  test("une clé remplacée par un scalaire ne laisse pas passer l'include", () => {
+  /** A value that is not a map replaces the include's: there is nothing left to find. */
+  test("a key replaced by a scalar does not let the include through", () => {
     expect(stageOf(".b: 1", ".b:\n  stage: c\n")).toBe("test");
   });
 
-  /** Le dernier passage d'un fichier inclus deux fois gagne, pour `extends` comme pour
-   *  `!reference` : les deux ne doivent pas se contredire dans le même pipeline. */
-  test("un fichier inclus deux fois gagne à son dernier passage", () => {
+  /** The last occurrence of a file included twice wins, for `extends` as for `!reference`: the
+   *  two must not contradict each other in the same pipeline. */
+  test("a file included twice wins at its last occurrence", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include:",
@@ -858,13 +857,13 @@ describe("la cible d'un !reference suit la configuration fusionnée", () => {
   });
 });
 
-describe("include distant en forme courte", () => {
-  /** « If the file is a remote file, it is the same as include:remote » : une URL nue n'est pas un
-   *  chemin local. La traiter comme tel réécrivait l'URL, rendait une fausse erreur de fichier
-   *  absent, et faisait passer une cible `extends` absente en erreur. */
+describe("remote include in short form", () => {
+  /** “If the file is a remote file, it is the same as include:remote”: a bare URL is not a local
+   *  path. Treating it as one rewrote the URL, returned a false missing-file error, and turned a
+   *  missing `extends` target into an error. */
   const URL = "https://example.com/ci/base.yml";
 
-  test("une URL nue est un include remote, intacte", () => {
+  test("a bare URL is a remote include, intact", () => {
     const parsed = parseTree({ [GITLAB_CI_FILE]: `include: '${URL}'\n` });
     expect(parsed.pipeline.unresolved.map((entry) => [entry.form, entry.detail])).toEqual([
       ["remote", URL],
@@ -872,7 +871,7 @@ describe("include distant en forme courte", () => {
     expect(codes({ [GITLAB_CI_FILE]: `include: '${URL}'\n` })).toEqual([INCLUDE_UNRESOLVED]);
   });
 
-  test("dans une liste aussi, et la cible extends absente reste un avertissement", () => {
+  test("in a list too, and the missing extends target stays a warning", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include:",
@@ -890,7 +889,7 @@ describe("include distant en forme courte", () => {
     ).toBe("warning");
   });
 
-  test("un chemin local qui contient http n'est pas une URL", () => {
+  test("a local path containing http is not a URL", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/https.yml\n",
       "ci/https.yml": JOB("a", "build"),
@@ -899,9 +898,9 @@ describe("include distant en forme courte", () => {
   });
 });
 
-describe("limite d'includes et pipeline partiel", () => {
-  /** Ce que la limite coupe n'a pas été lu : le pipeline est donc partiel, et une cible `extends`
-   *  absente peut s'y trouver. La première version laissait `isPartial` à faux. */
+describe("include limit and partial pipeline", () => {
+  /** What the limit cuts was not read: the pipeline is therefore partial, and a missing `extends`
+   *  target may be in it. The first version left `isPartial` false. */
   function beyond(extra: string) {
     const files: Record<string, string> = { [GITLAB_CI_FILE]: `include: ci/f0.yml\n${extra}` };
     const total = MAX_INCLUDED_FILES + 5;
@@ -911,11 +910,11 @@ describe("limite d'includes et pipeline partiel", () => {
     return parseTree(files);
   }
 
-  test("le pipeline coupé par la limite est partiel", () => {
+  test("the pipeline cut by the limit is partial", () => {
     expect(isPartial(beyond("").pipeline)).toBe(true);
   });
 
-  test("une cible extends absente y reste un avertissement", () => {
+  test("a missing extends target stays a warning there", () => {
     const parsed = beyond("\norphelin:\n  extends: .absent\n  script:\n    - make\n");
     expect(
       parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,

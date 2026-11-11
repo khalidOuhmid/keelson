@@ -24,53 +24,53 @@ function error(detail = "broken"): Diagnostic {
 }
 
 describe("Loading", () => {
-  test("annonce le chargement à un lecteur d'écran", () => {
+  test("announces loading to a screen reader", () => {
     render(<Loading />);
     const status = screen.getByRole("status");
     expect(status.textContent).toMatch(/loading/i);
   });
 
-  test("le statut est poli, pour ne pas couper la lecture en cours", () => {
+  test("the status is polite, so as not to interrupt current reading", () => {
     render(<Loading />);
     expect(screen.getByRole("status").getAttribute("aria-live")).toBe("polite");
   });
 });
 
 describe("NoCiFile", () => {
-  test("dit qu'aucun fichier CI n'a été détecté", () => {
+  test("says that no CI file was detected", () => {
     render(<NoCiFile root="/depot" />);
     expect(screen.getByRole("heading", { name: /no ci file/i })).toBeDefined();
   });
 
-  test("nomme le dossier inspecté, pour que l'utilisateur sache où Keelson a cherché", () => {
+  test("names the inspected folder, so the user knows where Keelson looked", () => {
     render(<NoCiFile root="/depot/mon-projet" />);
     expect(screen.getByText(/\/depot\/mon-projet/)).toBeDefined();
   });
 
-  test("nomme le fichier attendu", () => {
+  test("names the expected file", () => {
     render(<NoCiFile root="/depot" />);
     expect(screen.getByText(/\.gitlab-ci\.yml/)).toBeDefined();
   });
 
-  test("n'offre aucune action d'édition", () => {
+  test("offers no editing action", () => {
     render(<NoCiFile root="/depot" />);
     expect(screen.queryAllByRole("button")).toEqual([]);
   });
 });
 
 describe("InvalidDocument", () => {
-  test("dit que le fichier est invalide et que l'édition est désactivée", () => {
+  test("says that the file is invalid and editing is disabled", () => {
     render(<InvalidDocument diagnostics={[error()]} />);
     expect(screen.getByRole("heading", { name: /cannot be parsed/i })).toBeDefined();
     expect(screen.getByText(/editing is disabled/i)).toBeDefined();
   });
 
-  test("affiche les diagnostics qui bloquent", () => {
+  test("shows the blocking diagnostics", () => {
     render(<InvalidDocument diagnostics={[error("inconsistent indentation")]} />);
     expect(screen.getByText(/inconsistent indentation/)).toBeDefined();
   });
 
-  test("n'affiche que les diagnostics d'erreur", () => {
+  test("shows only error diagnostics", () => {
     render(
       <InvalidDocument
         diagnostics={[
@@ -89,34 +89,34 @@ describe("InvalidDocument", () => {
     expect(screen.queryByText(/muet/)).toBeNull();
   });
 
-  test("dit que le fichier reste intact sur disque", () => {
+  test("says that the file stays intact on disk", () => {
     render(<InvalidDocument diagnostics={[error()]} />);
     expect(screen.getByText(/untouched/i)).toBeDefined();
   });
 
-  test("le bloc est une alerte pour un lecteur d'écran", () => {
+  test("the block is an alert for a screen reader", () => {
     render(<InvalidDocument diagnostics={[error()]} />);
     expect(screen.getByRole("alert")).toBeDefined();
   });
 });
 
 describe("DocumentRemoved", () => {
-  test("dit que le fichier a été supprimé sur disque", () => {
+  test("says that the file was deleted on disk", () => {
     render(<DocumentRemoved file=".gitlab-ci.yml" />);
     expect(screen.getByRole("heading", { name: /deleted/i })).toBeDefined();
   });
 
-  test("nomme le fichier disparu", () => {
+  test("names the missing file", () => {
     render(<DocumentRemoved file="ci/pipeline.yml" />);
     expect(screen.getByText(/ci\/pipeline\.yml/)).toBeDefined();
   });
 
-  test("dit que Keelson reprendra si le fichier revient", () => {
+  test("says that Keelson will resume if the file comes back", () => {
     render(<DocumentRemoved file=".gitlab-ci.yml" />);
     expect(screen.getByText(/reappears/i)).toBeDefined();
   });
 
-  test("le bloc est une alerte", () => {
+  test("the block is an alert", () => {
     render(<DocumentRemoved file=".gitlab-ci.yml" />);
     expect(screen.getByRole("alert")).toBeDefined();
   });
@@ -127,29 +127,29 @@ describe("NoticeBar", () => {
     return { kind, message } as Notice;
   }
 
-  test("n'affiche rien sans notice", () => {
+  test("shows nothing without a notice", () => {
     const { container } = render(<NoticeBar notice={null} onDismiss={() => {}} />);
     expect(container.textContent).toBe("");
   });
 
-  test("affiche le message de la notice", () => {
+  test("shows the notice message", () => {
     render(
       <NoticeBar notice={notice("reloaded", "rechargé depuis le disque")} onDismiss={() => {}} />,
     );
     expect(screen.getByText(/rechargé depuis le disque/)).toBeDefined();
   });
 
-  test("une notice stale est une alerte, elle porte une conséquence", () => {
+  test("a stale notice is an alert: it carries a consequence", () => {
     render(<NoticeBar notice={notice("stale")} onDismiss={() => {}} />);
     expect(screen.getByRole("alert")).toBeDefined();
   });
 
-  test("une notice reloaded est un statut poli, elle est informative", () => {
+  test("a reloaded notice is a polite status: it is informative", () => {
     render(<NoticeBar notice={notice("reloaded")} onDismiss={() => {}} />);
     expect(screen.getByRole("status")).toBeDefined();
   });
 
-  test("chaque variante est nommée en texte, pas seulement par la couleur", () => {
+  test("each variant is named in text, not only by colour", () => {
     for (const [kind, label] of [
       ["stale", /not applied/i],
       ["reloaded", /reloaded/i],
@@ -161,7 +161,7 @@ describe("NoticeBar", () => {
     }
   });
 
-  test("la notice est refermable", async () => {
+  test("the notice can be dismissed", async () => {
     let dismissed = 0;
     render(
       <NoticeBar
@@ -175,7 +175,7 @@ describe("NoticeBar", () => {
     expect(dismissed).toBe(1);
   });
 
-  test("le bouton de fermeture est atteignable au clavier", () => {
+  test("the close button is reachable from the keyboard", () => {
     render(<NoticeBar notice={notice("stale")} onDismiss={() => {}} />);
     expect(screen.getByRole("button", { name: /dismiss/i }).getAttribute("tabindex")).not.toBe(
       "-1",

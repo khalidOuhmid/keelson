@@ -65,8 +65,8 @@ const PIPELINE = pipeline(
   ],
 );
 
-describe("nœuds de colonne", () => {
-  test("une colonne par stage, avant les jobs dans l'ordre de rendu", () => {
+describe("column nodes", () => {
+  test("one column per stage, before the jobs in render order", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     const columns = graph.nodes.filter((node) => node.type === COLUMN_NODE_TYPE);
     expect(columns.map((node) => node.data.name)).toEqual(["build", "test"]);
@@ -75,7 +75,7 @@ describe("nœuds de colonne", () => {
     );
   });
 
-  test("les colonnes ne sont ni déplaçables ni sélectionnables", () => {
+  test("columns are neither draggable nor selectable", () => {
     for (const node of toFlowGraph(LAYOUT, PIPELINE, null).nodes.filter(
       (candidate) => candidate.type === COLUMN_NODE_TYPE,
     )) {
@@ -84,7 +84,7 @@ describe("nœuds de colonne", () => {
     }
   });
 
-  test("une colonne porte son nombre de jobs et son caractère implicite", () => {
+  test("a column carries its job count and whether it is implicit", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     const test = graph.nodes.find(
       (node) => node.type === COLUMN_NODE_TYPE && node.data.name === "test",
@@ -93,7 +93,7 @@ describe("nœuds de colonne", () => {
     expect(test?.data.implicit).toBe(false);
   });
 
-  test("un stage implicite est signalé dans les données du nœud", () => {
+  test("an implicit stage is flagged in the node data", () => {
     const implicite = toFlowGraph(
       { ...LAYOUT, columns: LAYOUT.columns.slice(0, 1).map((c) => ({ ...c, implicit: true })) },
       PIPELINE,
@@ -102,7 +102,7 @@ describe("nœuds de colonne", () => {
     expect(implicite?.data.implicit).toBe(true);
   });
 
-  test("les jobs sont décalés sous l'en-tête de colonne, qu'ils ne doivent pas recouvrir", () => {
+  test("jobs are offset below the column header, which they must not cover", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null, 32);
     const column = graph.nodes.find((node) => node.type === COLUMN_NODE_TYPE);
     const job = graph.nodes.find((node) => node.type === JOB_NODE_TYPE);
@@ -110,18 +110,18 @@ describe("nœuds de colonne", () => {
     expect(job?.position.y).toBeGreaterThanOrEqual(32);
   });
 
-  test("la colonne est assez haute pour contenir son en-tête et ses jobs", () => {
+  test("the column is tall enough to hold its header and its jobs", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null, 32);
     const column = graph.nodes.find((node) => node.type === COLUMN_NODE_TYPE);
     expect(column?.height ?? 0).toBeGreaterThanOrEqual(LAYOUT.height + 32);
   });
 
-  test("sans décalage demandé, les jobs gardent la position de la mise en page", () => {
+  test("with no offset requested, jobs keep the layout position", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     expect(graph.nodes.find((node) => node.id === "unit")?.position).toEqual({ x: 280, y: 0 });
   });
 
-  test("les colonnes sont sous les jobs", () => {
+  test("columns sit below the jobs", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     const column = graph.nodes.find((node) => node.type === COLUMN_NODE_TYPE);
     const job = graph.nodes.find((node) => node.type === JOB_NODE_TYPE);
@@ -129,8 +129,8 @@ describe("nœuds de colonne", () => {
   });
 });
 
-describe("nœuds de job", () => {
-  test("un nœud par job, positionné par la mise en page", () => {
+describe("job nodes", () => {
+  test("one node per job, positioned by the layout", () => {
     const jobs = toFlowGraph(LAYOUT, PIPELINE, null).nodes.filter(
       (node) => node.type === JOB_NODE_TYPE,
     );
@@ -138,7 +138,7 @@ describe("nœuds de job", () => {
     expect(jobs[1]?.position).toEqual({ x: 280, y: 0 });
   });
 
-  test("le nœud porte son stage et l'origine de ce stage", () => {
+  test("the node carries its stage and that stage's origin", () => {
     const graph = toFlowGraph(
       LAYOUT,
       pipeline(
@@ -156,7 +156,7 @@ describe("nœuds de job", () => {
     expect(compile?.data.stageOrigin).toEqual({ kind: "extends", template: ".base" });
   });
 
-  test("le nœud liste ses needs avec leur caractère optionnel", () => {
+  test("the node lists its needs and whether they are optional", () => {
     const unit = toFlowGraph(LAYOUT, PIPELINE, null).nodes.find((node) => node.id === "unit");
     expect(unit?.data.needs).toEqual([
       { job: "compile", optional: false },
@@ -164,18 +164,18 @@ describe("nœuds de job", () => {
     ]);
   });
 
-  test("un job sans needs porte une liste vide", () => {
+  test("a job without needs carries an empty list", () => {
     const compile = toFlowGraph(LAYOUT, PIPELINE, null).nodes.find((node) => node.id === "compile");
     expect(compile?.data.needs).toEqual([]);
   });
 
-  test("le job sélectionné est marqué", () => {
+  test("the selected job is marked", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, "unit");
     expect(graph.nodes.find((node) => node.id === "unit")?.data.selected).toBe(true);
     expect(graph.nodes.find((node) => node.id === "compile")?.data.selected).toBe(false);
   });
 
-  test("un nœud sans entrée dans la mise en page est ignoré", () => {
+  test("a node with no layout entry is ignored", () => {
     const graph = toFlowGraph({ ...LAYOUT, nodes: LAYOUT.nodes.slice(0, 1) }, PIPELINE, null);
     expect(
       graph.nodes.filter((node) => node.type === JOB_NODE_TYPE).map((node) => node.id),
@@ -183,8 +183,8 @@ describe("nœuds de job", () => {
   });
 });
 
-describe("arêtes", () => {
-  test("une arête par need, de la cible vers le dépendant", () => {
+describe("edges", () => {
+  test("one edge per need, from the target to the dependent", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     expect(graph.edges.map((edge) => [edge.source, edge.target])).toEqual([
       ["compile", "unit"],
@@ -192,7 +192,7 @@ describe("arêtes", () => {
     ]);
   });
 
-  test("un need optionnel porte un style distinct", () => {
+  test("an optional need has a distinct style", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     const required = graph.edges.find((edge) => edge.id === "compile->unit");
     const optional = graph.edges.find((edge) => edge.id === "lint->unit");
@@ -202,26 +202,26 @@ describe("arêtes", () => {
     expect(required?.style?.strokeDasharray).toBeUndefined();
   });
 
-  test("les arêtes du job sélectionné sont mises en avant", () => {
+  test("the selected job's edges are highlighted", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, "unit");
     for (const edge of graph.edges) {
       expect(edge.data?.highlighted).toBe(true);
     }
   });
 
-  test("les arêtes étrangères au job sélectionné ne le sont pas", () => {
+  test("edges unrelated to the selected job are not", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, "compile");
     expect(graph.edges.find((edge) => edge.id === "lint->unit")?.data?.highlighted).toBe(false);
     expect(graph.edges.find((edge) => edge.id === "compile->unit")?.data?.highlighted).toBe(true);
   });
 
-  test("chaque arête est sélectionnable pour pouvoir être supprimée", () => {
+  test("every edge is selectable so it can be deleted", () => {
     for (const edge of toFlowGraph(LAYOUT, PIPELINE, null).edges) {
       expect(edge.selectable).toBe(true);
     }
   });
 
-  test("les arêtes portent un libellé accessible nommant les deux jobs", () => {
+  test("edges carry an accessible label naming both jobs", () => {
     const optional = toFlowGraph(LAYOUT, PIPELINE, null).edges.find(
       (edge) => edge.id === "lint->unit",
     );
@@ -231,8 +231,8 @@ describe("arêtes", () => {
   });
 });
 
-describe("pipeline vide", () => {
-  test("aucun job ne produit aucun nœud de job", () => {
+describe("empty pipeline", () => {
+  test("no jobs produce no job nodes", () => {
     const graph = toFlowGraph(
       { nodes: [], edges: [], columns: [], height: 0 },
       pipeline([], []),
@@ -242,7 +242,7 @@ describe("pipeline vide", () => {
     expect(graph.edges).toEqual([]);
   });
 
-  test("des stages sans job gardent leurs colonnes", () => {
+  test("stages without jobs keep their columns", () => {
     const graph = toFlowGraph(
       {
         nodes: [],
@@ -258,11 +258,11 @@ describe("pipeline vide", () => {
   });
 });
 
-describe("l'arête mise en avant se voit", () => {
-  /** `EdgeData.highlighted` était calculé et testé, et consommé par aucun composant : les arêtes
-   *  rendaient au trait par défaut de la lib et la sélection n'avait aucun effet visuel sur elles.
-   *  La règle de frontière de test du rendu l'interdit — branché ou supprimé. */
-  test("la sélection change le trait et la graisse, par tokens", () => {
+describe("the highlighted edge is visible", () => {
+  /** `EdgeData.highlighted` was computed and tested, and consumed by no component: edges
+   *  rendered with the library's default stroke and selection had no visual effect on them.
+   *  The render test boundary rule forbids that — wire it or remove it. */
+  test("selection changes stroke and weight, through tokens", () => {
     const selected = toFlowGraph(LAYOUT, PIPELINE, "lint");
     const highlighted = selected.edges.find((edge) => edge.data?.highlighted === true);
     const plain = selected.edges.find((edge) => edge.data?.highlighted !== true);

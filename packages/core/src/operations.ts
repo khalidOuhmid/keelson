@@ -32,8 +32,8 @@ export {
   UNSUPPORTED_VERSION,
 } from "./messages/codes.ts";
 
-/** Union discriminée, comme `Diagnostic`, et pour la même raison. `details` n'existe plus : ce qui
- *  décrivait l'erreur est dans `params`, qui est typé par code. */
+/** Discriminated union, like `Diagnostic`, and for the same reason. `details` no longer exists:
+ *  what described the error is in `params`, which is typed per code. */
 export type OperationError = {
   [C in OperationErrorCode]: { code: C; params: ParamsOf<C> };
 }[OperationErrorCode];
@@ -146,7 +146,7 @@ export const spliceSchema = z
   })
   .strict();
 
-/** Le YAML d'un seul job, recopié tel quel : seules sa clé et son `stage` sont remplacés. */
+/** The YAML of a single job, copied as is: only its key and its `stage` are replaced. */
 export const addSnippetSchema = z
   .object({
     ...base,
@@ -159,8 +159,8 @@ export const addSnippetSchema = z
 
 const WITHOUT_ANCHOR = { v: true, baseHash: true } as const;
 
-/** Seules les étapes qui ajoutent : une composite annule d'un coup, donc elle ne doit rien
- *  pouvoir perdre qu'un seul `splice` ne rende (ADR 0012). */
+/** Only the steps that add: a composite undoes in one go, so it must not be able to lose anything
+ *  a single `splice` would not give back (ADR 0012). */
 const stepSchema = z.discriminatedUnion("kind", [
   addStageSchema.omit(WITHOUT_ANCHOR),
   addJobSchema.omit(WITHOUT_ANCHOR),
@@ -205,7 +205,7 @@ export function parseOperation(input: unknown): Result<Operation, OperationError
   return validatedOperation(input, operationSchema);
 }
 
-/** Le contrôle commun aux deux familles d'opérations : celles du CI et celles de la toolchain. */
+/** The check shared by both operation families: CI operations and toolchain operations. */
 export function validatedOperation<T>(
   input: unknown,
   schema: z.ZodType<T>,

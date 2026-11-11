@@ -40,14 +40,14 @@ afterEach(async () => {
 });
 
 describe("workspace GitHub Actions", () => {
-  test("détecte chaque workflow, trié, et rien d'autre", () => {
+  test("detects every workflow, sorted, and nothing else", () => {
     expect(detectWorkspace(root)).toEqual([
       { path: ".github/workflows/ci.yml", adapter: "github" },
       { path: ".github/workflows/release.yaml", adapter: "github" },
     ]);
   });
 
-  test(".gitlab-ci.yml passe en premier", () => {
+  test(".gitlab-ci.yml comes first", () => {
     writeFileSync(join(root, ".gitlab-ci.yml"), "a:\n  script: x\n");
     expect(detectWorkspace(root).map((file) => file.adapter)).toEqual([
       "gitlab",
@@ -56,15 +56,15 @@ describe("workspace GitHub Actions", () => {
     ]);
   });
 
-  test("un dépôt sans dossier .github ne lève pas", () => {
+  test("a repository without a .github directory does not throw", () => {
     const empty = mkdtempSync(join(tmpdir(), "keelson-none-"));
     expect(detectWorkspace(empty)).toEqual([]);
     rmSync(empty, { recursive: true });
   });
 });
 
-describe("plusieurs fichiers", () => {
-  test("une intégration vers un job d'un autre workflow n'est pas une erreur à l'écran", async () => {
+describe("several files", () => {
+  test("an integration to a job in another workflow is not an on-screen error", async () => {
     mkdirSync(join(root, ".devsecops"));
     writeFileSync(
       join(root, ".devsecops/toolchain.yaml"),
@@ -76,7 +76,7 @@ describe("plusieurs fichiers", () => {
     expect(body.diagnostics.map((entry) => entry.code)).not.toContain("TOOLCHAIN_UNKNOWN_JOB");
   });
 
-  test("layout.json prévient chaque fichier ouvert", async () => {
+  test("layout.json notifies every open file", async () => {
     await api(documentPath(".github/workflows/ci.yml"));
     await api(documentPath(".github/workflows/release.yaml"));
     const stream = await fetch(`http://127.0.0.1:${server.port}/api/events?token=${server.token}`);
@@ -98,8 +98,8 @@ describe("plusieurs fichiers", () => {
   });
 });
 
-describe("un fichier voisin que le parseur ne sait pas lire", () => {
-  test("le document sain s'ouvre quand même", async () => {
+describe("a neighbouring file the parser cannot read", () => {
+  test("the healthy document still opens", async () => {
     await server.close();
     writeFileSync(join(root, ".gitlab-ci.yml"), "job:\n  script: &s [x, *s]\n");
     server = await createServer({ root, port: 0 });
@@ -107,8 +107,8 @@ describe("un fichier voisin que le parseur ne sait pas lire", () => {
   });
 });
 
-describe("documents GitHub", () => {
-  test("GET rend l'IR, le fournisseur et la couverture", async () => {
+describe("GitHub documents", () => {
+  test("GET returns the IR, the provider and coverage", async () => {
     const body = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
       pipeline: { provider: string; jobs: { id: string }[] };
       coverage: { jobs: { job: string; layers: string[] }[] };
@@ -117,14 +117,14 @@ describe("documents GitHub", () => {
     expect(body.coverage.jobs[0]?.layers).toContain("sca");
   });
 
-  test("une action officielle compte dans la couverture", async () => {
+  test("an official action counts towards coverage", async () => {
     const body = (await (await api(documentPath(".github/workflows/release.yaml"))).json()) as {
       coverage: { jobs: { layers: string[] }[] };
     };
     expect(body.coverage.jobs[0]?.layers).toContain("secrets");
   });
 
-  test("une opération écrit le bon fichier", async () => {
+  test("an operation writes the right file", async () => {
     await api(documentPath(".github/workflows/ci.yml"));
     const response = await api(`${documentPath(".github/workflows/ci.yml")}/operations`, {
       method: "POST",
@@ -138,7 +138,7 @@ describe("documents GitHub", () => {
     expect(readFileSync(join(root, ".github/workflows/release.yaml"), "utf8")).toBe(REL);
   });
 
-  test("une opération sans objet ici rend 422", async () => {
+  test("an operation that makes no sense here returns 422", async () => {
     await api(documentPath(".github/workflows/ci.yml"));
     const response = await api(`${documentPath(".github/workflows/ci.yml")}/operations`, {
       method: "POST",
@@ -150,7 +150,7 @@ describe("documents GitHub", () => {
     expect(response.status).toBe(422);
   });
 
-  test("la toolchain voit les jobs de tous les workflows", async () => {
+  test("the toolchain sees the jobs of every workflow", async () => {
     mkdirSync(join(root, ".devsecops"));
     writeFileSync(
       join(root, ".devsecops/toolchain.yaml"),

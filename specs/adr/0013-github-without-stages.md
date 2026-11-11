@@ -1,25 +1,25 @@
-# ADR 0013 — GitHub Actions n'a pas de stages : ils sont dérivés
+# ADR 0013 — GitHub Actions has no stages: they are derived
 
-**Statut** : accepté, 2026-11-05.
+**Status**: accepted, 2026-11-05.
 
-## Contexte
+## Context
 
-L'IR et la vue Pipeline sont organisées en stages. Un workflow n'en a pas : l'ordre vient de `needs`.
-Un job par workflow et un graphe sans colonnes demanderaient une seconde vue, et un nouveau champ
-partout où l'IR dit `stage`.
+The IR and the Pipeline view are organized in stages. A workflow has none: order comes from
+`needs`. One job per workflow and a graph without columns would require a second view, and a new
+field everywhere the IR says `stage`.
 
-## Décision
+## Decision
 
-L'adaptateur dérive des stages implicites : `level 1` pour les jobs sans `needs`, puis un niveau de
-plus que le plus haut de ses dépendances. Rien de cela n'existe dans le fichier. `Pipeline.provider`
-vaut `github`, et l'UI retire ce qui n'a pas de sens : contrôles de stages, stage d'un job, `optional`
-et `artifacts` d'un need. `addStage`, `moveStage` et `setJobStage` sont refusés par
-`INVALID_OPERATION notForProvider`, comme un need à options.
+The adapter derives implicit stages: `level 1` for jobs without `needs`, then one level above the
+highest of a job's dependencies. None of this exists in the file. `Pipeline.provider` is `github`,
+and the UI removes what makes no sense: stage controls, a job's stage, a need's `optional` and
+`artifacts`. `addStage`, `moveStage` and `setJobStage` are refused with
+`INVALID_OPERATION notForProvider`, like a need with options.
 
-Un job `uses:` appelle un workflow réutilisable que Keelson ne lit pas : `WORKFLOW_UNRESOLVED`, et
-`Pipeline.unresolved` le compte, donc la couverture est une borne basse.
+A `uses:` job calls a reusable workflow that Keelson does not read: `WORKFLOW_UNRESOLVED`, and
+`Pipeline.unresolved` counts it, so coverage is a lower bound.
 
-## Conséquences
+## Consequences
 
-Chaque workflow est un document : un dépôt en a plusieurs, et le workspace les liste tous. Les goldens
-de GitLab ne bougent pas, `provider` y est absent.
+Each workflow is a document: a repository has several, and the workspace lists them all. The GitLab
+goldens do not change; `provider` is absent from them.

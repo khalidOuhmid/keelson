@@ -57,24 +57,24 @@ function pipeline(jobs: Job[], unresolved: Pipeline["unresolved"] = []): Pipelin
   };
 }
 
-describe("intégrations détectées", () => {
+describe("detected integrations", () => {
   const service = tool("nexus", { kind: "service", integration: "push" });
 
-  test("le script d'un job nomme un service qui porte une intégration", () => {
+  test("a job script naming a service that carries an integration", () => {
     expect(detectIntegrations({ image: null, script: ["nexus upload"] }, [service])).toEqual([
       { tool: "nexus", kind: "push" },
     ]);
   });
 
-  test("l'image seule ne prouve pas l'intégration", () => {
+  test("the image alone does not prove the integration", () => {
     expect(detectIntegrations({ image: "exemple/nexus", script: [] }, [service])).toEqual([]);
   });
 
-  test("un outil sans intégration ne propose rien", () => {
+  test("a tool without integration proposes nothing", () => {
     expect(detectIntegrations({ image: null, script: ["trivy"] }, [tool("trivy")])).toEqual([]);
   });
 
-  test("un service couvre une couche, et le résultat le nomme", () => {
+  test("a service covers a layer, and the result names it", () => {
     const result = coverage(
       pipeline([]),
       [tool("gitea", { kind: "service", layers: ["scm"] })],
@@ -86,7 +86,7 @@ describe("intégrations détectées", () => {
     expect(entry).toEqual({ layer: "scm", covered: true, jobs: [], services: ["git"] });
   });
 
-  test("un service dont l'outil est inconnu ne couvre rien", () => {
+  test("a service whose tool is unknown covers nothing", () => {
     const result = coverage(
       pipeline([]),
       [],
@@ -98,8 +98,8 @@ describe("intégrations détectées", () => {
   });
 });
 
-describe("les fiches réelles", () => {
-  test("les outils de plateforme obligatoires disent leur intégration", () => {
+describe("the real catalogue entries", () => {
+  test("mandatory platform tools declare their integration", () => {
     const of = (id: string) => catalogTool(id).integration;
     expect(of("nexus")).toBe("push");
     expect(of("harbor")).toBe("push");
@@ -122,7 +122,7 @@ describe("les fiches réelles", () => {
     ["(trivy fs .)", "trivy"],
     ["time(trivy fs .)", "trivy"],
     ['bash -c "semgrep scan"', "semgrep"],
-  ])("le script %s nomme %s", (line, tool) => {
+  ])("script %s names %s", (line, tool) => {
     expect(found({ image: null, script: [line] })).toContain(tool);
   });
 
@@ -131,11 +131,11 @@ describe("les fiches réelles", () => {
     "zaproxy/zap-weekly",
     "ghcr.io/zaproxy/zaproxy:stable",
     "owasp/zap2docker-stable",
-  ])("l'image officielle %s est ZAP", (image) => {
+  ])("official image %s is ZAP", (image) => {
     expect(found({ image, script: [] })).toContain("zap");
   });
 
-  test("le script d'un snippet ne revendique que les couches de sa fiche", () => {
+  test("a snippet script claims only the layers of its own entry", () => {
     const foreign = catalog.tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;
       if (snippet === null) {
@@ -145,18 +145,18 @@ describe("les fiches réelles", () => {
       const script = Object.values(jobs).flatMap((job) => job.script ?? []);
       return detectTools({ image: null, script }, catalog.tools)
         .filter((entry) => entry.layers.some((layer) => !tool.layers.includes(layer)))
-        .map((entry) => `${tool.id} détecte ${entry.tool}`);
+        .map((entry) => `${tool.id} detects ${entry.tool}`);
     });
     expect(foreign).toEqual([]);
   });
 
-  test("un mot dans une chaîne n'est pas une commande", () => {
+  test("a word inside a string is not a command", () => {
     expect(
       found({ image: null, script: ['curl -F scan_type="Trivy Scan" https://x'] }),
     ).not.toContain("trivy");
   });
 
-  test("chaque image de snippet GitLab est reconnue par sa propre fiche", () => {
+  test("every GitLab snippet image is recognised by its own entry", () => {
     const missed = catalog.tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;
       if (snippet === null) {
@@ -174,33 +174,33 @@ describe("les fiches réelles", () => {
   });
 });
 
-describe("détection", () => {
-  test("sur l'image, sans tenir compte de la casse ni du tag", () => {
+describe("detection", () => {
+  test("on the image, ignoring case and tag", () => {
     expect(detectTools({ image: "Exemple/Outil:1.2", script: [] }, [tool("outil")])).toEqual([
       { tool: "outil", layers: ["sast"] },
     ]);
   });
 
-  test("sur le script", () => {
+  test("on the script", () => {
     expect(detectTools({ image: null, script: ["./run", "outil --x"] }, [tool("outil")])).toEqual([
       { tool: "outil", layers: ["sast"] },
     ]);
   });
 
-  test("un mot qui contient le nom ne correspond pas", () => {
+  test("a word containing the name does not match", () => {
     expect(detectTools({ image: null, script: ["outillage"] }, [tool("outil")])).toEqual([]);
   });
 
-  test("un job peut correspondre à plusieurs outils", () => {
+  test("a job can match several tools", () => {
     const found = detectTools({ image: null, script: ["a && b"] }, [tool("a"), tool("b")]);
     expect(found.map((entry) => entry.tool)).toEqual(["a", "b"]);
   });
 
-  test("le script ne tient pas compte de la casse", () => {
+  test("the script ignores case", () => {
     expect(detectTools({ image: null, script: ["OUTIL --x"] }, [tool("outil")])).toHaveLength(1);
   });
 
-  test("un miroir ou un registre privé reste la même image", () => {
+  test("a mirror or a private registry is still the same image", () => {
     const found = (image: string) =>
       detectTools({ image, script: [] }, [
         tool("trivy", { detect: { images: ["aquasec/trivy"], scripts: [], actions: [] } }),
@@ -210,7 +210,7 @@ describe("détection", () => {
     expect(found("mycorp/trivy-report-uploader")).toEqual([]);
   });
 
-  /** Sur le vrai catalogue, parce que les faux positifs viennent de ses regex et non du moteur. */
+  /** On the real catalogue, because false positives come from its regexes, not from the engine. */
   test.each([
     ["make test", []],
     ["npm run build", []],
@@ -242,10 +242,10 @@ describe("détection", () => {
   });
 });
 
-describe("couverture", () => {
+describe("coverage", () => {
   const CATALOG = [tool("a", { layers: ["sast", "sca"] }), tool("b", { layers: ["dast"] })];
 
-  test("une couche couverte nomme ses jobs, et les autres sont listées non couvertes", () => {
+  test("a covered layer names its jobs, and the others are listed as uncovered", () => {
     const result = coverage(pipeline([job("x", null, ["a"]), job("y", null, ["a"])]), CATALOG);
     expect(result.layers.find((entry) => entry.layer === "sast")).toEqual({
       layer: "sast",
@@ -257,13 +257,13 @@ describe("couverture", () => {
     expect(result.layers).toHaveLength(21);
   });
 
-  test("chaque job porte ses couches et ses outils", () => {
+  test("each job carries its layers and its tools", () => {
     expect(coverage(pipeline([job("x", null, ["a"])]), CATALOG).jobs).toEqual([
       { job: "x", layers: ["sca", "sast"], tools: ["a"], overridden: false },
     ]);
   });
 
-  test("une surcharge remplace la détection, l'outil détecté reste nommé", () => {
+  test("an override replaces detection, the detected tool stays named", () => {
     const result = coverage(pipeline([job("x", null, ["a"])]), CATALOG, { x: ["dast"] });
     expect(result.jobs[0]).toEqual({
       job: "x",
@@ -274,36 +274,36 @@ describe("couverture", () => {
     expect(result.layers.find((entry) => entry.layer === "sast")?.covered).toBe(false);
   });
 
-  test("une surcharge vide neutralise un faux positif", () => {
+  test("an empty override disables a false positive", () => {
     const result = coverage(pipeline([job("x", null, ["a"])]), CATALOG, { x: [] });
     expect(result.jobs[0]?.layers).toEqual([]);
   });
 
-  test("une surcharge s'applique à un job sans détection", () => {
+  test("an override applies to a job without detection", () => {
     const result = coverage(pipeline([job("x", null)]), CATALOG, { x: ["iast"] });
     expect(result.layers.find((entry) => entry.layer === "iast")?.jobs).toEqual(["x"]);
   });
 
-  test("une clé héritée d'Object n'est pas une surcharge", () => {
+  test("a key inherited from Object is not an override", () => {
     expect(coverage(pipeline([job("constructor", null)]), CATALOG).jobs[0]?.overridden).toBe(false);
   });
 
-  test("un fichier illisible rend aussi la couverture partielle", () => {
+  test("an unreadable file also makes coverage partial", () => {
     const broken = [
       { code: "INVALID_YAML", severity: "error", params: { detail: "x" }, range: null, file: "a" },
     ] as const;
     expect(coverage(pipeline([]), CATALOG, {}, [...broken]).partial).toBe(true);
   });
 
-  test("un pipeline partiel rend une couverture partielle", () => {
+  test("a partial pipeline yields partial coverage", () => {
     const unresolved = [{ form: "remote" as const, detail: "x", from: "a", range: null }];
     expect(coverage(pipeline([], unresolved), CATALOG).partial).toBe(true);
     expect(coverage(pipeline([]), CATALOG).partial).toBe(false);
   });
 });
 
-describe("deux workflows, un même nom de job", () => {
-  test("une couche ne nomme le job qu'une fois", () => {
+describe("two workflows, one job name", () => {
+  test("a layer names the job only once", () => {
     const twice = [job("x", null, ["a"]), job("x", null, ["a"])];
     const entry = coverage(pipeline(twice), [
       tool("a", { detect: { images: [], scripts: ["\\ba\\b"], actions: [] } }),
@@ -312,31 +312,31 @@ describe("deux workflows, un même nom de job", () => {
   });
 });
 
-describe("actions GitHub", () => {
+describe("GitHub actions", () => {
   const catalog = loadCatalog();
   const found = (signals: { image: string | null; actions: string[] }) =>
     detectTools({ ...signals, script: [] }, catalog.tools).map((entry) => entry.tool);
 
-  test("envoyer un SARIF n'est pas analyser", () => {
+  test("uploading a SARIF is not analysing", () => {
     expect(found({ image: null, actions: ["github/codeql-action/upload-sarif@v3"] })).toEqual([]);
     expect(found({ image: null, actions: ["github/codeql-action/analyze@v3"] })).toContain(
       "codeql",
     );
   });
 
-  test("un docker:// compte comme une image, même derrière un container", () => {
+  test("a docker:// counts as an image, even behind a container", () => {
     expect(found({ image: "node:20", actions: ["docker://aquasec/trivy"] })).toContain("trivy");
   });
 });
 
-describe("découpage shell sur une entrée hostile", () => {
+describe("shell splitting on hostile input", () => {
   const catalog = loadCatalog();
   test.each([
-    ["$( imbriqués", "$(".repeat(5000)],
-    ["sh -c imbriqués", "bash -c ".repeat(5000)],
-    ["kubectl exec imbriqués", "kubectl exec a -- ".repeat(5000)],
-    ["une ligne immense", "a ".repeat(500000)],
-  ])("%s ne plante pas et reste rapide", (_label, line) => {
+    ["nested $(", "$(".repeat(5000)],
+    ["nested sh -c", "bash -c ".repeat(5000)],
+    ["nested kubectl exec", "kubectl exec a -- ".repeat(5000)],
+    ["a huge line", "a ".repeat(500000)],
+  ])("%s does not crash and stays fast", (_label, line) => {
     const started = performance.now();
     expect(() => detectTools({ image: null, script: [line] }, catalog.tools)).not.toThrow();
     expect(performance.now() - started).toBeLessThan(1000);
@@ -352,13 +352,13 @@ describe("découpage shell sur une entrée hostile", () => {
     ['ssh host "trivy fs ."'],
     ['su -c "trivy fs ."'],
     ["timeout 60 trivy fs ."],
-  ])("%s lance l'outil", (line) => {
+  ])("%s runs the tool", (line) => {
     expect(
       detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
     ).toContain("trivy");
   });
 
-  test("if command -v n'est pas une exécution", () => {
+  test("if command -v is not an execution", () => {
     expect(
       detectTools(
         { image: null, script: ["if command -v trivy >/dev/null; then echo y; fi"] },
@@ -372,7 +372,7 @@ describe("découpage shell sur une entrée hostile", () => {
     ['git commit -m "fix: use sh -c trivy fs ."'],
     ['grep -r "run sh -c trivy fs ." .'],
     ["ls /bin/sh -c trivy fs ."],
-  ])("%s ne lance rien", (line) => {
+  ])("%s runs nothing", (line) => {
     expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
   });
 
@@ -381,13 +381,13 @@ describe("découpage shell sur une entrée hostile", () => {
     ['su - bob -c "trivy fs ."'],
     ['find . -exec sh -c "trivy fs ." ;'],
     ['/bin/bash -c "trivy fs ."'],
-  ])("%s lance l'outil aussi", (line) => {
+  ])("%s runs the tool too", (line) => {
     expect(
       detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
     ).toContain("trivy");
   });
 
-  test("une liste d'options répétées reste linéaire", () => {
+  test("a list of repeated options stays linear", () => {
     const started = performance.now();
     detectTools({ image: null, script: [`sh ${"-o ".repeat(20000)}`] }, catalog.tools);
     expect(performance.now() - started).toBeLessThan(1000);
@@ -399,11 +399,11 @@ describe("découpage shell sur une entrée hostile", () => {
     ["sh -c 'echo gitleaks' arg"],
     ["su -c 'echo gitleaks' bob"],
     ["ssh -o StrictHostKeyChecking=no gitleaks uptime"],
-  ])("%s ne lance pas l'outil cité", (line) => {
+  ])("%s does not run the quoted tool", (line) => {
     expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
   });
 
-  test("command lance, command -v interroge", () => {
+  test("command runs, command -v queries", () => {
     const found = (line: string) =>
       detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
     expect(found("command trivy fs .")).toContain("trivy");
@@ -411,7 +411,7 @@ describe("découpage shell sur une entrée hostile", () => {
   });
 });
 
-describe("découpage shell de la détection", () => {
+describe("detection shell splitting", () => {
   const catalog = loadCatalog();
   const found = (line: string) =>
     detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
@@ -429,7 +429,7 @@ describe("découpage shell de la détection", () => {
     ["apt-get install -y trivy jq"],
     ["pip install semgrep pytest"],
     ['git commit -m "semgrep rule fix"'],
-  ])("%s ne prouve rien", (line) => {
+  ])("%s proves nothing", (line) => {
     expect(found(line)).toEqual([]);
   });
 
@@ -443,23 +443,23 @@ describe("découpage shell de la détection", () => {
     ["`trivy fs .`", "trivy"],
     ["kubectl exec p -- gitleaks detect", "gitleaks"],
     ["env A=1 trivy fs .", "trivy"],
-  ])("%s nomme %s", (line, tool) => {
+  ])("%s names %s", (line, tool) => {
     expect(found(line)).toContain(tool);
   });
 });
 
-describe("détection par les actions GitHub", () => {
+describe("detection by GitHub actions", () => {
   const scanner = tool("scanner", {
     detect: { images: [], scripts: [], actions: ["acme/scan-action"] },
   });
 
-  test("une action nommée par la fiche désigne l'outil, sans tenir compte de la casse", () => {
+  test("an action named by the entry designates the tool, ignoring case", () => {
     expect(
       detectTools({ image: null, script: [], actions: ["Acme/Scan-Action"] }, [scanner]),
     ).toEqual([{ tool: "scanner", layers: ["sast"] }]);
   });
 
-  test("un sous-chemin de l'action la désigne aussi, un autre dépôt non", () => {
+  test("a sub-path of the action designates it too, another repository does not", () => {
     expect(
       detectTools({ image: null, script: [], actions: ["acme/scan-action/init"] }, [scanner]),
     ).toHaveLength(1);
@@ -475,7 +475,7 @@ describe("détection par les actions GitHub", () => {
     ["semgrep/semgrep-action", "semgrep"],
     ["sigstore/cosign-installer", "cosign"],
     ["hashicorp/vault-action", "vault"],
-  ])("l'action réelle %s est reconnue comme %s", (action, id) => {
+  ])("real action %s is recognised as %s", (action, id) => {
     expect(
       detectTools({ image: null, script: [], actions: [action] }, tools).map((entry) => entry.tool),
     ).toContain(id);

@@ -1,230 +1,231 @@
-# Keelson — plan technique
+# Keelson — technical plan
 
-## 1. Sources de vérité
+## 1. Sources of truth
 
-| Source                     | Possède                                                        | Écriture            |
-| -------------------------- | -------------------------------------------------------------- | ------------------- |
-| YAML CI natif du dépôt     | le pipeline : stages, jobs, dépendances, environnements         | patch en place      |
-| `.devsecops/toolchain.yaml`| les services (instances nommées) et les intégrations            | écrit par Keelson   |
-| `.devsecops/layout.json`   | positions des nœuds, surcharges de couche                       | écrit par Keelson   |
+| Source                      | Owns                                                           | Writing             |
+| --------------------------- | -------------------------------------------------------------- | ------------------- |
+| The repository's native CI YAML | the pipeline: stages, jobs, dependencies, environments     | in-place patch      |
+| `.devsecops/toolchain.yaml` | the services (named instances) and the integrations            | written by Keelson  |
+| `.devsecops/layout.json`    | node positions, layer overrides                                | written by Keelson  |
 
-Un service est une **instance nommée** : nom, type d'outil (référence au catalogue), URL,
-environnement. Deux Nexus sur deux environnements sont deux services.
+A service is a **named instance**: name, tool type (a reference to the catalogue), URL,
+environment. Two Nexus instances on two environments are two services.
 
-## 2. Modèle
+## 2. Model
 
 ### Pipeline
 
-`Pipeline`, `Stage`, `Job`, `Need` (dépendance entre jobs), `Environment`, et `OpaqueBlock` pour tout
-ce que l'IR ne modélise pas : scripts, `rules` complexes, `extends`, `include`. Un bloc opaque est
-conservé octet pour octet et réémis tel quel.
+`Pipeline`, `Stage`, `Job`, `Need` (a dependency between jobs), `Environment`, and `OpaqueBlock` for
+everything the IR does not model: scripts, complex `rules`, `extends`, `include`. An opaque block is
+kept byte for byte and re-emitted as is.
 
 ### Toolchain
 
-`Service` (instance nommée) et `Integration` entre un job et un service, de type :
+`Service` (a named instance) and `Integration` between a job and a service, of type:
 
-- `push` — pousser un artefact ou une image,
-- `upload-report` — envoyer un rapport de scan,
-- `fetch-secret` — récupérer un secret,
-- `notify` — notifier.
+- `push` — push an artifact or an image,
+- `upload-report` — send a scan report,
+- `fetch-secret` — fetch a secret,
+- `notify` — notify.
 
-### Taxonomie
+### Taxonomy
 
-`Layer` avec un champ `source: owasp | platform`. Une couche OWASP vient de la Guideline ; une
-catégorie plateforme est une brique nécessaire que la Guideline ne couvre pas.
+`Layer` with a `source: owasp | platform` field. An OWASP layer comes from the Guideline; a platform
+category is a necessary building block that the Guideline does not cover.
 
 ### Catalogue
 
-`Tool` : couches couvertes, licence, logo, motifs de détection (pour inférer l'usage depuis les
-scripts), snippets par adaptateur, type `job` ou `service`, et `lastVerified`.
+`Tool`: covered layers, licence, logo, detection patterns (to infer usage from scripts), snippets
+per adapter, `job` or `service` kind, and `lastVerified`.
 
-## 3. Couches OWASP DevSecOps Guideline (13)
+## 3. OWASP DevSecOps Guideline layers (13)
 
-1. Secrets dans les dépôts git
-2. SCA — composition des dépendances
-3. SAST — analyse statique
-4. IaC — sécurité de l'infrastructure as code
-5. Supply chain — SBOM, signature, provenance, sécurité du pipeline
-6. IAST — analyse interactive
-7. Sécurité des API
-8. DAST — analyse dynamique
-9. CNAPP — protection des applications cloud natives
-10. Scan d'infrastructure
-11. Scan continu
-12. Conformité
-13. Sécurité IA / LLM
+1. Secrets in git repositories
+2. SCA — software composition analysis
+3. SAST — static analysis
+4. IaC — infrastructure as code security
+5. Supply chain — SBOM, signing, provenance, pipeline security
+6. IAST — interactive analysis
+7. API security
+8. DAST — dynamic analysis
+9. CNAPP — cloud-native application protection
+10. Infrastructure scanning
+11. Continuous scanning
+12. Compliance
+13. AI / LLM security
 
-## 4. Catégories plateforme (hors OWASP)
+## 4. Platform categories (outside OWASP)
 
-SCM · dépôts d'artefacts et registres · gestion des secrets · agrégation de vulnérabilités · qualité
-de code serveur · observabilité runtime · sécurité runtime · policy-as-code.
+SCM · artifact repositories and registries · secrets management · vulnerability aggregation ·
+server-side code quality · runtime observability · runtime security · policy-as-code.
 
-## 5. Aller-retour YAML
+## 5. YAML round-trip
 
-- Parsing via le **CST** de `yaml` (eemeli), pas seulement l'AST : c'est le CST qui porte les
-  commentaires, l'ordre et les anchors.
-- Édition par **patch en place** : on ne régénère jamais le document entier.
-- **Invariant testé** : un parse → emit sans modification produit des octets identiques. Vérifié au
-  lot L1 sur un corpus de 34 fichiers (20 templates officiels MIT de `gitlab-org/gitlab`, 14
-  fixtures écrites à la main), et par quatre propriétés fast-check : aller-retour, inverse,
-  déterminisme, localité.
-- Les `include` **locaux** sont résolus en lecture seule depuis le lot L2b : chemins depuis la
-  racine du dépôt, jokers `*` et `**`, récursion bornée par la détection de cycle et par la limite
-  de 150 fichiers documentée par GitLab. Les formes distantes (`remote`, `project`, `template`,
-  `component`) ne sont pas résolues et sont signalées une par une : le pipeline est alors
-  **partiel**, ce que l'IR dit par `Pipeline.unresolved` et l'UI à l'écran.
-- Chaque fichier garde son propre CST : Keelson ne fabrique jamais un YAML fusionné. La fusion est
-  une chaîne ordonnée de définitions, celle qui résolvait déjà `extends` et les anchors. Les plages
-  restent donc vraies dans leur fichier, et chaque élément de l'IR porte le sien.
-- **L'écriture ne touche que le fichier principal.** Toute opération visant un élément qui vient
-  d'un fichier inclus est refusée par `FROM_INCLUDED_FILE`. Un élément inclus puis redéfini dans le
-  fichier principal appartient au fichier principal, et reste donc éditable — c'est l'ordre de
-  fusion de GitLab.
+- Parsing through the **CST** of `yaml` (eemeli), not only the AST: the CST is what carries the
+  comments, the order and the anchors.
+- Editing by **in-place patch**: the whole document is never regenerated.
+- **Tested invariant**: a parse → emit with no change produces identical bytes. Verified in
+  milestone L1 on a corpus of 34 files (20 official MIT templates from `gitlab-org/gitlab`, 14
+  hand-written fixtures), and by four fast-check properties: round-trip, inverse, determinism,
+  locality.
+- **Local** `include`s are resolved read-only since milestone L2b: paths from the repository root,
+  `*` and `**` wildcards, recursion bounded by cycle detection and by the 150-file limit documented
+  by GitLab. Remote forms (`remote`, `project`, `template`, `component`) are not resolved and are
+  reported one by one: the pipeline is then **partial**, which the IR states through
+  `Pipeline.unresolved` and the UI on screen.
+- Each file keeps its own CST: Keelson never builds a merged YAML. The merge is an ordered chain of
+  definitions, the same one that already resolved `extends` and anchors. Ranges therefore stay true
+  in their own file, and every IR element carries its own.
+- **Writing only touches the main file.** Any operation targeting an element that comes from an
+  included file is refused with `FROM_INCLUDED_FILE`. An element that is included and then redefined
+  in the main file belongs to the main file, and therefore stays editable — that is GitLab's merge
+  order.
 
-## 6. Intégrations
+## 6. Integrations
 
-Inférées depuis les scripts des jobs via les motifs de détection du catalogue, puis **confirmées ou
-corrigées** dans `.devsecops/toolchain.yaml`. L'inférence propose, le fichier décide (ADR 0010). Une
-fiche `service` déclare son type d'intégration, et `dismissed` garde ce que l'utilisateur écarte.
+Inferred from job scripts through the catalogue's detection patterns, then **confirmed or
+corrected** in `.devsecops/toolchain.yaml`. The inference proposes, the file decides (ADR 0010). A
+`service` catalogue entry declares its integration type, and `dismissed` keeps what the user
+discards.
 
-## 7. Vues
+## 7. Views
 
-- **Pipeline** — stages, jobs, dépendances.
-- **Toolchain** — services et intégrations autour du pipeline.
-- **Overlay OWASP** — couverture projetée, avec un panneau « non couvert » et les propositions
-  d'outils du catalogue.
-- **Catalogue** — les outils, filtrables par couche et par licence.
+- **Pipeline** — stages, jobs, dependencies.
+- **Toolchain** — services and integrations around the pipeline.
+- **OWASP overlay** — projected coverage, with an "uncovered" panel and tool proposals from the
+  catalogue.
+- **Catalogue** — the tools, filterable by layer and by licence.
 
-## 7 bis. Opérations sérialisables
+## 7 bis. Serializable operations
 
-Toute édition passe par une **opération** : un objet JSON pur, validé par un schéma zod, portant
-`v: 1` et un `baseHash` (SHA-256 du texte sur lequel elle a été calculée). `apply` rejette un
-`baseHash` périmé (`STALE_DOCUMENT`) et une version inconnue (`UNSUPPORTED_VERSION`).
+Every edit goes through an **operation**: a plain JSON object, validated by a zod schema, carrying
+`v: 1` and a `baseHash` (SHA-256 of the text it was computed on). `apply` rejects a stale
+`baseHash` (`STALE_DOCUMENT`) and an unknown version (`UNSUPPORTED_VERSION`).
 
-Chaque application rend un `inverse` : une opération `splice` qui restaure les octets d'origine,
-ancrée sur le hash du nouveau texte. `splice` est l'inverse universel — toute opération, aussi
-structurée soit-elle, s'annule par un remplacement de plage.
+Each application returns an `inverse`: a `splice` operation that restores the original bytes,
+anchored on the hash of the new text. `splice` is the universal inverse — any operation, however
+structured, is undone by a range replacement.
 
-Conséquence : une séquence d'éditions est **transportable**. On peut la calculer d'un côté et
-l'appliquer de l'autre, la journaliser, la rejouer, l'annuler. C'est la base du **lot L8
-(flotte)** : produire des opérations pour N dépôts depuis un seul endroit, puis les appliquer en
-masse via `keelson apply ops.json`. `--rebase` réancre chaque `baseHash` sur le texte de chaque
-dépôt, ce qui rend un même fichier applicable à des dépôts dont les textes diffèrent ; l'écriture
-est en tout ou rien par dépôt ([milestones/l8.md](milestones/l8.md)). Les codes d'erreur étant des contrats publics documentés dans
-[diagnostics.md](diagnostics.md), un client distant peut interpréter un refus sans lire le code.
+Consequence: a sequence of edits is **portable**. It can be computed on one side and applied on the
+other, logged, replayed, undone. This is the basis of **milestone L8 (fleet)**: producing operations
+for N repositories from a single place, then applying them in bulk through `keelson apply ops.json`.
+`--rebase` re-anchors each `baseHash` on each repository's text, which makes a single file
+applicable to repositories whose texts differ; writing is all-or-nothing per repository
+([milestones/l8.md](milestones/l8.md)). Since error codes are public contracts documented in
+[diagnostics.md](diagnostics.md), a remote client can interpret a refusal without reading the code.
 
-## 7 ter. Serveur local et modèle de sécurité
+## 7 ter. Local server and security model
 
-`npx keelson start` démarre un serveur `node:http` qui **fait autorité sur le disque**. L'UI n'écrit
-jamais de fichier et n'exécute pas l'adaptateur : elle envoie des opérations, le serveur les applique
-et écrit.
+`npx keelson start` starts a `node:http` server that **is authoritative over the disk**. The UI
+never writes a file and does not run the adapter: it sends operations, and the server applies them
+and writes.
 
 ### API
 
-| Méthode | Route | Réponses |
+| Method | Route | Responses |
 |---|---|---|
-| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }`, `adapter` valant `gitlab` ou `github` |
+| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }`, `adapter` being `gitlab` or `github` |
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
-| POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
-| POST | `/api/documents/:file/preview` | corps `{ op }` → 200 le résultat sans écrire · mêmes refus qu'une opération |
+| POST | `/api/documents/:file/operations` | body `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` with the current `hash` · 413 · 422 `{ code, params }` |
+| POST | `/api/documents/:file/preview` | body `{ op }` → 200 the result without writing · same refusals as an operation |
 | GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
-| POST | `/api/toolchain/operations` | corps `{ op, opId }` → 200 le même corps plus `inverse` · 400 · 409 avec le `hash` courant · 422 |
-| PUT | `/api/layout/positions` | corps `{ positions }`, fusionnées dans le fichier → 200 avec la carte complète · 400 · 422 si `layout.json` est illisible |
-| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `coverage.changed { file }`, `toolchain.changed { hash }`, heartbeat toutes les 15 s |
-| GET | `/*` | bundle de l'UI, repli SPA sur `index.html` |
+| POST | `/api/toolchain/operations` | body `{ op, opId }` → 200 the same body plus `inverse` · 400 · 409 with the current `hash` · 422 |
+| PUT | `/api/layout/positions` | body `{ positions }`, merged into the file → 200 with the complete map · 400 · 422 if `layout.json` is unreadable |
+| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `coverage.changed { file }`, `toolchain.changed { hash }`, heartbeat every 15 s |
+| GET | `/*` | UI bundle, SPA fallback to `index.html` |
 
-Les `diagnostics` de ces réponses combinent ceux de `parse` **et** ceux de `validate`, comme le fait
-`keelson validate` : l'API et la CLI disent la même chose du même fichier. Toute erreur a la forme
-`{ code, params }`, plus `hash` sur le 409, avec les codes et la forme de leurs `params` documentés
-dans [diagnostics.md](diagnostics.md). **Aucune clé `message` n'est sur le fil** : le serveur ne
-produit pas de texte, le client rend la phrase par `render()` de `@keelson/core/messages`
-([ADR 0002](adr/0002-language-and-messages.md)).
+The `diagnostics` in these responses combine those of `parse` **and** those of `validate`, as
+`keelson validate` does: the API and the CLI say the same thing about the same file. Every error has
+the shape `{ code, params }`, plus `hash` on the 409, with the codes and the shape of their `params`
+documented in [diagnostics.md](diagnostics.md). **No `message` key is on the wire**: the server
+produces no text, and the client renders the sentence through `render()` from
+`@keelson/core/messages` ([ADR 0002](adr/0002-language-and-messages.md)).
 
-### Garanties d'écriture
+### Write guarantees
 
-- **Atomique** : fichier temporaire dans le même dossier, `fsync`, `rename`, mode du fichier
-  d'origine conservé. En cas d'échec le temporaire est supprimé et l'original reste intact.
-- **Sérialisée par document** : une file d'attente par fichier, jamais deux `apply` en parallèle sur
-  le même document.
-- **Idempotente** : chaque requête porte un `opId` ; les 100 derniers par document sont mémorisés
-  avec leur réponse, et un `opId` rejoué rend la même réponse sans réécrire.
-- **Fichiers inclus** : le serveur surveille aussi le dossier de chaque fichier inclus résolu, et
-  une modification y provoque la relecture du **document principal**, puis un `document.changed` sur
-  lui. Keelson n'écrivant jamais un fichier inclus, il n'y a aucune écriture propre à taire : le
-  garde de hash ne s'applique qu'au fichier principal. L'ensemble surveillé est recalculé à chaque
-  chargement, parce qu'il change dès que la clé `include` change.
-- **Modifications externes** : le serveur surveille le **dossier** et filtre sur le nom du fichier,
-  parce qu'un éditeur remplace souvent le fichier par un `rename` — surveiller le fichier seul
-  manquerait l'événement. Après un changement il relit : si le hash est celui qu'il connaît, c'est sa
-  propre écriture et il se taît ; sinon il re-parse et émet `document.changed`. Fichier disparu →
-  `document.removed`.
+- **Atomic**: temporary file in the same directory, `fsync`, `rename`, original file mode
+  preserved. On failure the temporary file is removed and the original stays intact.
+- **Serialized per document**: one queue per file, never two `apply`s in parallel on the same
+  document.
+- **Idempotent**: each request carries an `opId`; the last 100 per document are remembered with
+  their response, and a replayed `opId` returns the same response without rewriting.
+- **Included files**: the server also watches the directory of each resolved included file, and a
+  change there triggers a reload of the **main document**, then a `document.changed` on it. Since
+  Keelson never writes an included file, there is no own write to silence: the hash guard only
+  applies to the main file. The watched set is recomputed on every load, because it changes as soon
+  as the `include` key changes.
+- **External changes**: the server watches the **directory** and filters on the file name, because
+  an editor often replaces the file through a `rename` — watching the file alone would miss the
+  event. After a change it rereads: if the hash is the one it knows, it is its own write and it stays
+  silent; otherwise it re-parses and emits `document.changed`. File gone → `document.removed`.
 
-### Modèle de sécurité
+### Security model
 
-Le serveur tourne sur la machine de l'utilisateur, aux côtés d'autres pages web ouvertes dans le même
-navigateur. Il doit donc se défendre contre elles.
+The server runs on the user's machine, alongside other web pages open in the same browser. It must
+therefore defend itself against them.
 
-- **Écoute sur `127.0.0.1` uniquement**, sans option pour changer d'interface. Rien n'est exposé au
-  réseau local.
-- **En-tête `Host` vérifié avant tout traitement** : seuls `127.0.0.1:<port>` et `localhost:<port>`
-  sont acceptés, tout le reste rend 403. C'est la défense contre le *DNS rebinding*, par lequel un
-  nom contrôlé par un tiers résout vers `127.0.0.1`.
-- **Token de session de 32 octets** (`node:crypto`), différent à chaque démarrage. Il est transmis
-  une seule fois, dans l'URL ouverte (`?token=`), puis l'UI le retire de la barre d'adresse par
-  `history.replaceState` et l'envoie dans l'en-tête `X-Keelson-Token` sur chaque appel. `/api/events`
-  le prend en paramètre de requête, `EventSource` ne pouvant pas poser d'en-tête.
-- **Comparaison en temps constant** sur des digests SHA-256, donc indépendante de la longueur du
-  token présenté.
-- **Fichiers bornés à la liste du workspace** : `:file` est résolu par recherche dans cette liste, et
-  non par concaténation de chemin. Un chemin contenant `..`, ou un fichier réel mais non détecté,
-  rend 404.
-- **Corps limité à 1 Mo**, 413 au-delà.
-- Le bundle de l'UI est servi sans token : il ne contient aucune donnée de l'utilisateur, et le
-  contrôle de `Host` s'applique quand même.
+- **Listens on `127.0.0.1` only**, with no option to change the interface. Nothing is exposed to the
+  local network.
+- **`Host` header checked before any processing**: only `127.0.0.1:<port>` and `localhost:<port>`
+  are accepted, anything else returns 403. This is the defence against *DNS rebinding*, where a name
+  controlled by a third party resolves to `127.0.0.1`.
+- **32-byte session token** (`node:crypto`), different at every start. It is passed only once, in
+  the opened URL (`?token=`), then the UI removes it from the address bar with
+  `history.replaceState` and sends it in the `X-Keelson-Token` header on every call. `/api/events`
+  takes it as a query parameter, since `EventSource` cannot set a header.
+- **Constant-time comparison** on SHA-256 digests, hence independent of the length of the presented
+  token.
+- **Files bounded to the workspace list**: `:file` is resolved by lookup in that list, not by path
+  concatenation. A path containing `..`, or a real but undetected file, returns 404.
+- **Body limited to 1 MB**, 413 beyond that.
+- The UI bundle is served without a token: it contains no user data, and the `Host` check still
+  applies.
 
 ## 8. CLI
 
-| Commande | Effet |
+| Command | Effect |
 | ------------------------------- | ------------------------------------------------------------ |
-| `keelson start [dossier] [--port <n>] [--no-open]` | ouvre l'UI web locale, port libre par défaut |
-| `keelson validate [fichier] [--format text\|json]` | valide pipeline et toolchain ; 1 sur une erreur |
-| `keelson coverage [fichier] [--require <couches>] [--format text\|json]` | 1 si une couche requise manque, 2 si une couche demandée n'existe pas |
-| `keelson export [fichier] [--format markdown\|mermaid\|json]` | exporte le modèle, formats dans [export.md](export.md) |
-| `keelson catalog lint [dossier]` | sans dossier, le catalogue embarqué ; 1 sur une erreur, 0 sur un simple signalement de fraîcheur |
-| `keelson apply <ops.json> [<dépôt>...] [--file <chemin>] [--rebase] [--dry-run] [--json]` | applique une séquence d'opérations à chaque dépôt, tout ou rien par dépôt ; 1 si un dépôt échoue, 2 sur un fichier d'opérations invalide |
+| `keelson start [directory] [--port <n>] [--no-open]` | opens the local web UI, free port by default |
+| `keelson validate [file] [--format text\|json]` | validates the pipeline and the toolchain; 1 on an error |
+| `keelson coverage [file] [--require <layers>] [--format text\|json]` | 1 if a required layer is missing, 2 if a requested layer does not exist |
+| `keelson export [file] [--format markdown\|mermaid\|json]` | exports the model, formats in [export.md](export.md) |
+| `keelson catalog lint [directory]` | without a directory, the embedded catalogue; 1 on an error, 0 on a mere freshness warning |
+| `keelson apply <ops.json> [<repository>...] [--file <path>] [--rebase] [--dry-run] [--json]` | applies a sequence of operations to each repository, all-or-nothing per repository; 1 if a repository fails, 2 on an invalid operations file |
 
-Chaque commande accepte `-h` / `--help`, qui affiche son usage sans l'exécuter. Sans `[fichier]`,
-`validate`, `coverage` et `export` portent sur tous les fichiers CI du dépôt.
+Every command accepts `-h` / `--help`, which prints its usage without running it. Without `[file]`,
+`validate`, `coverage` and `export` apply to every CI file in the repository.
 
-## 9. Logos et licences
+## 9. Logos and licences
 
-**Simple Icons** (CC0) en priorité, apportés par le **paquet npm `simple-icons` en
-devDependency** : les SVG arrivent avec leur licence, à une version figée par `bun.lock`, sans
-téléchargement à la volée au build ni à l'exécution. Décidé le 2026-10-22 ; `curl` n'est pas
-autorisé pour les logos dans `.claude/settings.json`.
+**Simple Icons** (CC0) first, provided by the **`simple-icons` npm package as a devDependency**: the
+SVGs come with their licence, at a version pinned by `bun.lock`, with no on-the-fly download at
+build or run time. Decided on 2026-10-22; `curl` is not allowed for logos in
+`.claude/settings.json`.
 
-Un logo d'éditeur n'est embarqué que si sa charte de marque
-l'autorise explicitement ; sinon, icône générique de la couche. La licence de chaque outil est
-affichée dans le catalogue.
+A vendor logo is embedded only if its brand guidelines explicitly allow it; otherwise, the layer's
+generic icon. Each tool's licence is shown in the catalogue.
 
-## 10. Fraîcheur du catalogue
+## 10. Catalogue freshness
 
-Chaque outil porte un champ `lastVerified`. `keelson catalog lint` signale les outils non vérifiés
-depuis plus de six mois.
+Each tool carries a `lastVerified` field. `keelson catalog lint` flags tools not verified for more
+than six months.
 
-## 11. Lots
+## 11. Milestones
 
-| Lot | Contenu                                                                       |
-| --- | ----------------------------------------------------------------------------- |
-| L0  | Socle : monorepo, outillage, CI, specs, conventions                            |
-| L1  | `core` + `adapter-gitlab`, aller-retour validé sur un corpus réel              |
-| L2  | UI vue Pipeline : lecture puis édition                                         |
-| L2c | Messages : `core` rend `code` + `params`, anglais unique (ADR 0002)            |
-| L2b | Résolution des `include` locaux, origine par fichier, écriture bornée au fichier principal |
-| L3  | `taxonomy` + `catalog` + overlay OWASP                                         |
-| L4  | `toolchain` : fichier, inférence des intégrations, vue                          |
-| L5  | Propositions d'outils et insertion de jobs                                     |
-| L6  | `adapter-github`                                                               |
-| L7  | Packaging open source : documentation, CONTRIBUTING, publication npm. La langue n'y est plus traitée : voir l'ADR 0002 et le lot L2c |
-| L8  | Flotte : `keelson apply ops.json`, édition de N dépôts depuis un seul endroit    |
+Milestone branches are named `milestone/<id>-<slug>`; branches of milestones delivered before this
+convention keep their historical `lot/<id>-<slug>` names.
+
+| Milestone | Content                                                                 |
+| --------- | ----------------------------------------------------------------------- |
+| L0  | Foundation: monorepo, tooling, CI, specs, conventions                           |
+| L1  | `core` + `adapter-gitlab`, round-trip validated on a real corpus                |
+| L2  | UI Pipeline view: reading, then editing                                         |
+| L2c | Messages: `core` renders `code` + `params`, English only (ADR 0002)             |
+| L2b | Resolution of local `include`s, per-file origin, writing bounded to the main file |
+| L3  | `taxonomy` + `catalog` + OWASP overlay                                          |
+| L4  | `toolchain`: file, integration inference, view                                  |
+| L5  | Tool proposals and job insertion                                                |
+| L6  | `adapter-github`                                                                |
+| L7  | Open source packaging: documentation, CONTRIBUTING, npm publication. Language is no longer handled there: see ADR 0002 and milestone L2c |
+| L8  | Fleet: `keelson apply ops.json`, editing N repositories from a single place     |

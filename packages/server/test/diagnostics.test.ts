@@ -38,13 +38,13 @@ beforeEach(() => {
   store = load(WITH_UNKNOWN_NEED);
 });
 
-describe("diagnostics rendus par le serveur", () => {
-  test("le document porte les diagnostics de validation, pas seulement ceux de parsing", async () => {
+describe("diagnostics returned by the server", () => {
+  test("the document carries validation diagnostics, not just parse ones", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded?.diagnostics.map((diagnostic) => diagnostic.code)).toContain("UNKNOWN_NEED");
   });
 
-  test("les diagnostics de parsing sont conservés", async () => {
+  test("parse diagnostics are kept", async () => {
     const withInclude = load(
       ["include:", "  - template: Jobs/SAST.gitlab-ci.yml", "", "stages:", "  - test", ""].join(
         "\n",
@@ -56,7 +56,7 @@ describe("diagnostics rendus par le serveur", () => {
     );
   });
 
-  test("les deux familles cohabitent sur un même fichier", async () => {
+  test("both families coexist on the same file", async () => {
     const both = load(
       [
         "include:",
@@ -81,7 +81,7 @@ describe("diagnostics rendus par le serveur", () => {
     expect(codes).toContain("UNKNOWN_NEED");
   });
 
-  test("un cycle de needs est signalé", async () => {
+  test("a needs cycle is reported", async () => {
     const cyclic = load(
       [
         "stages:",
@@ -109,7 +109,7 @@ describe("diagnostics rendus par le serveur", () => {
     expect(codes).toContain("NEEDS_CYCLE");
   });
 
-  test("la réponse d'une opération porte aussi les diagnostics de validation", async () => {
+  test("an operation's response also carries validation diagnostics", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const result = await store.applyOperation(
       ".gitlab-ci.yml",
@@ -121,7 +121,7 @@ describe("diagnostics rendus par le serveur", () => {
     expect(body.diagnostics.map((diagnostic) => diagnostic.code)).toContain("UNKNOWN_NEED");
   });
 
-  test("un fichier sain ne porte aucun diagnostic", async () => {
+  test("a healthy file carries no diagnostics", async () => {
     const clean = load(
       ["stages:", "  - test", "", "unit:", "  stage: test", "  script:", "    - x", ""].join("\n"),
     );

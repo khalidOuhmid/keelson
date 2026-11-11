@@ -22,8 +22,8 @@ beforeAll(() => {
 
 afterAll(() => rmSync(root, { recursive: true }));
 
-describe("hors d'un dépôt git", () => {
-  test("le chemin du fichier suffit à choisir l'adaptateur", async () => {
+describe("outside a git repository", () => {
+  test("the file path is enough to pick the adapter", async () => {
     const bare = mkdtempSync(join(tmpdir(), "keelson-bare-"));
     mkdirSync(join(bare, ".github/workflows"), { recursive: true });
     writeFileSync(
@@ -37,8 +37,8 @@ describe("hors d'un dépôt git", () => {
   });
 });
 
-describe("deux jobs de même nom", () => {
-  test("coverage garde les deux", async () => {
+describe("two jobs with the same name", () => {
+  test("coverage keeps both", async () => {
     const twin = mkdtempSync(join(tmpdir(), "keelson-twin-"));
     mkdirSync(join(twin, ".git"));
     mkdirSync(join(twin, ".github/workflows"), { recursive: true });
@@ -55,31 +55,31 @@ describe("deux jobs de même nom", () => {
   });
 });
 
-describe("la CLI sur GitHub Actions", () => {
-  test("validate sans argument couvre tous les workflows", async () => {
+describe("the CLI on GitHub Actions", () => {
+  test("validate without arguments covers every workflow", async () => {
     const result = await run(["validate"], { cwd: root });
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("secrets.yml");
     expect(result.stdout).toContain("UNKNOWN_NEED");
   });
 
-  test("validate sur un fichier nommé ne regarde que lui", async () => {
+  test("validate on a named file looks only at that file", async () => {
     const result = await run(["validate", ".github/workflows/ci.yml"], { cwd: root });
     expect(result.exitCode).toBe(0);
   });
 
-  test("coverage sans argument additionne les workflows", async () => {
+  test("coverage without arguments sums the workflows", async () => {
     const result = await run(["coverage", "--require", "sca,secrets"], { cwd: root });
     expect(result.exitCode).toBe(0);
   });
 
-  test("export fusionne les jobs dans un seul graphe", async () => {
+  test("export merges the jobs into a single graph", async () => {
     const { stdout } = await run(["export", "--format", "mermaid"], { cwd: root });
     expect(stdout).toContain('"scan"');
     expect(stdout).toContain('"leaks"');
   });
 
-  test("un dossier sans CI le dit, code 2", async () => {
+  test("a directory without CI says so, code 2", async () => {
     const empty = mkdtempSync(join(tmpdir(), "keelson-none-"));
     expect((await run(["validate"], { cwd: empty })).exitCode).toBe(2);
     rmSync(empty, { recursive: true });

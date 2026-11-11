@@ -1,27 +1,27 @@
-# ADR 0007 — Ce qui dégrade une cible `extends` absente
+# ADR 0007 — What downgrades a missing `extends` target
 
-Date : 2026-11-04 · Décidé par : Khalid · Statut : accepté
+Date: 2026-11-04 · Decided by: Khalid · Status: accepted
 
-## Contexte
+## Context
 
-`Pipeline.unresolved` a deux familles depuis la fin de L2b : les includes qu'on ne peut pas lire
-(formes distantes, `local` sans lecteur) et les `include: local` cassés. Elle répond à la question de
-l'écran : que manque-t-il au pipeline affiché ? La sévérité d'`EXTENDS_TARGET_NOT_FOUND` en dépendait
-aussi, de sorte qu'un chemin d'include mal écrit dégradait une erreur en avertissement. Le lot L2b
-demandait pourtant de ne dégrader que si un include distant non résolu peut expliquer l'absence.
+Since the end of L2b, `Pipeline.unresolved` has two families: includes that cannot be read (remote
+forms, `local` without a reader) and broken `include: local`. It answers the screen's question:
+what is missing from the displayed pipeline? The severity of `EXTENDS_TARGET_NOT_FOUND` also
+depended on it, so a misspelled include path downgraded an error to a warning. Yet milestone L2b
+asked to downgrade only when an unresolved remote include could explain the absence.
 
-## Décision
+## Decision
 
-La sévérité suit la seule première famille. Un include local cassé laisse `error`, parce que rien
-n'y est inconnu : sa cause est un `INCLUDE_NOT_FOUND` en erreur, et une fois celle-ci corrigée le
-diagnostic disparaît ou devient exact. Un include distant, ou un `local` qu'on n'a pas cherché, laisse
-`warning`, parce que la cible peut réellement s'y trouver.
+Severity follows the first family only. A broken local include leaves `error`, because nothing in
+it is unknown: its cause is an `INCLUDE_NOT_FOUND` error, and once that is fixed the diagnostic
+disappears or becomes accurate. A remote include, or a `local` that was not looked up, leaves
+`warning`, because the target may really be there.
 
-Une URL en forme courte (`include: 'https://…'`) est un include distant, pas un chemin local cassé.
-Ce que la limite de 150 fichiers coupe n'a pas été lu : il compte dans la première famille.
+A short-form URL (`include: 'https://…'`) is a remote include, not a broken local path. What the
+150-file limit cuts off has not been read: it counts in the first family.
 
-## Conséquences
+## Consequences
 
-- Un pipeline peut être partiel (`isPartial`) et rendre quand même `error` : les deux répondent à
-  deux questions différentes, et `Pipeline.unresolved` ne décide plus de la sévérité.
-- Un seul chemin mal écrit peut produire deux erreurs liées. C'est assumé : chacune est vraie.
+- A pipeline can be partial (`isPartial`) and still return `error`: the two answer two different
+  questions, and `Pipeline.unresolved` no longer decides severity.
+- A single misspelled path can produce two related errors. This is accepted: each one is true.

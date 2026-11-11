@@ -61,7 +61,7 @@ function lineStart(text: string, offset: number): number {
   return text.lastIndexOf("\n", offset - 1) + 1;
 }
 
-/** Après le saut de ligne : la fin de ligne d'un commentaire en bout de valeur en fait partie. */
+/** After the line break: the end of a trailing comment's line belongs to it. */
 function lineEnd(text: string, offset: number): number {
   const found = text.indexOf("\n", offset);
   return found === -1 ? text.length : found + 1;
@@ -76,9 +76,9 @@ function rangeOf(node: Node): [number, number] {
   return [start, end];
 }
 
-/** Où finit réellement un nœud. `range` d'une collection en bloc inclut ce qui suit sa dernière
- *  valeur, donc les commentaires du voisin, et celui d'un scalaire `|` ou `>` inclut son saut de
- *  ligne final : on descend jusqu'à la dernière feuille, puis jusqu'à son dernier caractère. */
+/** Where a node really ends. The `range` of a block collection includes what follows its last
+ *  value, hence the neighbour's comments, and that of a `|` or `>` scalar includes its final line
+ *  break: we descend to the last leaf, then to its last character. */
 function contentEnd(text: string, node: Node): number {
   if (isMap(node) && !node.flow) {
     const last = node.items.at(-1);
@@ -105,7 +105,7 @@ function afterColon(text: string, key: Node): number {
   return text.indexOf(":", rangeOf(key)[1]) + 1;
 }
 
-/** Un alias ailleurs dépend peut-être de cette ancre : la retirer le laisserait sans cible. */
+/** An alias elsewhere may depend on this anchor: removing it would leave the alias without a target. */
 function hasAnchor(node: Node | null): boolean {
   if (node === null || isAlias(node)) {
     return false;
@@ -123,8 +123,8 @@ function pairOf(map: YAMLMap, key: string): Pair | undefined {
   return map.items.find((pair) => isScalar(pair.key) && String(pair.key.value) === key);
 }
 
-/** `stringify` plie les longues chaînes et laisse passer `---` : seul ce qui se relit à l'identique
- *  est gardé tel quel, le reste part en double quotes, que YAML relit toujours. */
+/** `stringify` folds long strings and lets `---` through: only what reads back identically is kept
+ *  as is, the rest goes into double quotes, which YAML always reads back. */
 function scalarText(value: string): string {
   const plain = stringify(value, { lineWidth: 0 }).replace(/\r?\n$/, "");
   const line = `key: ${plain}\n`;
@@ -157,7 +157,7 @@ class Editing {
   }
 
   private appendAtEnd(block: string): Edit {
-    // Après un `...` final, YAML ouvrirait un autre document.
+    // After a final `...`, YAML would open another document.
     const marker = this.text.search(/^\.\.\.[ \t]*(#.*)?\r?\n?\s*$/m);
     const end = marker === -1 ? this.text.length : marker;
     const glue = end === 0 || this.text.slice(0, end).endsWith("\n") ? "" : this.eol;
@@ -165,7 +165,7 @@ class Editing {
     return { start: end, end, text: `${glue}${header}${block}` };
   }
 
-  /** `entry` reçoit l'indentation à employer et rend le bloc à insérer. */
+  /** `entry` receives the indentation to use and returns the block to insert. */
   insertInto(
     section: string,
     indentOf: (collection: YAMLMap | YAMLSeq) => number,
@@ -178,7 +178,7 @@ class Editing {
 
     const value = pair.value as Node | null;
     if (isEmpty(value)) {
-      // `~`, `null` ou `[]` disparaissent ; ce qui suit sur la ligne, un commentaire, y reste.
+      // `~`, `null` or `[]` disappear; what follows on the line, a comment, stays there.
       const start = afterColon(this.text, pair.key as Node);
       const end = lineEnd(this.text, start);
       const line = this.text.slice(start, end);
@@ -200,7 +200,7 @@ class Editing {
     return { start: offset, end: offset, text: `${glue}${entry(indentOf(value))}` };
   }
 
-  /** De la ligne de la clé à la fin de sa valeur : les commentaires au-dessus restent au voisin. */
+  /** From the key's line to the end of its value: the comments above stay with the neighbour. */
   pairSpan(pair: Pair): Edit {
     return {
       start: lineStart(this.text, rangeOf(pair.key as Node)[0]),
@@ -302,8 +302,8 @@ function updateFields(
   return edits;
 }
 
-/** Plusieurs champs d'un même service : une seule plage touchée, un seul inverse. Le texte entre
- *  deux éditions est repris tel quel. */
+/** Several fields of the same service: a single range touched, a single inverse. The text between
+ *  two edits is kept as is. */
 function compose(text: string, edits: readonly Edit[]): Edit | null {
   const sorted = [...edits].sort((left, right) => left.start - right.start);
   const first = sorted[0];
@@ -471,7 +471,7 @@ function planned(
   }
 }
 
-/** Sans l'ordre des services : `toJS` passe les clés entières en tête, quel que soit le fichier. */
+/** Without service order: `toJS` puts integer keys first, whatever the file says. */
 function sameModel(left: Toolchain, right: Toolchain): boolean {
   const sorted = (model: Toolchain) =>
     JSON.stringify({

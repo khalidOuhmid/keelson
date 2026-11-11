@@ -1,72 +1,72 @@
-# Lot L2b-fix — ce que le rapport de L2b n'avait pas dit
+# Milestone L2b-fix — what the L2b report had not said
 
-Cadrage écrit depuis `main` à `3a79f9f`. Quatre manques de L2b, dans l'ordre fixé par Khalid.
+Scoping written from `main` at `3a79f9f`. Four shortcomings of L2b, in the order set by Khalid.
 
-## 1. Preuves rouges des cinq correctifs non prouvés
+## 1. Red proofs of the five unproven fixes
 
-Chaque défaut réel est réintroduit, le test doit rougir, le fichier est restauré **par réécriture**
-et `git diff` vérifié vide sur ce fichier. Ni `git stash` ni `git checkout-index` : c'est un
-`checkout-index` qui a détruit un correctif pendant L2b.
+Each real defect is reintroduced, the test must turn red, the file is restored **by rewriting it**
+and `git diff` is checked empty on that file. Neither `git stash` nor `git checkout-index`: a
+`checkout-index` destroyed a fix during L2b.
 
-| # | Correctif | Défaut réintroduit | Fichier |
+| # | Fix | Reintroduced defect | File |
 | --- | --- | --- | --- |
-| 1 | Lien symbolique hors racine | lecture sans contrôle du chemin réel | `adapter-gitlab/src/reader.ts` |
-| 2 | Précédence d'`extends` | sources du template entrelacées avec les définitions | `adapter-gitlab/src/resolve.ts` |
-| 3 | `isPartial` sur include local cassé | `failed` hors de `Pipeline.unresolved` | `adapter-gitlab/src/parse.ts` |
-| 4 | Blocs opaques d'un job surchargé | blocs pris sur la seule dernière définition | `adapter-gitlab/src/parse.ts` |
-| 5 | Texte d'aide du badge d'origine | `hintFor` rend toujours `ORIGIN_HINT` | `ui/src/views/pipeline/origin.ts` |
+| 1 | Symbolic link outside the root | read without checking the real path | `adapter-gitlab/src/reader.ts` |
+| 2 | `extends` precedence | template sources interleaved with the definitions | `adapter-gitlab/src/resolve.ts` |
+| 3 | `isPartial` on a broken local include | `failed` outside `Pipeline.unresolved` | `adapter-gitlab/src/parse.ts` |
+| 4 | Opaque blocks of an overridden job | blocks taken from the last definition only | `adapter-gitlab/src/parse.ts` |
+| 5 | Origin badge help text | `hintFor` always returns `ORIGIN_HINT` | `ui/src/views/pipeline/origin.ts` |
 
-Un test qui ne rougit pas est remplacé par un test qui rougit, et consigné au journal avec sa cause.
+A test that does not turn red is replaced by one that does, and recorded in the log with its cause.
 
-## 2. Sévérité d'`EXTENDS_TARGET_NOT_FOUND`
+## 2. Severity of `EXTENDS_TARGET_NOT_FOUND`
 
-| Situation | Sévérité | Raison |
+| Situation | Severity | Reason |
 | --- | --- | --- |
-| tous les includes résolus | `error` | rien ne peut expliquer l'absence |
-| include **local cassé**, seul | `error` | sa cause est déjà une erreur nommée, à corriger ; rien n'est inconnu |
-| include **distant** non résolu, cassé ou non à côté | `warning` | sa cible peut venir d'un fichier que Keelson ne lit pas |
-| `parse` sans lecteur | `warning` | le `local` n'a pas été cherché, il n'est pas cassé |
+| all includes resolved | `error` | nothing can explain the absence |
+| **broken local** include, alone | `error` | its cause is already a named error, to be fixed; nothing is unknown |
+| unresolved **remote** include, broken or not alongside | `warning` | its target may come from a file Keelson does not read |
+| `parse` without a reader | `warning` | the `local` was not looked up, it is not broken |
 
-La sévérité suit donc `resolution.unresolved` et non la liste fusionnée `Pipeline.unresolved`, qui
-reste ce qu'elle dit : ce qui manque au pipeline affiché. **ADR 0007.**
+The severity therefore follows `resolution.unresolved` and not the merged list `Pipeline.unresolved`,
+which remains what it says: what is missing from the displayed pipeline. **ADR 0007.**
 
-## 3. Texte d'aide du badge d'origine
+## 3. Origin badge help text
 
-Le texte dépend de **deux** choses, le job et l'origine, pas de l'origine seule :
+The text depends on **two** things, the job and the origin, not on the origin alone:
 
-| Job | Origine | Texte |
+| Job | Origin | Text |
 | --- | --- | --- |
-| fichier principal | `extends`, anchor, `!reference`, défaut | `ORIGIN_HINT`, inchangé |
-| fichier principal | `include` | la surcharge s'écrit dans ce job, le fichier inclus n'est pas touché |
-| fichier inclus | toutes | rien ne se surcharge ici |
+| main file | `extends`, anchor, `!reference`, default | `ORIGIN_HINT`, unchanged |
+| main file | `include` | the override is written in this job, the included file is not touched |
+| included file | all | nothing can be overridden here |
 
-`OriginBadge` gagne `readOnly`. La promesse « la surcharge s'écrit » est prouvée au niveau de `apply`,
-pas seulement à l'écran.
+`OriginBadge` gains `readOnly`. The promise "the override is written" is proven at the `apply`
+level, not only on screen.
 
 ## 4. `/impeccable polish`
 
-Sur `packages/ui/src`, la passe que L2b devait exécuter en fin de lot.
+On `packages/ui/src`, the pass L2b was supposed to run at the end of the milestone.
 
-## Arborescence touchée
+## Touched tree
 
 ```
 packages/adapter-gitlab/src/parse.ts            extendsSeverity
-packages/adapter-gitlab/test/includes.test.ts   sévérité
-packages/adapter-gitlab/test/operations/includes.test.ts   surcharge d'une valeur venue d'un include
-packages/core/src/ir.ts                         commentaire de UnresolvedInclude
+packages/adapter-gitlab/test/includes.test.ts   severity
+packages/adapter-gitlab/test/operations/includes.test.ts   override of a value coming from an include
+packages/core/src/ir.ts                         UnresolvedInclude comment
 packages/ui/src/views/pipeline/{origin.ts,OriginBadge.tsx}
 packages/ui/src/panels/JobDetailPanel.tsx
 packages/ui/test/includes.test.tsx
 specs/{diagnostics.md,gaps.md,progress.md,adr/0007-*.md}
 ```
 
-## Définition de terminé
+## Definition of done
 
-1. Cinq preuves rouges consignées, restauration vérifiée à chaque fois.
-2. Les quatre lignes de la table de sévérité sont chacune un test prouvé rouge.
-3. Les trois lignes de la table du texte d'aide sont chacune un test sur le DOM rendu, prouvé rouge.
-4. `polish` exécuté et ses constats traités ou consignés.
-5. Revue indépendante en lecture seule, triage par l'ADR 0003.
-6. `bun install --frozen-lockfile && bun run check && bun run e2e` depuis un arbre sans `dist/`,
-   smoke test Node du binaire.
-7. `merge --no-ff` dans `main`, `bun run check` sur `main`, journal, « Prochaine action : L3, cadrage ».
+1. Five red proofs recorded, restoration checked each time.
+2. The four rows of the severity table are each a test proven red.
+3. The three rows of the help-text table are each a test on the rendered DOM, proven red.
+4. `polish` run and its findings addressed or recorded.
+5. Read-only independent review, triage per ADR 0003.
+6. `bun install --frozen-lockfile && bun run check && bun run e2e` from a tree without `dist/`,
+   Node smoke test of the binary.
+7. `merge --no-ff` into `main`, `bun run check` on `main`, log, "Next action: L3, scoping".

@@ -60,7 +60,7 @@ export type ApplyOk = {
   included: Record<string, string>;
 };
 
-/** L'action qui rend un snippet exécutable : il travaille sur le dépôt. */
+/** The action that makes a snippet runnable: it works on the repository. */
 const CHECKOUT = "actions/checkout@v4";
 const RUNNER = "ubuntu-latest";
 const JOB_ID = /^[A-Za-z_][A-Za-z0-9_-]*$/;
@@ -89,8 +89,8 @@ function rangeOf(node: unknown): [number, number] {
   return range === undefined || range === null ? [0, 0] : [range[0], range[1]];
 }
 
-/** Où finit réellement un nœud : `range` d'une collection en bloc déborde sur les commentaires du
- *  voisin, et celui d'un scalaire `|` inclut son saut de ligne final. */
+/** Where a node really ends: the `range` of a block collection spills over the next node's comments,
+ *  and that of a `|` scalar includes its trailing newline. */
 function contentEnd(text: string, node: unknown): number {
   if (isMap(node) && !node.flow) {
     const last = node.items.at(-1);
@@ -140,7 +140,7 @@ type Geometry = {
   eol: string;
   root: YAMLMap | null;
   pipeline: Pipeline;
-  /** Le document en valeurs : c'est là qu'on cherche une expression, pas dans le texte. */
+  /** The document as values: expressions are searched for here, not in the text. */
   values: unknown;
 };
 
@@ -252,7 +252,7 @@ function planAddJob(operation: AddJobOperation, geometry: Geometry): Planned {
   );
 }
 
-/** Une liste d'étapes en bloc, sans ancre ni alias : recopiée ailleurs, un alias perdrait sa cible. */
+/** A block list of steps, with no anchor or alias: copied elsewhere, an alias would lose its target. */
 function snippetSteps(snippet: string): string[] | null {
   const document = parseDocument(snippet);
   const root = document.contents;
@@ -328,7 +328,7 @@ function referencing(id: string, geometry: Geometry): string[] {
     .map((job) => job.id);
 }
 
-/** L'intérieur de chaque `${{ }}`. Un `}}` dans une chaîne `'…'` ne ferme rien. */
+/** The inside of each `${{ }}`. A `}}` inside a `'…'` string closes nothing. */
 function expressionsOf(value: string, found: string[]): void {
   let start = value.indexOf("${{");
   while (start !== -1) {
@@ -345,7 +345,7 @@ function expressionsOf(value: string, found: string[]): void {
   }
 }
 
-/** Les expressions d'un document : dans les valeurs, dans les clés, et toute clé `if`. */
+/** The expressions of a document: in values, in keys, and every `if` key. */
 function expressionsIn(value: unknown, found: string[], seen: Set<unknown>, key = ""): void {
   if (typeof value === "string") {
     if (key === "if") {
@@ -361,8 +361,8 @@ function expressionsIn(value: unknown, found: string[], seen: Set<unknown>, key 
   }
 }
 
-/** Le contenu de chaque chaîne `'…'` remplacé par `_` : un libellé `'needs-review'` ne lit aucun
- *  contexte, et un indice littéral `needs['z']` garde sa forme. `''` est l'apostrophe échappée. */
+/** The content of each `'…'` string replaced with `_`: a `'needs-review'` label reads no context,
+ *  and a literal index `needs['z']` keeps its shape. `''` is the escaped apostrophe. */
 function withoutLiterals(expression: string): string {
   return expression.replace(/'(?:[^']|'')*'/g, "'_'");
 }
@@ -386,17 +386,18 @@ function needsOf(job: unknown): string[] {
   return typeof needs === "string" ? [needs] : Array.isArray(needs) ? needs.map(String) : [];
 }
 
-/** Le contexte `needs` d'un job ne contient que ses propres needs : lu en entier ou par un calcul,
- *  il ne peut viser que ceux-là. */
+/** A job's `needs` context holds only its own needs: read whole or through a computed index, it can
+ *  only reach those. */
 const readsNeedsOf = (job: unknown, id: string): boolean =>
   needsOf(job).includes(id) && expressionsOfValue(job).some((value) => DYNAMIC_NEEDS.test(value));
 
-/** `needs.<id>` et `jobs.<id>` dans une expression, en point ou en crochets : le nom vit aussi là, et
- *  ne se réécrit pas sans comprendre ce langage. Un contexte lu en entier ou par un indice calculé
- *  peut viser le job sans le nommer : `needs` dans un job qui a `id` pour need, `jobs` (sorties d'un
- *  workflow réutilisable) partout. Seule la racine du contexte compte, pas `env.NEEDS` ni un libellé.
- *  Refuser vaut mieux qu'un `if:` qui devient faux en silence. Un document qu'on ne peut pas lire en
- *  valeurs se refuse pour la même raison. `scope` dit si `values` est le document ou un seul job. */
+/** `needs.<id>` and `jobs.<id>` in an expression, in dot or bracket form: the name lives there too,
+ *  and cannot be rewritten without understanding that language. A context read whole or through a
+ *  computed index can reach the job without naming it: `needs` in a job that has `id` as a need,
+ *  `jobs` (outputs of a reusable workflow) anywhere. Only the root of the context counts, not
+ *  `env.NEEDS` nor a label. Refusing beats an `if:` that silently turns false. A document that cannot
+ *  be read as values is refused for the same reason. `scope` says whether `values` is the document or
+ *  a single job. */
 function citation(
   values: unknown,
   id: string,
@@ -465,7 +466,7 @@ function planRemoveJob(id: string, geometry: Geometry): Planned {
   return ok([pairSpan(geometry.text, pair)]);
 }
 
-/** Les scalaires qui nomment `id` dans les `needs`, tous au même niveau : scalaire ou liste. */
+/** The scalars naming `id` in `needs`, all at the same level: scalar or list. */
 function needScalars(job: YAMLMap, id: string): Node[] {
   const value = pairOf(job, "needs")?.value as Node | null | undefined;
   const items: unknown[] = isSeq(value) ? value.items : value === undefined ? [] : [value];
@@ -688,8 +689,8 @@ function modelOf(pipeline: Pipeline): Model {
     .sort((left, right) => (left.id < right.id ? -1 : 1));
 }
 
-/** Ce que l'opération doit produire, calculé sans le texte. Le patch ne connaît pas toutes les formes
- *  écrites à la main : une relecture différente devient un refus, jamais une écriture fausse. */
+/** What the operation must produce, computed without the text. The patch does not know every
+ *  hand-written shape: a re-read that differs becomes a refusal, never a wrong write. */
 function expectedModel(
   pipeline: Pipeline,
   operation: Exclude<Operation, CompositeOperation | SpliceOperation>,
@@ -740,7 +741,7 @@ function expectedModel(
 const sorted = (model: Model): string =>
   JSON.stringify([...model].sort((left, right) => (left.id < right.id ? -1 : 1)));
 
-/** Une ancre cyclique ne se sérialise pas : on ne sait pas la comparer, donc on refuse. */
+/** A cyclic anchor cannot be serialised: it cannot be compared, so it is refused. */
 function sameValue(left: unknown, right: unknown): boolean {
   try {
     return JSON.stringify(left) === JSON.stringify(right);
@@ -757,15 +758,15 @@ const stripped = (job: unknown): unknown => {
   return rest;
 };
 
-/** Tout ce que l'opération ne vise pas doit se relire à l'identique : les clés de fichier et, pour
- *  chaque job, ce qui n'est ni `needs` ni `environment`. C'est ce qui attrape un bloc `|+` raccourci,
- *  ou un alias qui change de cible. */
+/** Everything the operation does not target must read back identically: the file-level keys and, for
+ *  each job, everything that is neither `needs` nor `environment`. This is what catches a shortened
+ *  `|+` block, or an alias that changes target. */
 function neighboursIntact(
   before: Document.Parsed,
   text: string,
   operation: Exclude<Operation, CompositeOperation | SpliceOperation>,
 ): boolean {
-  // Un fichier vide vaut un document sans clé : ajouter un job n'y change rien d'autre.
+  // An empty file is a document with no keys: adding a job changes nothing else in it.
   const left = (readValues(before) ?? {}) as Record<string, unknown>;
   const right = (readValues(parseDocument(text)) ?? {}) as Record<string, unknown>;
 

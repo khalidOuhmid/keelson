@@ -1,8 +1,8 @@
 import type { MessageCode, ParamsOf } from "./codes.ts";
 
-/** Un code dont les `params` portent un `reason` se rend par une table de branches, pas par une
- *  fonction unique : la table rend l'exhaustivité des branches vérifiable à la compilation, et sa
- *  forme à l'exécution est ce que le test de couverture parcourt. Les deux ne peuvent pas dériver. */
+/** A code whose `params` carry a `reason` is rendered by a table of branches, not by a single
+ *  function: the table makes branch exhaustiveness checkable at compile time, and its runtime
+ *  shape is what the coverage test walks. The two cannot drift apart. */
 export type Renderer<C extends MessageCode> =
   ParamsOf<C> extends { reason: string }
     ? { [R in ParamsOf<C>["reason"]]: (params: Extract<ParamsOf<C>, { reason: R }>) => string }
@@ -15,9 +15,9 @@ const quoted = (value: string): string => `"${value}"`;
 const chain = (names: readonly string[]): string => names.join(" → ");
 
 export const EN: Catalogue = {
-  // `detail` est la phrase de la lib `yaml`, déjà en anglais et plus précise que toute reformulation.
+  // `detail` is the `yaml` library's sentence, already in English and more precise than any rewording.
   INVALID_YAML: (p) => p.detail,
-  // Seuls les includes **distants** restent non résolus : les locaux le sont depuis le lot L2b.
+  // Only **remote** includes stay unresolved: local ones have been resolved since milestone L2b.
   INCLUDE_UNRESOLVED: (p) =>
     `this ${p.form} include is not resolved (${p.detail}), so the pipeline shown may be incomplete`,
   WORKFLOW_UNRESOLVED: (p) =>
@@ -25,8 +25,8 @@ export const EN: Catalogue = {
   INCLUDE_NOT_FOUND: {
     missing: (p) => `included file ${quoted(p.path)} does not exist`,
     notYaml: (p) => `included file ${quoted(p.path)} is not a .yml or .yaml file`,
-    // GitLab exige un chemin depuis la racine du dépôt. Un chemin qui en sort est refusé avant
-    // toute lecture : le serveur lit le disque pour le compte d'une page web.
+    // GitLab requires a path from the repository root. A path that escapes it is refused before
+    // any read: the server reads the disk on behalf of a web page.
     outsideRoot: (p) => `included path ${quoted(p.path)} leaves the repository root`,
     malformed: () => "this include entry has no form Keelson understands",
   },
@@ -48,14 +48,14 @@ export const EN: Catalogue = {
     `layout.json assigns job ${quoted(p.job)} to unknown layer ${quoted(p.layer)}`,
   LAYOUT_UNKNOWN_JOB: (p) => `layout.json names job ${quoted(p.job)}, which does not exist`,
   COVERAGE_LAYER_MISSING: (p) => `required layer ${quoted(p.layer)} (${p.name}) is not covered`,
-  // `detail` vient de zod ou de `yaml`, en anglais.
+  // `detail` comes from zod or `yaml`, in English.
   CATALOG_INVALID_TOOL: (p) => `invalid tool file: ${p.detail}`,
   CATALOG_DUPLICATE_TOOL: (p) => `tool id ${quoted(p.tool)} is declared twice`,
   CATALOG_UNKNOWN_LOGO: (p) => `tool ${quoted(p.tool)} names unknown logo ${quoted(p.logo)}`,
   CATALOG_MISSING_SNIPPET: (p) => `job tool ${quoted(p.tool)} has no snippet`,
   CATALOG_STALE_TOOL: (p) =>
     `tool ${quoted(p.tool)} was last verified on ${p.lastVerified}, more than six months ago`,
-  // `detail` vient de `yaml` ou de zod, en anglais.
+  // `detail` comes from `yaml` or zod, in English.
   TOOLCHAIN_INVALID: (p) => `.devsecops/toolchain.yaml is not usable: ${p.detail}`,
   TOOLCHAIN_UNKNOWN_TOOL: (p) =>
     `service ${quoted(p.service)} names ${quoted(p.tool)}, which is not in the catalog`,
@@ -79,9 +79,9 @@ export const EN: Catalogue = {
   NEED_EXISTS: (p) => `job ${quoted(p.job)} already needs ${quoted(p.need)}`,
   NEED_NOT_FOUND: {
     notNeeded: (p) => `job ${quoted(p.job)} does not need ${quoted(p.need)}`,
-    // Ce chemin n'est atteint qu'après avoir établi que le need *est* dans la valeur effective,
-    // mais que la liste locale n'est pas une séquence lisible item par item — un alias d'anchor ou
-    // un `!reference`. Dire « does not need » y énoncerait l'inverse de la condition qui y mène.
+    // This path is reached only after establishing that the need *is* in the effective value, but
+    // that the local list is not a sequence readable item by item — an anchor alias or a
+    // `!reference`. Saying "does not need" here would state the opposite of what led here.
     notLocal: (p) =>
       `job ${quoted(p.job)} needs ${quoted(p.need)} through an anchor or a !reference, so removing it would mean rewriting that shared list`,
   },
@@ -90,7 +90,7 @@ export const EN: Catalogue = {
     `operation version ${p.received} is not supported, expected ${p.supported}`,
   INVALID_OPERATION: {
     notAnObject: () => "an operation must be a JSON object",
-    // `detail` vient de zod, en anglais. `path` le situe dans l'opération reçue.
+    // `detail` comes from zod, in English. `path` locates it in the received operation.
     schema: (p) => (p.path === "" ? p.detail : `${p.path}: ${p.detail}`),
     flowStyleJob: (p) =>
       `job ${quoted(p.job)} is written in flow style, in-place editing is not supported`,

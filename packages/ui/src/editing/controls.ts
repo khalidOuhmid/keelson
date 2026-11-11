@@ -11,6 +11,6 @@ export const LABEL = "text-2xs font-semibold tracking-label text-text-muted uppe
 
 export const GROUP = "flex flex-col gap-1.5";
 
-/** Titre de section. Distinct de `LABEL`, qui étiquette un champ : une section et un champ ne
- *  peuvent pas parler de la même voix, sinon il n'y a plus de hiérarchie du tout. */
+/** Section heading. Distinct from `LABEL`, which labels a field: a section and a field cannot speak
+ *  with the same voice, or there is no hierarchy left at all. */
 export const SECTION_HEADING = "text-sm font-semibold text-text-secondary";

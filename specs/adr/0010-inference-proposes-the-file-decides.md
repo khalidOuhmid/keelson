@@ -1,20 +1,20 @@
-# ADR 0010 — L'inférence propose, le fichier décide
+# ADR 0010 — Inference proposes, the file decides
 
-**Statut** : accepté, 2026-11-04.
+**Status**: accepted, 2026-11-04.
 
-## Contexte
+## Context
 
-Le plan veut des intégrations inférées depuis les scripts, puis confirmées ou corrigées. Une
-inférence écrite d'office ferait de Keelson l'auteur d'affirmations qu'il ne peut pas vérifier.
+The plan calls for integrations inferred from scripts, then confirmed or corrected. An inference
+written automatically would make Keelson the author of claims it cannot verify.
 
-## Décision
+## Decision
 
-Une fiche `service` porte un champ `integration` : un type par outil. L'inférence calcule des triplets
-`(job, tool, kind)` et ne les écrit jamais. Un triplet est confirmé si `integrations` relie ce job à
-un service de cet outil avec ce type, écarté s'il figure dans `dismissed`, proposé sinon. `dismissed`
-existe parce qu'un faux positif reviendrait à chaque analyse.
+A `service` catalogue entry carries an `integration` field: one kind per tool. Inference computes
+`(job, tool, kind)` triples and never writes them. A triple is confirmed if `integrations` links that
+job to a service of that tool with that kind, dismissed if it appears in `dismissed`, proposed
+otherwise. `dismissed` exists because a false positive would come back on every analysis.
 
-## Conséquences
+## Consequences
 
-La détection garde ses bornes (`specs/gaps.md`) sans jamais fausser le fichier. Un outil à plusieurs
-usages ne propose qu'un type ; l'utilisateur écrit les autres à la main.
+Detection keeps its limits (`specs/gaps.md`) without ever corrupting the file. A multi-purpose tool
+proposes only one kind; the user writes the others by hand.

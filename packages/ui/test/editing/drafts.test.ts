@@ -15,41 +15,41 @@ import {
 } from "../../src/editing/drafts.ts";
 
 describe("scriptLines", () => {
-  test("découpe sur les retours à la ligne", () => {
+  test("splits on newlines", () => {
     expect(scriptLines("npm ci\nnpm test")).toEqual(["npm ci", "npm test"]);
   });
 
-  test("retire les lignes vides et les espaces de fin", () => {
+  test("removes empty lines and trailing whitespace", () => {
     expect(scriptLines("  npm ci  \n\n\n  npm test\n")).toEqual(["npm ci", "npm test"]);
   });
 
-  test("accepte les fins de ligne CRLF", () => {
+  test("accepts CRLF line endings", () => {
     expect(scriptLines("npm ci\r\nnpm test")).toEqual(["npm ci", "npm test"]);
   });
 
-  test("un texte vide rend une liste vide", () => {
+  test("an empty text yields an empty list", () => {
     expect(scriptLines("   \n  \n")).toEqual([]);
   });
 
-  test("ne touche pas aux espaces internes", () => {
+  test("leaves inner whitespace alone", () => {
     expect(scriptLines("echo  'deux  espaces'")).toEqual(["echo  'deux  espaces'"]);
   });
 });
 
 describe("addJob", () => {
-  test("construit l'opération avec le script découpé", () => {
+  test("builds the operation with the split script", () => {
     expect(addJob({ id: "unit", stage: "test", script: "npm ci\nnpm test" })).toEqual({
       kind: "addJob",
       job: { id: "unit", stage: "test", script: ["npm ci", "npm test"] },
     });
   });
 
-  test("n'ajoute pas de clé needs quand il n'y en a pas", () => {
+  test("adds no needs key when there are none", () => {
     const draft = addJob({ id: "unit", stage: "test", script: "x" });
     expect("needs" in (draft as { job: object }).job).toBe(false);
   });
 
-  test("porte les needs demandés", () => {
+  test("carries the requested needs", () => {
     const draft = addJob({ id: "unit", stage: "test", script: "x", needs: ["compile"] });
     expect(draft).toEqual({
       kind: "addJob",
@@ -57,7 +57,7 @@ describe("addJob", () => {
     });
   });
 
-  test("porte l'environnement demandé", () => {
+  test("carries the requested environment", () => {
     const draft = addJob({
       id: "ship",
       stage: "deploy",
@@ -75,7 +75,7 @@ describe("addJob", () => {
     });
   });
 
-  test("laisse passer un identifiant vide : la légalité est au serveur", () => {
+  test("lets an empty id through: legality is the server's call", () => {
     expect(addJob({ id: "", stage: "test", script: "x" })).toEqual({
       kind: "addJob",
       job: { id: "", stage: "test", script: ["x"] },
@@ -83,7 +83,7 @@ describe("addJob", () => {
   });
 });
 
-describe("opérations de job", () => {
+describe("job operations", () => {
   test("renameJob", () => {
     expect(renameJob("unit", "tests")).toEqual({ kind: "renameJob", from: "unit", to: "tests" });
   });
@@ -101,8 +101,8 @@ describe("opérations de job", () => {
   });
 });
 
-describe("opérations de needs", () => {
-  test("addNeed sans option n'écrit que le job", () => {
+describe("needs operations", () => {
+  test("addNeed without options writes only the job", () => {
     expect(addNeed("unit", "compile")).toEqual({
       kind: "addNeed",
       id: "unit",
@@ -110,7 +110,7 @@ describe("opérations de needs", () => {
     });
   });
 
-  test("addNeed porte optional quand il est demandé", () => {
+  test("addNeed carries optional when requested", () => {
     expect(addNeed("unit", "compile", { optional: true })).toEqual({
       kind: "addNeed",
       id: "unit",
@@ -118,7 +118,7 @@ describe("opérations de needs", () => {
     });
   });
 
-  test("addNeed porte artifacts quand il est désactivé", () => {
+  test("addNeed carries artifacts when disabled", () => {
     expect(addNeed("unit", "compile", { artifacts: false })).toEqual({
       kind: "addNeed",
       id: "unit",
@@ -126,7 +126,7 @@ describe("opérations de needs", () => {
     });
   });
 
-  test("addNeed n'écrit pas les valeurs par défaut", () => {
+  test("addNeed does not write default values", () => {
     expect(addNeed("unit", "compile", { optional: false, artifacts: true })).toEqual({
       kind: "addNeed",
       id: "unit",
@@ -143,8 +143,8 @@ describe("opérations de needs", () => {
   });
 });
 
-describe("environnement", () => {
-  test("setEnvironment avec un nom seul", () => {
+describe("environment", () => {
+  test("setEnvironment with a name only", () => {
     expect(setEnvironment("ship", { name: "production" })).toEqual({
       kind: "setEnvironment",
       id: "ship",
@@ -152,7 +152,7 @@ describe("environnement", () => {
     });
   });
 
-  test("setEnvironment avec url et action", () => {
+  test("setEnvironment with url and action", () => {
     expect(
       setEnvironment("ship", { name: "staging", url: "https://s.example.org", action: "start" }),
     ).toEqual({
@@ -162,7 +162,7 @@ describe("environnement", () => {
     });
   });
 
-  test("setEnvironment ignore les champs vides plutôt que d'écrire une chaîne vide", () => {
+  test("setEnvironment ignores empty fields rather than writing an empty string", () => {
     expect(setEnvironment("ship", { name: "staging", url: "", action: "  " })).toEqual({
       kind: "setEnvironment",
       id: "ship",
@@ -170,7 +170,7 @@ describe("environnement", () => {
     });
   });
 
-  test("setEnvironment à null retire l'environnement", () => {
+  test("setEnvironment with null removes the environment", () => {
     expect(setEnvironment("ship", null)).toEqual({
       kind: "setEnvironment",
       id: "ship",
@@ -179,16 +179,16 @@ describe("environnement", () => {
   });
 });
 
-describe("opérations de stages", () => {
-  test("addStage sans index", () => {
+describe("stage operations", () => {
+  test("addStage without index", () => {
     expect(addStage("verify")).toEqual({ kind: "addStage", name: "verify" });
   });
 
-  test("addStage avec index", () => {
+  test("addStage with index", () => {
     expect(addStage("verify", 1)).toEqual({ kind: "addStage", name: "verify", index: 1 });
   });
 
-  test("addStage accepte l'index zéro", () => {
+  test("addStage accepts index zero", () => {
     expect(addStage("prepare", 0)).toEqual({ kind: "addStage", name: "prepare", index: 0 });
   });
 
@@ -198,27 +198,27 @@ describe("opérations de stages", () => {
 });
 
 describe("referencedBy", () => {
-  /** Les `params` viennent du réseau : le cast est là pour reproduire ce qu'un serveur mal luné
-   *  peut envoyer sous un code dont le type promet mieux. */
+  /** `params` come from the network: the cast is there to reproduce what a misbehaving server can
+   *  send under a code whose type promises better. */
   function failure(params: unknown): ApiFailure {
     return { status: 422, code: "JOB_REFERENCED", params } as ApiFailure;
   }
 
-  test("extrait la liste des jobs qui référencent la cible", () => {
+  test("extracts the list of jobs referencing the target", () => {
     expect(referencedBy(failure({ referencedBy: ["unit", "ship"] }))).toEqual(["unit", "ship"]);
   });
 
-  test("rend une liste vide quand referencedBy est absent", () => {
+  test("returns an empty list when referencedBy is missing", () => {
     expect(referencedBy(failure({ job: "compile" }))).toEqual([]);
   });
 
-  test("rend une liste vide quand les params n'ont pas la bonne forme", () => {
+  test("returns an empty list when params have the wrong shape", () => {
     expect(referencedBy(failure({ autre: 1 }))).toEqual([]);
     expect(referencedBy(failure("texte"))).toEqual([]);
     expect(referencedBy(failure({ referencedBy: "unit" }))).toEqual([]);
   });
 
-  test("ignore les entrées non textuelles", () => {
+  test("ignores non-string entries", () => {
     expect(referencedBy(failure({ referencedBy: ["unit", 42, null] }))).toEqual(["unit"]);
   });
 });

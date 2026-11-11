@@ -32,8 +32,8 @@ const TREE: Tree = {
   [INCLUDED_PATH]: INCLUDED,
 };
 
-test.describe("include locaux sur le binaire réel", () => {
-  test("les jobs d'un fichier inclus sont dessinés, et marqués read-only", async ({ page }) => {
+test.describe("local includes on the real binary", () => {
+  test("jobs from an included file are drawn, and marked read-only", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -43,8 +43,8 @@ test.describe("include locaux sur le binaire réel", () => {
       await expect(sast).toHaveAttribute("data-included", "true");
       await expect(sast).toContainText("read-only");
 
-      // Le job du fichier principal n'en porte aucune marque : l'assertion négative est ce qui
-      // empêche un marquage appliqué à tous les nœuds de passer pour un succès.
+      // The main file's job carries no mark: the negative assertion is what stops a mark
+      // applied to every node from passing as a success.
       const compile = page.locator('[data-job-id="compile"]');
       await expect(compile).toHaveAttribute("data-included", "false");
       await expect(compile).not.toContainText("read-only");
@@ -53,7 +53,7 @@ test.describe("include locaux sur le binaire réel", () => {
     }
   });
 
-  test("l'indicateur de pipeline partiel nomme l'include non résolu", async ({ page }) => {
+  test("the partial pipeline indicator names the unresolved include", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -70,12 +70,12 @@ test.describe("include locaux sur le binaire réel", () => {
     }
   });
 
-  /** Ce que ce test mesure : l'écran n'offre aucun contrôle sur un job inclus, et le fichier est
-   *  intact après le parcours. La relecture du disque est un **garde-fou**, pas la mesure
-   *  principale : aucun contrôle, donc aucune requête, donc rien n'écrirait de toute façon.
-   *  La garantie sur les octets contre une requête réellement envoyée est mesurée dans
-   *  `packages/server/test/includes.test.ts`, où le serveur écrit pour de vrai. */
-  test("un job inclus ne peut pas être édité, et son fichier reste intact", async ({ page }) => {
+  /** What this test measures: the screen offers no control on an included job, and the file is
+   *  intact after the walkthrough. Re-reading the disk is a **safeguard**, not the main
+   *  measure: no control, hence no request, hence nothing would write anyway.
+   *  The byte guarantee against a request actually sent is measured in
+   *  `packages/server/test/includes.test.ts`, where the server really writes. */
+  test("an included job cannot be edited, and its file stays intact", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -92,23 +92,23 @@ test.describe("include locaux sur le binaire réel", () => {
     }
   });
 
-  test("le bloc opaque d'un job inclus montre les octets de son fichier", async ({ page }) => {
+  test("an included job's opaque block shows the bytes of its file", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
       await page.locator('[data-job-id="sast"]').click();
 
       const block = page.getByRole("group", { name: "Opaque block script" });
-      // `make scan` n'existe que dans le fichier inclus ; le fichier principal contient `make`.
+      // `make scan` only exists in the included file; the main file contains `make`.
       await expect(block).toContainText("make scan");
     } finally {
       await keelson.stop();
     }
   });
 
-  /** Le watcher doit suivre les fichiers inclus : sans cela l'écran reste sur un pipeline périmé
-   *  après qu'un collègue a touché `ci/jobs.yml`, et rien ne le dit. */
-  test("modifier un fichier inclus met l'écran à jour", async ({ page }) => {
+  /** The watcher must follow included files: otherwise the screen stays on a stale pipeline
+   *  after a colleague touched `ci/jobs.yml`, and nothing says so. */
+  test("editing an included file updates the screen", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -125,9 +125,7 @@ test.describe("include locaux sur le binaire réel", () => {
     }
   });
 
-  test("les contrôles de stages restent actifs : la liste vient du fichier principal", async ({
-    page,
-  }) => {
+  test("stage controls stay active: the list comes from the main file", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -138,9 +136,9 @@ test.describe("include locaux sur le binaire réel", () => {
   });
 });
 
-test("dépliée, la bande partielle ne dévore pas l'écran", async ({ page }) => {
-  // Mesuré pendant `polish` : avec 31 includes non résolus, 729 px sur 800, et 2751 px à 375 de
-  // large. Une borne en pourcentage ne vaut que sur un élément dont le parent a une hauteur.
+test("expanded, the partial banner does not swallow the screen", async ({ page }) => {
+  // Measured during `polish`: with 31 unresolved includes, 729 px out of 800, and 2751 px at 375
+  // wide. A percentage bound only holds on an element whose parent has a height.
   const templates = Array.from(
     { length: 40 },
     (_, index) => `  - template: Jobs/Template-${index}.gitlab-ci.yml`,
@@ -165,7 +163,7 @@ test("dépliée, la bande partielle ne dévore pas l'écran", async ({ page }) =
     const box = await bar.boundingBox();
     const viewport = page.viewportSize();
     if (box === null || viewport === null) {
-      throw new Error("bande ou fenêtre sans géométrie");
+      throw new Error("banner or viewport without geometry");
     }
     expect(box.height).toBeLessThanOrEqual(viewport.height / 3 + 1);
   } finally {
@@ -173,11 +171,11 @@ test("dépliée, la bande partielle ne dévore pas l'écran", async ({ page }) =
   }
 });
 
-test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {
-  /** `happy-dom` n'implémente pas le basculement natif de `<details>` à la touche Entrée : le test
-   *  unitaire ne peut mesurer que la focalisabilité du résumé. Le dépliage, lui, ne se vérifie que
-   *  sur un navigateur réel, et c'est ici. */
-  test("le résumé se déplie et se replie à la touche Entrée", async ({ page }) => {
+test.describe("the partial banner from the keyboard, in a real browser", () => {
+  /** `happy-dom` does not implement the native `<details>` toggle on Enter: the unit test
+   *  can only measure that the summary is focusable. Expanding can only be checked in a
+   *  real browser, which is here. */
+  test("the summary expands and collapses on Enter", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -199,13 +197,13 @@ test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {
     }
   });
 
-  test("le nœud inclus ne porte plus de title, et sa marque reste lisible", async ({ page }) => {
+  test("the included node no longer has a title, and its mark stays readable", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
       const sast = page.locator('[data-job-id="sast"]');
-      // Un `title` n'apparaît nulle part dans l'arbre d'accessibilité quand un
-      // `aria-describedby` est présent : deux formulations du même fait, une seule jamais lue.
+      // A `title` appears nowhere in the accessibility tree when an
+      // `aria-describedby` is present: two wordings of the same fact, only one ever read.
       await expect(sast).not.toHaveAttribute("title", /./);
       await expect(sast).toContainText("read-only");
     } finally {
@@ -213,7 +211,7 @@ test.describe("la bande partielle au clavier, sur le vrai navigateur", () => {
     }
   });
 
-  test("l'en-tête annonce le nombre de fichiers inclus résolus", async ({ page }) => {
+  test("the header announces the number of resolved included files", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);

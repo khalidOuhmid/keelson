@@ -7,27 +7,27 @@ export { EN } from "./en.ts";
 
 type Branches = Record<string, (params: unknown) => string>;
 
-/** Un code et ses `params`, appariés. Diagnostics et erreurs d'opération en sont des
- *  spécialisations, et sont donc directement rendables par `renderMessage` : sans cette forme, un
- *  appelant qui tient un diagnostic devrait passer `code` et `params` séparément, et le compilateur
- *  ne saurait plus qu'ils vont ensemble. */
+/** A code and its `params`, paired. Diagnostics and operation errors are specialisations of it,
+ *  and are therefore directly renderable by `renderMessage`: without this shape, a caller holding a
+ *  diagnostic would have to pass `code` and `params` separately, and the compiler would no longer
+ *  know they belong together. */
 export type Message = { [C in MessageCode]: { code: C; params: ParamsOf<C> } }[MessageCode];
 
 export function renderMessage(message: Message): string {
   return render(message.code, message.params);
 }
 
-/** Le seul endroit du produit où un `(code, params)` devient du texte. La CLI et l'UI passent
- *  toutes deux par ici : une seule formulation par code, pour tout le produit.
+/** The only place in the product where a `(code, params)` becomes text. The CLI and the UI both
+ *  go through here: one wording per code, for the whole product.
  *
- *  **Ne lève jamais, et rend toujours une phrase.** Les `params` de l'UI viennent du réseau : le
- *  type promet leur forme, le fil ne la garantit pas. Un rendu qui lève le ferait pendant
- *  l'affichage d'une *autre* erreur, donc au pire moment — l'écran deviendrait blanc au lieu
- *  d'afficher le refus du serveur. Ne pas lever ne suffit pourtant pas : un renderer dont le corps
- *  est une lecture de `params` nue, comme `INVALID_YAML`, rend `undefined` sans rien lever, ce que
- *  la CLI passait ensuite à `.replace()`. Le repli couvre donc les deux cas, et vaut le texte
- *  d'`UNEXPECTED_RESPONSE` ; le code d'origine reste affiché à côté par l'appelant, donc
- *  l'information n'est pas perdue. */
+ *  **Never throws, and always returns a sentence.** The UI's `params` come from the network: the
+ *  type promises their shape, the wire does not guarantee it. A renderer that throws would do so
+ *  while displaying *another* error, hence at the worst moment — the screen would go blank instead
+ *  of showing the server's refusal. Not throwing is not enough, though: a renderer whose body is a
+ *  bare read of `params`, like `INVALID_YAML`, returns `undefined` without throwing, which the CLI
+ *  then passed to `.replace()`. The fallback therefore covers both cases, and equals the text of
+ *  `UNEXPECTED_RESPONSE`; the original code is still shown alongside by the caller, so no
+ *  information is lost. */
 export function render<C extends MessageCode>(code: C, params: ParamsOf<C>): string {
   const renderer = EN[code] as ((params: ParamsOf<C>) => string) | Branches;
   const produced = ((): unknown => {

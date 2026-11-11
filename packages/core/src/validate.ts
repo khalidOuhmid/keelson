@@ -151,8 +151,8 @@ function cycleDiagnostics(jobs: readonly Job[], graph: Graph, main: string): Dia
       severity: "error",
       params: { cycle: cyclePath(anchor, members, graph) },
       range: byId.get(anchor)?.range ?? null,
-      // Le cycle est attribué au fichier du job qui l'ancre. Faute de ce job, au fichier principal :
-      // il n'y a pas d'autre fichier à nommer, et un diagnostic sans fichier ne situe rien.
+      // The cycle is attributed to the file of the job anchoring it. Without that job, to the main
+      // file: there is no other file to name, and a diagnostic without a file locates nothing.
       file: byId.get(anchor)?.file ?? main,
     });
   }

@@ -19,10 +19,10 @@ const TONE: Record<Severity, string> = {
 export type DiagnosticsPanelProps = {
   diagnostics: readonly Diagnostic[];
   onSelectRange: (file: string, range: SourceRange | null) => void;
-  /** Le fichier principal : les lignes qui viennent d'ailleurs le nomment, les autres non. */
+  /** The main file: rows that come from elsewhere name their file, the others do not. */
   main: string;
-  /** La bande de pipeline partiel énonce déjà les informations : les redire ici ferait annoncer
-   *  deux fois le même fait. Filtré sur la sévérité, pas sur un code. */
+  /** The partial-pipeline bar already states the info items: repeating them here would announce
+   *  the same fact twice. Filtered on severity, not on a code. */
   omitInfo?: boolean;
 };
 
@@ -90,8 +90,8 @@ function Body({ diagnostic, main }: { diagnostic: Diagnostic; main: string }) {
           <span data-testid="diagnostic-code" className="font-mono text-xs text-text-secondary">
             {diagnostic.code}
           </span>
-          {/* Le fichier n'est nommé que quand ce n'est pas celui que l'utilisateur a sous les yeux :
-              le répéter sur chaque ligne du fichier principal ne dirait rien. */}
+          {/* The file is named only when it is not the one the user is looking at: repeating it
+              on every row of the main file would say nothing. */}
           {diagnostic.file === main ? null : (
             <span data-testid="diagnostic-file" className="font-mono text-2xs text-text-muted">
               {diagnostic.file}

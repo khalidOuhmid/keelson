@@ -26,42 +26,42 @@ function written(text: string, draft: Draft): string {
 const add = { kind: "addSnippet", id: "trivy", stage: "test", snippet: SNIPPET };
 
 describe("addSnippet", () => {
-  test("recopie le snippet tel quel en fin de fichier", () => {
+  test("copies the snippet as is at the end of the file", () => {
     expect(written(BASE, add)).toBe(`${BASE}\n${SNIPPET}`);
   });
 
-  test("la clé et le stage sont remplacés, le reste non", () => {
+  test("the key and the stage are replaced, nothing else", () => {
     const text = written(BASE, { ...add, id: "scan-fs", stage: "build" });
     expect(text).toContain("scan-fs:\n  stage: build\n  image:\n    name: aquasec/trivy:latest\n");
     expect(text).not.toContain("trivy:\n");
   });
 
-  test("un snippet sans stage en reçoit un", () => {
+  test("a snippet without a stage gets one", () => {
     const text = written(BASE, { ...add, snippet: "x:\n  script:\n    - a\n" });
     const job = parse(text).pipeline.jobs.find((entry) => entry.id === "trivy");
     expect(job?.stage.value).toBe("test");
   });
 
-  test("le fin de ligne du fichier s'applique au snippet", () => {
+  test("the file's line ending applies to the snippet", () => {
     const crlf = BASE.replaceAll("\n", "\r\n");
     expect(written(crlf, add)).not.toMatch(/[^\r]\n/);
   });
 
-  test("un nom de job piégé reste une clé", () => {
+  test("a booby-trapped job name stays a key", () => {
     const text = written(BASE, { ...add, id: "scan: fs" });
     expect(parse(text).pipeline.jobs.map((job) => job.id)).toContain("scan: fs");
   });
 
   test.each([
-    ["deux jobs", "a:\n  script: x\nb:\n  script: y\n"],
-    ["une liste", "- a\n"],
-    ["un scalaire", "bonjour\n"],
-    ["du YAML cassé", "a: [\n"],
-    ["une ancre", "a: &x\n  script: y\n"],
-    ["un job vide", "a:\n"],
-    ["une clé de premier niveau", "stages:\n  - a\n"],
-    ["un job en flow", "a: {script: y}\n"],
-  ])("%s est refusé", (_label, snippet) => {
+    ["two jobs", "a:\n  script: x\nb:\n  script: y\n"],
+    ["a list", "- a\n"],
+    ["a scalar", "bonjour\n"],
+    ["broken YAML", "a: [\n"],
+    ["an anchor", "a: &x\n  script: y\n"],
+    ["an empty job", "a:\n"],
+    ["a top-level key", "stages:\n  - a\n"],
+    ["a flow job", "a: {script: y}\n"],
+  ])("%s is refused", (_label, snippet) => {
     const result = run(BASE, { ...add, snippet });
     expect(result.ok ? null : result.error).toMatchObject({
       code: "INVALID_OPERATION",
@@ -70,22 +70,22 @@ describe("addSnippet", () => {
   });
 
   test.each([
-    ["une clé indentée", "  x:\n    stage: test\n    script:\n      - a\n"],
-    ["un commentaire indenté en tête", "    # note\nx:\n  script:\n    - a\n"],
-    ["un stage vide commenté", "x:\n  stage: # c\n  script:\n    - a\n"],
-    ["un stage vide tagué", "x:\n  stage: !!str\n  script:\n    - a\n"],
-    ["un stage sans valeur", "x:\n  stage:\n  script:\n    - a\n"],
-  ])("%s est refusé", (_label, snippet) => {
+    ["an indented key", "  x:\n    stage: test\n    script:\n      - a\n"],
+    ["an indented leading comment", "    # note\nx:\n  script:\n    - a\n"],
+    ["a commented empty stage", "x:\n  stage: # c\n  script:\n    - a\n"],
+    ["a tagged empty stage", "x:\n  stage: !!str\n  script:\n    - a\n"],
+    ["a stage without a value", "x:\n  stage:\n  script:\n    - a\n"],
+  ])("%s is refused", (_label, snippet) => {
     expect(run(BASE, { ...add, snippet })).toMatchObject({
       error: { params: { reason: "invalidSnippet" } },
     });
   });
 
-  test("un commentaire de tête à la colonne zéro est recopié", () => {
+  test("a leading comment at column zero is copied", () => {
     expect(written(BASE, { ...add, snippet: `# scan\n${SNIPPET}` })).toContain("# scan\ntrivy:\n");
   });
 
-  test("les refus de nom et de stage sont ceux d'addJob", () => {
+  test("the name and stage refusals are addJob's", () => {
     expect(run(BASE, { ...add, id: "compile" })).toMatchObject({
       error: { code: "NAME_CONFLICT" },
     });
@@ -95,7 +95,7 @@ describe("addSnippet", () => {
     });
   });
 
-  test("un nom pris dans un fichier inclus est refusé", () => {
+  test("a name taken in an included file is refused", () => {
     const files: Record<string, string> = { "ci/a.yml": "trivy:\n  script: x\n" };
     const read: IncludeReader = {
       read: (p) => files[p] ?? null,
@@ -107,7 +107,7 @@ describe("addSnippet", () => {
     expect(result.ok ? null : result.error.code).toBe("FROM_INCLUDED_FILE");
   });
 
-  test("tout snippet GitLab du catalogue s'insère et couvre ses couches", () => {
+  test("every GitLab snippet in the catalogue inserts and covers its layers", () => {
     const { tools } = loadCatalog();
     const failures = tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;
@@ -135,31 +135,31 @@ describe("composite", () => {
     { kind: "addSnippet", id: "trivy", stage: "security", snippet: SNIPPET },
   ];
 
-  test("le stage et le job arrivent ensemble", () => {
+  test("the stage and the job arrive together", () => {
     const text = written(BASE, { kind: "composite", steps });
     const { pipeline } = parse(text);
     expect(pipeline.stages.map((stage) => stage.name)).toContain("security");
     expect(pipeline.jobs.find((job) => job.id === "trivy")?.stage.value).toBe("security");
   });
 
-  test("un seul inverse rend le texte d'origine, octet pour octet", () => {
+  test("a single inverse restores the original text, byte for byte", () => {
     const result = run(BASE, { kind: "composite", steps });
     if (!result.ok) {
-      throw new Error("refusé");
+      throw new Error("refused");
     }
     const { document } = parse(result.value.text);
     const back = apply(document, result.value.inverse as SpliceOperation);
     expect(back.ok && back.value.text).toBe(BASE);
   });
 
-  test("une seule plage touchée, du premier au dernier octet changé", () => {
+  test("a single range touched, from the first to the last changed byte", () => {
     const result = run(BASE, { kind: "composite", steps });
     expect(result.ok && result.value.touched).toHaveLength(1);
     const range = result.ok ? result.value.touched[0] : undefined;
     expect(result.ok && result.value.text.slice(0, range?.start)).toBe(BASE.slice(0, range?.start));
   });
 
-  test("une étape refusée refuse tout", () => {
+  test("a refused step refuses everything", () => {
     const result = run(BASE, {
       kind: "composite",
       steps: [
@@ -170,7 +170,7 @@ describe("composite", () => {
     expect(result.ok ? null : result.error.code).toBe("NAME_CONFLICT");
   });
 
-  test("une composite ne contient ni splice ni autre composite", () => {
+  test("a composite contains neither a splice nor another composite", () => {
     const hash = hashText(BASE);
     for (const step of [
       { kind: "splice", start: 0, end: 0, text: "" },
@@ -187,14 +187,14 @@ describe("composite", () => {
     }
   });
 
-  test("une ancre sur le dernier stage n'est pas recopiée", () => {
+  test("an anchor on the last stage is not copied", () => {
     const text = "stages:\n  - build\n  - &t test\n\na:\n  stage: *t\n  script: x\n";
     const after = parse(written(text, { kind: "addStage", name: "scan" }));
     expect(after.pipeline.jobs[0]?.stage.value).toBe("test");
   });
 
   test.each([["- # c\n    test"], ["- &t\n    test"]])(
-    "un item sur une ligne de continuation (%j) n'est pas prolongé",
+    "an item on a continuation line (%j) is not extended",
     (item) => {
       const text = `stages:\n  - build\n  ${item}\n\na:\n  stage: test\n  script: x\n`;
       const after = parse(written(text, { kind: "addStage", name: "scan" }));
@@ -204,17 +204,17 @@ describe("composite", () => {
     },
   );
 
-  test("une composite vide est refusée", () => {
+  test("an empty composite is refused", () => {
     expect(run(BASE, { kind: "composite", steps: [] }).ok).toBe(false);
   });
 });
 
-describe("needs inter-projets", () => {
+describe("cross-project needs", () => {
   const INCLUDED =
     ".base:\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";
   const MAIN = `a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .base\n  stage: test\n  script: x\n\n${INCLUDED}`;
 
-  test("surcharger des needs hérités qui en portent est refusé", () => {
+  test("overriding inherited needs that carry some is refused", () => {
     for (const draft of [
       { kind: "removeNeed", id: "job", job: "a" },
       { kind: "addNeed", id: "job", need: { job: "c" } },
@@ -225,13 +225,13 @@ describe("needs inter-projets", () => {
     }
   });
 
-  test("retirer le dernier need modélisé d'une liste locale ne retire pas la clé", () => {
+  test("removing the last modelled need of a local list does not remove the key", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";
     expect(run(text, { kind: "removeNeed", id: "job", job: "a" }).ok).toBe(false);
   });
 
-  test("un item inter-projets derrière une ancre se voit aussi", () => {
+  test("a cross-project item behind an anchor is seen too", () => {
     const anchor = ".p: &p\n  project: g/p\n  job: j\n  ref: main\n  artifacts: true\n\n";
     const jobs = "a:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n";
     for (const item of ["    - *p\n", "    - <<: *p\n"]) {
@@ -241,19 +241,19 @@ describe("needs inter-projets", () => {
   });
 
   test.each([
-    ["!reference dans la liste", "    - a\n    - !reference [.n, needs]\n"],
-    ["liste imbriquée", "    - a\n    - - project: g/p\n        job: j\n        ref: main\n"],
-  ])("un item inter-projets dans %s se voit aussi", (_label, items) => {
+    ["!reference in the list", "    - a\n    - !reference [.n, needs]\n"],
+    ["nested list", "    - a\n    - - project: g/p\n        job: j\n        ref: main\n"],
+  ])("a cross-project item in %s is seen too", (_label, items) => {
     const text = `.n:\n  needs:\n    - project: g/p\n      job: j\n      ref: main\n\n.tpl:\n  needs:\n${items}\na:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .tpl\n  stage: test\n  script: x\n`;
     expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
   });
 
-  test("un item imbriqué ordinaire n'est pas perdu non plus", () => {
+  test("an ordinary nested item is not lost either", () => {
     const text = `.n:\n  needs:\n    - b\n\n.t:\n  needs:\n    - a\n    - !reference [.n, needs]\n\na:\n  stage: test\n  script: x\n\nb:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n`;
     expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
   });
 
-  test("des références larges ne font pas exploser l'analyse", () => {
+  test("wide references do not blow up the analysis", () => {
     const refs = "    - !reference [.n, needs]\n".repeat(30);
     const started = performance.now();
     parse(`.n:\n  needs:\n${refs}\na:\n  extends: .n\n  script: x\n`);
@@ -261,18 +261,18 @@ describe("needs inter-projets", () => {
   });
 
   test.each([
-    ["alias de scalaire", "    - a\n    - *b\n"],
-    ["map avec alias", "    - a\n    - job: *b\n"],
-    ["clé non modélisée", "    - job: a\n      parallel:\n        matrix:\n          - X: 1\n"],
-    ["optional en alias", "    - job: a\n      optional: *o\n"],
-  ])("surcharger une liste héritée avec %s est refusé", (_label, items) => {
+    ["scalar alias", "    - a\n    - *b\n"],
+    ["map with alias", "    - a\n    - job: *b\n"],
+    ["unmodelled key", "    - job: a\n      parallel:\n        matrix:\n          - X: 1\n"],
+    ["optional as alias", "    - job: a\n      optional: *o\n"],
+  ])("overriding an inherited list with %s is refused", (_label, items) => {
     const text = `.v:\n  x: &b a\n  y: &o true\n\n.t:\n  needs:\n${items}\na:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n`;
     expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } })).toMatchObject({
       error: { code: "INVALID_OPERATION" },
     });
   });
 
-  test("retirer le dernier need local ne fait pas ressortir l'hérité", () => {
+  test("removing the last local need does not bring the inherited one back", () => {
     const text =
       ".t:\n  needs:\n    - b\n\na:\n  stage: test\n  script: x\n\nb:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n  needs:\n    - a\n";
     const result = run(text, { kind: "removeNeed", id: "job", job: "a" });
@@ -282,13 +282,13 @@ describe("needs inter-projets", () => {
     }
   });
 
-  test("retirer un item porteur d'une ancre utilisée ne laisse pas d'alias pendant", () => {
+  test("removing an item carrying a used anchor leaves no dangling alias", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nb:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - &k a\n    - b\n\nz:\n  stage: test\n  script: x\n  needs:\n    - *k\n";
     expect(run(text, { kind: "removeNeed", id: "job", job: "a" }).ok).toBe(false);
   });
 
-  test("une chaîne d'ancres longue ne ralentit pas l'analyse", () => {
+  test("a long chain of anchors does not slow the analysis down", () => {
     const links = Array.from({ length: 400 }, (_, index) =>
       index === 0
         ? ".m0: &m0\n  x: 1\n"
@@ -299,7 +299,7 @@ describe("needs inter-projets", () => {
     expect(performance.now() - started).toBeLessThan(1500);
   });
 
-  test("une liste flow ne perd pas les options d'un need", () => {
+  test("a flow list does not lose a need's options", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs: [a]\n";
     const result = run(text, { kind: "addNeed", id: "job", need: { job: "c", optional: true } });
@@ -312,14 +312,14 @@ describe("needs inter-projets", () => {
   test.each([
     ["artifacts: no", "    - job: a\n      artifacts: no\n"],
     ["optional: yes", "    - job: a\n      optional: yes\n"],
-    ["job numérique", "    - job: 123\n"],
-    ["sans job", "    - optional: true\n"],
-  ])("un item à relecture douteuse (%s) n'est pas réécrit", (_label, items) => {
+    ["numeric job", "    - job: 123\n"],
+    ["no job", "    - optional: true\n"],
+  ])("an item with a dubious re-read (%s) is not rewritten", (_label, items) => {
     const text = `.t:\n  needs:\n${items}\na:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  extends: .t\n  stage: test\n  script: x\n`;
     expect(run(text, { kind: "addNeed", id: "job", need: { job: "c" } }).ok).toBe(false);
   });
 
-  test("ajouter un need à un fichier sans fin de ligne finale", () => {
+  test("adding a need to a file without a final line ending", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a";
     const after = parse(written(text, { kind: "addNeed", id: "job", need: { job: "c" } }));
@@ -327,7 +327,7 @@ describe("needs inter-projets", () => {
     expect(job?.needs?.value.map((need) => need.job)).toEqual(["a", "c"]);
   });
 
-  test("un fichier CRLF qui finit par un simple saut de ligne ne reçoit pas de ligne vide", () => {
+  test("a CRLF file ending with a bare line feed does not get an empty line", () => {
     const text =
       "a:\r\n  stage: test\r\n  script: x\r\n\r\nc:\r\n  stage: test\r\n  script: x\r\n\r\njob:\r\n  stage: test\r\n  script: x\r\n  needs:\r\n    - a\n";
     expect(written(text, { kind: "addNeed", id: "job", need: { job: "c" } })).toEndWith(
@@ -335,7 +335,7 @@ describe("needs inter-projets", () => {
     );
   });
 
-  test("beaucoup d'alias restent linéaires à l'écriture", () => {
+  test("many aliases stay linear when writing", () => {
     const aliases = Array.from({ length: 3000 }, () => "    - *x\n").join("");
     const started = performance.now();
     run(`.v:\n  y: &x a\n\nz:\n  stage: test\n  script:\n${aliases}`, {
@@ -347,7 +347,7 @@ describe("needs inter-projets", () => {
     expect(performance.now() - started).toBeLessThan(4000);
   });
 
-  test("une liste locale s'étend sans perdre l'item", () => {
+  test("a local list extends without losing the item", () => {
     const text =
       "a:\n  stage: test\n  script: x\n\nc:\n  stage: test\n  script: x\n\njob:\n  stage: test\n  script: x\n  needs:\n    - a\n    - project: g/p\n      job: j\n      ref: main\n      artifacts: true\n";
     expect(written(text, { kind: "addNeed", id: "job", need: { job: "c" } })).toContain(

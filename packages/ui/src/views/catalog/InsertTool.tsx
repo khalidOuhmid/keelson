@@ -14,7 +14,7 @@ export type Insertion = {
   text: string;
   disabled: boolean;
   preview: (draft: Draft) => Promise<ApiResult<OperationPayload>>;
-  /** `job` reçoit le focus une fois l'écriture faite. Rend l'échec, ou `null`. */
+  /** `job` receives focus once the write is done. Returns the failure, or `null`. */
   onInsert: (draft: Draft, job: string) => Promise<ApiFailure | null>;
 };
 
@@ -119,7 +119,7 @@ function Form({
     });
   }, [draft, preview, writing]);
 
-  // Le diff affiché doit être celui de ce qui partira : une réponse d'un autre brouillon ne compte pas.
+  // The diff shown must be the one that will be sent: a response for another draft does not count.
   const settled = answer !== null && answer.draft === draft;
   const failure = settled && "failure" in answer ? answer.failure : null;
   const payload = settled && "payload" in answer ? answer.payload : null;
@@ -203,13 +203,13 @@ function Form({
           >
             {rows.map((row, index) =>
               row.kind === "gap" ? (
-                // biome-ignore lint/suspicious/noArrayIndexKey: une ligne n'a pas d'autre identité que sa place dans ce diff
+                // biome-ignore lint/suspicious/noArrayIndexKey: a row has no identity other than its place in this diff
                 <span key={index} className="block text-text-muted">
                   <span className="sr-only">unchanged lines</span>
                   <span aria-hidden="true">…</span>
                 </span>
               ) : (
-                // biome-ignore lint/suspicious/noArrayIndexKey: une ligne n'a pas d'autre identité que sa place dans ce diff
+                // biome-ignore lint/suspicious/noArrayIndexKey: a row has no identity other than its place in this diff
                 <Row key={index} row={row} />
               ),
             )}

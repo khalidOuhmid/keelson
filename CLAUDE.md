@@ -1,38 +1,40 @@
 # Keelson
 
-## Le projet en cinq lignes
+## The project in five lines
 
-Keelson est un outil open source qui sert à concevoir visuellement une chaîne DevSecOps avant de
-l'implémenter. Il lit et réécrit le YAML CI natif d'un dépôt (GitLab CI d'abord, GitHub Actions
-ensuite) en aller-retour sans le dénaturer, et modélise à côté les services de la plateforme (Nexus,
-Harbor, DefectDojo, Vault, Sentry…) et leurs intégrations avec les jobs. Un overlay indique la
-couverture des 13 couches de l'OWASP DevSecOps Guideline, plus des catégories plateforme hors OWASP,
-et un catalogue de 50 à 100 outils propose des implémentations pour les couches non couvertes.
+Keelson is an open-source tool for visually designing a DevSecOps chain before implementing it. It
+reads and rewrites a repository's native CI YAML (GitLab CI first, GitHub Actions next) as a lossless
+round-trip, and models alongside it the platform services (Nexus, Harbor, DefectDojo, Vault,
+Sentry…) and their integrations with jobs. An overlay shows coverage of the 13 layers of the OWASP
+DevSecOps Guideline, plus platform categories outside OWASP, and a catalogue of 50 to 100 tools
+suggests implementations for uncovered layers.
 
-Plan détaillé et découpage en lots : [specs/01-plan.md](specs/01-plan.md). Vision :
+Detailed plan and milestone breakdown: [specs/01-plan.md](specs/01-plan.md). Vision:
 [specs/00-vision.md](specs/00-vision.md).
 
-## Règles de travail (non négociables)
+## Working rules (non-negotiable)
 
-- **Mode final, pas de POC. TDD strict.** Pour chaque comportement : écrire le test, constater qu'il
-  échoue, puis implémenter. Aucun code non testé.
-- **Toute dette est datée dans le code** : `// DEBT(AAAA-MM-JJ): <quoi> — <pourquoi>`.
-- **Tout ce qui est hors périmètre du lot en cours va dans [specs/gaps.md](specs/gaps.md)**
-  (date, constat, impact, proposition). Jamais dans le lot courant.
-- **Frontière de test du rendu.** Tout état ou toute donnée calculée pour l'UI — le store, une
-  couche pure comme `graph.ts` ou `layout.ts` — doit avoir au moins un test qui vérifie son **effet
-  dans le DOM rendu ou en E2E**, pas seulement sa valeur. Un champ calculé sans consommateur à
-  l'écran est soit branché, soit supprimé. Un test qui s'arrête au store couvre un calcul, pas un
-  comportement.
-- **Invariants de mise en page.** La cohérence entre l'IR et l'affichage — un job dans la colonne de
-  son stage, le compte de l'en-tête égal au nombre de nœuds de la colonne, aucun chevauchement de
-  nœuds — est testée **sur le rendu et en E2E**, pas uniquement sur les coordonnées calculées.
-- Pas de commentaires explicatifs superflus dans le code.
-- Ne pas installer de dépendance non utilisée par le lot en cours.
-- **Commits conventionnels** (`chore:`, `build:`, `test:`, `docs:`, `ci:`, `feat:`, `fix:`) sur une
-  branche `lot/<id>-<slug>`.
+- **Production mode, no POC. Strict TDD.** For every behaviour: write the test, watch it fail, then
+  implement. No untested code.
+- **English everywhere.** Documentation, specs, code comments, test titles and commit messages are
+  written in English.
+- **All debt is dated in the code**: `// DEBT(YYYY-MM-DD): <what> — <why>`.
+- **Anything outside the scope of the current milestone goes into [specs/gaps.md](specs/gaps.md)**
+  (date, finding, impact, proposal). Never into the current milestone.
+- **Render test boundary.** Any state or data computed for the UI — the store, a pure layer such as
+  `graph.ts` or `layout.ts` — must have at least one test that checks its **effect in the rendered
+  DOM or in E2E**, not just its value. A computed field with no on-screen consumer is either wired
+  up or deleted. A test that stops at the store covers a computation, not a behaviour.
+- **Layout invariants.** Consistency between the IR and the display — a job in its stage's column,
+  the header count equal to the number of nodes in the column, no overlapping nodes — is tested **on
+  the render and in E2E**, not only on the computed coordinates.
+- No superfluous explanatory comments in the code.
+- Do not install a dependency the current milestone does not use.
+- **Conventional commits** (`chore:`, `build:`, `test:`, `docs:`, `ci:`, `feat:`, `fix:`) on a
+  `milestone/<id>-<slug>` branch. Branches of earlier milestones keep their historical `lot/<id>-<slug>`
+  names.
 
-## Vérification avant toute PR
+## Verification before any PR
 
 ```sh
 bun run check && bun run e2e
@@ -40,141 +42,141 @@ bun run check && bun run e2e
 
 ## Stack
 
-- **Bun** : gestionnaire de paquets, workspaces, scripts, runner de tests (`bun test`). Versions
-  figées par `bun.lock`.
-- **TypeScript** strict partout (`strict`, `noUncheckedIndexedAccess`,
-  `exactOptionalPropertyTypes`), project references, `tsc -b` pour le typecheck (déclarations
-  uniquement, dans `types/`). Les types globaux sont cloisonnés par projet — voir la contrainte de
-  runtime Node ci-dessous.
-- **Biome** pour le lint et le format. Pas d'ESLint, pas de Prettier.
-- **UI** (`packages/ui`) : React 19 + Vite + Tailwind CSS v4. Tests de composants avec `bun test` +
-  Testing Library + happy-dom (preload `scripts/test-preload.ts` déclaré dans `bunfig.toml`). E2E
-  avec Playwright (`packages/ui/e2e/*.e2e.ts`).
+- **Bun**: package manager, workspaces, scripts, test runner (`bun test`). Versions pinned by
+  `bun.lock`.
+- **TypeScript** strict everywhere (`strict`, `noUncheckedIndexedAccess`,
+  `exactOptionalPropertyTypes`), project references, `tsc -b` for typechecking (declarations only,
+  in `types/`). Global types are isolated per project — see the Node runtime constraint below.
+- **Biome** for linting and formatting. No ESLint, no Prettier.
+- **UI** (`packages/ui`): React 19 + Vite + Tailwind CSS v4. Component tests with `bun test` +
+  Testing Library + happy-dom (preload `scripts/test-preload.ts` declared in `bunfig.toml`). E2E
+  with Playwright (`packages/ui/e2e/*.e2e.ts`).
 
-### Contrainte de runtime Node (impérative)
+### Node runtime constraint (mandatory)
 
-Les packages exécutés chez l'utilisateur — `cli`, `core`, `server`, `taxonomy`, `catalog`,
-`adapter-gitlab`, `adapter-github`, `toolchain` — n'utilisent **aucune API propre à Bun** dans leurs `src/` : ni
-`Bun.*`, ni `bun:*`. Ils sont buildés avec `bun build --target=node` pour que `npx keelson`
-fonctionne sur Node ≥ 20 sans Bun installé. Bun reste l'outillage de développement.
+The packages that run on the user's machine — `cli`, `core`, `server`, `taxonomy`, `catalog`,
+`adapter-gitlab`, `adapter-github`, `toolchain` — use **no Bun-specific API** in their `src/`:
+neither `Bun.*` nor `bun:*`. They are built with `bun build --target=node` so that `npx keelson`
+works on Node ≥ 20 without Bun installed. Bun remains the development tooling.
 
-Deux barrières indépendantes la font respecter :
+Two independent barriers enforce it:
 
-1. **Le typecheck.** Le `tsconfig.json` de chaque package runtime déclare `"types": ["node"]` et
-   n'inclut que `src/` : les types de Bun n'y sont pas visibles, donc `tsc -b` refuse toute
-   référence à `Bun` ou à `bun:*`. Les dossiers `test/` de ces packages sont typés à part par
-   `tsconfig.tests.json` à la racine (`"types": ["bun", "node"]`, `noEmit`), et peuvent donc
-   utiliser `bun:test` librement. `bun run typecheck` enchaîne les deux passes.
-   `scripts/` et `packages/ui` gardent les types de Bun.
-2. **Le garde-fou `scripts/check-runtime.ts`**, vérifié par `scripts/check-runtime.test.ts` : il
-   échoue si un fichier `src/` d'un package runtime importe `bun:*` ou référence `Bun.`. Il attrape
-   ce que le typecheck ne peut pas voir (fichiers non inclus dans un projet, usages dans des
-   chaînes, `globalThis.Bun`).
+1. **The typecheck.** Each runtime package's `tsconfig.json` declares `"types": ["node"]` and
+   includes only `src/`: Bun's types are not visible there, so `tsc -b` rejects any reference to
+   `Bun` or `bun:*`. The `test/` folders of these packages are typed separately by
+   `tsconfig.tests.json` at the root (`"types": ["bun", "node"]`, `noEmit`), and can therefore use
+   `bun:test` freely. `bun run typecheck` runs both passes.
+   `scripts/` and `packages/ui` keep Bun's types.
+2. **The `scripts/check-runtime.ts` guard**, verified by `scripts/check-runtime.test.ts`: it fails
+   if a `src/` file of a runtime package imports `bun:*` or references `Bun.`. It catches what the
+   typecheck cannot see (files not included in a project, usages inside strings, `globalThis.Bun`).
 
-En ajoutant un package runtime, lui donner `"types": ["node"]`, l'inscrire dans `RUNTIME_PACKAGES`
-de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
+When adding a runtime package, give it `"types": ["node"]`, register it in `RUNTIME_PACKAGES` in
+`scripts/check-runtime.ts` and add its `test/` to `tsconfig.tests.json`.
 
-### Dépendances installées
+### Installed dependencies
 
-| Dépendance      | Où                              | Usage                                        |
+| Dependency      | Where                           | Purpose                                      |
 | --------------- | ------------------------------- | -------------------------------------------- |
-| `yaml` (eemeli) | `adapter-gitlab`, `adapter-github`, `catalog`, `toolchain` | parsing, ranges des nœuds, anchors, merge |
-| `zod` v4        | `core`, `adapter-gitlab`, `catalog`, `toolchain` | schémas des opérations, fiches, layout |
-| `@xyflow/react` | `ui`                            | rendu du graphe pipeline                      |
-| `yaml` (eemeli) | `adapter-github`                | workflows, même patch en place que GitLab     |
-| `elkjs`         | `ui`                            | mise en page en couches, déterministe         |
-| `zustand`       | `ui`                            | état de l'UI, undo/redo                       |
-| CodeMirror 6    | `ui`                            | blocs YAML opaques en lecture seule           |
-| `fast-check`    | devDependency racine            | tests de propriétés                           |
-| `simple-icons`  | devDependency racine            | tracés CC0 compilés dans `catalog.json`       |
+| `yaml` (eemeli) | `adapter-gitlab`, `adapter-github`, `catalog`, `toolchain` | parsing, node ranges, anchors, merge |
+| `zod` v4        | `core`, `adapter-gitlab`, `catalog`, `toolchain` | operation schemas, catalogue entries, layout |
+| `@xyflow/react` | `ui`                            | pipeline graph rendering                     |
+| `yaml` (eemeli) | `adapter-github`                | workflows, same in-place patching as GitLab  |
+| `elkjs`         | `ui`                            | layered, deterministic layout                |
+| `zustand`       | `ui`                            | UI state, undo/redo                          |
+| CodeMirror 6    | `ui`                            | read-only opaque YAML blocks                 |
+| `fast-check`    | root devDependency              | property-based tests                         |
+| `simple-icons`  | root devDependency              | CC0 paths compiled into `catalog.json`       |
 
-Aucune dépendance n'est aujourd'hui en attente d'un lot futur.
+No dependency is currently waiting for a future milestone.
 
-`commander` n'a finalement pas été installé : la CLI parse ses arguments à la main, ce qui suffit
-tant que les commandes restent simples et évite une dépendance dans le bundle `npx keelson`.
+`commander` was ultimately not installed: the CLI parses its arguments by hand, which is enough as
+long as the commands stay simple, and keeps a dependency out of the `npx keelson` bundle.
 
-## Scripts racine
+## Root scripts
 
-| Script               | Effet                                                  |
+| Script               | Effect                                                 |
 | -------------------- | ------------------------------------------------------ |
-| `bun run lint`       | `biome check .`                                         |
-| `bun run format`     | `biome check --write .`                                 |
-| `bun run typecheck`  | `tsc -b` puis `tsc -p tsconfig.tests.json`              |
-| `bun run test`       | `bun test` sur tous les packages                        |
-| `bun run build`      | build de tous les packages, CLI ciblée Node             |
-| `bun run e2e`        | Playwright                                              |
-| `bun run check`      | lint + typecheck + build + test — ce que lance la CI    |
-| `bun run corpus:update` | régénère les goldens IR du corpus (diff à relire)   |
-| `bun run catalog:build` | compile `tools/*.yaml` vers `catalog.json` commité  |
-| `bun run dev`        | serveur local sur la fixture de dev + Vite sur 5283     |
+| `bun run lint`       | `biome check .`                                        |
+| `bun run format`     | `biome check --write .`                                |
+| `bun run typecheck`  | `tsc -b` then `tsc -p tsconfig.tests.json`             |
+| `bun run test`       | `bun test` across all packages                         |
+| `bun run build`      | builds all packages, CLI targeting Node                |
+| `bun run e2e`        | Playwright                                             |
+| `bun run check`      | lint + typecheck + build + test — what CI runs         |
+| `bun run corpus:update` | regenerates the corpus IR goldens (review the diff) |
+| `bun run catalog:build` | compiles `tools/*.yaml` into the committed `catalog.json` |
+| `bun run dev`        | local server on the dev fixture + Vite on 5283         |
 
-## Développement du front
+## Front-end development
 
-`bun run dev` démarre deux processus :
+`bun run dev` starts two processes:
 
-1. `scripts/dev.ts` lance le serveur **par programme** (pas via la CLI) sur
-   `packages/ui/dev-fixture/`, port 5284, avec un token fixe de développement ;
-2. Vite sert l'UI sur **5283** et proxifie `/api` vers le serveur en ajoutant l'en-tête du token,
-   de sorte que l'UI de dev n'a pas besoin de token dans son URL.
+1. `scripts/dev.ts` starts the server **programmatically** (not through the CLI) on
+   `packages/ui/dev-fixture/`, port 5284, with a fixed development token;
+2. Vite serves the UI on **5283** and proxies `/api` to the server, adding the token header, so the
+   dev UI does not need a token in its URL.
 
-`changeOrigin` est indispensable dans ce proxy : il réécrit l'en-tête `Host` vers `127.0.0.1:5284`,
-que le contrôle de `Host` du serveur exige. Un test
-(`packages/ui/test/devProxy.test.ts`) garde la cohérence du token, du port et de cette option entre
-le script et la configuration Vite.
+`changeOrigin` is essential in this proxy: it rewrites the `Host` header to `127.0.0.1:5284`, which
+the server's `Host` check requires. A test (`packages/ui/test/devProxy.test.ts`) keeps the token,
+the port and this option consistent between the script and the Vite configuration.
 
-`KEELSON_DEV_FIXTURE=includes bun run dev` ouvre `packages/ui/dev-fixture-includes/`, un pipeline
-réparti sur plusieurs fichiers, pour les surfaces d'include.
+`KEELSON_DEV_FIXTURE=includes bun run dev` opens `packages/ui/dev-fixture-includes/`, a pipeline
+split across several files, for the include surfaces.
 
-La fixture de dev est un pipeline volontairement riche : quatre stages, needs en forme objet et
-optionnels, `extends`, environnement. Les tests E2E en prennent une copie temporaire.
+The dev fixture is a deliberately rich pipeline: four stages, object-form and optional needs,
+`extends`, environment. E2E tests work on a temporary copy of it.
 
-## Tests de propriétés
+## Property-based tests
 
-Les propriétés fast-check vivent dans `packages/adapter-gitlab/test/properties/`. Elles vérifient
-l'aller-retour, l'inversabilité, le déterminisme et la localité des éditions sur tout le corpus.
+The fast-check properties live in `packages/adapter-gitlab/test/properties/`. They check round-trip,
+invertibility, determinism and edit locality across the whole corpus.
 
-- `KEELSON_FC_RUNS` fixe le nombre de runs (25 par défaut, pour garder `bun run test` sous deux
-  secondes). Avant une PR qui touche `adapter-gitlab`, passer `KEELSON_FC_RUNS=500`.
-- `KEELSON_FC_SEED` force un seed. En CI le seed est fixé à `20261020` pour que les échecs soient
-  reproductibles ; en local il est aléatoire, et fast-check affiche le seed et le contre-exemple
-  minimal en cas d'échec.
+- `KEELSON_FC_RUNS` sets the number of runs (25 by default, to keep `bun run test` under two
+  seconds). Before a PR that touches `adapter-gitlab`, use `KEELSON_FC_RUNS=500`.
+- `KEELSON_FC_SEED` forces a seed. In CI the seed is fixed at `20261020` so failures are
+  reproducible; locally it is random, and fast-check prints the seed and the minimal counterexample
+  on failure.
 
-`packages/toolchain/test/properties/` vérifie les quatre mêmes propriétés sur `toolchain.yaml`, avec
-son propre corpus dans `packages/toolchain/test/corpus/`.
+`packages/toolchain/test/properties/` checks the same four properties on `toolchain.yaml`, with its
+own corpus in `packages/toolchain/test/corpus/`.
 
-`packages/adapter-github/test/properties/` fait de même sur les workflows, avec 22 fichiers MIT d'`actions/starter-workflows` (SHA et notice dans `LICENSES.md`) ; `KEELSON_UPDATE_GOLDENS=1 bun test packages/adapter-github/test/corpus.test.ts` régénère ses goldens, diff à relire.
+`packages/adapter-github/test/properties/` does the same for workflows, with 22 MIT files from
+`actions/starter-workflows` (SHA and notice in `LICENSES.md`);
+`KEELSON_UPDATE_GOLDENS=1 bun test packages/adapter-github/test/corpus.test.ts` regenerates its
+goldens (review the diff).
 
-Le corpus est dans `packages/adapter-gitlab/test/corpus/` : `gitlab-templates/` (20 templates
-officiels MIT, provenance et SHA dans `LICENSES.md`, intégrité dans `CHECKSUMS.txt`), `edge-cases/`
-(fixtures maison) et `goldens/` (IR attendue). **Ne jamais ajouter de fichier de CI venant d'un
-employeur ou d'un client.**
+The corpus lives in `packages/adapter-gitlab/test/corpus/`: `gitlab-templates/` (20 official MIT
+templates, provenance and SHA in `LICENSES.md`, integrity in `CHECKSUMS.txt`), `edge-cases/`
+(in-house fixtures) and `goldens/` (expected IR). **Never add a CI file coming from an employer or a
+client.**
 
-## Workflow front avec Impeccable (obligatoire pour tout changement dans `packages/ui`)
+## Front-end workflow with Impeccable (mandatory for any change in `packages/ui`)
 
-Le plugin [Impeccable](https://github.com/pbakaus/impeccable) juge et guide tout le front.
+The [Impeccable](https://github.com/pbakaus/impeccable) plugin judges and guides the whole front end.
 
-1. **Avant** de coder une vue ou un composant : `/impeccable shape`.
-2. **Après** implémentation : `/impeccable critique` puis `/impeccable audit`, et corriger ce qui en
-   ressort.
-3. **Avant** d'ouvrir la PR : `/impeccable polish`.
-4. `PRODUCT.md` et `DESIGN.md` (générés par `/impeccable init`) sont la **source de vérité du
-   design** : aucune couleur, taille ou espacement en dur hors des tokens qu'ils définissent.
+1. **Before** coding a view or a component: `/impeccable shape`.
+2. **After** implementation: `/impeccable critique` then `/impeccable audit`, and fix whatever comes
+   out of them.
+3. **Before** opening the PR: `/impeccable polish`.
+4. `PRODUCT.md` and `DESIGN.md` (generated by `/impeccable init`) are the **design source of
+   truth**: no hard-coded colour, size or spacing outside the tokens they define.
 
-## Organisation du monorepo
+## Monorepo layout
 
 ```
-packages/core/            IR pipeline + toolchain
-packages/taxonomy/        couches OWASP + catégories plateforme
-packages/catalog/         tools/*.yaml, schéma, catalog.json compilé
+packages/core/            pipeline IR + toolchain
+packages/taxonomy/        OWASP layers + platform categories
+packages/catalog/         tools/*.yaml, schema, compiled catalog.json
 packages/adapter-gitlab/  GitLab CI ↔ IR
 packages/adapter-github/  GitHub Actions ↔ IR
-packages/toolchain/       .devsecops/toolchain.yaml, layout.json, propositions d'intégration
-packages/server/          serveur local de keelson start : API, SSE, écriture atomique
+packages/toolchain/       .devsecops/toolchain.yaml, layout.json, integration proposals
+packages/server/          local server for keelson start: API, SSE, atomic writes
 packages/ui/              React + Vite + Tailwind
-packages/cli/             binaire `keelson`
-scripts/                  outillage de dev (garde-fou runtime, preload des tests)
-specs/                    vision, plan, écarts
+packages/cli/             `keelson` binary
+scripts/                  dev tooling (runtime guard, test preload)
+specs/                    vision, plan, gaps
 ```
 
-Chaque package exporte une constante `PACKAGE_NAME` égale au nom de son `package.json`, vérifiée par
-un test : c'est le smoke test du workspace, de la résolution et de `bun test`. Ne pas la supprimer.
+Each package exports a `PACKAGE_NAME` constant equal to the name in its `package.json`, checked by a
+test: it is the smoke test for the workspace, module resolution and `bun test`. Do not remove it.

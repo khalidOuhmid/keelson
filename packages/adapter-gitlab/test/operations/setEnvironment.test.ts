@@ -27,7 +27,7 @@ const texte = [
 ].join("\n");
 
 describe("setEnvironment", () => {
-  test("remplace un environnement en chaîne par une autre chaîne", () => {
+  test("replaces a string environment with another string", () => {
     const applied = expectOk(texte, {
       kind: "setEnvironment",
       id: "chaine",
@@ -37,7 +37,7 @@ describe("setEnvironment", () => {
     expect(applied.text).toContain("environment: staging");
   });
 
-  test("remplace une chaîne par un bloc quand url ou action sont fournis", () => {
+  test("replaces a string with a block when url or action is provided", () => {
     const applied = expectOk(texte, {
       kind: "setEnvironment",
       id: "chaine",
@@ -49,7 +49,7 @@ describe("setEnvironment", () => {
     });
   });
 
-  test("remplace un bloc existant", () => {
+  test("replaces an existing block", () => {
     const applied = expectOk(texte, {
       kind: "setEnvironment",
       id: "objet",
@@ -62,7 +62,7 @@ describe("setEnvironment", () => {
     });
   });
 
-  test("crée la clé environment quand le job n'en a pas", () => {
+  test("creates the environment key when the job has none", () => {
     const applied = expectOk(texte, {
       kind: "setEnvironment",
       id: "nu",
@@ -71,19 +71,19 @@ describe("setEnvironment", () => {
     expect(jobOf(applied.text, "nu").environment?.value).toEqual({ name: "revue" });
   });
 
-  test("retire la clé environment quand on passe null", () => {
+  test("removes the environment key when null is passed", () => {
     const applied = expectOk(texte, { kind: "setEnvironment", id: "chaine", environment: null });
     expect(jobOf(applied.text, "chaine").environment).toBeNull();
     expect(applied.text).not.toContain("environment: production");
   });
 
-  test("retire un bloc environment entier quand on passe null", () => {
+  test("removes a whole environment block when null is passed", () => {
     const applied = expectOk(texte, { kind: "setEnvironment", id: "objet", environment: null });
     expect(jobOf(applied.text, "objet").environment).toBeNull();
     expect(applied.text).not.toContain("staging.exemple.org");
   });
 
-  test("écrit une surcharge locale quand l'environnement est hérité", () => {
+  test("writes a local override when the environment is inherited", () => {
     const herite = [
       ".base:",
       "  environment:",
@@ -112,13 +112,13 @@ describe("setEnvironment", () => {
     });
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(texte, { kind: "setEnvironment", id: "chaine", environment: { name: "staging" } });
     roundTrip(texte, { kind: "setEnvironment", id: "nu", environment: { name: "revue" } });
     roundTrip(texte, { kind: "setEnvironment", id: "objet", environment: null });
   });
 
-  test("JOB_NOT_FOUND si le job n'existe pas", () => {
+  test("JOB_NOT_FOUND if the job does not exist", () => {
     expectUnchanged(
       texte,
       { kind: "setEnvironment", id: "absent", environment: null },
@@ -126,7 +126,7 @@ describe("setEnvironment", () => {
     );
   });
 
-  test("INVALID_OPERATION si on retire un environnement hérité", () => {
+  test("INVALID_OPERATION when removing an inherited environment", () => {
     const herite = [
       ".base:",
       "  environment:",

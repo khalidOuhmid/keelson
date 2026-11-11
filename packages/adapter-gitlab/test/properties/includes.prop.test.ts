@@ -15,7 +15,7 @@ type Case = {
   name: string;
   root: string;
   main: string;
-  /** Les octets de chaque fichier inclus, lus **avant** toute opération. */
+  /** The bytes of each included file, read **before** any operation. */
   included: { file: string; text: string }[];
 };
 
@@ -54,22 +54,22 @@ function run(entry: Case, text: string, draft: unknown) {
   return apply(parseCase(entry, text).document, operation);
 }
 
-describe("propriétés sur les arbres multi-fichiers", () => {
-  test("le corpus d'arbres est bien celui qui nourrit ces propriétés", () => {
+describe("properties on multi-file trees", () => {
+  test("the tree corpus is indeed the one feeding these properties", () => {
     expect(cases.length).toBe(trees.length);
     expect(cases.some((entry) => entry.included.length > 0)).toBe(true);
   });
 
-  /** La clause que ce lot ajoute à la localité, et **ce qu'elle peut mesurer ici**. `apply` est
-   *  une fonction pure : relire les fichiers du disque après l'appel ne dit rien, parce que rien
-   *  ne les écrit jamais — la revue indépendante du 2026-10-23 l'a prouvé en neutralisant tous les
-   *  refus `FROM_INCLUDED_FILE` sans faire rougir ce fichier.
+  /** The clause this milestone adds to locality, and **what it can measure here**. `apply` is a
+   *  pure function: re-reading the files from disk after the call says nothing, because nothing
+   *  ever writes them — the independent review of 2026-10-23 proved it by neutralising every
+   *  `FROM_INCLUDED_FILE` refusal without turning this file red.
    *
-   *  Ce qui est mesurable sur une fonction pure est que son résultat ne prétend rien avoir changé
-   *  ailleurs : `included` revient identique pour chaque opération tirée. La garantie sur les
-   *  octets du disque est mesurée là où une écriture a lieu, dans
+   *  What is measurable on a pure function is that its result claims to have changed nothing
+   *  elsewhere: `included` comes back identical for every generated operation. The guarantee on
+   *  the bytes on disk is measured where a write takes place, in
    *  `packages/server/test/includes.test.ts`. */
-  test("aucune opération ne prétend avoir changé un fichier inclus", () => {
+  test("no operation claims to have changed an included file", () => {
     fc.assert(
       fc.property(caseArb(), ({ entry, draft }) => {
         const result = run(entry, entry.main, draft);
@@ -84,7 +84,7 @@ describe("propriétés sur les arbres multi-fichiers", () => {
     );
   });
 
-  test("aller-retour : l'inverse restaure les octets du fichier principal", () => {
+  test("round-trip: the inverse restores the bytes of the main file", () => {
     fc.assert(
       fc.property(caseArb(), ({ entry, draft }) => {
         const result = run(entry, entry.main, draft);
@@ -93,7 +93,7 @@ describe("propriétés sur les arbres multi-fichiers", () => {
         }
         const back = apply(result.value.document, result.value.inverse);
         if (!back.ok) {
-          throw new Error(`inverse refusé : ${back.error.code}`);
+          throw new Error(`inverse refused: ${back.error.code}`);
         }
         expect(back.value.text).toBe(entry.main);
       }),
@@ -101,7 +101,7 @@ describe("propriétés sur les arbres multi-fichiers", () => {
     );
   });
 
-  test("déterminisme : deux applications de la même opération rendent le même texte", () => {
+  test("determinism: two applications of the same operation return the same text", () => {
     fc.assert(
       fc.property(caseArb(), ({ entry, draft }) => {
         const first = run(entry, entry.main, draft);
@@ -115,7 +115,7 @@ describe("propriétés sur les arbres multi-fichiers", () => {
     );
   });
 
-  test("localité : le préfixe avant la première plage touchée est intact", () => {
+  test("locality: the prefix before the first touched range is intact", () => {
     fc.assert(
       fc.property(caseArb(), ({ entry, draft }) => {
         const result = run(entry, entry.main, draft);
@@ -133,9 +133,9 @@ describe("propriétés sur les arbres multi-fichiers", () => {
     );
   });
 
-  /** Sans cette propriété, une opération acceptée pourrait rendre un pipeline amputé de ses jobs
-   *  inclus — c'est ce qui arrivait quand `apply` relisait le texte sans son lecteur d'includes. */
-  test("un pipeline rendu après une opération garde tous les fichiers de l'arbre", () => {
+  /** Without this property, an accepted operation could return a pipeline stripped of its included
+   *  jobs — which is what happened when `apply` re-read the text without its include reader. */
+  test("a pipeline returned after an operation keeps every file of the tree", () => {
     fc.assert(
       fc.property(caseArb(), ({ entry, draft }) => {
         const result = run(entry, entry.main, draft);

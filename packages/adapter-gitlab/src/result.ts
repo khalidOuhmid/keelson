@@ -11,13 +11,13 @@ export type ApplyOk = {
   hash: string;
   inverse: SpliceOperation;
   touched: SourceRangeList;
-  /** Le texte de chaque fichier inclus après l'opération : les plages des blocs opaques d'un job
-   *  inclus sont des offsets dedans. */
+  /** The text of each included file after the operation: the ranges of an included job's opaque
+   *  blocks are offsets into it. */
   included: Record<string, string>;
 };
 
 export type SourceRangeList = { start: number; end: number }[];
 
-/** L'adaptateur n'ajoute rien à l'erreur de `core` : il la rend telle quelle. L'alias reste pour
- *  que les signatures de ce paquet nomment ce qu'elles rendent. */
+/** The adapter adds nothing to `core`'s error: it returns it as is. The alias remains so that this
+ *  package's signatures name what they return. */
 export type ApplyError = OperationError;

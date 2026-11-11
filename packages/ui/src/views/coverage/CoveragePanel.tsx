@@ -13,7 +13,7 @@ export type CoveragePanelProps = {
   selected: LayerId | null;
   onSelect: (layer: LayerId) => void;
   onShowTools: (layer: LayerId) => void;
-  /** Plusieurs fichiers de pipeline : ce panneau n'en dit qu'un, et il doit le dire. */
+  /** Several pipeline files: this panel describes only one, and it must say so. */
   scope?: { file: string; count: number } | null;
 };
 
@@ -90,7 +90,7 @@ export function CoveragePanel({
         </p>
       ) : null}
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Uncovered OWASP layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Uncovered OWASP layers</h2>
         {uncovered.length === 0 ? (
@@ -104,9 +104,9 @@ export function CoveragePanel({
         )}
       </div>
 
-      {/* Une catégorie plateforme est un service autour du pipeline : ne pas la voir dans les jobs
-          n'est pas une lacune de sécurité, et la mêler aux couches OWASP gonflait le manque. */}
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* A platform category is a service around the pipeline: not seeing it in the jobs is not a
+          security gap, and mixing it with the OWASP layers inflated the shortfall. */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Platform categories not seen" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Platform categories not seen</h2>
         {unseen.length === 0 ? (
@@ -120,7 +120,7 @@ export function CoveragePanel({
         )}
       </div>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Covered layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Covered layers</h2>
         {covered.length === 0 ? (

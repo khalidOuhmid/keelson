@@ -1,68 +1,71 @@
-# ADR 0002 — Langue et messages
+# ADR 0002 — Language and messages
 
-Date : 2026-10-22 · Décidé par : Khalid Ouhmid · Statut : accepté
+Date: 2026-10-22 · Decided by: Khalid Ouhmid · Status: accepted
 
-## Contexte
+> **Status: amended on 2026-11-11** — all documentation, specs and code comments are now written in
+> English; the rule that the product, CLI and wire messages are English-only stands.
 
-Les messages de diagnostic de `core` et ceux de la CLI sont en français, alors que l'UI est en
-anglais depuis le lot L2. Le panneau de diagnostics affiche donc du français dans une interface
-anglaise, et `PRODUCT.md` laissait ce point explicitement à trancher.
+## Context
 
-Deux écarts le consignaient déjà (`specs/gaps.md`, 2026-10-21). Le lot L3 va produire des
-**centaines** de messages supplémentaires — couverture OWASP, validation du catalogue, `catalog
-lint` — et le lot L7 prévoyait de traiter la langue au moment du packaging. Trancher après L3
-obligerait à repasser sur tout ce que L3 aura produit.
+The diagnostic messages in `core` and those of the CLI are in French, while the UI has been in
+English since milestone L2. The diagnostics panel therefore shows French inside an English
+interface, and `PRODUCT.md` explicitly left this point open.
 
-Une contrainte structurante existe déjà dans le projet : les codes de diagnostic et d'erreur
-d'opération sont des **contrats publics**, documentés dans `specs/diagnostics.md` et vérifiés par
-`packages/core/test/diagnostics.contract.test.ts`. Le texte, lui, n'a jamais été un contrat.
+Two gaps already recorded it (`specs/gaps.md`, 2026-10-21). Milestone L3 will produce
+**hundreds** of additional messages — OWASP coverage, catalogue validation, `catalog lint` — and
+milestone L7 planned to deal with language at packaging time. Deciding after L3 would mean going
+back over everything L3 produced.
+
+A structural constraint already exists in the project: diagnostic codes and operation error codes
+are **public contracts**, documented in `specs/diagnostics.md` and checked by
+`packages/core/test/diagnostics.contract.test.ts`. The text itself has never been a contract.
 
 ## Options
 
-1. **Traduire les messages existants en anglais, sur place.** Le moins coûteux à court terme, mais
-   le texte libre reste produit par `core` : la couche d'affichage ne peut ni le reformuler, ni
-   l'enrichir, ni le localiser plus tard sans refaire le travail.
-2. **Mettre en place une infrastructure de traduction complète maintenant.** Coût immédiat élevé
-   pour un besoin que personne n'a exprimé, sur un projet sans utilisateur à ce jour.
-3. **Séparer le contrat de son rendu** : `core` ne rend que `code` et `params`, un module unique
-   traduit en texte anglais, et l'infrastructure de langue n'est ajoutée que si un besoin réel
-   apparaît.
+1. **Translate the existing messages to English, in place.** The cheapest in the short term, but
+   free text is still produced by `core`: the display layer can neither rephrase it, enrich it, nor
+   localize it later without redoing the work.
+2. **Set up a full translation infrastructure now.** High immediate cost for a need nobody has
+   expressed, on a project with no users to date.
+3. **Separate the contract from its rendering**: `core` only returns `code` and `params`, a single
+   module renders them as English text, and language infrastructure is added only if a real need
+   arises.
 
-## Décision
+## Decision
 
 Option 3.
 
-- **Langue unique du produit : l'anglais.** UI, CLI, diagnostics, catalogue, documentation destinée
-  aux utilisateurs. Les specs, le code et les tests restent en français.
-- **`core` et les adaptateurs ne produisent jamais de texte libre.** Chaque diagnostic et chaque
-  erreur porte un `code` stable et des `params` structurés et typés.
-- **Un module unique `@keelson/core/messages`** transforme `(code, params)` en texte anglais. La CLI
-  et l'UI l'utilisent toutes les deux : une seule formulation par code, pour tout le produit.
-- **Un test échoue** si un code de `specs/diagnostics.md` n'a pas de message, ou si un message n'a
-  pas de code. Il étend le test de contrat existant, qui ne vérifiait jusqu'ici que la présence du
-  code dans la documentation.
-- `details` est supprimé et fusionné dans `params` : un diagnostic ou une erreur porte uniquement
-  `code`, `severity` (pour les diagnostics), `range` (si applicable) et `params`. `JOB_REFERENCED`
-  expose `params.referencedBy`.
-- **Pas d'infrastructure de traduction** tant qu'aucun besoin réel n'est exprimé.
+- **Single product language: English.** UI, CLI, diagnostics, catalogue, user-facing
+  documentation. Specs, code and tests stay in French.
+- **`core` and the adapters never produce free text.** Every diagnostic and every error carries a
+  stable `code` and structured, typed `params`.
+- **A single module, `@keelson/core/messages`,** turns `(code, params)` into English text. The CLI
+  and the UI both use it: one wording per code, across the whole product.
+- **A test fails** if a code in `specs/diagnostics.md` has no message, or if a message has no code.
+  It extends the existing contract test, which until now only checked that the code was present in
+  the documentation.
+- `details` is removed and merged into `params`: a diagnostic or an error carries only `code`,
+  `severity` (for diagnostics), `range` (when applicable) and `params`. `JOB_REFERENCED` exposes
+  `params.referencedBy`.
+- **No translation infrastructure** until a real need is expressed.
 
-## Conséquences
+## Consequences
 
-- **Lot dédié `L2c — messages`**, intercalé **après la fusion de L2 et avant L3**. L'ordre des lots
-  devient : L2, L2c, L2b, L3, L4, L5, L6, L7, L8.
-- Les deux écarts de langue du 2026-10-21 sont **clos par cet ADR**.
-- Le point « traitement de l'écart de langue » du lot **L7 devient sans objet** et en est retiré.
-- `params` devient une partie du contrat public au même titre que le code : en changer la forme est
-  une rupture de compatibilité, au même titre que renommer un code. `specs/diagnostics.md` devra
-  documenter les `params` de chaque code, pas seulement sa signification.
-- L'UI continue de n'appliquer **aucun traitement par code** : elle affiche ce que le module de
-  messages rend. La seule exception reste `JOB_REFERENCED`, dont elle lit désormais
-  `params.referencedBy` pour lister les jobs référents.
-- La suppression de `details` est une **rupture de compatibilité**, assumée : aucune version n'est
-  publiée, c'est donc le moment où elle ne coûte rien. Elle touche `OperationError` dans
-  `packages/core/src/operations.ts`, la forme d'erreur de l'API du serveur, `ApiFailure` dans
-  `packages/ui/src/api/client.ts`, et `referencedBy()` dans `packages/ui/src/editing/drafts.ts`.
-- Bénéfice collatéral pour le lot L8 : un client distant qui reçoit `code` et `params` peut
-  formuler son propre message sans analyser une chaîne.
+- **A dedicated milestone, `L2c — messages`,** is inserted **after L2 is merged and before L3**.
+  The milestone order becomes: L2, L2c, L2b, L3, L4, L5, L6, L7, L8.
+- The two language gaps of 2026-10-21 are **closed by this ADR**.
+- The "handle the language gap" item of milestone **L7 becomes moot** and is removed from it.
+- `params` becomes part of the public contract just like the code: changing its shape is a breaking
+  change, just like renaming a code. `specs/diagnostics.md` must document the `params` of each
+  code, not only its meaning.
+- The UI still applies **no per-code handling**: it displays what the messages module returns. The
+  only exception remains `JOB_REFERENCED`, whose `params.referencedBy` it now reads to list the
+  referencing jobs.
+- Removing `details` is a **breaking change**, and a deliberate one: no version has been published,
+  so this is the moment it costs nothing. It affects `OperationError` in
+  `packages/core/src/operations.ts`, the server API's error shape, `ApiFailure` in
+  `packages/ui/src/api/client.ts`, and `referencedBy()` in `packages/ui/src/editing/drafts.ts`.
+- Side benefit for milestone L8: a remote client that receives `code` and `params` can phrase its
+  own message without parsing a string.
 
-Portée complétée le 2026-10-22 : `@keelson/server`, voir l'écart du même jour.
+Scope extended on 2026-10-22: `@keelson/server`, see the gap of the same day.

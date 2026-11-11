@@ -1,4 +1,4 @@
-/** À part du schéma pour que l'UI puisse l'importer sans embarquer zod ni le catalogue. */
+/** Kept apart from the schema so the UI can import it without bundling zod or the catalogue. */
 export const OPEN_SOURCE_LICENSES = [
   "AGPL-3.0-only",
   "Apache-2.0",

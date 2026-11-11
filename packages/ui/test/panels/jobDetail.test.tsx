@@ -56,58 +56,58 @@ function renderPanel(value: Job, text = TEXT, texts: Record<string, string> = {}
 }
 
 describe("sliceOpaque", () => {
-  test("découpe le bloc dans le texte source", () => {
+  test("slices the block out of the source text", () => {
     expect(sliceOpaque(TEXT, SCRIPT_BLOCK)).toBe("script:\n    - make all\n    - make check");
   });
 
-  test("retire le retour à la ligne final pour l'affichage", () => {
+  test("strips the trailing newline for display", () => {
     expect(sliceOpaque(TEXT, ARTIFACTS_BLOCK)?.endsWith("\n")).toBe(false);
   });
 
-  test("une plage hors bornes rend une chaîne vide plutôt que de lever", () => {
+  test("an out-of-bounds range yields an empty string rather than throwing", () => {
     expect(
       sliceOpaque(TEXT, { key: "x", range: { start: 9000, end: 9100 }, file: MAIN }),
     ).toBeNull();
   });
 
-  test("une plage inversée rend une chaîne vide", () => {
+  test("an inverted range yields an empty string", () => {
     expect(sliceOpaque(TEXT, { key: "x", range: { start: 50, end: 10 }, file: MAIN })).toBeNull();
   });
 });
 
-describe("identité du job", () => {
-  test("le panneau nomme le job", () => {
+describe("job identity", () => {
+  test("the panel names the job", () => {
     renderPanel(job());
     expect(screen.getByRole("heading", { name: "compile" })).toBeDefined();
   });
 
-  test("le panneau est une région nommée", () => {
+  test("the panel is a named region", () => {
     renderPanel(job());
     expect(screen.getByRole("region", { name: /job detail/i })).toBeDefined();
   });
 });
 
 describe("stage", () => {
-  test("affiche le stage courant", () => {
+  test("shows the current stage", () => {
     renderPanel(job());
     expect(screen.getByTestId("job-stage").textContent).toContain("build");
   });
 
-  test("un stage hérité porte son badge d'origine", () => {
+  test("an inherited stage carries its origin badge", () => {
     renderPanel(job({ stage: { value: "build", origin: { kind: "extends", template: ".base" } } }));
     expect(screen.getAllByTestId("origin-badge").map((badge) => badge.textContent)).toContain(
       "inherited from .base",
     );
   });
 
-  test("un stage local ne porte pas de badge", () => {
+  test("a local stage carries no badge", () => {
     renderPanel(job());
     expect(screen.queryByTestId("origin-badge")).toBeNull();
   });
 });
 
 describe("needs", () => {
-  test("liste les needs du job", () => {
+  test("lists the job's needs", () => {
     renderPanel(
       job({
         needs: {
@@ -124,7 +124,7 @@ describe("needs", () => {
     expect(items.map((item) => item.textContent?.includes("lint"))).toContain(true);
   });
 
-  test("marque un need optionnel", () => {
+  test("marks an optional need", () => {
     renderPanel(
       job({
         needs: {
@@ -136,7 +136,7 @@ describe("needs", () => {
     expect(screen.getByText(/optional/i)).toBeDefined();
   });
 
-  test("marque un need sans artefacts", () => {
+  test("marks a need without artifacts", () => {
     renderPanel(
       job({
         needs: {
@@ -148,12 +148,12 @@ describe("needs", () => {
     expect(screen.getByText(/no artifacts/i)).toBeDefined();
   });
 
-  test("dit explicitement quand le job n'a aucun need", () => {
+  test("says explicitly when the job has no needs", () => {
     renderPanel(job());
     expect(screen.getByText(/no dependencies/i)).toBeDefined();
   });
 
-  test("des needs hérités portent leur badge d'origine", () => {
+  test("inherited needs carry their origin badge", () => {
     renderPanel(
       job({
         needs: {
@@ -168,13 +168,13 @@ describe("needs", () => {
   });
 });
 
-describe("environnement", () => {
-  test("affiche le nom de l'environnement", () => {
+describe("environment", () => {
+  test("shows the environment name", () => {
     renderPanel(job({ environment: { value: { name: "production" }, origin: { kind: "local" } } }));
     expect(screen.getByTestId("job-environment").textContent).toContain("production");
   });
 
-  test("affiche l'URL et l'action quand elles existent", () => {
+  test("shows the URL and the action when they exist", () => {
     renderPanel(
       job({
         environment: {
@@ -188,53 +188,53 @@ describe("environnement", () => {
     expect(section.textContent).toContain("start");
   });
 
-  test("dit explicitement qu'il n'y a pas d'environnement", () => {
+  test("says explicitly that there is no environment", () => {
     renderPanel(job());
     expect(screen.getByTestId("job-environment").textContent).toMatch(/none/i);
   });
 });
 
 describe("extends", () => {
-  test("liste les templates étendus dans l'ordre déclaré", () => {
+  test("lists the extended templates in declared order", () => {
     renderPanel(job({ extends: [".premier", ".second"] }));
     const section = screen.getByTestId("job-extends");
     expect(section.textContent).toContain(".premier");
     expect(section.textContent).toContain(".second");
   });
 
-  test("masque la section quand le job n'étend rien", () => {
+  test("hides the section when the job extends nothing", () => {
     renderPanel(job());
     expect(screen.queryByTestId("job-extends")).toBeNull();
   });
 });
 
-describe("blocs opaques", () => {
-  test("un bloc par clé non modélisée, nommé par sa clé", () => {
+describe("opaque blocks", () => {
+  test("one block per unmodelled key, named by its key", () => {
     renderPanel(job({ opaque: [SCRIPT_BLOCK, ARTIFACTS_BLOCK] }));
     expect(screen.getByRole("group", { name: /script/ })).toBeDefined();
     expect(screen.getByRole("group", { name: /artifacts/ })).toBeDefined();
   });
 
-  test("le bloc est annoncé en lecture seule", () => {
+  test("the block is announced as read-only", () => {
     renderPanel(job());
     expect(screen.getByRole("group", { name: /script/ }).textContent).toMatch(/read-only/i);
   });
 
-  test("le contenu du bloc est le texte source découpé par sa plage", async () => {
+  test("the block content is the source text sliced by its range", async () => {
     renderPanel(job());
     const editor = await screen.findByTestId("opaque-editor-script");
     expect(editor.textContent).toContain("make all");
     expect(editor.textContent).toContain("make check");
   });
 
-  test("aucun bloc opaque affiche un état vide", () => {
+  test("no opaque blocks shows an empty state", () => {
     renderPanel(job({ opaque: [] }));
     expect(screen.getByText(/no opaque blocks/i)).toBeDefined();
   });
 });
 
-describe("origines combinées", () => {
-  test("chaque valeur héritée est signalée indépendamment", () => {
+describe("combined origins", () => {
+  test("each inherited value is flagged independently", () => {
     const inherited: Origin = { kind: "extends", template: ".base" };
     renderPanel(
       job({
@@ -254,18 +254,18 @@ describe("origines combinées", () => {
   });
 });
 
-describe("bloc opaque dont la plage ne peut pas être lue", () => {
-  /** `sliceOpaque` rendait `""` sur une plage hors bornes ou inversée, ce qu'un bloc vide rend
-   *  aussi : la seule surface dont la promesse est « ceci est verbatim » ne savait pas dire
-   *  qu'elle ne savait pas. Le principe 3 de PRODUCT.md impose de montrer l'incertitude. */
+describe("opaque block whose range cannot be read", () => {
+  /** `sliceOpaque` returned `""` on an out-of-bounds or inverted range, as an empty block does
+   *  too: the only surface whose promise is "this is verbatim" could not say that it did not
+   *  know. Principle 3 of PRODUCT.md requires showing uncertainty. */
   const BROKEN = { key: "script", range: { start: 9000, end: 9100 }, file: MAIN };
 
-  test("sliceOpaque distingue l'illisible du vide", () => {
+  test("sliceOpaque tells the unreadable from the empty", () => {
     expect(sliceOpaque("", { key: "script", range: { start: 0, end: 0 }, file: MAIN })).toBeNull();
     expect(sliceOpaque(TEXT, BROKEN)).toBeNull();
   });
 
-  test("le panneau le dit explicitement au lieu d'afficher un cadre vide", () => {
+  test("the panel says so explicitly instead of showing an empty frame", () => {
     renderPanel(job({ opaque: [BROKEN] }));
 
     const block = screen.getByRole("group", { name: "Opaque block script" });
@@ -274,7 +274,7 @@ describe("bloc opaque dont la plage ne peut pas être lue", () => {
   });
 });
 
-describe("les couches d'un job, sur la vue Coverage", () => {
+describe("a job's layers, in the Coverage view", () => {
   function renderWith(coverage: JobCoverage) {
     render(
       <JobDetailPanel
@@ -288,25 +288,25 @@ describe("les couches d'un job, sur la vue Coverage", () => {
     return screen.getByTestId("job-layers-source").textContent;
   }
 
-  test("nomme l'outil reconnu", () => {
+  test("names the recognised tool", () => {
     expect(
       renderWith({ job: "compile", layers: ["sast"], tools: ["semgrep"], overridden: false }),
     ).toBe("Detected from semgrep.");
   });
 
-  test("une surcharge se distingue d'une détection", () => {
+  test("an override is distinguished from a detection", () => {
     expect(
       renderWith({ job: "compile", layers: ["sast"], tools: ["semgrep"], overridden: true }),
     ).toBe("Set by .devsecops/layout.json.");
   });
 
-  test("sans outil, le dit", () => {
+  test("without a tool, says so", () => {
     expect(renderWith({ job: "compile", layers: [], tools: [], overridden: false })).toBe(
       "Keelson recognised no tool in this job.",
     );
   });
 
-  test("hors de la vue Coverage, rien", () => {
+  test("outside the Coverage view, nothing", () => {
     renderPanel(job());
     expect(screen.queryByTestId("job-layers")).toBeNull();
   });

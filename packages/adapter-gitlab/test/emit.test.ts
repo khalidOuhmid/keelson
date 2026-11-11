@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { applySplices } from "../src/emit.ts";
 
 describe("applySplices", () => {
-  test("applique un splice unique", () => {
+  test("applies a single splice", () => {
     expect(applySplices("abcdef", [{ start: 1, end: 3, text: "XY" }]).text).toBe("aXYdef");
   });
 
-  test("applique plusieurs splices disjoints", () => {
+  test("applies several disjoint splices", () => {
     const result = applySplices("abcdef", [
       { start: 0, end: 1, text: "A" },
       { start: 4, end: 5, text: "E" },
@@ -18,7 +18,7 @@ describe("applySplices", () => {
     ]);
   });
 
-  test("ordonne les splices indépendamment de l'ordre d'entrée", () => {
+  test("orders splices independently of the input order", () => {
     const croissant = applySplices("abcdef", [
       { start: 0, end: 1, text: "A" },
       { start: 4, end: 5, text: "E" },
@@ -30,7 +30,7 @@ describe("applySplices", () => {
     expect(decroissant).toEqual(croissant);
   });
 
-  test("une insertion au même offset qu'une suppression est insérée avant", () => {
+  test("an insertion at the same offset as a deletion is inserted before it", () => {
     const result = applySplices("abcdef", [
       { start: 2, end: 4, text: "" },
       { start: 2, end: 2, text: "Z" },
@@ -38,7 +38,7 @@ describe("applySplices", () => {
     expect(result.text).toBe("abZef");
   });
 
-  test("l'ordre d'entrée ne change pas le résultat pour ce cas limite", () => {
+  test("the input order does not change the result for this edge case", () => {
     const sens1 = applySplices("abcdef", [
       { start: 2, end: 4, text: "" },
       { start: 2, end: 2, text: "Z" },
@@ -50,13 +50,13 @@ describe("applySplices", () => {
     expect(sens2).toEqual(sens1);
   });
 
-  test("une liste vide rend le texte inchangé", () => {
+  test("an empty list returns the text unchanged", () => {
     const result = applySplices("abcdef", []);
     expect(result.text).toBe("abcdef");
     expect(result.touched).toEqual([]);
   });
 
-  test("lève sur des splices réellement chevauchants", () => {
+  test("throws on genuinely overlapping splices", () => {
     expect(() =>
       applySplices("abcdef", [
         { start: 0, end: 3, text: "" },
@@ -65,7 +65,7 @@ describe("applySplices", () => {
     ).toThrow(/chevauchants/);
   });
 
-  test("lève sur un splice inversé", () => {
+  test("throws on an inverted splice", () => {
     expect(() => applySplices("abcdef", [{ start: 3, end: 1, text: "" }])).toThrow(/inverted/);
   });
 });

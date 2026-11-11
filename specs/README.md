@@ -1,11 +1,13 @@
 # Specs
 
-- [00-vision.md](00-vision.md) — le problème et les principes
-- [01-plan.md](01-plan.md) — plan technique, CLI (§8), modèle de sécurité (§7 ter), lots (§11)
-- [progress.md](progress.md) — état des lots et journal de livraison
-- [gaps.md](gaps.md) — constats hors lot : le backlog après v0.1.0
-- [diagnostics.md](diagnostics.md) — codes d'erreur publics et forme de leurs `params`
-- [export.md](export.md) — formats d'export
-- [adr/](adr/) — décisions d'architecture 0001 à 0013
-- [milestones/](milestones/) — cadrage par lot (L0, L1 et L7 n'en ont pas : voir progress.md)
-- [autopilot.md](autopilot.md) — consigne de l'agent autonome qui a mené L3 à L8 (archivée)
+Documentation, specs and code comments are written in English.
+
+- [00-vision.md](00-vision.md) — the problem and the principles
+- [01-plan.md](01-plan.md) — technical plan, CLI (§8), security model (§7 ter), milestones (§11)
+- [progress.md](progress.md) — milestone status and delivery log
+- [gaps.md](gaps.md) — findings outside any milestone: the backlog after v0.1.0
+- [diagnostics.md](diagnostics.md) — public error codes and the shape of their `params`
+- [export.md](export.md) — export formats
+- [adr/](adr/) — architecture decisions 0001 to 0013
+- [milestones/](milestones/) — scoping per milestone (L0, L1 and L7 have none: see progress.md)
+- [autopilot.md](autopilot.md) — brief of the autonomous agent that delivered L3 to L8 (archived)

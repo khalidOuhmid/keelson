@@ -1,19 +1,19 @@
-# ADR 0011 — Un service déclaré couvre les couches de son outil
+# ADR 0011 — A declared service covers its tool's layers
 
-**Statut** : accepté, 2026-11-04.
+**Status**: accepted, 2026-11-04.
 
-## Contexte
+## Context
 
-Les catégories plateforme vivent autour du pipeline : aucun job ne prouve un Nexus ou un GitLab.
-L3 les disait donc « not seen » même quand l'équipe les opère.
+Platform categories live around the pipeline: no job proves a Nexus or a GitLab. L3 therefore
+reported them as "not seen" even when the team operates them.
 
-## Décision
+## Decision
 
-`coverage` reçoit les services de la toolchain. Une couche est couverte par un job détecté ou par un
-service déclaré dont l'outil la porte, et le résultat nomme les deux. Déclarer un service reste une
-affirmation de l'utilisateur, et le panneau dit qu'elle vient de la toolchain.
+`coverage` receives the toolchain's services. A layer is covered by a detected job or by a declared
+service whose tool carries it, and the result names both. Declaring a service remains a claim made
+by the user, and the panel says that it comes from the toolchain.
 
-## Conséquences
+## Consequences
 
-`keelson coverage --require scm` devient satisfaisable. Un service déclaré pour une couche OWASP
-(Wiz, DefectDojo) la couvre aussi : c'est un constat de présence, pas d'usage.
+`keelson coverage --require scm` becomes satisfiable. A service declared for an OWASP layer (Wiz,
+DefectDojo) covers it too: it is a statement of presence, not of use.

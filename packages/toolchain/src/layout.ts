@@ -52,8 +52,8 @@ function invalid(detail: string): ParsedLayout {
   };
 }
 
-/** Un fichier illisible n'empêche rien : la détection s'applique, et le diagnostic le dit. `text`
- *  nul veut dire que le fichier n'existe pas, ce qui est le cas normal. */
+/** An unreadable file blocks nothing: detection applies, and the diagnostic says so. A null `text`
+ *  means the file does not exist, which is the normal case. */
 export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayout {
   if (text === null) {
     return { overrides: {}, positions: {}, diagnostics: [] };
@@ -91,9 +91,9 @@ export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayo
   return { overrides, positions: parsed.data.positions, diagnostics };
 }
 
-/** Le texte de `layout.json` avec ces positions en plus, ou `null` si le fichier actuel n'est pas
- *  compris : Keelson n'écrase pas ce qu'il ne sait pas lire. Les clés qu'il ignore et les positions
- *  écrites par quelqu'un d'autre survivent. */
+/** The text of `layout.json` with these positions added, or `null` if the current file is not
+ *  understood: Keelson does not overwrite what it cannot read. Keys it ignores and positions written
+ *  by someone else survive. */
 export function writePositions(text: string | null, positions: Positions): string | null {
   let current: unknown = { version: 1 };
   if (text !== null) {

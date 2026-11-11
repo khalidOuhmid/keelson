@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { BASE, expectOk, expectUnchanged, roundTrip } from "../support/apply.ts";
 
 describe("addStage", () => {
-  test("ajoute un stage en fin de liste sans index", () => {
+  test("adds a stage at the end of the list without an index", () => {
     const applied = expectOk(BASE, { kind: "addStage", name: "verify" });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual([
       "build",
@@ -12,7 +12,7 @@ describe("addStage", () => {
     ]);
   });
 
-  test("ajoute un stage à l'index demandé", () => {
+  test("adds a stage at the requested index", () => {
     const applied = expectOk(BASE, { kind: "addStage", name: "verify", index: 1 });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual([
       "build",
@@ -22,17 +22,17 @@ describe("addStage", () => {
     ]);
   });
 
-  test("ajoute un stage en tête avec l'index 0", () => {
+  test("adds a stage at the head with index 0", () => {
     const applied = expectOk(BASE, { kind: "addStage", name: "prepare", index: 0 });
     expect(applied.pipeline.stages.map((stage) => stage.name)[0]).toBe("prepare");
   });
 
-  test("conserve les stages existants octet pour octet", () => {
+  test("keeps existing stages byte for byte", () => {
     const applied = expectOk(BASE, { kind: "addStage", name: "verify" });
     expect(applied.text).toContain("stages:\n  - build\n  - test\n  - deploy\n  - verify\n");
   });
 
-  test("matérialise la clé stages avec la liste par défaut quand elle est absente", () => {
+  test("materialises the stages key with the default list when it is absent", () => {
     const sansStages = "solo:\n  script:\n    - x\n";
     const applied = expectOk(sansStages, { kind: "addStage", name: "verify" });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual([
@@ -48,13 +48,13 @@ describe("addStage", () => {
     }
   });
 
-  test("la matérialisation garde le job intact", () => {
+  test("materialisation keeps the job intact", () => {
     const sansStages = "solo:\n  script:\n    - x\n";
     const applied = expectOk(sansStages, { kind: "addStage", name: "verify" });
     expect(applied.text).toContain("solo:\n  script:\n    - x\n");
   });
 
-  test("ajoute dans une liste de stages en flow style", () => {
+  test("adds into a flow-style stage list", () => {
     const flow = BASE.replace(
       "stages:\n  - build\n  - test\n  - deploy\n",
       "stages: [build, test, deploy]\n",
@@ -68,17 +68,17 @@ describe("addStage", () => {
     ]);
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(BASE, { kind: "addStage", name: "verify" });
     roundTrip(BASE, { kind: "addStage", name: "verify", index: 0 });
     roundTrip("solo:\n  script:\n    - x\n", { kind: "addStage", name: "verify" });
   });
 
-  test("STAGE_EXISTS si le stage est déjà déclaré", () => {
+  test("STAGE_EXISTS if the stage is already declared", () => {
     expectUnchanged(BASE, { kind: "addStage", name: "test" }, "STAGE_EXISTS");
   });
 
-  test("STAGE_EXISTS pour un stage implicite", () => {
+  test("STAGE_EXISTS for an implicit stage", () => {
     expectUnchanged(
       "solo:\n  script:\n    - x\n",
       { kind: "addStage", name: "build" },
@@ -86,11 +86,11 @@ describe("addStage", () => {
     );
   });
 
-  test("INVALID_NAME si le nom est vide", () => {
+  test("INVALID_NAME if the name is empty", () => {
     expectUnchanged(BASE, { kind: "addStage", name: "" }, "INVALID_NAME");
   });
 
-  test("RANGE_OUT_OF_BOUNDS si l'index dépasse la liste", () => {
+  test("RANGE_OUT_OF_BOUNDS if the index is past the list", () => {
     expectUnchanged(BASE, { kind: "addStage", name: "verify", index: 99 }, "RANGE_OUT_OF_BOUNDS");
   });
 });

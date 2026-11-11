@@ -7,8 +7,8 @@ export type InvalidDocumentProps = {
 };
 
 export function InvalidDocument({ diagnostics }: InvalidDocumentProps) {
-  // ADR 0001 : la sévérité décrit la gravité, jamais l'effet sur l'outil. Lister ce qui bloque
-  // réellement l'édition, pas ce qui est marqué « error ».
+  // ADR 0001: severity describes seriousness, never the effect on the tool. List what actually
+  // blocks editing, not what is marked "error".
   const blocking = diagnostics.filter(blocksEditing);
 
   return (

@@ -6,8 +6,8 @@ import { DiagnosticsPanel } from "../../src/panels/DiagnosticsPanel.tsx";
 
 afterEach(cleanup);
 
-/** Un diagnostic ne porte plus de `message` : le code et ses `params` vont ensemble, et le
- *  compilateur le vérifie. Les fixtures nomment donc un code réel, jamais un code inventé. */
+/** A diagnostic no longer carries a `message`: the code and its `params` go together, and the
+ *  compiler checks it. Fixtures therefore name a real code, never an invented one. */
 const MAIN = ".gitlab-ci.yml";
 
 const SAMPLES = {
@@ -47,35 +47,35 @@ function renderPanel(
 }
 
 describe("structure", () => {
-  test("le panneau est une région nommée", () => {
+  test("the panel is a named region", () => {
     renderPanel([]);
     expect(screen.getByRole("region", { name: /diagnostics/i })).toBeDefined();
   });
 
-  test("aucun diagnostic affiche un état vide explicite", () => {
+  test("no diagnostics shows an explicit empty state", () => {
     renderPanel([]);
     expect(screen.getByText(/no diagnostics/i)).toBeDefined();
   });
 
-  test("un élément de liste par diagnostic", () => {
+  test("one list item per diagnostic", () => {
     renderPanel([diagnostic(), diagnostic("cycle")]);
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
-  test("le compte des diagnostics est annoncé", () => {
+  test("the diagnostic count is announced", () => {
     renderPanel([diagnostic(), diagnostic("cycle")]);
     expect(screen.getByRole("region", { name: /diagnostics/i }).textContent).toContain("2");
   });
 });
 
-describe("contenu d'un diagnostic", () => {
-  test("le code et le message sont affichés", () => {
+describe("diagnostic content", () => {
+  test("the code and the message are shown", () => {
     renderPanel([diagnostic()]);
     expect(screen.getByText("UNKNOWN_NEED")).toBeDefined();
     expect(screen.getByText('job "unit" needs "absent", which does not exist')).toBeDefined();
   });
 
-  test("la sévérité est affichée en texte, pas seulement par la couleur", () => {
+  test("severity is shown as text, not only by colour", () => {
     renderPanel([
       diagnostic("need", { severity: "error" }),
       diagnostic("later", { severity: "warning" }),
@@ -86,19 +86,19 @@ describe("contenu d'un diagnostic", () => {
     expect(screen.getByText("info")).toBeDefined();
   });
 
-  test("chaque sévérité porte un glyphe distinct", () => {
+  test("each severity has a distinct glyph", () => {
     renderPanel([
       diagnostic("need", { severity: "error" }),
       diagnostic("later", { severity: "warning" }),
       diagnostic("include", { severity: "info" }),
     ]);
-    // Les marques sont des SVG : c'est leur tracé qui les distingue, plus leur texte.
+    // The marks are SVGs: their path is what tells them apart, no longer their text.
     const glyphs = screen.getAllByTestId("severity-glyph").map((node) => node.innerHTML);
     expect(new Set(glyphs).size).toBe(3);
     expect(glyphs.every((glyph) => glyph.includes("<svg"))).toBe(true);
   });
 
-  test("les diagnostics sont triés par sévérité, erreurs d'abord", () => {
+  test("diagnostics are sorted by severity, errors first", () => {
     renderPanel([
       diagnostic("include", { severity: "info" }),
       diagnostic("need", { severity: "error" }),
@@ -109,15 +109,15 @@ describe("contenu d'un diagnostic", () => {
   });
 });
 
-describe("sélection", () => {
-  test("un clic sur un diagnostic remonte sa plage", async () => {
+describe("selection", () => {
+  test("clicking a diagnostic reports its range", async () => {
     const picked: { file: string; range: Picked }[] = [];
     renderPanel([diagnostic()], (file, range) => picked.push({ file, range }));
     await userEvent.click(screen.getByRole("button", { name: /UNKNOWN_NEED/ }));
     expect(picked).toEqual([{ file: MAIN, range: { start: 40, end: 90 } }]);
   });
 
-  test("Entrée au clavier remonte aussi la plage", async () => {
+  test("Enter on the keyboard also reports the range", async () => {
     const picked: { file: string; range: Picked }[] = [];
     renderPanel([diagnostic()], (file, range) => picked.push({ file, range }));
     screen.getByRole("button", { name: /UNKNOWN_NEED/ }).focus();
@@ -125,17 +125,17 @@ describe("sélection", () => {
     expect(picked).toEqual([{ file: MAIN, range: { start: 40, end: 90 } }]);
   });
 
-  test("un diagnostic sans plage n'est pas cliquable", () => {
+  test("a diagnostic without a range is not clickable", () => {
     renderPanel([diagnostic("need", { range: null })]);
     expect(screen.queryByRole("button", { name: /UNKNOWN_NEED/ })).toBeNull();
   });
 
-  test("un diagnostic sans plage reste affiché", () => {
+  test("a diagnostic without a range stays visible", () => {
     renderPanel([diagnostic("need", { range: null })]);
     expect(screen.getByText("UNKNOWN_NEED")).toBeDefined();
   });
 
-  test("chaque diagnostic cliquable est atteignable au clavier", () => {
+  test("every clickable diagnostic is reachable from the keyboard", () => {
     renderPanel([diagnostic(), diagnostic("cycle")]);
     for (const button of screen.getAllByRole("button")) {
       expect(button.getAttribute("tabindex")).not.toBe("-1");

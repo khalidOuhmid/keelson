@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 describe("POST /api/documents/:file/preview", () => {
-  test("rend le texte d'après et sa couverture, sans écrire", async () => {
+  test("returns the resulting text and its coverage, without writing", async () => {
     const response = await post(OP);
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
@@ -44,7 +44,7 @@ describe("POST /api/documents/:file/preview", () => {
     expect(readFileSync(harness.file, "utf8")).toBe(MAIN);
   });
 
-  test("le hash du document ne bouge pas", async () => {
+  test("the document hash does not move", async () => {
     await post(OP);
     const after = (await (await harness.api("/api/documents/.gitlab-ci.yml")).json()) as {
       hash: string;
@@ -52,14 +52,14 @@ describe("POST /api/documents/:file/preview", () => {
     expect(after.hash).toBe(hashText(MAIN));
   });
 
-  test("les refus sont ceux d'une opération", async () => {
+  test("the refusals are those of an operation", async () => {
     expect((await post({ ...OP, id: "compile" })).status).toBe(422);
     expect((await post({ ...OP, baseHash: "a".repeat(64) })).status).toBe(409);
     expect((await post({ kind: "x" })).status).toBe(400);
     expect((await harness.api("/api/documents/.gitlab-ci.yml/preview")).status).toBe(405);
   });
 
-  test("une écriture externe que le watcher n'a pas vue reste à lui", async () => {
+  test("an external write the watcher has not seen is left to it", async () => {
     const external = `${MAIN}# externe\n`;
     writeFileSync(harness.file, external);
     const stream = await harness.raw(`/api/events?token=${harness.server.token}`);
@@ -78,7 +78,7 @@ describe("POST /api/documents/:file/preview", () => {
     expect(seen).toContain("document.changed");
   });
 
-  test("un fichier supprimé reste à annoncer par le watcher", async () => {
+  test("a deleted file is left for the watcher to announce", async () => {
     rmSync(harness.file);
     expect((await post(OP)).status).toBe(404);
     const stream = await harness.raw(`/api/events?token=${harness.server.token}`);
@@ -96,7 +96,7 @@ describe("POST /api/documents/:file/preview", () => {
     expect(seen).toContain("document.removed");
   });
 
-  test("une opération refusée n'occupe pas d'opId, l'insertion passe ensuite", async () => {
+  test("a refused operation does not use up an opId, the insertion then goes through", async () => {
     await post(OP);
     const response = await harness.api("/api/documents/.gitlab-ci.yml/operations", {
       method: "POST",

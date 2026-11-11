@@ -5,8 +5,8 @@ import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
 
-/** CodeMirror arrivait avec son thème par défaut : les couleurs de ce bloc venaient du paquet et
- *  non de la palette, seule surface du produit dans ce cas. Chaque teinte vient d'un token. */
+/** CodeMirror came with its default theme: this block's colours came from the package rather than
+ *  the palette, the only surface of the product in that situation. Every hue comes from a token. */
 const KEELSON_HIGHLIGHT = HighlightStyle.define([
   { tag: tags.keyword, color: "var(--color-text-primary)" },
   { tag: tags.propertyName, color: "var(--color-accent)" },
@@ -17,8 +17,8 @@ const KEELSON_HIGHLIGHT = HighlightStyle.define([
   { tag: tags.meta, color: "var(--color-text-muted)" },
 ]);
 
-/** Le conteneur porte déjà la police, la taille et le fond : le thème ne fait que neutraliser ce
- *  que CodeMirror impose par-dessus, et n'introduit aucune valeur qui lui soit propre. */
+/** The container already carries the font, size and background: the theme only neutralises what
+ *  CodeMirror imposes on top, and introduces no value of its own. */
 const KEELSON_THEME = EditorView.theme({
   "&": { backgroundColor: "transparent", color: "var(--color-text-secondary)" },
   ".cm-content": { fontFamily: "inherit", fontSize: "inherit", padding: "var(--spacing)" },

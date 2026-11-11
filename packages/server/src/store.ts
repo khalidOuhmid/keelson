@@ -20,8 +20,8 @@ export const OPID_HISTORY = 100;
 
 type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
 
-/** Ce que l'écran sait d'un pipeline, calculé au même endroit au chargement et après une opération :
- *  la CLI fait le même calcul, et les deux doivent dire la même chose. */
+/** What the screen knows about a pipeline, computed in one place on load and after an operation:
+ *  the CLI does the same computation, and both must say the same thing. */
 function analyse(
   root: string,
   parsing: readonly Diagnostic[],
@@ -29,7 +29,7 @@ function analyse(
   repository: Pipeline,
 ): Analysis {
   const { tools } = loadCatalog();
-  // `layout.json` et la toolchain portent sur le dépôt : un job d'un autre workflow n'y est pas inconnu.
+  // `layout.json` and the toolchain are repository-wide: a job from another workflow is not unknown there.
   const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository);
   const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), repository, tools);
   return {
@@ -48,19 +48,19 @@ export type DocumentBody = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
-  /** Le texte de chaque fichier inclus, tel qu'il a servi à cette analyse. Il part sur le fil avec
-   *  le reste plutôt que par une route dédiée : les plages des blocs opaques d'un job inclus sont
-   *  des offsets dans ces textes, et une route séparée les laisserait se désaligner entre deux
-   *  requêtes — en plus d'ouvrir une seconde surface de lecture du disque à borner. */
+  /** The text of each included file, as it served this analysis. It goes over the wire with the
+   *  rest rather than through a dedicated route: the ranges of an included job's opaque blocks are
+   *  offsets into these texts, and a separate route would let them drift apart between two
+   *  requests — on top of opening a second disk-read surface to bound. */
   included: Record<string, string>;
   coverage: Coverage;
 };
 
 export type OperationBody = {
-  /** Le texte apres l'operation. Sans lui, le client garde celui du dernier chargement complet,
-   *  alors que les plages des blocs opaques viennent du nouveau pipeline : les deux se desalignent
-   *  des qu'une operation decale des offsets, et le watcher tait les ecritures propres du serveur,
-   *  donc aucun rechargement ne les reconcilie. */
+  /** The text after the operation. Without it, the client keeps the one from the last full load,
+   *  while the opaque block ranges come from the new pipeline: the two drift apart as soon as an
+   *  operation shifts offsets, and the watcher stays silent on the server's own writes, so no
+   *  reload reconciles them. */
   text: string;
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
@@ -71,8 +71,8 @@ export type OperationBody = {
   coverage: Coverage;
 };
 
-/** Pas de `message` : le texte est rendu côté client par `@keelson/core/messages`. `hash` n'est
- *  présent que sur le 409, où le client en a besoin pour recalculer son opération. */
+/** No `message`: the text is rendered client-side by `@keelson/core/messages`. `hash` is only
+ *  present on the 409, where the client needs it to recompute its operation. */
 export type ErrorBody = {
   [C in MessageCode]: { code: C; params: ParamsOf<C>; hash?: string };
 }[MessageCode];
@@ -98,13 +98,13 @@ export class DocumentStore {
   private readonly seen = new Map<string, Map<string, StoreResponse>>();
   private readonly neighbours = new Map<string, { text: string; pipeline: Pipeline }>();
 
-  /** Un lecteur par store, donc un seul parcours du dépôt pour les candidats d'un joker, quel que
-   *  soit le nombre de requêtes. */
+  /** One reader per store, hence a single walk of the repository for a glob's candidates, however
+   *  many requests there are. */
   private readonly reader: IncludeReader;
 
-  /** Prévenus après chaque chargement réussi. Le watcher s'y abonne pour apprendre les fichiers
-   *  inclus : sans cela il ne les connaîtrait qu'après un premier changement, donc le tout premier
-   *  changement d'un fichier inclus serait toujours manqué. */
+  /** Notified after each successful load. The watcher subscribes to learn the included files:
+   *  otherwise it would only know them after a first change, so the very first change to an
+   *  included file would always be missed. */
   private readonly loadedListeners = new Set<() => void>();
 
   constructor(
@@ -126,9 +126,9 @@ export class DocumentStore {
     return resolveWorkspaceFile(this.root, this.files, file);
   }
 
-  /** Ce pipeline, plus ceux des autres fichiers du workspace tels qu'ils sont sur le disque. Un voisin
-   *  que le parseur ne sait pas lire ne doit pas empêcher d'ouvrir ce fichier. Par texte : le
-   *  relire pour chaque document rendrait l'ouverture du dépôt quadratique. */
+  /** This pipeline, plus those of the workspace's other files as they are on disk. A neighbour the
+   *  parser cannot read must not prevent opening this file. Per text: re-reading it for each
+   *  document would make opening the repository quadratic. */
   private repository(file: string, pipeline: Pipeline): Pipeline {
     const others = this.files
       .filter((entry) => entry.path !== file)
@@ -143,7 +143,7 @@ export class DocumentStore {
         }
         try {
           const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
-          // Un workflow ne dépend que de son texte ; un fichier GitLab dépend aussi de ses includes.
+          // A workflow depends only on its text; a GitLab file also depends on its includes.
           if (read.pipeline.provider === "github") {
             this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
           }
@@ -161,8 +161,8 @@ export class DocumentStore {
       return null;
     }
 
-    // Par le lecteur, comme les fichiers inclus : il tient seul la frontière de la racine, et un
-    // `.gitlab-ci.yml` lié hors du dépôt ne doit pas être la voie qui la contourne.
+    // Through the reader, like included files: it alone holds the root boundary, and a
+    // `.gitlab-ci.yml` linked outside the repository must not be the way around it.
     const text = this.reader.read(file);
     if (text === null) {
       this.loaded.delete(file);
@@ -219,9 +219,9 @@ export class DocumentStore {
     return this.loaded.get(file)?.text;
   }
 
-  /** Les fichiers inclus par un document, tels que la dernière analyse les a résolus. Le watcher
-   *  s'en sert pour surveiller aussi leurs dossiers : sans cela, modifier un fichier inclus ne
-   *  provoquait aucun événement et l'écran restait sur un pipeline périmé. */
+  /** The files a document includes, as the last analysis resolved them. The watcher uses them to
+   *  watch their directories too: without this, editing an included file triggered no event and
+   *  the screen stayed on a stale pipeline. */
   includedFiles(file: string): readonly string[] {
     return Object.keys(this.loaded.get(file)?.included ?? {});
   }
@@ -275,7 +275,7 @@ export class DocumentStore {
     return response;
   }
 
-  /** Le résultat d'une opération sans l'écrire ni la retenir : mêmes refus, mêmes hash. */
+  /** The result of an operation without writing or keeping it: same refusals, same hashes. */
   preview(file: string, operation: Operation): Promise<StoreResponse> {
     return this.executeOperation(file, operation, false);
   }
@@ -297,13 +297,13 @@ export class DocumentStore {
       return { status: 400, body: validated.error };
     }
 
-    // Le watcher a 40 ms de retard sur le disque : sans cette relecture, une écriture externe dans
-    // cette fenêtre serait écrasée par une opération fondée sur le texte en cache.
+    // The watcher lags the disk by 40 ms: without this re-read, an external write in that
+    // window would be overwritten by an operation based on the cached text.
     const known = this.loaded.get(file);
     const onDisk = known === undefined ? undefined : this.reader.read(file);
     if (known !== undefined && onDisk !== known.text) {
-      // Une prévisualisation n'a rien à changer : le chargement avancerait le hash, et le watcher
-      // ne dirait plus rien du changement à l'écran.
+      // A preview has nothing to change: loading would advance the hash, and the watcher would
+      // no longer report the change on screen.
       if (!write && (onDisk === null || onDisk === undefined)) {
         return { status: 404, body: { code: NOT_FOUND, params: { reason: "missingFile", file } } };
       }
@@ -373,9 +373,9 @@ export class DocumentStore {
       included: result.value.included,
       coverage: covered,
       diagnostics,
-      // `apply` rend `parse(texte).hash`, donc le hash du texte qu'il vient d'écrire. Le recalculer
-      // ici donnait deux expressions pour une seule vérité : si elles divergeaient, le cache
-      // répondrait 409 contre un hash que le client n'a jamais reçu.
+      // `apply` returns `parse(text).hash`, hence the hash of the text it just wrote. Recomputing it
+      // here gave two expressions for a single truth: if they diverged, the cache would answer 409
+      // against a hash the client never received.
       hash: result.value.hash,
     });
 

@@ -15,13 +15,13 @@ type Offence = {
 };
 
 const FORBIDDEN: { reason: string; pattern: RegExp }[] = [
-  { reason: "couleur hexadécimale", pattern: /#[0-9a-fA-F]{3,8}\b/ },
+  { reason: "hexadecimal colour", pattern: /#[0-9a-fA-F]{3,8}\b/ },
   { reason: "rgb(", pattern: /\brgba?\s*\(/ },
   { reason: "hsl(", pattern: /\bhsla?\s*\(/ },
-  { reason: "valeur en px", pattern: /\b\d+(?:\.\d+)?px\b/ },
-  // La revue du 2026-10-22 a montre que le garde ne voyait pas une valeur numerique nue : un
-  // `width="10"` en JSX ou une constante de geometrie passaient sans bruit.
-  { reason: "taille rendue nue en attribut JSX", pattern: /\s(?:width|height)="\d/ },
+  { reason: "px value", pattern: /\b\d+(?:\.\d+)?px\b/ },
+  // The 2026-10-22 review showed the guard did not see a bare numeric value: a JSX `width="10"`
+  // or a geometry constant slipped through silently.
+  { reason: "bare rendered size in a JSX attribute", pattern: /\s(?:width|height)="\d/ },
 ];
 
 function sourceFiles(directory: string): string[] {
@@ -55,15 +55,15 @@ function scan(): Offence[] {
   return offences;
 }
 
-describe("aucune valeur de design en dur hors du fichier de tokens", () => {
-  test("le fichier de tokens existe et porte les tokens", () => {
+describe("no hard-coded design value outside the tokens file", () => {
+  test("the tokens file exists and holds the tokens", () => {
     const tokens = readFileSync(join(sourceRoot, TOKENS_FILE), "utf8");
     expect(tokens).toContain("@theme");
     expect(tokens).toContain("--color-surface-0");
     expect(tokens).toContain("--keelson-node-width");
   });
 
-  test("aucun fichier de src/ ne contient de valeur de design en dur", () => {
+  test("no file in src/ contains a hard-coded design value", () => {
     const offences = scan();
     const report = offences
       .map((offence) => `${offence.file}:${offence.line} ${offence.reason} — ${offence.text}`)
@@ -71,46 +71,46 @@ describe("aucune valeur de design en dur hors du fichier de tokens", () => {
     expect(report).toBe("");
   });
 
-  test("le scanner repère bien une couleur hexadécimale", () => {
+  test("the scanner does catch a hexadecimal colour", () => {
     const rule = FORBIDDEN[0];
     expect(rule?.pattern.test("color: #1d4ed8;")).toBe(true);
     expect(rule?.pattern.test("const label = 'build';")).toBe(false);
   });
 
-  test("le scanner repère bien rgb, hsl et px", () => {
+  test("the scanner does catch rgb, hsl and px", () => {
     expect(FORBIDDEN[1]?.pattern.test("background: rgba(0, 0, 0, 0.4);")).toBe(true);
     expect(FORBIDDEN[2]?.pattern.test("color: hsl(220 10% 50%);")).toBe(true);
     expect(FORBIDDEN[3]?.pattern.test("width: 232px;")).toBe(true);
     expect(FORBIDDEN[3]?.pattern.test("gap: var(--keelson-row-gap);")).toBe(false);
   });
 
-  test("le scanner couvre bien plusieurs fichiers", () => {
+  test("the scanner does cover several files", () => {
     expect(sourceFiles(sourceRoot).length).toBeGreaterThan(3);
   });
 });
 
-describe("contraste WCAG 2.1 AA", () => {
-  /** `PRODUCT.md` engage WCAG 2.1 AA sans réserve, et le surface brief le répète. La passe
-   *  /impeccable audit du 2026-10-22 a trouvé deux manquements : `border-default` bordait chaque
-   *  champ, select, bouton, tag et nœud non sélectionné à 1,63:1 sur `surface-1` quand 1.4.11 exige
-   *  3:1 ; et `text-muted` sur `surface-3` donnait 4,03:1 quand 1.4.3 exige 4,5:1 — or `surface-3`
-   *  est précisément le fond qu'un nœud prend au survol et à la sélection, de sorte qu'interagir
-   *  avec un nœud rendait son texte moins lisible. Ce test est le garde de non-régression. */
+describe("WCAG 2.1 AA contrast", () => {
+  /** `PRODUCT.md` commits to WCAG 2.1 AA without reservation, and the surface brief repeats it.
+   *  The 2026-10-22 /impeccable audit pass found two failures: `border-default` outlined every
+   *  field, select, button, tag and unselected node at 1.63:1 on `surface-1` where 1.4.11 requires
+   *  3:1; and `text-muted` on `surface-3` gave 4.03:1 where 1.4.3 requires 4.5:1 — yet `surface-3`
+   *  is precisely the background a node takes on hover and selection, so interacting with a node
+   *  made its text less readable. This test is the non-regression guard. */
   const TOKENS = new Map(
     [
       ...readFileSync(join(sourceRoot, TOKENS_FILE), "utf8").matchAll(/(--[\w-]+):\s*([^;]+);/g),
     ].map((match) => [match[1] as string, (match[2] as string).trim()]),
   );
 
-  /** Oklch achromatique : la luminance relative suit L³ d'assez près pour un garde de rampe. */
+  /** Achromatic oklch: relative luminance tracks L³ closely enough for a ramp guard. */
   function luminance(token: string): number {
     const value = TOKENS.get(token);
     if (value === undefined) {
-      throw new Error(`token absent de tokens.css : ${token}`);
+      throw new Error(`token missing from tokens.css: ${token}`);
     }
     const lightness = /oklch\(\s*([\d.]+)/.exec(value)?.[1];
     if (lightness === undefined) {
-      throw new Error(`${token} n'est pas une couleur oklch : ${value}`);
+      throw new Error(`${token} is not an oklch colour: ${value}`);
     }
     return Number(lightness) ** 3;
   }
@@ -122,9 +122,9 @@ describe("contraste WCAG 2.1 AA", () => {
 
   const SURFACES = ["--color-surface-0", "--color-surface-1", "--color-surface-2"];
 
-  describe("1.4.11 — limites des composants d'interface, 3:1", () => {
+  describe("1.4.11 — user interface component boundaries, 3:1", () => {
     for (const surface of [...SURFACES, "--color-surface-3"]) {
-      test(`border-default sur ${surface.replace("--color-", "")}`, () => {
+      test(`border-default on ${surface.replace("--color-", "")}`, () => {
         expect({
           pair: surface,
           ratio: Math.round(contrast("--color-border-default", surface) * 100) / 100,
@@ -134,26 +134,26 @@ describe("contraste WCAG 2.1 AA", () => {
     }
 
     for (const family of ["build", "test", "operate"]) {
-      test(`la famille ${family} se lit jusqu'à surface-3`, () => {
-        // Le texte et la bordure d'une étiquette de couche portent cette teinte sur un nœud
-        // sélectionné : le seuil de texte est donc le plus exigeant des deux.
+      test(`the ${family} family reads up to surface-3`, () => {
+        // A layer label's text and border carry this hue on a selected node: the text threshold
+        // is therefore the stricter of the two.
         expect(contrast(`--color-layer-${family}`, "--color-surface-3")).toBeGreaterThanOrEqual(
           4.5,
         );
       });
     }
 
-    test("accent, qui porte la bordure d'un nœud sélectionné", () => {
+    test("accent, which carries a selected node's border", () => {
       expect(contrast("--color-accent", "--color-surface-3")).toBeGreaterThanOrEqual(3);
     });
   });
 
-  describe("1.4.3 — texte, 4,5:1", () => {
-    // `surface-3` est inclus : c'est le fond d'un nœud survolé ou sélectionné, où `text-muted`
-    // porte le nom du stage.
+  describe("1.4.3 — text, 4.5:1", () => {
+    // `surface-3` is included: it is the background of a hovered or selected node, where
+    // `text-muted` carries the stage name.
     for (const surface of [...SURFACES, "--color-surface-3"]) {
       for (const text of ["--color-text-primary", "--color-text-secondary", "--color-text-muted"]) {
-        test(`${text.replace("--color-text-", "")} sur ${surface.replace("--color-", "")}`, () => {
+        test(`${text.replace("--color-text-", "")} on ${surface.replace("--color-", "")}`, () => {
           expect({
             pair: `${text} / ${surface}`,
             ratio: Math.round(contrast(text, surface) * 100) / 100,
@@ -165,21 +165,21 @@ describe("contraste WCAG 2.1 AA", () => {
   });
 });
 
-describe("plancher de taille de texte", () => {
-  /** Le détecteur Impeccable refuse le texte fonctionnel sous 11px. `--text-2xs: 10px` expliquait
-   *  à lui seul 12 des 14 constats relevés en page le 2026-10-22, par ses 16 points d'appel. */
+describe("text size floor", () => {
+  /** The Impeccable detector rejects functional text below 11px. `--text-2xs: 10px` alone
+   *  accounted for 12 of the 14 findings on the page on 2026-10-22, through its 16 call sites. */
   const sizes = [
     ...readFileSync(join(sourceRoot, TOKENS_FILE), "utf8").matchAll(/(--text-[\w-]+):\s*(\d+)px;/g),
   ]
     .filter(([, name]) => name !== undefined && !name.includes("line-height"))
     .map(([, name, value]) => ({ name: name as string, px: Number(value) }));
 
-  test("la rampe est déclarée", () => {
+  test("the ramp is declared", () => {
     expect(sizes.length).toBeGreaterThan(0);
   });
 
   for (const size of sizes) {
-    test(`${size.name} est au moins à 11px`, () => {
+    test(`${size.name} is at least 11px`, () => {
       expect({ token: size.name, px: size.px, meets: size.px >= 11 }).toMatchObject({
         token: size.name,
         meets: true,
@@ -188,11 +188,11 @@ describe("plancher de taille de texte", () => {
   }
 });
 
-describe("aucun token promis sans consommateur", () => {
-  /** `/impeccable document` relevait onze tokens définis et jamais consommés : le fichier promettait
-   *  un système plus riche que ce que le front rend. Deux d'entre eux — les épaisseurs d'arête —
-   *  n'étaient pas de l'hygiène mais la raison pour laquelle chaque arête rendait hors système.
-   *  Ce garde empêche la promesse de se reformer. */
+describe("no token promised without a consumer", () => {
+  /** `/impeccable document` found eleven tokens defined and never consumed: the file promised a
+   *  richer system than what the front end renders. Two of them — the edge widths — were not
+   *  hygiene but the reason every edge rendered outside the system. This guard keeps the promise
+   *  from forming again. */
   const declared = [
     ...readFileSync(join(sourceRoot, TOKENS_FILE), "utf8").matchAll(/^\s*(--[\w-]+):/gm),
   ].map(([, name]) => name as string);
@@ -202,12 +202,12 @@ describe("aucun token promis sans consommateur", () => {
     .map((file) => readFileSync(file, "utf8"))
     .join("\n");
 
-  /** Tailwind consomme `--color-surface-1` sous la forme `bg-surface-1`, et `--text-sm` sous la
-   *  forme `text-sm` : on cherche la racine du token autant que son nom complet. */
-  /** Tokens que Tailwind lit lui-même, sans qu'aucune classe ne les nomme. Les lister ici plutôt
-   *  que d'affaiblir le garde : chaque entrée doit dire par quelle utilitaire elle est consommée. */
+  /** Tailwind consumes `--color-surface-1` as `bg-surface-1`, and `--text-sm` as `text-sm`: we
+   *  look for the token's stem as much as its full name. */
+  /** Tokens Tailwind reads itself, without any class naming them. List them here rather than
+   *  weaken the guard: each entry must say which utility consumes it. */
   const IMPLICIT: Record<string, string> = {
-    "--default-border-width": "lu par Tailwind pour la classe `border`",
+    "--default-border-width": "read by Tailwind for the `border` class",
   };
 
   function isConsumed(token: string): boolean {
@@ -217,8 +217,8 @@ describe("aucun token promis sans consommateur", () => {
     if (consumers.includes(token)) {
       return true;
     }
-    // `--font-weight-semibold` se consomme en `font-semibold`, `--border-width-hairline` en
-    // `border-hairline` : la famille du token disparaît de la classe utilitaire.
+    // `--font-weight-semibold` is consumed as `font-semibold`, `--border-width-hairline` as
+    // `border-hairline`: the token family disappears from the utility class.
     const stems = [
       token.replace(/^--(color|text|font|radius|duration|shadow|tracking|ease|spacing)-?/, ""),
       token.replace(/^--(font-weight|border-width|line-height)-/, ""),
@@ -230,46 +230,44 @@ describe("aucun token promis sans consommateur", () => {
     );
   }
 
-  test("la liste des tokens est lue", () => {
+  test("the token list is read", () => {
     expect(declared.length).toBeGreaterThan(20);
   });
 
-  test("chaque exception implicite correspond à un token déclaré", () => {
+  test("each implicit exception matches a declared token", () => {
     for (const token of Object.keys(IMPLICIT)) {
       expect({ token, declared: declared.includes(token) }).toEqual({ token, declared: true });
     }
   });
 
   for (const token of declared.filter((name) => !name.includes("--line-height"))) {
-    test(`${token} est consommé`, () => {
+    test(`${token} is consumed`, () => {
       expect({ token, consumed: isConsumed(token) }).toEqual({ token, consumed: true });
     });
   }
 });
 
-describe("`border-subtle` n'est jamais une limite de composant", () => {
-  /** `DESIGN.md` l'énonce nommément : « Rule Faint : structural dividers only… it is never a
-   *  component boundary ». La passe `critique` du 2026-10-23 a trouvé que L2b venait de
-   *  l'employer comme bordure d'un nœud de job — mesurée à 1,26:1 contre sa colonne, soit un
-   *  objet qui ne se lit plus comme un objet.
+describe("`border-subtle` is never a component boundary", () => {
+  /** `DESIGN.md` states it explicitly: "Rule Faint: structural dividers only… it is never a
+   *  component boundary". The 2026-10-23 `critique` pass found that L2b had just used it as a job
+   *  node's border — measured at 1.26:1 against its column, an object that no longer reads as an
+   *  object.
    *
-   *  Le garde de 1.4.11 ne pouvait pas l'attraper : il ne teste que `border-default` et `accent`,
-   *  précisément parce que `DESIGN.md` jurait que `border-subtle` n'était jamais une bordure de
-   *  composant. C'est cette promesse-là qu'il faut garder, et elle ne se mesure pas en contraste
-   *  mais sur l'usage.
+   *  The 1.4.11 guard could not catch it: it only tests `border-default` and `accent`, precisely
+   *  because `DESIGN.md` swore that `border-subtle` was never a component border. That promise is
+   *  what must be guarded, and it is measured not in contrast but in usage.
    *
-   *  La règle retenue : `border-border-subtle` ne vaut qu'avec une **arête nommée** —
-   *  `border-b`, `border-t`, `border-l`, `border-r` —, c'est-à-dire un filet. Une bordure sur les
-   *  quatre côtés ferme une forme, et fermer une forme est le rôle de `border-default`. */
+   *  The rule adopted: `border-border-subtle` is only valid with a **named side** — `border-b`,
+   *  `border-t`, `border-l`, `border-r` — that is, a rule line. A border on all four sides closes
+   *  a shape, and closing a shape is the job of `border-default`. */
   const EDGE = /border-(?:[btlr])\b/;
 
-  /** La seule exception, nommée plutôt que laissée au hasard de la correspondance. Une colonne de
-   *  stage est un **fond**, pas un composant : elle doit s'effacer derrière les cartes de job
-   *  qu'elle contient, et lui donner `border-default` ferait concurrencer le conteneur à son
-   *  contenu. La règle réelle est donc « une limite de composant doit être lisible », et une
-   *  colonne n'en est pas une.
+  /** The only exception, named rather than left to the luck of matching. A stage column is a
+   *  **backdrop**, not a component: it must recede behind the job cards it holds, and giving it
+   *  `border-default` would make the container compete with its content. The real rule is
+   *  therefore "a component boundary must be legible", and a column is not one.
    *
-   *  Une exception nommée se relit ; un motif élargi pour la faire passer ne se relit pas. */
+   *  A named exception can be reviewed; a pattern widened to let it through cannot. */
   const BACKDROPS = ["views/pipeline/StageColumnNode.tsx"];
 
   function offendingLines(): { file: string; line: number; text: string }[] {
@@ -294,22 +292,22 @@ describe("`border-subtle` n'est jamais une limite de composant", () => {
     return found;
   }
 
-  test("chaque usage est un filet sur une arête nommée, jamais une forme fermée", () => {
+  test("every use is a rule line on a named side, never a closed shape", () => {
     expect(offendingLines()).toEqual([]);
   });
 
-  test("chaque fond de l'exception existe encore, et emploie bien le token", () => {
-    // Sans ce test, une entrée devenue obsolète resterait dans la liste et y masquerait un
-    // fichier futur qui porterait le même chemin.
+  test("every backdrop in the exception still exists, and does use the token", () => {
+    // Without this test, an obsolete entry would stay in the list and hide a future file with
+    // the same path.
     for (const name of BACKDROPS) {
       const text = readFileSync(join(sourceRoot, name), "utf8");
       expect({ name, uses: text.includes("border-border-subtle") }).toEqual({ name, uses: true });
     }
   });
 
-  test("le garde voit bien une forme fermée : il en reconnaît une écrite à la main", () => {
-    // Sans ce second test, la règle pourrait être une expression qui ne correspond à rien et le
-    // premier test serait vert par construction.
+  test("the guard does see a closed shape: it recognises a hand-written one", () => {
+    // Without this second test, the rule could be an expression that matches nothing and the
+    // first test would be green by construction.
     expect(EDGE.test('className="border border-border-subtle rounded-md"')).toBe(false);
     expect(EDGE.test('className="border-b border-border-subtle"')).toBe(true);
   });

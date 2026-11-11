@@ -188,45 +188,45 @@ async function renderApp(h: Harness) {
   return view;
 }
 
-describe("chargement", () => {
-  test("charge le workspace puis le premier document", async () => {
+describe("loading", () => {
+  test("loads the workspace then the first document", async () => {
     await renderApp(harness());
     expect(await screen.findByRole("button", { name: /compile/ })).toBeDefined();
   });
 
-  test("affiche l'état vide quand aucun fichier CI n'est détecté", async () => {
+  test("shows the empty state when no CI file is detected", async () => {
     render(<App deps={harness({ files: [] }).deps} />);
     expect(await screen.findByRole("heading", { name: /no ci file/i })).toBeDefined();
   });
 
-  test("nomme le fichier chargé", async () => {
+  test("names the loaded file", async () => {
     await renderApp(harness());
     expect(screen.getByText(".gitlab-ci.yml")).toBeDefined();
   });
 });
 
-describe("abonnement aux événements", () => {
-  test("s'abonne une fois au montage", async () => {
+describe("event subscription", () => {
+  test("subscribes once on mount", async () => {
     const h = harness();
     await renderApp(h);
     expect(h.subscriptions).toBe(1);
   });
 
-  test("ferme l'abonnement au démontage", async () => {
+  test("closes the subscription on unmount", async () => {
     const h = harness();
     const view = await renderApp(h);
     view.unmount();
     expect(h.closed).toBe(1);
   });
 
-  test("un document.changed recharge et le dit", async () => {
+  test("a document.changed reloads and says so", async () => {
     const h = harness();
     await renderApp(h);
     h.emit({ kind: "document.changed", file: ".gitlab-ci.yml", hash: NEXT });
     expect(await screen.findByText(/changed on disk/i)).toBeDefined();
   });
 
-  test("un document.removed affiche l'état supprimé", async () => {
+  test("a document.removed shows the deleted state", async () => {
     const h = harness();
     await renderApp(h);
     h.emit({ kind: "document.removed", file: ".gitlab-ci.yml" });
@@ -234,33 +234,33 @@ describe("abonnement aux événements", () => {
   });
 });
 
-describe("sélection et panneaux", () => {
-  test("cliquer un job ouvre son panneau de détail", async () => {
+describe("selection and panels", () => {
+  test("clicking a job opens its detail panel", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     expect(await screen.findByRole("region", { name: /job detail/i })).toBeDefined();
   });
 
-  test("le panneau montre le badge d'origine du job sélectionné", async () => {
+  test("the panel shows the selected job's origin badge", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     const panel = await screen.findByRole("region", { name: /job detail/i });
     expect(panel.textContent).toContain("inherited from .base");
   });
 
-  test("aucun panneau de détail sans sélection", async () => {
+  test("no detail panel without a selection", async () => {
     await renderApp(harness());
     expect(screen.queryByRole("region", { name: /job detail/i })).toBeNull();
   });
 
-  test("le panneau de diagnostics est toujours présent", async () => {
+  test("the diagnostics panel is always present", async () => {
     await renderApp(harness());
     expect(screen.getByRole("region", { name: /diagnostics/i })).toBeDefined();
   });
 });
 
-describe("édition", () => {
-  test("une action d'édition envoie une opération avec le hash courant", async () => {
+describe("editing", () => {
+  test("an editing action sends an operation with the current hash", async () => {
     const h = harness();
     await renderApp(h);
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
@@ -276,7 +276,7 @@ describe("édition", () => {
     expect(h.submitted[0]?.opId).toBe("op-1");
   });
 
-  test("après une opération réussie, Undo devient actif", async () => {
+  test("after a successful operation, Undo becomes enabled", async () => {
     const h = harness();
     await renderApp(h);
     expect(screen.getByRole("button", { name: /undo/i }).hasAttribute("disabled")).toBe(true);
@@ -289,7 +289,7 @@ describe("édition", () => {
     );
   });
 
-  test("Undo renvoie l'inverse au serveur", async () => {
+  test("Undo sends the inverse to the server", async () => {
     const h = harness();
     await renderApp(h);
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
@@ -301,7 +301,7 @@ describe("édition", () => {
     expect(h.submitted[1]?.op.kind).toBe("splice");
   });
 
-  test("l'erreur du serveur est rendue en anglais depuis son code et ses params", async () => {
+  test("the server error is rendered in English from its code and params", async () => {
     const h = harness();
     h.queueSubmit({
       ok: false,
@@ -315,7 +315,7 @@ describe("édition", () => {
     expect(await screen.findByText("STAGE_EXISTS")).toBeDefined();
   });
 
-  test("un 409 recharge, vide les piles et dit que l'opération n'a pas été appliquée", async () => {
+  test("a 409 reloads, clears the stacks and says the operation was not applied", async () => {
     const h = harness();
     h.queueSubmit({
       ok: false,
@@ -338,7 +338,7 @@ describe("édition", () => {
   });
 });
 
-describe("YAML invalide", () => {
+describe("invalid YAML", () => {
   const broken: DocumentPayload = {
     ...DOCUMENT,
     diagnostics: [
@@ -352,23 +352,23 @@ describe("YAML invalide", () => {
     ],
   };
 
-  test("affiche l'état invalide et désactive l'édition", async () => {
+  test("shows the invalid state and disables editing", async () => {
     render(<App deps={harness({ document: broken }).deps} />);
     expect(await screen.findByRole("heading", { name: /cannot be parsed/i })).toBeDefined();
   });
 
-  test("aucun formulaire d'édition n'est proposé", async () => {
+  test("no editing form is offered", async () => {
     render(<App deps={harness({ document: broken }).deps} />);
     await screen.findByRole("heading", { name: /cannot be parsed/i });
     expect(screen.queryByRole("textbox", { name: /new stage name/i })).toBeNull();
   });
 });
 
-describe("l'éditeur suit le job sélectionné", () => {
-  /** Trouvé par /impeccable critique le 2026-10-22 : `JobEditor` était monté sans `key`, donc son
-   *  état local survivait au changement de sélection et `Rename` soumettait un nom que
-   *  l'utilisateur n'avait jamais tapé. Classe corruption de fichier. */
-  test("les champs reflètent le nouveau job, pas le précédent", async () => {
+describe("the editor follows the selected job", () => {
+  /** Found by /impeccable critique on 2026-10-22: `JobEditor` was mounted without a `key`, so its
+   *  local state survived a selection change and `Rename` submitted a name the user had never
+   *  typed. File-corruption class. */
+  test("the fields reflect the new job, not the previous one", async () => {
     await renderApp(harness());
 
     await userEvent.click(await screen.findByRole("button", { name: /compile/ }));
@@ -382,7 +382,7 @@ describe("l'éditeur suit le job sélectionné", () => {
     ).toBe("unit");
   });
 
-  test("renommer après un changement de sélection soumet le job affiché", async () => {
+  test("renaming after a selection change submits the displayed job", async () => {
     const h = harness();
     await renderApp(h);
 
@@ -400,10 +400,10 @@ describe("l'éditeur suit le job sélectionné", () => {
   });
 });
 
-describe("invariants de mise en page, sur le rendu", () => {
-  /** Règle « invariants de mise en page » : la cohérence entre l'IR et l'affichage se teste sur le
-   *  rendu, pas seulement sur les coordonnées. Les tests de `layout.test.ts` n'auraient pas vu une
-   *  régression du rendu lui-même — c'est une capture qui avait trouvé `lint` dans `build`. */
+describe("layout invariants, on the render", () => {
+  /** "Layout invariants" rule: consistency between the IR and the display is tested on the
+   *  render, not only on coordinates. The `layout.test.ts` tests would not have seen a regression
+   *  of the render itself — it was a screenshot that found `lint` in `build`. */
   const NODE_WIDTH = 200;
 
   function placed(): Map<string, number> {
@@ -418,9 +418,9 @@ describe("invariants de mise en page, sur le rendu", () => {
     return boxes;
   }
 
-  /** `lint` est sans arête, dans un stage tardif : c'est la forme exacte qui faisait atterrir un
-   *  job dans la colonne du stage précédent. Le pipeline du harnais, tout en arêtes, ne la
-   *  reproduit pas et laisserait ces tests verts par construction. */
+  /** `lint` has no edge, in a late stage: that is the exact shape that used to land a job in the
+   *  previous stage's column. The harness pipeline, all edges, does not reproduce it and would
+   *  leave these tests green by construction. */
   const WITH_ORPHAN: DocumentPayload = (() => {
     const base = pipeline();
     const [compile] = base.jobs;
@@ -457,15 +457,15 @@ describe("invariants de mise en page, sur le rendu", () => {
     return { columns, jobs };
   }
 
-  /** Le stage est lu dans la description accessible du nœud, pas dans l'IR : c'est ce que le lecteur
-   *  d'écran annonce et ce que l'utilisateur lit sous le titre. L'invariant compare donc l'affichage
-   *  à lui-même, et non le calcul à lui-même. */
+  /** The stage is read from the node's accessible description, not from the IR: it is what the
+   *  screen reader announces and what the user reads under the title. The invariant therefore
+   *  compares the display with itself, not the computation with itself. */
   function announcedStage(id: string): string {
     const description = document.getElementById(`job-${id}-description`)?.textContent ?? "";
     return /Stage ([^.]+)\./.exec(description)?.[1] ?? "";
   }
 
-  test("chaque job rendu tombe dans la colonne du stage qu'il annonce", async () => {
+  test("every rendered job falls in the column of the stage it declares", async () => {
     const { columns, jobs } = await rendered();
     expect(jobs.length).toBe(3);
 
@@ -481,7 +481,7 @@ describe("invariants de mise en page, sur le rendu", () => {
     }
   });
 
-  test("le compte de l'en-tête égale le nombre de jobs rendus dans la colonne", async () => {
+  test("the header count equals the number of jobs rendered in the column", async () => {
     const { columns, jobs } = await rendered();
 
     for (const column of columns) {
@@ -499,7 +499,7 @@ describe("invariants de mise en page, sur le rendu", () => {
   });
 });
 
-describe("bannières et opération en vol, sur le rendu", () => {
+describe("banners and in-flight operation, on the render", () => {
   function deferredHarness() {
     const h = harness();
     let release: (() => void) | null = null;
@@ -520,7 +520,7 @@ describe("bannières et opération en vol, sur le rendu", () => {
     await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
   }
 
-  test("le bouton Dismiss ferme réellement la bannière d'erreur", async () => {
+  test("the Dismiss button really closes the error banner", async () => {
     const h = harness();
     h.queueSubmit({
       ok: false,
@@ -535,14 +535,14 @@ describe("bannières et opération en vol, sur le rendu", () => {
     await waitFor(() => expect(screen.queryByText("STAGE_EXISTS")).toBeNull());
   });
 
-  test("une opération en vol désactive les contrôles d'édition et est annoncée", async () => {
+  test("an in-flight operation disables the editing controls and is announced", async () => {
     const { h, release } = deferredHarness();
     await renderApp(h);
 
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
 
-    // Le clic n'est pas attendu tout de suite : `act` attendrait la soumission, qu'on retient
-    // justement en vol. Il est attendu après la libération, pour ne pas fuir d'un test à l'autre.
+    // The click is not awaited right away: `act` would wait for the submission, which we are
+    // holding in flight on purpose. It is awaited after release, so as not to leak across tests.
     const clicked = userEvent.click(screen.getByRole("button", { name: /add stage/i }));
 
     expect(await screen.findByTestId("pending-indicator")).toBeDefined();
@@ -562,11 +562,11 @@ describe("bannières et opération en vol, sur le rendu", () => {
   });
 });
 
-describe("fermeture du panneau de détail au clavier", () => {
-  /** Trouvé par /impeccable critique le 2026-10-22 : `onSelectJob(null)` n'était atteignable que
-   *  par un clic souris sur le fond du canevas. Aucun utilisateur au clavier ne pouvait refermer le
-   *  panneau, et quinze contrôles restaient définitivement dans son cycle de tabulation. */
-  test("Échap referme le panneau", async () => {
+describe("closing the detail panel from the keyboard", () => {
+  /** Found by /impeccable critique on 2026-10-22: `onSelectJob(null)` could only be reached by a
+   *  mouse click on the canvas background. No keyboard user could close the panel, and fifteen
+   *  controls stayed in its tab cycle for good. */
+  test("Escape closes the panel", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     expect(await screen.findByRole("region", { name: /job detail/i })).toBeDefined();
@@ -575,7 +575,7 @@ describe("fermeture du panneau de détail au clavier", () => {
     await waitFor(() => expect(screen.queryByRole("region", { name: /job detail/i })).toBeNull());
   });
 
-  test("le panneau porte un bouton de fermeture", async () => {
+  test("the panel has a close button", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
 
@@ -584,18 +584,18 @@ describe("fermeture du panneau de détail au clavier", () => {
   });
 });
 
-describe("la barre latérale est groupée", () => {
-  /** La critique du 2026-10-22 : douze contrôles de deux tâches sans rapport se suivaient sur une
-   *  surface indifférenciée, et `LABEL` servait indistinctement de titre de section et d'étiquette
-   *  de champ — une seule voix, donc aucune hiérarchie. */
-  test("deux sections nommées, l'une pour les stages, l'autre pour la création de job", async () => {
+describe("the sidebar is grouped", () => {
+  /** The 2026-10-22 critique: twelve controls for two unrelated tasks followed one another on an
+   *  undifferentiated surface, and `LABEL` served both as section heading and field label — a
+   *  single voice, hence no hierarchy. */
+  test("two named sections, one for stages, the other for job creation", async () => {
     await renderApp(harness());
 
     expect(screen.getByRole("group", { name: "Stages" })).toBeDefined();
     expect(screen.getByRole("group", { name: "New job" })).toBeDefined();
   });
 
-  test("le titre de section ne se confond pas avec une étiquette de champ", async () => {
+  test("the section heading is not confused with a field label", async () => {
     await renderApp(harness());
 
     const heading = screen.getByText("Stages");
@@ -604,10 +604,10 @@ describe("la barre latérale est groupée", () => {
   });
 });
 
-describe("le focus ne tombe jamais sur le corps du document", () => {
-  /** Revue indépendante : après Échap comme après une suppression confirmée, `document.activeElement`
-   *  était `<body>`. Quand le panneau de détail disparaît, le focus revient au graphe. */
-  test("fermer le panneau rend le focus au graphe", async () => {
+describe("focus never falls onto the document body", () => {
+  /** Independent review: after Escape as after a confirmed deletion, `document.activeElement` was
+   *  `<body>`. When the detail panel disappears, focus returns to the graph. */
+  test("closing the panel returns focus to the graph", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     await screen.findByRole("region", { name: /job detail/i });
@@ -620,17 +620,17 @@ describe("le focus ne tombe jamais sur le corps du document", () => {
   });
 });
 
-describe("suppression confirmée : focus et sélection", () => {
-  /** Seconde revue : l'effet de refocalisation se déclenchait sur `selectedJobId`, que
-   *  `applyPayload` ne remet jamais à `null`. Après une suppression confirmée, le panneau
-   *  disparaissait mais l'effet ne tirait pas, et le focus retombait sur `<body>` — au moment où
-   *  le produit vient de réécrire le fichier. Le commentaire du code affirmait l'inverse. */
+describe("confirmed deletion: focus and selection", () => {
+  /** Second review: the refocus effect fired on `selectedJobId`, which `applyPayload` never resets
+   *  to `null`. After a confirmed deletion, the panel disappeared but the effect did not fire, and
+   *  focus fell back onto `<body>` — right when the product has just rewritten the file. The code
+   *  comment claimed the opposite. */
   function withoutUnit() {
     const base = pipeline();
     return { ...base, jobs: base.jobs.filter((candidate) => candidate.id !== "compile") };
   }
 
-  test("le focus revient au graphe et la sélection est libérée", async () => {
+  test("focus returns to the graph and the selection is released", async () => {
     const h = harness();
     h.queueSubmit({
       ok: true,
@@ -658,11 +658,11 @@ describe("suppression confirmée : focus et sélection", () => {
   });
 });
 
-describe("Échap dans la confirmation n'atteint pas le panneau", () => {
-  /** Seconde revue : le `stopPropagation` du dialogue n'était couvert que par un test qui monte
-   *  `JobEditor` seul, donc sans l'écouteur de document d'`app.tsx`. Le retirer ne faisait rougir
-   *  aucun test. Celui-ci monte l'application entière. */
-  test("Échap ferme le dialogue et laisse le panneau ouvert", async () => {
+describe("Escape in the confirmation does not reach the panel", () => {
+  /** Second review: the dialog's `stopPropagation` was only covered by a test that mounts
+   *  `JobEditor` alone, hence without `app.tsx`'s document listener. Removing it turned no test
+   *  red. This one mounts the whole application. */
+  test("Escape closes the dialog and leaves the panel open", async () => {
     await renderApp(harness());
 
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));

@@ -5,11 +5,11 @@ import { createToken, isAllowedHost, LOOPBACK, tokensMatch } from "../src/securi
 import { codeOf, startHarness } from "./support/harness.ts";
 
 describe("createToken", () => {
-  test("rend 32 octets en hexadécimal", () => {
+  test("returns 32 bytes in hexadecimal", () => {
     expect(createToken()).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  test("ne rend jamais deux fois le même token", () => {
+  test("never returns the same token twice", () => {
     const seen = new Set(Array.from({ length: 50 }, () => createToken()));
     expect(seen.size).toBe(50);
   });
@@ -18,75 +18,75 @@ describe("createToken", () => {
 describe("tokensMatch", () => {
   const token = createToken();
 
-  test("accepte le token exact", () => {
+  test("accepts the exact token", () => {
     expect(tokensMatch(token, token)).toBe(true);
   });
 
-  test("refuse un token différent de même longueur", () => {
+  test("refuses a different token of the same length", () => {
     expect(tokensMatch(token, createToken())).toBe(false);
   });
 
-  test("refuse un token plus court sans lever", () => {
+  test("refuses a shorter token without throwing", () => {
     expect(tokensMatch(token, token.slice(0, 10))).toBe(false);
   });
 
-  test("refuse un token plus long sans lever", () => {
+  test("refuses a longer token without throwing", () => {
     expect(tokensMatch(token, `${token}00`)).toBe(false);
   });
 
-  test("refuse un token absent", () => {
+  test("refuses a missing token", () => {
     expect(tokensMatch(token, undefined)).toBe(false);
     expect(tokensMatch(token, "")).toBe(false);
   });
 
-  test("refuse un token qui ne diffère que par la casse", () => {
+  test("refuses a token that differs only in case", () => {
     expect(tokensMatch(token, token.toUpperCase())).toBe(false);
   });
 });
 
 describe("isAllowedHost", () => {
-  test("accepte 127.0.0.1 avec le bon port", () => {
+  test("accepts 127.0.0.1 with the right port", () => {
     expect(isAllowedHost("127.0.0.1:5283", 5283)).toBe(true);
   });
 
-  test("accepte localhost avec le bon port", () => {
+  test("accepts localhost with the right port", () => {
     expect(isAllowedHost("localhost:5283", 5283)).toBe(true);
   });
 
-  test("refuse un autre port", () => {
+  test("refuses another port", () => {
     expect(isAllowedHost("127.0.0.1:9999", 5283)).toBe(false);
   });
 
-  test("refuse un hôte externe", () => {
+  test("refuses an external host", () => {
     expect(isAllowedHost("exemple.org:5283", 5283)).toBe(false);
     expect(isAllowedHost("192.168.1.10:5283", 5283)).toBe(false);
     expect(isAllowedHost("keelson.localhost.exemple.org:5283", 5283)).toBe(false);
   });
 
-  test("refuse un en-tête Host absent", () => {
+  test("refuses a missing Host header", () => {
     expect(isAllowedHost(undefined, 5283)).toBe(false);
   });
 
-  test("refuse un hôte sans port", () => {
+  test("refuses a host without a port", () => {
     expect(isAllowedHost("127.0.0.1", 5283)).toBe(false);
     expect(isAllowedHost("localhost", 5283)).toBe(false);
   });
 
-  test("refuse l'IPv6 de bouclage, non prévue par le modèle", () => {
+  test("refuses the IPv6 loopback, not covered by the model", () => {
     expect(isAllowedHost("[::1]:5283", 5283)).toBe(false);
   });
 
-  test("refuse un hôte qui se contente de commencer par 127.0.0.1", () => {
+  test("refuses a host that merely starts with 127.0.0.1", () => {
     expect(isAllowedHost("127.0.0.1.exemple.org:5283", 5283)).toBe(false);
   });
 
-  test("l'interface d'écoute est le bouclage IPv4", () => {
+  test("the listening interface is the IPv4 loopback", () => {
     expect(LOOPBACK).toBe("127.0.0.1");
   });
 });
 
-describe("contrôles HTTP", () => {
-  test("écoute sur 127.0.0.1 et nulle part ailleurs", async () => {
+describe("HTTP checks", () => {
+  test("listens on 127.0.0.1 and nowhere else", async () => {
     const harness = await startHarness();
     expect(harness.server.url).toStartWith("http://127.0.0.1:");
 
@@ -95,13 +95,13 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("l'URL rendue porte le token en paramètre", async () => {
+  test("the returned URL carries the token as a parameter", async () => {
     const harness = await startHarness();
     expect(harness.server.url).toContain(`?token=${harness.server.token}`);
     await harness.close();
   });
 
-  test("un en-tête Host étranger rend 403 avant tout traitement", async () => {
+  test("a foreign Host header returns 403 before any processing", async () => {
     const harness = await startHarness();
     const response = await harness.raw("/api/workspace", {
       headers: { host: "exemple.org:1234", "x-keelson-token": harness.server.token },
@@ -111,7 +111,7 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("un Host étranger est refusé même sur une route inconnue", async () => {
+  test("a foreign Host is refused even on an unknown route", async () => {
     const harness = await startHarness();
     const response = await harness.raw("/n-importe-quoi", {
       headers: { host: "attaquant.example:1" },
@@ -120,7 +120,7 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("un token absent rend 403", async () => {
+  test("a missing token returns 403", async () => {
     const harness = await startHarness();
     const response = await harness.raw("/api/workspace");
     expect(response.status).toBe(403);
@@ -128,7 +128,7 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("un token faux rend 403", async () => {
+  test("a wrong token returns 403", async () => {
     const harness = await startHarness();
     const response = await harness.raw("/api/workspace", {
       headers: { "x-keelson-token": createToken() },
@@ -137,13 +137,13 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("le bon token est accepté", async () => {
+  test("the right token is accepted", async () => {
     const harness = await startHarness();
     expect((await harness.api("/api/workspace")).status).toBe(200);
     await harness.close();
   });
 
-  test("le flux d'événements accepte le token en paramètre de requête", async () => {
+  test("the event stream accepts the token as a query parameter", async () => {
     const harness = await startHarness();
     const response = await harness.raw(`/api/events?token=${harness.server.token}`);
     expect(response.status).toBe(200);
@@ -152,14 +152,14 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("le flux d'événements sans token rend 403", async () => {
+  test("the event stream without a token returns 403", async () => {
     const harness = await startHarness();
     const response = await harness.raw("/api/events");
     expect(response.status).toBe(403);
     await harness.close();
   });
 
-  test("un chemin avec .. ne sort pas de la liste du workspace", async () => {
+  test("a path with .. does not escape the workspace list", async () => {
     const harness = await startHarness();
     for (const candidate of [
       "../../../etc/passwd",
@@ -173,7 +173,7 @@ describe("contrôles HTTP", () => {
     await harness.close();
   });
 
-  test("un fichier réel mais non détecté rend 404", async () => {
+  test("a real but undetected file returns 404", async () => {
     const harness = await startHarness();
     writeFileSync(join(harness.root, "secret.yml"), "a: 1\n");
     expect((await harness.api("/api/documents/secret.yml")).status).toBe(404);

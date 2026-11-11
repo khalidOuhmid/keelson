@@ -6,7 +6,7 @@ import { readEdgeCase } from "./support/corpus.ts";
 function job(text: string, id: string) {
   const found = parse(text).pipeline.jobs.find((candidate) => candidate.id === id);
   if (found === undefined) {
-    throw new Error(`job « ${id} » absent du pipeline`);
+    throw new Error(`job "${id}" missing from the pipeline`);
   }
   return found;
 }
@@ -15,34 +15,34 @@ function codes(text: string): string[] {
   return parse(text).diagnostics.map((diagnostic) => diagnostic.code);
 }
 
-describe("chaîne d'extends sur trois niveaux", () => {
+describe("three-level extends chain", () => {
   const text = readEdgeCase("extends-chain");
 
-  test("le stage vient du template le plus prioritaire qui le déclare", () => {
+  test("the stage comes from the highest-priority template that declares it", () => {
     expect(job(text, "final").stage).toEqual({
       value: "test",
       origin: { kind: "extends", template: ".niveau2" },
     });
   });
 
-  test("les needs viennent du template le plus profond qui les déclare", () => {
+  test("the needs come from the deepest template that declares them", () => {
     const needs = job(text, "final").needs;
     expect(needs?.origin).toEqual({ kind: "extends", template: ".niveau1" });
     expect(needs?.value).toEqual([{ job: "prepare", optional: false, artifacts: true }]);
   });
 
-  test("les maps sont fusionnées en profondeur à travers la chaîne", () => {
+  test("maps are deep-merged across the chain", () => {
     expect(job(text, "final").environment).toEqual({
       value: { name: "niveau2", url: "https://niveau1.example.org" },
       origin: { kind: "extends", template: ".niveau2" },
     });
   });
 
-  test("la liste extends déclarée localement est conservée telle quelle", () => {
+  test("the locally declared extends list is kept as is", () => {
     expect(job(text, "final").extends).toEqual([".niveau3"]);
   });
 
-  test("les templates sont collectés à part des jobs", () => {
+  test("templates are collected separately from jobs", () => {
     const parsed = parse(text);
     expect(parsed.pipeline.templates.map((template) => template.id)).toEqual([
       ".niveau1",
@@ -52,36 +52,36 @@ describe("chaîne d'extends sur trois niveaux", () => {
     expect(parsed.pipeline.jobs.map((candidate) => candidate.id)).toEqual(["prepare", "final"]);
   });
 
-  test("aucun diagnostic d'extends sur une chaîne saine", () => {
+  test("no extends diagnostic on a sound chain", () => {
     expect(codes(text)).not.toContain(EXTENDS_TARGET_NOT_FOUND);
     expect(codes(text)).not.toContain(EXTENDS_CYCLE);
   });
 });
 
-describe("extends avec plusieurs parents", () => {
+describe("extends with several parents", () => {
   const text = readEdgeCase("extends-multi-parent");
 
-  test("le dernier parent listé l'emporte sur le premier", () => {
+  test("the last listed parent wins over the first", () => {
     expect(job(text, "gagnant").stage).toEqual({
       value: "test",
       origin: { kind: "extends", template: ".second" },
     });
   });
 
-  test("les clés absentes du dernier parent viennent du premier", () => {
+  test("keys missing from the last parent come from the first", () => {
     expect(job(text, "gagnant").environment?.value).toEqual({
       name: "second",
       url: "https://premier.example.org",
     });
   });
 
-  test("la liste extends conserve l'ordre déclaré", () => {
+  test("the extends list keeps the declared order", () => {
     expect(job(text, "gagnant").extends).toEqual([".premier", ".second"]);
   });
 });
 
-describe("valeurs locales prioritaires", () => {
-  test("une valeur locale l'emporte sur toute valeur héritée", () => {
+describe("local values take precedence", () => {
+  test("a local value wins over any inherited value", () => {
     const text = [
       ".base:",
       "  stage: build",
@@ -100,26 +100,26 @@ describe("valeurs locales prioritaires", () => {
   });
 });
 
-describe("cycle d'extends", () => {
+describe("extends cycle", () => {
   const text = readEdgeCase("extends-cycle");
 
-  test("signale EXTENDS_CYCLE", () => {
+  test("reports EXTENDS_CYCLE", () => {
     expect(codes(text)).toContain(EXTENDS_CYCLE);
   });
 
-  test("le diagnostic est une erreur et nomme le chemin", () => {
+  test("the diagnostic is an error and names the path", () => {
     const cycle = parse(text).diagnostics.find((diagnostic) => diagnostic.code === EXTENDS_CYCLE);
     expect(cycle?.severity).toBe("error");
     expect(cycle?.params).toEqual({ trail: [".a", ".b", ".a"] });
   });
 
-  test("le parsing aboutit malgré le cycle", () => {
+  test("parsing succeeds despite the cycle", () => {
     expect(parse(text).pipeline.jobs.map((candidate) => candidate.id)).toEqual(["boucle"]);
   });
 });
 
-describe("cible d'extends absente", () => {
-  test("signale EXTENDS_TARGET_NOT_FOUND en erreur sans include", () => {
+describe("missing extends target", () => {
+  test("reports EXTENDS_TARGET_NOT_FOUND as an error without include", () => {
     const text = readEdgeCase("extends-missing");
     const found = parse(text).diagnostics.find(
       (diagnostic) => diagnostic.code === EXTENDS_TARGET_NOT_FOUND,
@@ -128,7 +128,7 @@ describe("cible d'extends absente", () => {
     expect(found?.params).toEqual({ template: ".absent" });
   });
 
-  test("dégrade en avertissement quand le fichier contient des include", () => {
+  test("downgrades to a warning when the file contains includes", () => {
     const text = readEdgeCase("with-include");
     const found = parse(text).diagnostics.find(
       (diagnostic) => diagnostic.code === EXTENDS_TARGET_NOT_FOUND,
@@ -137,27 +137,27 @@ describe("cible d'extends absente", () => {
   });
 });
 
-describe("anchors et merge <<", () => {
+describe("anchors and << merge", () => {
   const text = readEdgeCase("anchors-merge");
 
-  test("une valeur venue d'un anchor porte l'origine anchor", () => {
+  test("a value coming from an anchor carries the anchor origin", () => {
     expect(job(text, "compile").stage).toEqual({
       value: "build",
       origin: { kind: "anchor", name: "defaults" },
     });
   });
 
-  test("une valeur locale l'emporte sur l'anchor fusionné", () => {
+  test("a local value wins over the merged anchor", () => {
     expect(job(text, "unit").stage).toEqual({ value: "test", origin: { kind: "local" } });
   });
 
-  test("le merge d'une liste d'anchors est résolu", () => {
+  test("the merge of a list of anchors is resolved", () => {
     expect(job(text, "unit").needs?.value).toEqual([
       { job: "compile", optional: false, artifacts: true },
     ]);
   });
 
-  test("les anchors cachés ne sont pas des jobs", () => {
+  test("hidden anchors are not jobs", () => {
     expect(parse(text).pipeline.jobs.map((candidate) => candidate.id)).toEqual(["compile", "unit"]);
   });
 });
@@ -165,26 +165,26 @@ describe("anchors et merge <<", () => {
 describe("!reference", () => {
   const text = readEdgeCase("reference-tag");
 
-  test("résout un !reference local et porte l'origine reference", () => {
+  test("resolves a local !reference and carries the reference origin", () => {
     expect(job(text, "unit").needs).toEqual({
       value: [{ job: "compile", optional: false, artifacts: true }],
       origin: { kind: "reference", path: [".needs", "common"] },
     });
   });
 
-  test("le fichier parse sans erreur de YAML", () => {
+  test("the file parses without a YAML error", () => {
     expect(parse(text).diagnostics.filter((d) => d.severity === "error")).toEqual([]);
   });
 
-  test("un !reference dans un bloc opaque ne gêne pas le parsing", () => {
+  test("a !reference in an opaque block does not hinder parsing", () => {
     expect(job(text, "compile").opaque.map((block) => block.key)).toContain("script");
   });
 });
 
-describe("normalisation des needs", () => {
+describe("needs normalisation", () => {
   const text = readEdgeCase("needs-objects");
 
-  test("les trois formes de need sont normalisées", () => {
+  test("the three need forms are normalised", () => {
     expect(job(text, "unit").needs?.value).toEqual([
       { job: "compile", optional: false, artifacts: false },
       { job: "paquet", optional: true, artifacts: true },
@@ -192,26 +192,26 @@ describe("normalisation des needs", () => {
     ]);
   });
 
-  test("le flow style est normalisé comme le block style", () => {
+  test("flow style is normalised like block style", () => {
     expect(job(readEdgeCase("flow-needs"), "c").needs?.value).toEqual([
       { job: "a", optional: false, artifacts: true },
       { job: "b", optional: false, artifacts: true },
     ]);
   });
 
-  test("un job sans needs a needs à null", () => {
+  test("a job without needs has needs set to null", () => {
     expect(job(text, "compile").needs).toBeNull();
   });
 });
 
-describe("normalisation de l'environnement", () => {
+describe("environment normalisation", () => {
   const text = readEdgeCase("environment-forms");
 
-  test("une chaîne devient un objet à un seul nom", () => {
+  test("a string becomes an object with a single name", () => {
     expect(job(text, "chaine").environment?.value).toEqual({ name: "production" });
   });
 
-  test("un objet complet est conservé", () => {
+  test("a complete object is kept", () => {
     expect(job(text, "objet").environment?.value).toEqual({
       name: "staging",
       url: "https://staging.example.org",
@@ -219,11 +219,11 @@ describe("normalisation de l'environnement", () => {
     });
   });
 
-  test("une action sans url est conservée", () => {
+  test("an action without url is kept", () => {
     expect(job(text, "arret").environment?.value).toEqual({ name: "staging", action: "stop" });
   });
 
-  test("un job sans environnement a environment à null", () => {
+  test("a job without an environment has environment set to null", () => {
     expect(job(readEdgeCase("flow-needs"), "a").environment).toBeNull();
   });
 });

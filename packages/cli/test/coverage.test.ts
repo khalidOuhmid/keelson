@@ -50,7 +50,7 @@ afterAll(() => {
 });
 
 describe("keelson coverage", () => {
-  test("texte : une ligne par couche, couverte ou non, avec ses jobs", async () => {
+  test("text: one line per layer, covered or not, with its jobs", async () => {
     const { stdout, exitCode } = await run(["coverage"], { cwd: tree(JOBS) });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("covered  secrets");
@@ -58,18 +58,18 @@ describe("keelson coverage", () => {
     expect(stdout.split("\n").filter((line) => /^(covered|missing) /.test(line))).toHaveLength(21);
   });
 
-  test("détecte à travers un include", async () => {
+  test("detects through an include", async () => {
     const { body } = await json(tree(JOBS));
     const sast = body.layers.find((entry: { layer: string }) => entry.layer === "sast");
     expect(sast.jobs).toEqual(["sast"]);
   });
 
-  test("--require rend 0 quand les couches sont couvertes", async () => {
+  test("--require returns 0 when the layers are covered", async () => {
     const result = await run(["coverage", "--require", "secrets,sast"], { cwd: tree(JOBS) });
     expect(result.exitCode).toBe(0);
   });
 
-  test("--require rend 1 et nomme la couche manquante", async () => {
+  test("--require returns 1 and names the missing layer", async () => {
     const result = await run(["coverage", "--require", "sast,dast"], { cwd: tree(JOBS) });
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain(
@@ -78,13 +78,13 @@ describe("keelson coverage", () => {
     expect(result.stdout).not.toContain('required layer "sast"');
   });
 
-  test("une couche inconnue est une erreur d'usage, code 2", async () => {
+  test("an unknown layer is a usage error, code 2", async () => {
     const result = await run(["coverage", "--require", "inventee"], { cwd: tree(JOBS) });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain('unknown layer "inventee"');
   });
 
-  test("le JSON porte couches, jobs, manques et diagnostics", async () => {
+  test("the JSON carries layers, jobs, gaps and diagnostics", async () => {
     const { body, exitCode } = await json(tree(JOBS), "--require", "dast");
     expect(exitCode).toBe(1);
     expect(Object.keys(body).sort()).toEqual([
@@ -98,7 +98,7 @@ describe("keelson coverage", () => {
     expect(body.diagnostics[0].message).toContain("is not covered");
   });
 
-  test("une surcharge de layout.json remplace la détection", async () => {
+  test("a layout.json override replaces detection", async () => {
     const layout = JSON.stringify({ version: 1, layers: { secrets: ["dast"] } });
     const { body } = await json(tree(JOBS, layout), "--require", "dast");
     expect(body.missing).toEqual([]);
@@ -107,13 +107,13 @@ describe("keelson coverage", () => {
     );
   });
 
-  test("un layout.json invalide est signalé et n'empêche rien", async () => {
+  test("an invalid layout.json is reported and blocks nothing", async () => {
     const { stdout, exitCode } = await run(["coverage"], { cwd: tree(JOBS, "{") });
     expect(exitCode).toBe(0);
     expect(stdout).toContain("warning LAYOUT_INVALID");
   });
 
-  test("un pipeline partiel le dit : la couverture est une borne basse", async () => {
+  test("a partial pipeline says so: coverage is a lower bound", async () => {
     const main = `include:\n  - template: Jobs/SAST.gitlab-ci.yml\n\n${JOBS.split("\n").slice(2).join("\n")}`;
     const { stdout } = await run(["coverage"], { cwd: tree(main) });
     expect(stdout).toContain(
@@ -122,28 +122,28 @@ describe("keelson coverage", () => {
     expect((await json(tree(main))).body.partial).toBe(true);
   });
 
-  /** Un fichier illisible ne dit rien des couches : les annoncer toutes manquantes, code 0, serait
-   *  un mensonge plus grave qu'une erreur. */
-  test("un YAML invalide est une erreur, et la couverture est partielle", async () => {
+  /** An unreadable file says nothing about layers: reporting them all missing, code 0, would be a
+   *  worse lie than an error. */
+  test("invalid YAML is an error, and coverage is partial", async () => {
     const { body, exitCode } = await json(tree("a:\n  - x\n bad: [1,\n"));
     expect(exitCode).toBe(1);
     expect(body.partial).toBe(true);
     expect(body.diagnostics.map((entry: { code: string }) => entry.code)).toContain("INVALID_YAML");
   });
 
-  test("--require vide est une erreur d'usage : une variable de CI vide ne désarme pas la barrière", async () => {
+  test("empty --require is a usage error: an empty CI variable does not disarm the gate", async () => {
     const result = await run(["coverage", "--require", ""], { cwd: tree(JOBS) });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("--require");
   });
 
-  test("fichier absent : code 2", async () => {
+  test("missing file: code 2", async () => {
     const result = await run(["coverage"], { cwd: root });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("file not found");
   });
 
-  test("keelson validate rapporte aussi les diagnostics de layout.json", async () => {
+  test("keelson validate also reports layout.json diagnostics", async () => {
     const layout = JSON.stringify({ version: 1, layers: { absent: ["sast"] } });
     const { stdout } = await run(["validate"], { cwd: tree(JOBS, layout) });
     expect(stdout).toContain("LAYOUT_UNKNOWN_JOB");
@@ -153,13 +153,13 @@ describe("keelson coverage", () => {
 describe("keelson catalog lint", () => {
   const NOW = new Date("2026-11-04T00:00:00Z");
 
-  test("le catalogue embarqué est propre", async () => {
+  test("the bundled catalogue is clean", async () => {
     const result = await run(["catalog", "lint"], { now: NOW, cwd: root });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe(`${loadCatalog().tools.length} tools, no findings\n`);
   });
 
-  test("un an plus tard, la fraîcheur est signalée sans échouer", async () => {
+  test("a year later, staleness is reported without failing", async () => {
     const result = await run(["catalog", "lint"], {
       now: new Date("2027-11-04T00:00:00Z"),
       cwd: root,
@@ -168,7 +168,7 @@ describe("keelson catalog lint", () => {
     expect(result.stdout).toContain("warning CATALOG_STALE_TOOL");
   });
 
-  test("un dossier avec une fiche invalide rend 1", async () => {
+  test("a directory with an invalid catalogue entry returns 1", async () => {
     const directory = mkdtempSync(join(root, "c-"));
     writeFileSync(join(directory, "x.yaml"), "id: X\n");
     const result = await run(["catalog", "lint", directory], { now: NOW });
@@ -176,24 +176,24 @@ describe("keelson catalog lint", () => {
     expect(result.stdout).toContain("x.yaml error CATALOG_INVALID_TOOL");
   });
 
-  test("un dossier sans fiche est une erreur d'usage, pas un catalogue propre", async () => {
+  test("a directory without catalogue entries is a usage error, not a clean catalogue", async () => {
     const directory = mkdtempSync(join(root, "v-"));
     writeFileSync(join(directory, "x.yml"), "id: X\n");
     expect((await run(["catalog", "lint", directory], { now: NOW })).exitCode).toBe(2);
   });
 
-  test("le dossier du dépôt est propre", async () => {
+  test("the repository's directory is clean", async () => {
     const tools = join(import.meta.dir, "..", "..", "catalog", "tools");
     expect((await run(["catalog", "lint", tools], { now: NOW })).exitCode).toBe(0);
   });
 
-  test("sous-commande inconnue et dossier absent : code 2", async () => {
+  test("unknown subcommand and missing directory: code 2", async () => {
     expect((await run(["catalog", "nope"], { now: NOW })).exitCode).toBe(2);
     expect((await run(["catalog", "lint", join(root, "absent")], { now: NOW })).exitCode).toBe(2);
   });
 });
 
-describe("la toolchain en ligne de commande", () => {
+describe("the toolchain on the command line", () => {
   function repo(toolchain: string): string {
     const root = mkdtempSync(join(tmpdir(), "keelson-cli-tc-"));
     mkdirSync(join(root, ".git"));
@@ -206,7 +206,7 @@ describe("la toolchain en ligne de commande", () => {
     return root;
   }
 
-  test("validate signale un service inconnu et rend 1", async () => {
+  test("validate reports an unknown service and returns 1", async () => {
     const root = repo(
       "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: fantome\n    service: absent\n    kind: push\n",
     );
@@ -216,14 +216,14 @@ describe("la toolchain en ligne de commande", () => {
     expect(result.stdout).toContain("TOOLCHAIN_UNKNOWN_JOB");
   });
 
-  test("validate rend 0 sur une toolchain cohérente", async () => {
+  test("validate returns 0 on a consistent toolchain", async () => {
     const root = repo(
       "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: build\n    service: n\n    kind: push\n",
     );
     expect((await run(["validate"], { cwd: root })).exitCode).toBe(0);
   });
 
-  test("coverage --require scm est satisfait par un service déclaré, et le dit", async () => {
+  test("coverage --require scm is satisfied by a declared service, and says so", async () => {
     const root = repo("version: 1\nservices:\n  git:\n    tool: gitlab\n");
     const result = await run(["coverage", "--require", "scm"], { cwd: root });
     expect(result.exitCode).toBe(0);

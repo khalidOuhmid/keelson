@@ -56,13 +56,13 @@ const SAMPLE = pipeline(
   ],
 );
 
-describe("colonnes", () => {
-  test("une colonne par stage, dans l'ordre des stages", async () => {
+describe("columns", () => {
+  test("one column per stage, in stage order", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     expect(layout.columns.map((column) => column.name)).toEqual(["build", "test", "deploy"]);
   });
 
-  test("chaque colonne porte les jobs de son stage", async () => {
+  test("each column holds the jobs of its stage", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     expect(layout.columns.map((column) => column.jobIds)).toEqual([
       ["compile"],
@@ -71,14 +71,14 @@ describe("colonnes", () => {
     ]);
   });
 
-  test("les colonnes se suivent de gauche à droite", async () => {
+  test("columns follow each other from left to right", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const xs = layout.columns.map((column) => column.x);
     expect(xs).toEqual([...xs].sort((left, right) => left - right));
     expect(new Set(xs).size).toBe(xs.length);
   });
 
-  test("un stage sans job garde sa colonne", async () => {
+  test("a stage without jobs keeps its column", async () => {
     const layout = await layoutPipeline(
       pipeline(["build", "vide", "test"], [{ id: "a", stage: "build" }]),
       METRICS,
@@ -87,7 +87,7 @@ describe("colonnes", () => {
     expect(layout.columns[1]?.jobIds).toEqual([]);
   });
 
-  test("les stages implicites sont signalés", async () => {
+  test("implicit stages are flagged", async () => {
     const layout = await layoutPipeline(
       pipeline([".pre", "build"], [{ id: "a", stage: "build" }], true),
       METRICS,
@@ -95,7 +95,7 @@ describe("colonnes", () => {
     expect(layout.columns.map((column) => column.implicit)).toEqual([true, true]);
   });
 
-  test("un job dans un stage non déclaré est rangé dans une colonne de fin", async () => {
+  test("a job in an undeclared stage goes into a trailing column", async () => {
     const layout = await layoutPipeline(
       pipeline(
         ["build"],
@@ -112,8 +112,8 @@ describe("colonnes", () => {
   });
 });
 
-describe("nœuds", () => {
-  test("un nœud par job, aux dimensions demandées", async () => {
+describe("nodes", () => {
+  test("one node per job, at the requested size", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     expect(layout.nodes).toHaveLength(4);
     for (const node of layout.nodes) {
@@ -122,14 +122,14 @@ describe("nœuds", () => {
     }
   });
 
-  test("les nœuds d'un même stage partagent la même abscisse", async () => {
+  test("nodes of the same stage share the same x", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const inTest = layout.nodes.filter((node) => ["unit", "lint"].includes(node.id));
     expect(inTest).toHaveLength(2);
     expect(inTest[0]?.x).toBe(inTest[1]?.x ?? -1);
   });
 
-  test("les nœuds d'un même stage ne se chevauchent pas verticalement", async () => {
+  test("nodes of the same stage do not overlap vertically", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const inTest = layout.nodes
       .filter((node) => ["unit", "lint"].includes(node.id))
@@ -142,7 +142,7 @@ describe("nœuds", () => {
     }
   });
 
-  test("un stage ultérieur est à droite d'un stage antérieur", async () => {
+  test("a later stage is to the right of an earlier one", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const byId = new Map(layout.nodes.map((node) => [node.id, node]));
     const compile = byId.get("compile");
@@ -154,39 +154,39 @@ describe("nœuds", () => {
     }
   });
 
-  test("un pipeline sans job rend une liste de nœuds vide", async () => {
+  test("a pipeline without jobs yields an empty node list", async () => {
     const layout = await layoutPipeline(pipeline(["build"], []), METRICS);
     expect(layout.nodes).toEqual([]);
     expect(layout.edges).toEqual([]);
   });
 });
 
-describe("arêtes", () => {
-  test("une arête par need", async () => {
+describe("edges", () => {
+  test("one edge per need", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     expect(layout.edges).toHaveLength(3);
   });
 
-  test("chaque arête relie la cible du need au job qui en dépend", async () => {
+  test("each edge links the need's target to the job that depends on it", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const pairs = layout.edges.map((edge) => `${edge.source}->${edge.target}`).sort();
     expect(pairs).toEqual(["compile->unit", "lint->ship", "unit->ship"]);
   });
 
-  test("un need optionnel est marqué", async () => {
+  test("an optional need is marked", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const optional = layout.edges.filter((edge) => edge.optional);
     expect(optional).toHaveLength(1);
     expect(optional[0]?.source).toBe("lint");
   });
 
-  test("un job sans needs n'a aucune arête entrante", async () => {
+  test("a job without needs has no incoming edge", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     expect(layout.edges.some((edge) => edge.target === "compile")).toBe(false);
     expect(layout.edges.some((edge) => edge.target === "lint")).toBe(false);
   });
 
-  test("un need vers un job inexistant ne crée pas d'arête", async () => {
+  test("a need on a non-existent job creates no edge", async () => {
     const layout = await layoutPipeline(
       pipeline(["build"], [{ id: "a", stage: "build", needs: [need("fantome")] }]),
       METRICS,
@@ -194,15 +194,15 @@ describe("arêtes", () => {
     expect(layout.edges).toEqual([]);
   });
 
-  test("les identifiants d'arête sont uniques", async () => {
+  test("edge ids are unique", async () => {
     const layout = await layoutPipeline(SAMPLE, METRICS);
     const ids = layout.edges.map((edge) => edge.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
-describe("déterminisme", () => {
-  test("deux mises en page de la même IR sont identiques", async () => {
+describe("determinism", () => {
+  test("two layouts of the same IR are identical", async () => {
     const [first, second] = await Promise.all([
       layoutPipeline(SAMPLE, METRICS),
       layoutPipeline(SAMPLE, METRICS),
@@ -210,20 +210,20 @@ describe("déterminisme", () => {
     expect(second).toEqual(first);
   });
 
-  test("dix mises en page successives sont identiques", async () => {
+  test("ten successive layouts are identical", async () => {
     const reference = await layoutPipeline(SAMPLE, METRICS);
     for (let index = 0; index < 9; index += 1) {
       expect(await layoutPipeline(SAMPLE, METRICS)).toEqual(reference);
     }
   });
 
-  test("des métriques différentes donnent des positions différentes", async () => {
+  test("different metrics give different positions", async () => {
     const serre = await layoutPipeline(SAMPLE, METRICS);
     const large = await layoutPipeline(SAMPLE, { ...METRICS, columnGap: 400 });
     expect(large).not.toEqual(serre);
   });
 
-  test("la mise en page ne dépend pas de l'ordre des jobs dans l'IR", async () => {
+  test("the layout does not depend on job order in the IR", async () => {
     const reordered = pipeline(
       ["build", "test", "deploy"],
       [
@@ -242,10 +242,10 @@ describe("déterminisme", () => {
   });
 });
 
-describe("invariant : un job est dessiné dans la colonne de son stage", () => {
-  /** L'ADR 0003 exige cet invariant : la passe critique du 2026-10-22 a trouvé `lint`, un job de
-   *  stage `test`, dessiné dans la colonne `build` dont l'en-tête annonçait « 1 job ». Les tests
-   *  existants vérifiaient que la mise en page est calculée, jamais qu'elle est vraie. */
+describe("invariant: a job is drawn in its stage's column", () => {
+  /** ADR 0003 requires this invariant: the 2026-10-22 critique pass found `lint`, a `test`-stage
+   *  job, drawn in the `build` column whose header announced "1 job". The existing tests checked
+   *  that the layout is computed, never that it is true. */
   function assertContained(layout: Awaited<ReturnType<typeof layoutPipeline>>): void {
     const columnOf = new Map<string, (typeof layout.columns)[number]>();
     for (const column of layout.columns) {
@@ -269,7 +269,7 @@ describe("invariant : un job est dessiné dans la colonne de son stage", () => {
     }
   }
 
-  test("sur un pipeline dont un job n'a aucune arête", async () => {
+  test("on a pipeline where one job has no edge", async () => {
     assertContained(
       await layoutPipeline(
         pipeline(
@@ -292,7 +292,7 @@ describe("invariant : un job est dessiné dans la colonne de son stage", () => {
     );
   });
 
-  test("sur un pipeline entièrement sans arête", async () => {
+  test("on a pipeline with no edges at all", async () => {
     assertContained(
       await layoutPipeline(
         pipeline(
@@ -308,7 +308,7 @@ describe("invariant : un job est dessiné dans la colonne de son stage", () => {
     );
   });
 
-  test("quand un stage déclaré ne porte aucun job", async () => {
+  test("when a declared stage holds no job", async () => {
     assertContained(
       await layoutPipeline(
         pipeline(
@@ -323,7 +323,7 @@ describe("invariant : un job est dessiné dans la colonne de son stage", () => {
     );
   });
 
-  test("quand un job référence un stage non déclaré", async () => {
+  test("when a job references an undeclared stage", async () => {
     assertContained(
       await layoutPipeline(
         pipeline(
@@ -339,7 +339,7 @@ describe("invariant : un job est dessiné dans la colonne de son stage", () => {
   });
 });
 
-describe("invariant : deux jobs d'une même colonne ne se recouvrent pas", () => {
+describe("invariant: two jobs in the same column do not overlap", () => {
   async function overlapsIn(
     stages: string[],
     jobs: { id: string; stage: string; needs?: Need[] }[],
@@ -357,7 +357,7 @@ describe("invariant : deux jobs d'une même colonne ne se recouvrent pas", () =>
       for (const [index, node] of placed.entries()) {
         const next = placed[index + 1];
         if (next !== undefined && next.y < node.y + node.height) {
-          found.push(`${node.id} recouvre ${next.id} dans ${column.name}`);
+          found.push(`${node.id} overlaps ${next.id} in ${column.name}`);
         }
       }
     }
@@ -365,7 +365,7 @@ describe("invariant : deux jobs d'une même colonne ne se recouvrent pas", () =>
     return found;
   }
 
-  test("sur le pipeline de la fixture de dev", async () => {
+  test("on the dev fixture pipeline", async () => {
     expect(
       await overlapsIn(
         ["build", "test", "scan", "deploy"],
@@ -385,7 +385,7 @@ describe("invariant : deux jobs d'une même colonne ne se recouvrent pas", () =>
     ).toEqual([]);
   });
 
-  test("quand une colonne mêle des jobs liés et des jobs isolés", async () => {
+  test("when a column mixes linked and isolated jobs", async () => {
     expect(
       await overlapsIn(
         ["build", "test"],

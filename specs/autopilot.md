@@ -1,57 +1,58 @@
-# Pilote autonome — lots L3 à L8 (archivé)
+# Autonomous autopilot — milestones L3 to L8 (archived)
 
-> Archivé le 2026-11-11 : consigne de l'agent autonome qui a livré L3 à L8, conservée comme trace du
-> processus (TDD, revue indépendante en lecture seule, ADR). Elle n'est plus active : l'état du
-> projet est dans [progress.md](progress.md).
+> Archived on 2026-11-11: brief of the autonomous agent that delivered L3 to L8, kept as a record of
+> the process (TDD, read-only independent review, ADRs). It is no longer active: the project status
+> is in [progress.md](progress.md). The `lot/<id>-<name>` branches below are the historical names;
+> milestone branches are now named `milestone/<id>-<slug>`.
 
-Ce fichier est la consigne complète de l'agent jusqu'à la fin du projet. Il se relit à chaque session. L'état de reprise est dans `specs/progress.md`, jamais dans la conversation.
+This file is the agent's complete brief until the end of the project. It is reread at every session. The resume state lives in `specs/progress.md`, never in the conversation.
 
-## Démarrage de session
-1. Lis `specs/progress.md` et reprends à sa « Prochaine action ». Vérifie que l'état décrit correspond au dépôt (branche, derniers commits, `bun run check` vert) ; en cas de divergence, le dépôt fait foi et la divergence va au journal.
-2. Lis `CLAUDE.md`, `PRODUCT.md`, `DESIGN.md`, `specs/01-plan.md`, `specs/diagnostics.md`, `specs/gaps.md` et tous les fichiers de `specs/adr/`. Toutes leurs règles s'appliquent, sans exception : TDD strict, dette datée, écarts consignés, aucune valeur en dur hors `tokens.css`, frontière de test du rendu, `code` + `params` uniquement (ADR 0002), ADR 0003 et 0004, revue indépendante en lecture seule, aucune API Bun dans les packages runtime, déterminisme.
-3. Ne lance jamais `claude` depuis le shell. Ne demande aucune validation.
+## Session start
+1. Read `specs/progress.md` and resume at its "Next action". Check that the state it describes matches the repository (branch, latest commits, `bun run check` green); if they diverge, the repository wins and the divergence goes into the log.
+2. Read `CLAUDE.md`, `PRODUCT.md`, `DESIGN.md`, `specs/01-plan.md`, `specs/diagnostics.md`, `specs/gaps.md` and every file in `specs/adr/`. All their rules apply, without exception: strict TDD, dated debt, recorded gaps, no hard-coded value outside `tokens.css`, render test boundary, `code` + `params` only (ADR 0002), ADR 0003 and 0004, read-only independent review, no Bun API in runtime packages, determinism.
+3. Never run `claude` from the shell. Ask for no approval.
 
-## Boucle par lot
-1. **Cadrage** : branche `lot/<id>-<nom>` depuis `main` ; `specs/milestones/<id>.md` écrit à partir du code réel (arborescence cible, API ou routes, arborescence des tests, définition de terminé) ; commit `docs:`.
-2. **Implémentation** en TDD, un commit par étape verte. Tout test d'invariant est prouvé rouge en réintroduisant temporairement le défaut, puis le fichier est restauré et `git diff` vérifié vide sur ce fichier. Jamais `git stash` ni `git checkout-index` pour ce contrôle. Avant de régénérer un golden, relis le diff du golden : une régénération ne bénit jamais une régression.
-3. **Revue indépendante**, par un sous-agent qui n'a pas vu l'implémentation, strictement en lecture seule (un `git worktree` temporaire pour expérimenter). Les commits qui corrigent ses constats reçoivent une contre-revue, par un autre sous-agent, avant la fusion. Elle relit le diff contre `specs/milestones/<id>.md`, cherche en priorité les tests incapables d'échouer et les commentaires qui promettent plus que le test ne vérifie. Corrections selon l'ADR 0003.
-4. **Vérification** : `bun install --frozen-lockfile && bun run check && bun run e2e` depuis un arbre sans aucun `dist/`, smoke test Node du binaire buildé, définition de terminé cochée point par point.
-5. **Intégration** : `git checkout main && git merge --no-ff lot/<id>-<nom>`, `bun run check` sur `main`.
-6. **Suivi** : `progress.md` mis à jour (lot terminé, prochaine action, journal), commit sur `main`, puis lot suivant sans attendre.
+## Loop per milestone
+1. **Scoping**: branch `lot/<id>-<name>` from `main`; `specs/milestones/<id>.md` written from the actual code (target tree, API or routes, test tree, definition of done); `docs:` commit.
+2. **Implementation** in TDD, one commit per green step. Every invariant test is proven red by temporarily reintroducing the defect, then the file is restored and `git diff` is checked empty on that file. Never `git stash` or `git checkout-index` for this check. Before regenerating a golden, reread the golden's diff: a regeneration never blesses a regression.
+3. **Independent review**, by a subagent that has not seen the implementation, strictly read-only (a temporary `git worktree` for experiments). Commits that fix its findings get a counter-review, by another subagent, before the merge. It rereads the diff against `specs/milestones/<id>.md`, and looks first for tests that cannot fail and for comments that promise more than the test checks. Fixes follow ADR 0003.
+4. **Verification**: `bun install --frozen-lockfile && bun run check && bun run e2e` from a tree with no `dist/` at all, Node smoke test of the built binary, definition of done checked item by item.
+5. **Integration**: `git checkout main && git merge --no-ff lot/<id>-<name>`, `bun run check` on `main`.
+6. **Tracking**: `progress.md` updated (milestone done, next action, log), commit on `main`, then the next milestone without waiting.
 
-## Décisions
-- Réversible (technique, structure, nommage, format, comportement d'UI) : tranche seul, au niveau d'une revue d'architecture exigeante, et consigne-la dans `specs/adr/NNNN-titre.md` au prochain numéro libre.
-- Irréversible ou externe (`npm publish`, dépôt distant, push, réécriture de l'historique de `main`, fichier dont la licence interdit la redistribution) : jamais. Prépare tout, puis `Statut : BLOQUÉ` dans `progress.md` avec les commandes exactes attendues.
-- Données tierces : licence vérifiée sur pièces et provenance consignée avant toute copie. Logos via le paquet npm `simple-icons` (CC0) en devDependency ; un logo d'éditeur seulement si sa charte l'autorise explicitement ; sinon l'icône générique de la couche.
-- Front : `/impeccable shape` avant toute surface nouvelle, `critique` puis `audit` après, `polish` en fin de lot, `document` dès que les tokens changent.
+## Decisions
+- Reversible (technical, structure, naming, format, UI behaviour): decide alone, at the level of a demanding architecture review, and record it in `specs/adr/NNNN-title.md` at the next free number.
+- Irreversible or external (`npm publish`, remote repository, push, rewriting `main`'s history, a file whose licence forbids redistribution): never. Prepare everything, then `Status: BLOCKED` in `progress.md` with the exact commands expected.
+- Third-party data: licence verified from the source and provenance recorded before any copy. Logos through the `simple-icons` npm package (CC0) as a devDependency; a vendor logo only if its brand guidelines explicitly allow it; otherwise the layer's generic icon.
+- Front end: `/impeccable shape` before any new surface, `critique` then `audit` after, `polish` at the end of the milestone, `document` as soon as the tokens change.
 
-## Gestion du contexte
-Ne t'arrête jamais de toi-même : la compaction automatique du contexte gère la longueur de la session
+## Context management
+Never stop on your own: automatic context compaction handles the session length
 
-## Lots, dans cet ordre
+## Milestones, in this order
 
-### L3 — taxonomie, catalogue, overlay OWASP
-- `@keelson/taxonomy` : les 13 couches de l'OWASP DevSecOps Guideline (secrets git, SCA, SAST, IaC, supply chain, IAST, sécurité des API, DAST, CNAPP, scan d'infrastructure, scan continu, conformité, sécurité IA/LLM) et les catégories plateforme (SCM, dépôts d'artefacts et registres, secrets, agrégation de vulnérabilités, qualité de code serveur, observabilité runtime, sécurité runtime, policy-as-code), chacune `source: owasp | platform`. Source citée : https://github.com/OWASP/DevSecOpsGuideline.
-- `@keelson/catalog` : 50 à 100 outils, un YAML par outil validé par zod (`id`, `name`, `kind: job | service`, `layers`, `license`, `homepage`, `logo`, `detect`, `snippets.gitlab`, `snippets.github`, `lastVerified`). Au moins deux outils par couche OWASP dont un open source ; obligatoires : DefectDojo, Dependency-Track, Nexus, Harbor, Artifactory, Vault, SonarQube, Sentry, Falco. Chaque fiche vérifiée sur le site officiel, URL de vérification dans la fiche.
-- Détection des couches par job via `detect` (sur `image` et `script`), surchargeable dans `.devsecops/layout.json`.
-- UI : overlay colorant les jobs par couche, panneau « couches non couvertes », vue Catalogue (filtres couche, licence, adaptateur), fiche outil.
-- CLI : `keelson coverage [--require <couches>] [--format json]` (code 1 si une couche requise manque) ; `keelson catalog lint` (schéma, logos, `lastVerified` > 6 mois).
-- Les écarts déjà rattachés à L3 dans `specs/gaps.md` sont traités et clos avec preuve.
+### L3 — taxonomy, catalogue, OWASP overlay
+- `@keelson/taxonomy`: the 13 layers of the OWASP DevSecOps Guideline (git secrets, SCA, SAST, IaC, supply chain, IAST, API security, DAST, CNAPP, infrastructure scanning, continuous scanning, compliance, AI/LLM security) and the platform categories (SCM, artifact repositories and registries, secrets, vulnerability aggregation, server-side code quality, runtime observability, runtime security, policy-as-code), each with `source: owasp | platform`. Cited source: https://github.com/OWASP/DevSecOpsGuideline.
+- `@keelson/catalog`: 50 to 100 tools, one YAML per tool validated by zod (`id`, `name`, `kind: job | service`, `layers`, `license`, `homepage`, `logo`, `detect`, `snippets.gitlab`, `snippets.github`, `lastVerified`). At least two tools per OWASP layer, one of them open source; mandatory: DefectDojo, Dependency-Track, Nexus, Harbor, Artifactory, Vault, SonarQube, Sentry, Falco. Each catalogue entry verified on the official site, with the verification URL in the entry.
+- Per-job layer detection through `detect` (on `image` and `script`), overridable in `.devsecops/layout.json`.
+- UI: overlay colouring jobs by layer, "uncovered layers" panel, Catalogue view (layer, licence and adapter filters), tool page.
+- CLI: `keelson coverage [--require <layers>] [--format json]` (exit code 1 if a required layer is missing); `keelson catalog lint` (schema, logos, `lastVerified` > 6 months).
+- The gaps already attached to L3 in `specs/gaps.md` are handled and closed with evidence.
 
 ### L4 — toolchain
-`.devsecops/toolchain.yaml` : services en instances nommées (nom, outil du catalogue, URL, environnement) et intégrations job → service (`push`, `upload-report`, `fetch-secret`, `notify`). Inférence des intégrations depuis les scripts via le catalogue, confirmées ou corrigées dans le fichier. Aller-retour du fichier par opérations avec les quatre propriétés fast-check. Vue Toolchain avec positions libres persistées dans `.devsecops/layout.json`. `keelson validate` couvre la toolchain.
+`.devsecops/toolchain.yaml`: services as named instances (name, catalogue tool, URL, environment) and job → service integrations (`push`, `upload-report`, `fetch-secret`, `notify`). Integrations inferred from scripts through the catalogue, confirmed or corrected in the file. Round-trip of the file through operations, with the four fast-check properties. Toolchain view with free positions persisted in `.devsecops/layout.json`. `keelson validate` covers the toolchain.
 
-### L5 — propositions et insertion
-Depuis une couche non couverte : liste des outils du catalogue, prévisualisation du diff YAML, insertion du job par une opération composite à inverse unique. `keelson export` vers des formats documentés, au minimum Mermaid et un rapport de couverture en Markdown.
+### L5 — proposals and insertion
+From an uncovered layer: list of catalogue tools, preview of the YAML diff, job insertion through a composite operation with a single inverse. `keelson export` to documented formats, at least Mermaid and a Markdown coverage report.
 
-### L6 — adaptateur GitHub Actions
-`.github/workflows/*.yml` vers l'IR et retour : mêmes opérations, mêmes propriétés, corpus sous licence vérifiée (SHA épinglé, notice reproduite), détection dans le workspace, snippets `github` du catalogue exploités. Les `include` n'existent pas ici ; les `uses` de workflows réutilisables sont signalés non résolus avec un code dédié.
+### L6 — GitHub Actions adapter
+`.github/workflows/*.yml` to the IR and back: same operations, same properties, corpus under a verified licence (pinned SHA, notice reproduced), detection in the workspace, `github` snippets of the catalogue used. `include` does not exist here; `uses` of reusable workflows are reported as unresolved with a dedicated code.
 
-### L7 — packaging open source
-README complet avec captures, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, templates d'issues et de PR, workflow de release (changelog, versionnage sémantique), `npm pack` vérifié en installation propre sur Node 20 et 22. Ne publie pas : `BLOQUÉ` avec la liste exacte des commandes.
+### L7 — open source packaging
+Complete README with screenshots, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue and PR templates, release workflow (changelog, semantic versioning), `npm pack` verified with a clean install on Node 20 and 22. Do not publish: `BLOCKED` with the exact list of commands.
 
-### L8 — flotte
-`keelson apply ops.json` (opérations sérialisées sur un dépôt, simulation par défaut, écriture sur option). `keelson fleet coverage <manifeste>` : couverture agrégée de N dépôts locaux, cache par hash de fichier, mise à jour incrémentale, sortie JSON et Markdown.
+### L8 — fleet
+`keelson apply ops.json` (serialized operations on a repository, dry run by default, writing behind an option). `keelson fleet coverage <manifest>`: aggregated coverage of N local repositories, cache by file hash, incremental update, JSON and Markdown output.
 
-## Fin
-Quand L8 est fusionné : `Statut : TERMINÉ` dans `progress.md`, et un rapport final : lots fusionnés, ADR créés, écarts les plus structurants, commandes de publication en attente.
+## End
+When L8 is merged: `Status: DONE` in `progress.md`, and a final report: merged milestones, ADRs created, most structural gaps, pending publication commands.

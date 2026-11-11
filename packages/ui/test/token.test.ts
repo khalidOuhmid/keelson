@@ -18,37 +18,37 @@ function harness(search: string) {
 beforeEach(() => undefined);
 
 describe("readToken", () => {
-  test("lit le token du paramètre de requête", () => {
+  test("reads the token from the query parameter", () => {
     expect(harness("?token=abc123").token).toBe("abc123");
   });
 
-  test("retire le token de l'URL", () => {
+  test("removes the token from the URL", () => {
     const { replaced } = harness("?token=abc123");
     expect(replaced).toEqual([{ url: "/" }]);
   });
 
-  test("conserve les autres paramètres", () => {
+  test("keeps the other parameters", () => {
     const { replaced } = harness("?token=abc&debug=1");
     expect(replaced[0]?.url).toBe("/?debug=1");
   });
 
-  test("ne touche pas à l'URL quand il n'y a pas de token", () => {
+  test("leaves the URL alone when there is no token", () => {
     const { replaced, token } = harness("?debug=1");
     expect(token).toBeNull();
     expect(replaced).toEqual([]);
   });
 
-  test("rend null sur une URL sans paramètre", () => {
+  test("returns null on a URL without parameters", () => {
     expect(harness("").token).toBeNull();
   });
 
-  test("un token vide est traité comme absent", () => {
+  test("an empty token is treated as missing", () => {
     const { replaced, token } = harness("?token=");
     expect(token).toBeNull();
     expect(replaced).toEqual([]);
   });
 
-  test("décode un token encodé", () => {
+  test("decodes an encoded token", () => {
     expect(harness("?token=a%2Bb").token).toBe("a+b");
   });
 });

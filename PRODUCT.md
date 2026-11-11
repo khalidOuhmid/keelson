@@ -8,187 +8,180 @@ web
 
 ## Users
 
-**Utilisateur qui tranche : l'ingénieur DevSecOps / plateforme.** Il conçoit ou fait évoluer la
-chaîne CI et les services de la plateforme (Nexus, Harbor, DefectDojo, Vault, Sentry…) pour
-plusieurs équipes. Il connaît le YAML CI, l'édite au quotidien et ouvre Keelson **dans un dépôt
-qu'il a sous la main**, en local, pour voir le pipeline, le compléter et écrire la configuration
-sans perdre ce qui existe. Quand les besoins des profils divergent (densité d'édition contre
-lisibilité d'un constat), c'est son usage qui l'emporte.
+**The deciding user: the DevSecOps / platform engineer.** They design or evolve the CI chain and
+the platform services (Nexus, Harbor, DefectDojo, Vault, Sentry…) for several teams. They know CI
+YAML, edit it daily, and open Keelson **in a repository they have at hand**, locally, to see the
+pipeline, complete it and write the configuration without losing what exists. When the needs of the
+profiles diverge (editing density versus legibility of a finding), their usage wins.
 
-Trois audiences secondaires confirmées :
+Three confirmed secondary audiences:
 
-- **Architecte sécurité / RSSI** : audite la couverture OWASP d'un dépôt existant, produit un
-  constat, impose des couches requises (`keelson coverage --require`). Consomme surtout l'overlay et
-  le rapport, édite peu.
-- **Dev lead d'une équipe produit** : ouvre son propre dépôt pour comprendre et corriger son
-  pipeline sans être expert CI. A besoin que chaque proposition soit justifiée et vérifiable.
-- **Consultant en mission** : intervient sur N dépôts clients, veut un modèle réutilisable et un
-  rapport ; à terme, applique une même série d'opérations à une flotte (lot L8).
+- **Security architect / CISO**: audits the OWASP coverage of an existing repository, produces a
+  finding, enforces required layers (`keelson coverage --require`). Mostly consumes the overlay and
+  the report, edits little.
+- **Dev lead of a product team**: opens their own repository to understand and fix their pipeline
+  without being a CI expert. Needs every proposal to be justified and verifiable.
+- **Consultant on assignment**: works on N client repositories, wants a reusable model and a
+  report; eventually applies the same series of operations to a fleet (milestone L8).
 
 ## Product Purpose
 
-Concevoir visuellement une chaîne DevSecOps **avant** de l'implémenter, en restant branché sur les
-fichiers réels du dépôt. Aujourd'hui, la conception se fait soit dans un outil de diagramme
-déconnecté du code, soit directement dans le YAML où l'on perd la vue d'ensemble ; dans les deux
-cas, personne ne sait dire quelles couches de sécurité sont réellement couvertes ni ce qu'il manque.
+Visually design a DevSecOps chain **before** implementing it, while staying connected to the
+repository's real files. Today, design happens either in a diagramming tool disconnected from the
+code, or directly in the YAML where the big picture is lost; in both cases, nobody can say which
+security layers are actually covered or what is missing.
 
-Keelson lit et réécrit le YAML CI natif (GitLab CI d'abord, GitHub Actions ensuite), modélise à
-côté les services de la plateforme et leurs intégrations avec les jobs, projette la couverture des
-13 couches de l'OWASP DevSecOps Guideline plus des catégories plateforme hors OWASP, et propose
-depuis un catalogue de 50 à 100 outils des implémentations pour les couches non couvertes.
+Keelson reads and rewrites native CI YAML (GitLab CI first, GitHub Actions next), models alongside
+it the platform services and their integrations with jobs, projects coverage of the 13 layers of the
+OWASP DevSecOps Guideline plus platform categories outside OWASP, and suggests, from a catalogue of
+50 to 100 tools, implementations for uncovered layers.
 
-Succès : l'utilisateur sait, pour un dépôt donné, ce qui est couvert, par quoi, ce qui ne l'est
-pas, et repart avec une configuration écrite dans ses fichiers, sans qu'un commentaire, un ordre
-de clés ou un anchor ait bougé.
+Success: for a given repository, the user knows what is covered, by what, what is not, and leaves
+with configuration written into their files, without a single comment, key order or anchor having
+moved.
 
-Hors périmètre, définitivement : Keelson ne déploie rien, n'exécute aucun pipeline, ne scanne aucun
-code. Il conçoit, documente et écrit de la configuration.
+Permanently out of scope: Keelson deploys nothing, runs no pipeline, scans no code. It designs,
+documents and writes configuration.
 
 ## Positioning
 
-**Le dépôt est la source de vérité, pas Keelson.** Aucun format propriétaire ne remplace le YAML
-CI. Keelson ne possède que deux fichiers, `.devsecops/toolchain.yaml` (services et intégrations,
-non déductibles du CI) et `.devsecops/layout.json` (positions des nœuds, surcharges de couche).
+**The repository is the source of truth, not Keelson.** No proprietary format replaces CI YAML.
+Keelson owns only two files, `.devsecops/toolchain.yaml` (services and integrations, which cannot be
+inferred from CI) and `.devsecops/layout.json` (node positions, layer overrides).
 
-Ce qu'un outil voisin ne peut pas copier sans changer de nature :
+What a neighbouring tool cannot copy without changing its nature:
 
-- **L'aller-retour octet pour octet.** Un parse puis emit sans modification produit un fichier
-  identique : commentaires, ordre des clés et anchors préservés. Édition par patch en place, jamais
-  par régénération. Vérifié par un corpus de 34 fichiers et quatre propriétés fast-check
-  (aller-retour, inverse, déterminisme, localité).
-- **Ce que le modèle ne comprend pas est conservé tel quel** dans des blocs opaques, jamais
-  reconstruit.
-- **Rien n'est prescrit sans justification.** Chaque proposition d'outil renvoie à la couche OWASP
-  qu'elle couvre, avec sa licence et un snippet vérifiable.
-- **Local d'abord.** Pas de service distant, pas de compte : `npx keelson start` et c'est tout.
+- **Byte-for-byte round-trip.** A parse then emit with no modification produces an identical file:
+  comments, key order and anchors preserved. Editing by in-place patch, never by regeneration.
+  Verified by a corpus of 34 files and four fast-check properties (round-trip, inverse,
+  determinism, locality).
+- **What the model does not understand is kept as is** in opaque blocks, never rebuilt.
+- **Nothing is prescribed without justification.** Every tool proposal points to the OWASP layer it
+  covers, with its licence and a verifiable snippet.
+- **Local first.** No remote service, no account: `npx keelson start` and that is all.
 
 ## Operating Context
 
-- **Lancement** : `npx keelson start` depuis la racine d'un dépôt ouvre une UI web locale
-  (Node ≥ 20, sans Bun). Les autres commandes sont en ligne de commande : `validate`, `coverage`,
-  `export`, `catalog lint`, et plus tard `apply ops.json`.
-- **Matériaux manipulés** : le `.gitlab-ci.yml` du dépôt (puis les workflows GitHub Actions), les
-  templates `include` et `extends` (résolus en lecture seule pour l'affichage, jamais réécrits),
+- **Launch**: `npx keelson start` from the root of a repository opens a local web UI (Node ≥ 20,
+  no Bun). The other commands are command-line: `validate`, `coverage`, `export`, `catalog lint`,
+  and later `apply ops.json`.
+- **Materials handled**: the repository's `.gitlab-ci.yml` (then GitHub Actions workflows), the
+  `include` and `extends` templates (resolved read-only for display, never rewritten),
   `.devsecops/toolchain.yaml`, `.devsecops/layout.json`.
-- **Référentiels** : les 13 couches de l'OWASP DevSecOps Guideline (secrets git, SCA, SAST, IaC,
-  supply chain, IAST, sécurité des API, DAST, CNAPP, scan d'infrastructure, scan continu,
-  conformité, sécurité IA/LLM) et huit catégories plateforme hors OWASP (SCM, dépôts d'artefacts
-  et registres, gestion des secrets, agrégation de vulnérabilités, qualité de code serveur,
-  observabilité runtime, sécurité runtime, policy-as-code).
-- **Rituels** : conception en amont d'une implémentation, audit d'un dépôt existant, passage en CI
-  de `keelson coverage --require` comme garde-fou. Les modifications sont relues en diff git par
-  l'utilisateur avant commit : le diff doit rester minimal et lisible.
-- **Vues prévues** : Pipeline (stages, jobs, dépendances), Toolchain (services et intégrations),
-  Overlay OWASP (couverture projetée, panneau « non couvert » et propositions), Catalogue (outils
-  filtrables par couche et licence).
+- **Reference frameworks**: the 13 layers of the OWASP DevSecOps Guideline (git secrets, SCA, SAST,
+  IaC, supply chain, IAST, API security, DAST, CNAPP, infrastructure scanning, continuous scanning,
+  compliance, AI/LLM security) and eight platform categories outside OWASP (SCM, artifact
+  repositories and registries, secrets management, vulnerability aggregation, server-side code
+  quality, runtime observability, runtime security, policy-as-code).
+- **Rituals**: design ahead of an implementation, audit of an existing repository, running
+  `keelson coverage --require` in CI as a guardrail. Changes are reviewed by the user as a git diff
+  before committing: the diff must stay minimal and readable.
+- **Planned views**: Pipeline (stages, jobs, dependencies), Toolchain (services and integrations),
+  OWASP overlay (projected coverage, "not covered" panel and proposals), Catalogue (tools filterable
+  by layer and licence).
 
 ## Capabilities and Constraints
 
-**Livré (lot L1)** : IR du pipeline, adaptateur GitLab CI avec aller-retour validé, opérations
-d'édition sérialisables et inversables, `keelson validate` en texte et JSON.
+**Shipped (milestone L1)**: pipeline IR, GitLab CI adapter with validated round-trip, serialisable
+and invertible edit operations, `keelson validate` in text and JSON.
 
-**En cours (lot L2)** : la vue Pipeline dans l'UI, lecture puis édition. Dépendances prévues et non
-encore installées : `@xyflow/react` pour les graphes, CodeMirror 6 pour les blocs YAML opaques,
-Zustand pour l'état.
+**In progress (milestone L2)**: the Pipeline view in the UI, read then edit. Planned dependencies
+not yet installed: `@xyflow/react` for graphs, CodeMirror 6 for opaque YAML blocks, Zustand for
+state.
 
-**Livré au lot L3** : taxonomie, catalogue de 62 outils, vues Coverage et Catalog, `keelson coverage`
-et `keelson catalog lint`.
+**Shipped in milestone L3**: taxonomy, catalogue of 62 tools, Coverage and Catalog views,
+`keelson coverage` and `keelson catalog lint`.
 
-**Livré au lot L4** : `.devsecops/toolchain.yaml` édité par opérations, inférence des intégrations
-confirmée ou écartée, vue Toolchain à positions libres.
+**Shipped in milestone L4**: `.devsecops/toolchain.yaml` edited through operations, integration
+inference confirmed or dismissed, free-positioned Toolchain view.
 
-**Livré au lot L5** : insertion d'un outil du catalogue avec diff préalable, annulée d'un coup,
+**Shipped in milestone L5**: inserting a catalogue tool with a diff preview, undone in one step,
 `keelson export`.
 
-**Livré au lot L6** : GitHub Actions, workflows lus et écrits comme le CI GitLab, stages dérivés de `needs`.
+**Shipped in milestone L6**: GitHub Actions, workflows read and written like GitLab CI, stages
+derived from `needs`.
 
-**Pas encore livré** : packaging npm (L7), flotte (L8). Rien n'est utilisable
-par un utilisateur final à ce jour.
+**Not yet shipped**: npm packaging (L7), fleet (L8). Nothing is usable by an end user to date.
 
-**Terminologie du modèle** (noms de code, à traduire dans l'UI) : `Pipeline`, `Stage`, `Job`,
-`Need` (dépendance entre jobs, avec `optional` et `artifacts`), `Environment`, `Template` (clé
-commençant par `.`), `OpaqueBlock` (conservé octet pour octet). Chaque valeur d'un job porte une
-`Origin` : `local`, `default`, `extends`, `anchor` ou `reference`, qui dit d'où elle vient et donc
-si elle est éditable ici. Côté toolchain : `Service` (instance nommée : nom, type d'outil, URL,
-environnement) et `Integration` (`push`, `upload-report`, `fetch-secret`, `notify`). Côté
-taxonomie : `Layer` avec `source: owasp | platform`. Côté catalogue : `Tool` avec couches couvertes,
-licence, logo, motifs de détection, snippets, `lastVerified`.
+**Model terminology** (code names, to be translated in the UI): `Pipeline`, `Stage`, `Job`,
+`Need` (dependency between jobs, with `optional` and `artifacts`), `Environment`, `Template` (key
+starting with `.`), `OpaqueBlock` (kept byte for byte). Every value of a job carries an `Origin`:
+`local`, `default`, `extends`, `anchor` or `reference`, which says where it comes from and therefore
+whether it is editable here. On the toolchain side: `Service` (named instance: name, tool type, URL,
+environment) and `Integration` (`push`, `upload-report`, `fetch-secret`, `notify`). On the taxonomy
+side: `Layer` with `source: owasp | platform`. On the catalogue side: `Tool` with covered layers,
+licence, logo, detection patterns, snippets, `lastVerified`.
 
-**Deux familles de retours** : les **diagnostics** (`Diagnostic`, avec sévérité `error` /
-`warning` / `info` et plage dans le fichier) décrivent l'état d'un fichier et n'empêchent rien ; les
-**erreurs d'opération** (`OperationError`, sans sévérité) refusent une édition et garantissent
-qu'aucune modification n'est écrite. Les codes sont des contrats publics documentés dans
-`specs/diagnostics.md`.
+**Two families of feedback**: **diagnostics** (`Diagnostic`, with severity `error` / `warning` /
+`info` and a range in the file) describe the state of a file and block nothing; **operation errors**
+(`OperationError`, no severity) refuse an edit and guarantee that no change is written. The codes are
+public contracts documented in `specs/diagnostics.md`.
 
-**Toute édition est une opération** : objet JSON pur, versionné (`v: 1`), ancré sur un `baseHash`
-du texte source ; `apply` rejette un hash périmé (`STALE_DOCUMENT`). Chaque application rend un
-`inverse`. L'UI doit donc exposer naturellement annuler/rétablir et détecter un fichier modifié
-hors de Keelson.
+**Every edit is an operation**: a plain JSON object, versioned (`v: 1`), anchored on a `baseHash` of
+the source text; `apply` rejects a stale hash (`STALE_DOCUMENT`). Each application returns an
+`inverse`. The UI must therefore naturally expose undo/redo and detect a file modified outside
+Keelson.
 
-**Contraintes techniques durables** :
+**Lasting technical constraints**:
 
-- L'UI tourne en local sur un port fixe (5283 aujourd'hui, configurable prévu au L2).
-- Les `include` ne sont pas résolus en L1 : un pipeline affiché peut être partiel, et l'UI doit le
-  dire plutôt que le masquer.
-- Les packages exécutés chez l'utilisateur n'utilisent aucune API Bun.
-- Design et front : React 19, Vite, Tailwind CSS v4, Biome. Tests de composants avec Testing
-  Library et happy-dom, E2E avec Playwright. TDD strict, aucun code non testé.
+- The UI runs locally on a fixed port (5283 today, configurable planned for L2).
+- `include`s are not resolved in L1: a displayed pipeline may be partial, and the UI must say so
+  rather than hide it.
+- Packages that run on the user's machine use no Bun API.
+- Design and front end: React 19, Vite, Tailwind CSS v4, Biome. Component tests with Testing
+  Library and happy-dom, E2E with Playwright. Strict TDD, no untested code.
 
-**Langue de l'UI** : **anglais par défaut, textes externalisés dès le lot L2** pour ajouter le
-français ensuite. Les specs, le code et les tests restent en français. Les diagnostics rendus
-par `core` sont aujourd'hui en français : la cohérence avec une UI en anglais est **un point à
-trancher au L2**, non décidé ici.
+**UI language**: **English by default, with strings externalised from milestone L2** so that French
+can be added later. Specs, code, comments and tests are written in English. The diagnostics rendered
+by `core` were in French when this was first written; their consistency with an English UI was left
+**to settle in L2**, not decided here.
 
 ## Brand Commitments
 
-- **Nom** : Keelson (carlingue, pièce longitudinale posée sur la quille qui tient la structure du
-  navire). Aucun logo, aucune charte, aucune palette ni typographie fixées. La métaphore nautique
-  n'est pas un engagement : elle n'a pas été retenue comme contrainte.
-- **Licence** : Apache-2.0, Copyright 2026 Khalid Ouhmid. Open source, pas de version commerciale
-  connue.
-- **Voix** (déduite des specs, non encore confirmée pour l'UI) : factuelle, précise, sans
-  marketing ; chaque proposition est justifiée et sourcée.
-- **Monde visuel : le standard de la catégorie, joué droit.** Décidé au lot L2 (2026-10-21), après
-  un tour de directions où la porte de sortie a été prise explicitement. Keelson ressemble à ce que
-  son audience ouvre déjà : colonnes de stages, cartes de jobs, arêtes de dépendances, sans-serif
-  d'interface, thème sombre par défaut. **Aucune ironie, aucune bizarrerie en contrebande** : la
-  convention est l'engagement, pas un compromis. Les directions écartées à ce tour (planche de
-  spécification normative avec barres de révision, schéma de câblage électrique, grille japonaise
-  haute densité, diagramme de transit nocturne) ne sont pas à ressortir par la fenêtre.
-- **Barre de finition : Linear, Vercel, Raycast.** C'est leur *qualité d'exécution* qui est la
-  cible, jamais leur mise en page : gris très finement étagés, bordures d'un pixel, un accent
-  unique, densité élevée sans surcharge, états de survol et de focus travaillés, clavier de premier
-  rang. Un écran de Keelson qui serait moins soigné que ces produits n'est pas fini.
+- **Name**: Keelson (the longitudinal timber laid on the keel that holds the ship's structure
+  together). No logo, no brand guidelines, no fixed palette or typography. The nautical metaphor is
+  not a commitment: it was not retained as a constraint.
+- **Licence**: Apache-2.0, Copyright 2026 Khalid Ouhmid. Open source, no known commercial edition.
+- **Voice** (inferred from the specs, not yet confirmed for the UI): factual, precise, no
+  marketing; every proposal is justified and sourced.
+- **Visual world: the category standard, played straight.** Decided in milestone L2 (2026-10-21),
+  after a round of directions in which the exit was taken explicitly. Keelson looks like what its
+  audience already opens: stage columns, job cards, dependency edges, interface sans-serif, dark
+  theme by default. **No irony, no smuggled-in quirkiness**: the convention is the commitment, not a
+  compromise. The directions dismissed in that round (normative specification sheet with revision
+  bars, electrical wiring diagram, high-density Japanese grid, night transit map) are not to be
+  brought back in through the window.
+- **Finish bar: Linear, Vercel, Raycast.** Their *quality of execution* is the target, never their
+  layout: very finely stepped greys, one-pixel borders, a single accent, high density without
+  clutter, crafted hover and focus states, first-class keyboard support. A Keelson screen less
+  polished than those products is not finished.
 
 ## Evidence on Hand
 
-- **Corpus réel** : 20 templates officiels GitLab CI sous licence MIT
-  (`packages/adapter-gitlab/test/corpus/gitlab-templates/`, provenance dans `LICENSES.md`) et 14
-  fixtures maison (`edge-cases/`), avec goldens IR. Ce sont les seuls exemples de pipelines
-  utilisables pour des démonstrations ou des états de l'UI. **Ne jamais ajouter de fichier de CI
-  venant d'un employeur ou d'un client.**
-- **Logos d'outils** : aucun embarqué à ce jour. Règle future : Simple Icons (CC0) en priorité, logo
-  d'éditeur seulement si sa charte l'autorise explicitement, sinon icône générique de la couche.
-- **Absences à ne pas fabriquer** : aucun utilisateur, témoignage, chiffre d'adoption, étude de
-  cas, capture d'écran ou benchmark. Le projet est en développement et le README le dit.
+- **Real corpus**: 20 official GitLab CI templates under the MIT licence
+  (`packages/adapter-gitlab/test/corpus/gitlab-templates/`, provenance in `LICENSES.md`) and 14
+  in-house fixtures (`edge-cases/`), with IR goldens. These are the only pipeline examples usable for
+  demos or UI states. **Never add a CI file coming from an employer or a client.**
+- **Tool logos**: none embedded to date. Future rule: Simple Icons (CC0) first, a vendor logo only if
+  its brand guidelines explicitly allow it, otherwise the layer's generic icon.
+- **Absences not to fabricate**: no users, testimonials, adoption figures, case studies,
+  screenshots or benchmarks. The project is under development and the README says so.
 
 ## Product Principles
 
-1. **Le fichier de l'utilisateur d'abord.** Toute interaction se juge sur le diff qu'elle produit :
-   minimal, local, relisible. Ce que Keelson ne comprend pas, il le montre tel quel et ne le
-   reconstruit jamais.
-2. **Dire d'où vient chaque chose.** Une valeur héritée d'un `extends`, d'un anchor ou d'un défaut
-   n'est pas une valeur locale : l'origine est une information de premier rang, elle conditionne ce
-   qui est éditable.
-3. **Montrer l'incertitude plutôt que la masquer.** Pipeline partiel, include non résolu,
-   diagnostic d'avertissement, fichier modifié hors de l'outil : l'état réel est toujours visible.
-4. **Justifier avant de prescrire.** Une couche manquante renvoie à la Guideline ; un outil proposé
-   renvoie à sa couche, sa licence et un snippet vérifiable. Jamais de recommandation nue.
-5. **Densité d'expert, lisibilité d'audit.** L'ingénieur plateforme édite vite et sans friction ; le
-   constat qui en sort doit rester lisible par un RSSI ou un dev lead qui ne connaît pas le CI.
+1. **The user's file first.** Every interaction is judged by the diff it produces: minimal, local,
+   reviewable. What Keelson does not understand, it shows as is and never rebuilds.
+2. **Say where everything comes from.** A value inherited from an `extends`, an anchor or a default
+   is not a local value: origin is first-class information, and it determines what is editable.
+3. **Show uncertainty rather than hide it.** Partial pipeline, unresolved include, warning
+   diagnostic, file modified outside the tool: the real state is always visible.
+4. **Justify before prescribing.** A missing layer points to the Guideline; a proposed tool points
+   to its layer, its licence and a verifiable snippet. Never a bare recommendation.
+5. **Expert density, audit legibility.** The platform engineer edits fast and without friction; the
+   finding that comes out must stay legible to a CISO or a dev lead who does not know CI.
 
 ## Accessibility & Inclusion
 
-**WCAG 2.1 AA requis** : contraste, navigation clavier complète, lecteurs d'écran, cibles
-tactiles. Les graphes (pipeline, toolchain, overlay) devront avoir un équivalent navigable au
-clavier et lisible par un lecteur d'écran, pas seulement une représentation visuelle.
+**WCAG 2.1 AA required**: contrast, full keyboard navigation, screen readers, touch targets. The
+graphs (pipeline, toolchain, overlay) must have a keyboard-navigable, screen-reader-readable
+equivalent, not just a visual representation.

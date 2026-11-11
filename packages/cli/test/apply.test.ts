@@ -88,8 +88,8 @@ function read(root: string, file = ".gitlab-ci.yml"): string {
 
 const WITH_DEPLOY = BASE.replace("  - test\n", "  - test\n  - deploy\n");
 
-describe("une opération seule", () => {
-  test("écrit le fichier et sort en 0", async () => {
+describe("a single operation", () => {
+  test("writes the file and exits 0", async () => {
     const root = repository(BASE);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), root]);
 
@@ -99,7 +99,7 @@ describe("une opération seule", () => {
     expect(result.stderr).toBe("");
   });
 
-  test("vise le dossier courant quand aucun dépôt n'est donné", async () => {
+  test("targets the current directory when no repository is given", async () => {
     const root = repository(BASE);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy"))], { cwd: root });
 
@@ -108,7 +108,7 @@ describe("une opération seule", () => {
     expect(result.stdout).toBe("✓ .  1 operation(s) applied\n");
   });
 
-  test("un chemin d'opérations relatif est lu depuis le dossier courant", async () => {
+  test("a relative operations path is read from the current directory", async () => {
     const root = repository(BASE);
     writeFileSync(join(root, "ops.json"), JSON.stringify(addStage(BASE, "deploy")));
     const result = await run(["apply", "ops.json"], { cwd: root });
@@ -117,15 +117,15 @@ describe("une opération seule", () => {
     expect(read(root)).toBe(WITH_DEPLOY);
   });
 
-  test("ne laisse aucun fichier temporaire derrière l'écriture", async () => {
+  test("leaves no temporary file behind the write", async () => {
     const root = repository(BASE);
     await run(["apply", opsFile(addStage(BASE, "deploy")), root]);
     expect(readdirSync(root).sort()).toEqual([".gitlab-ci.yml"]);
   });
 });
 
-describe("une séquence", () => {
-  test("un tableau s'applique dans l'ordre, chaque hash ancré sur le texte précédent", async () => {
+describe("a sequence", () => {
+  test("an array applies in order, each hash anchored on the previous text", async () => {
     const root = repository(BASE);
     const ops = [addStage(BASE, "deploy"), addJob(WITH_DEPLOY, "ship", "deploy")];
     const result = await run(["apply", opsFile(ops), root]);
@@ -135,7 +135,7 @@ describe("une séquence", () => {
     expect(read(root)).toBe(`${WITH_DEPLOY}\nship:\n  stage: deploy\n  script:\n    - ./ship\n`);
   });
 
-  test("une seconde opération ancrée sur le texte d'origine est périmée sans --rebase", async () => {
+  test("a second operation anchored on the original text is stale without --rebase", async () => {
     const root = repository(BASE);
     const ops = [addStage(BASE, "deploy"), addJob(BASE, "ship", "deploy")];
     const result = await run(["apply", opsFile(ops), root]);
@@ -146,7 +146,7 @@ describe("une séquence", () => {
     );
   });
 
-  test("tout ou rien : l'échec d'une étape n'écrit pas les précédentes", async () => {
+  test("all or nothing: a failing step does not write the previous ones", async () => {
     const root = repository(BASE);
     const ops = [
       addStage(BASE, "deploy"),
@@ -162,8 +162,8 @@ describe("une séquence", () => {
   });
 });
 
-describe("--rebase et la flotte", () => {
-  test("un même fichier d'opérations s'applique à deux dépôts de contenus différents", async () => {
+describe("--rebase and the fleet", () => {
+  test("one operations file applies to two repositories with different contents", async () => {
     const first = repository(BASE);
     const second = repository(OTHER);
     const ops = [
@@ -188,7 +188,7 @@ describe("--rebase et la flotte", () => {
     expect(read(second)).toContain("lint:\n  stage: test\n");
   });
 
-  test("sans --rebase, le dépôt dont le texte diffère est périmé et les autres sont écrits", async () => {
+  test("without --rebase, the repository whose text differs is stale and the others are written", async () => {
     const first = repository(BASE);
     const second = repository(OTHER);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), first, second]);
@@ -205,7 +205,7 @@ describe("--rebase et la flotte", () => {
     expect(read(second)).toBe(OTHER);
   });
 
-  test("un dépôt en échec n'arrête pas les suivants", async () => {
+  test("a failing repository does not stop the next ones", async () => {
     const missing = repository(null);
     const ok = repository(BASE);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), missing, ok]);
@@ -217,7 +217,7 @@ describe("--rebase et la flotte", () => {
     expect(read(ok)).toBe(WITH_DEPLOY);
   });
 
-  test("un dépôt qui n'est pas un dossier échoue seul", async () => {
+  test("a repository that is not a directory fails alone", async () => {
     const ghost = join(temporary("ghost"), "absent");
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), ghost]);
 
@@ -227,7 +227,7 @@ describe("--rebase et la flotte", () => {
 });
 
 describe("--dry-run", () => {
-  test("n'écrit rien et rend le diff, le compte de lignes et le nouveau hash", async () => {
+  test("writes nothing and returns the diff, the line counts and the new hash", async () => {
     const root = repository(BASE);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), root, "--dry-run"]);
 
@@ -247,7 +247,7 @@ describe("--dry-run", () => {
     );
   });
 
-  test("deux changements éloignés rendent deux blocs, numérotés sur chaque côté", async () => {
+  test("two distant changes yield two hunks, numbered on each side", async () => {
     const root = repository(BASE);
     const ops = [addStage(BASE, "deploy"), addJob(WITH_DEPLOY, "ship", "deploy")];
     const result = await run(["apply", opsFile(ops), root, "--dry-run"]);
@@ -270,7 +270,7 @@ describe("--dry-run", () => {
     expect(read(root)).toBe(BASE);
   });
 
-  test("un remplacement rend ses lignes retirées puis ajoutées", async () => {
+  test("a replacement yields its removed lines then its added lines", async () => {
     const root = repository(BASE);
     const ops = [
       { v: 1, baseHash: hashText(BASE), kind: "renameJob", from: "compile", to: "build-all" },
@@ -282,7 +282,7 @@ describe("--dry-run", () => {
     expect(result.stdout).toContain("@@ -5,1 +5,1 @@\n-compile:\n+build-all:\n");
   });
 
-  test("un échec reste un échec en dry-run", async () => {
+  test("a failure stays a failure in dry-run", async () => {
     const root = repository(OTHER);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), root, "--dry-run"]);
     expect(result.exitCode).toBe(1);
@@ -293,7 +293,7 @@ describe("--dry-run", () => {
 });
 
 describe("--json", () => {
-  test("rend un résultat par dépôt, avec hash en succès et erreur structurée en échec", async () => {
+  test("returns one result per repository, with a hash on success and a structured error on failure", async () => {
     const first = repository(BASE);
     const second = repository(OTHER);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), first, second, "--json"]);
@@ -325,7 +325,7 @@ describe("--json", () => {
     });
   });
 
-  test("une erreur de dépôt n'a que son message", async () => {
+  test("a repository error has only its message", async () => {
     const missing = repository(null);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), missing, "--json"]);
     expect(JSON.parse(result.stdout)).toEqual({
@@ -341,7 +341,7 @@ describe("--json", () => {
     });
   });
 
-  test("avec --dry-run, written vaut false et le fichier reste intact", async () => {
+  test("with --dry-run, written is false and the file stays intact", async () => {
     const root = repository(BASE);
     const result = await run([
       "apply",
@@ -358,7 +358,7 @@ describe("--json", () => {
 });
 
 describe("--file", () => {
-  test("vise un autre fichier, relatif à la racine de chaque dépôt", async () => {
+  test("targets another file, relative to each repository's root", async () => {
     const root = repository(BASE, "ci.yml");
     const result = await run([
       "apply",
@@ -371,7 +371,7 @@ describe("--file", () => {
     expect(read(root, "ci.yml")).toBe(WITH_DEPLOY);
   });
 
-  test("un chemin qui sort de la racine est refusé sans lecture ni écriture", async () => {
+  test("a path that escapes the root is refused with no read or write", async () => {
     const outside = repository(BASE);
     const root = repository(BASE);
     const result = await run([
@@ -386,7 +386,7 @@ describe("--file", () => {
     expect(read(outside)).toBe(BASE);
   });
 
-  test("un lien vers un fichier hors de la racine est refusé", async () => {
+  test("a link to a file outside the root is refused", async () => {
     const outside = repository(BASE);
     const root = repository(null);
     symlinkSync(join(outside, ".gitlab-ci.yml"), join(root, ".gitlab-ci.yml"));
@@ -396,7 +396,7 @@ describe("--file", () => {
     expect(read(outside)).toBe(BASE);
   });
 
-  test("les include locaux sont lus dans la racine du dépôt", async () => {
+  test("local includes are read from the repository root", async () => {
     const root = repository(["include: /ci/jobs.yml", "", BASE].join("\n"));
     mkdirSync(join(root, "ci"));
     writeFileSync(join(root, "ci", "jobs.yml"), "unit:\n  stage: test\n  script:\n    - t\n");
@@ -410,19 +410,19 @@ describe("--file", () => {
 });
 
 describe("usage", () => {
-  test("sans fichier d'opérations, sort en 2", async () => {
+  test("without an operations file, exits 2", async () => {
     const result = await run(["apply"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("keelson apply: expected an operations file");
   });
 
-  test("un fichier d'opérations introuvable sort en 2", async () => {
+  test("a missing operations file exits 2", async () => {
     const result = await run(["apply", "/chemin/absent/ops.json"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toBe("keelson apply: file not found: /chemin/absent/ops.json\n");
   });
 
-  test("un JSON illisible sort en 2 sans toucher aux dépôts", async () => {
+  test("unreadable JSON exits 2 without touching the repositories", async () => {
     const root = repository(BASE);
     const result = await run(["apply", opsFile("{ pas du json"), root]);
     expect(result.exitCode).toBe(2);
@@ -431,13 +431,13 @@ describe("usage", () => {
     expect(read(root)).toBe(BASE);
   });
 
-  test("un tableau vide sort en 2", async () => {
+  test("an empty array exits 2", async () => {
     const result = await run(["apply", opsFile([]), repository(BASE)]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toBe("keelson apply: the operations file contains no operation\n");
   });
 
-  test("une opération invalide sort en 2 en nommant son index, avant tout dépôt", async () => {
+  test("an invalid operation exits 2 naming its index, before any repository", async () => {
     const root = repository(BASE);
     const ops = [addStage(BASE, "deploy"), { v: 1, baseHash: hashText(BASE), kind: "fly" }];
     const result = await run(["apply", opsFile(ops), root]);
@@ -448,7 +448,7 @@ describe("usage", () => {
     expect(read(root)).toBe(BASE);
   });
 
-  test("une version inconnue est rendue par le registre de messages", async () => {
+  test("an unknown version is rendered by the message registry", async () => {
     const result = await run(["apply", opsFile({ ...addStage(BASE, "x"), v: 2 })]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toBe(
@@ -456,21 +456,21 @@ describe("usage", () => {
     );
   });
 
-  test("une option inconnue sort en 2", async () => {
+  test("an unknown option exits 2", async () => {
     const result = await run(["apply", opsFile(addStage(BASE, "x")), "--force"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("--force");
   });
 
-  test("rien n'est créé quand le fichier visé manque", async () => {
+  test("nothing is created when the target file is missing", async () => {
     const root = repository(null);
     await run(["apply", opsFile(addStage(BASE, "deploy")), root]);
     expect(existsSync(join(root, ".gitlab-ci.yml"))).toBe(false);
   });
 });
 
-describe("aide", () => {
-  test("apply apparaît dans l'aide générale", async () => {
+describe("help", () => {
+  test("apply appears in the general help", async () => {
     expect((await run(["--help"])).stdout).toContain("apply ");
   });
 });

@@ -43,7 +43,7 @@ export function NewJobForm({ pipeline, onSubmit, disabled = false }: NewJobFormP
         />
       </label>
 
-      {/* Un workflow n'a pas de stages : l'ordre vient de `needs` (ADR 0013). */}
+      {/* A workflow has no stages: the order comes from `needs` (ADR 0013). */}
       {pipeline.provider === "github" ? null : (
         <label className={GROUP}>
           <span className={LABEL}>New job stage</span>

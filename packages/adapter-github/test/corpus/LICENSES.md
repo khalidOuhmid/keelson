@@ -1,8 +1,8 @@
-# Corpus de workflows GitHub Actions
+# GitHub Actions workflow corpus
 
-Fichiers copiés sans modification depuis [actions/starter-workflows](https://github.com/actions/starter-workflows), commit `e3c451d60f119b71caebf13c98ac45da6e15b4b7`, sous licence MIT avec une phrase sur les noms, logos et marques de GitHub, reproduite plus bas. La licence a été lue dans le `LICENSE` de ce commit, l'API GitHub rendant `NOASSERTION`. Aucun fichier de CI d'un employeur ou d'un client.
+Files copied unmodified from [actions/starter-workflows](https://github.com/actions/starter-workflows), commit `e3c451d60f119b71caebf13c98ac45da6e15b4b7`, under the MIT licence with an added sentence about GitHub's names, logos and trademarks, reproduced below. The licence was read from that commit's `LICENSE`, since the GitHub API returns `NOASSERTION`. No CI file from an employer or a client.
 
-| Fichier du corpus | Chemin dans le dépôt source |
+| Corpus file | Path in the source repository |
 | --- | --- |
 | `ci-blank.yml` | `ci/blank.yml` |
 | `ci-c-cpp.yml` | `ci/c-cpp.yml` |
@@ -27,7 +27,7 @@ Fichiers copiés sans modification depuis [actions/starter-workflows](https://gi
 | `pages-nextjs.yml` | `pages/nextjs.yml` |
 | `pages-static.yml` | `pages/static.yml` |
 
-## Licence du dépôt source
+## Source repository licence
 
 ```
 MIT License

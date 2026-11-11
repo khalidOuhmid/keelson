@@ -9,8 +9,8 @@ function withHash(baseHash: string) {
   return { v: 1 as const, baseHash, kind: "removeJob" as const, id: "unit" };
 }
 
-describe("préconditions de baseHash", () => {
-  test("STALE_DOCUMENT quand le baseHash ne correspond pas", () => {
+describe("baseHash preconditions", () => {
+  test("STALE_DOCUMENT when the baseHash does not match", () => {
     const result = apply(parse(BASE).document, withHash("0".repeat(64)));
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -18,13 +18,13 @@ describe("préconditions de baseHash", () => {
     }
   });
 
-  test("le texte reste intact après un refus", () => {
+  test("the text stays intact after a refusal", () => {
     const document = parse(BASE).document;
     apply(document, withHash("0".repeat(64)));
     expect(document.text).toBe(BASE);
   });
 
-  test("le message nomme les deux hash", () => {
+  test("the message names both hashes", () => {
     const result = apply(parse(BASE).document, withHash("0".repeat(64)));
     if (!result.ok) {
       const params = result.error.code === STALE_DOCUMENT ? result.error.params : null;
@@ -33,11 +33,11 @@ describe("préconditions de baseHash", () => {
     }
   });
 
-  test("le bon baseHash est accepté", () => {
+  test("the right baseHash is accepted", () => {
     expect(expectOk(BASE, { kind: "removeJob", id: "unit" }).text).not.toBe(BASE);
   });
 
-  test("appliquer deux fois la même opération échoue la seconde fois", () => {
+  test("applying the same operation twice fails the second time", () => {
     const first = expectOk(BASE, { kind: "removeJob", id: "unit" });
     const replay = apply(first.document, {
       v: 1,
@@ -51,7 +51,7 @@ describe("préconditions de baseHash", () => {
     }
   });
 
-  test("l'opération suivante doit porter le hash rendu par la précédente", () => {
+  test("the next operation must carry the hash returned by the previous one", () => {
     const first = expectOk(BASE, { kind: "removeJob", id: "unit" });
     const second = apply(first.document, {
       v: 1,
@@ -62,7 +62,7 @@ describe("préconditions de baseHash", () => {
     expect(second.ok).toBe(true);
   });
 
-  test("une version inconnue est rejetée avant toute écriture", () => {
+  test("an unknown version is rejected before any write", () => {
     const document = parse(BASE).document;
     const result = apply(document, {
       v: 2,

@@ -18,31 +18,31 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // laissé en place volontairement : les dossiers temporaires sont nettoyés par l'OS
+  // left in place on purpose: temporary directories are cleaned up by the OS
 });
 
 describe("writeAtomic", () => {
-  test("écrit le contenu demandé", async () => {
+  test("writes the requested content", async () => {
     const path = join(workspace, "a.yml");
     writeFileSync(path, "avant\n");
     await writeAtomic(path, "après\n");
     expect(readFileSync(path, "utf8")).toBe("après\n");
   });
 
-  test("crée le fichier s'il n'existe pas", async () => {
+  test("creates the file if it does not exist", async () => {
     const path = join(workspace, "neuf.yml");
     await writeAtomic(path, "contenu\n");
     expect(readFileSync(path, "utf8")).toBe("contenu\n");
   });
 
-  test("ne laisse aucun fichier temporaire derrière elle", async () => {
+  test("leaves no temporary file behind", async () => {
     const path = join(workspace, "a.yml");
     writeFileSync(path, "avant\n");
     await writeAtomic(path, "après\n");
     expect(readdirSync(workspace)).toEqual(["a.yml"]);
   });
 
-  test("conserve le mode du fichier d'origine", async () => {
+  test("keeps the original file's mode", async () => {
     const path = join(workspace, "a.yml");
     writeFileSync(path, "avant\n");
     chmodSync(path, 0o640);
@@ -50,7 +50,7 @@ describe("writeAtomic", () => {
     expect(statSync(path).mode & 0o777).toBe(0o640);
   });
 
-  test("conserve un mode exécutable", async () => {
+  test("keeps an executable mode", async () => {
     const path = join(workspace, "a.yml");
     writeFileSync(path, "avant\n");
     chmodSync(path, 0o755);
@@ -58,13 +58,13 @@ describe("writeAtomic", () => {
     expect(statSync(path).mode & 0o777).toBe(0o755);
   });
 
-  test("écrit les octets UTF-8 sans BOM ni réécriture des fins de ligne", async () => {
+  test("writes UTF-8 bytes without a BOM or line-ending rewrites", async () => {
     const path = join(workspace, "crlf.yml");
     await writeAtomic(path, "a:\r\n  b: é\r\n");
     expect(readFileSync(path).toString("utf8")).toBe("a:\r\n  b: é\r\n");
   });
 
-  test("laisse le fichier d'origine intact si le dossier n'est pas accessible en écriture", async () => {
+  test("leaves the original file intact if the directory is not writable", async () => {
     const protege = mkdtempSync(join(tmpdir(), "keelson-write-ro-"));
     const path = join(protege, "a.yml");
     writeFileSync(path, "intact\n");
@@ -77,7 +77,7 @@ describe("writeAtomic", () => {
     expect(readdirSync(protege)).toEqual(["a.yml"]);
   });
 
-  test("le fichier temporaire est créé dans le même dossier que la cible", async () => {
+  test("the temporary file is created in the same directory as the target", async () => {
     const path = join(workspace, "a.yml");
     writeFileSync(path, "avant\n");
     const seen: string[][] = [];
@@ -88,7 +88,7 @@ describe("writeAtomic", () => {
     expect(readFileSync(path, "utf8")).toHaveLength(200_000);
   });
 
-  test("deux écritures successives aboutissent au dernier contenu", async () => {
+  test("two successive writes end with the last content", async () => {
     const path = join(workspace, "a.yml");
     await writeAtomic(path, "un\n");
     await writeAtomic(path, "deux\n");

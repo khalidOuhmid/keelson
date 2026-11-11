@@ -103,8 +103,8 @@ export const NOT_FOUND = "NOT_FOUND";
 export const PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE";
 export const INTERNAL_ERROR = "INTERNAL_ERROR";
 
-/** Codes du transport HTTP, propres à `@keelson/server`. Ils entrent au registre pour la même
- *  raison que les autres : l'UI les reçoit et doit pouvoir les rendre. */
+/** HTTP transport codes, specific to `@keelson/server`. They join the registry for the same reason
+ *  as the others: the UI receives them and must be able to render them. */
 export const TRANSPORT_CODES = [
   FORBIDDEN_HOST,
   FORBIDDEN_TOKEN,
@@ -117,8 +117,8 @@ export const TRANSPORT_CODES = [
 export const NETWORK_ERROR = "NETWORK_ERROR";
 export const UNEXPECTED_RESPONSE = "UNEXPECTED_RESPONSE";
 
-/** Codes que le client forge lui-même quand la réponse n'arrive pas, ou n'a pas la forme attendue.
- *  Aucun serveur ne les émet. */
+/** Codes the client forges itself when the response does not arrive, or does not have the
+ *  expected shape. No server emits them. */
 export const CLIENT_CODES = [NETWORK_ERROR, UNEXPECTED_RESPONSE] as const;
 
 export const MESSAGE_CODES = [
@@ -130,12 +130,12 @@ export const MESSAGE_CODES = [
 
 type Empty = Record<string, never>;
 
-/** La forme des `params` de chaque code. C'est un contrat public au même titre que le code :
- *  en changer la forme est une rupture de compatibilité. Documenté dans `specs/diagnostics.md`.
+/** The shape of each code's `params`. It is a public contract just like the code: changing the
+ *  shape is a breaking change. Documented in `specs/diagnostics.md`.
  *
- *  Là où un code couvre plusieurs situations distinctes, les `params` portent un discriminant
- *  `reason`. Le rendu branche dessus, et l'exhaustivité des branches est garantie à la compilation
- *  par la forme de `en.ts`. */
+ *  Where a code covers several distinct situations, the `params` carry a `reason` discriminant.
+ *  Rendering branches on it, and branch exhaustiveness is guaranteed at compile time by the shape
+ *  of `en.ts`. */
 export type MessageParams = {
   INVALID_YAML: { detail: string };
   INCLUDE_UNRESOLVED: {
@@ -258,8 +258,8 @@ export type OperationErrorCode = (typeof OPERATION_ERROR_CODES)[number];
 export type TransportCode = (typeof TRANSPORT_CODES)[number];
 export type ClientCode = (typeof CLIENT_CODES)[number];
 
-/** Les quatre familles couvrent exactement `MessageParams`, sans trou ni doublon. Vérifié ici
- *  plutôt que par un test : un code sans forme de `params` ne doit pas compiler. */
+/** The four families cover exactly `MessageParams`, with no gap and no duplicate. Checked here
+ *  rather than by a test: a code without a `params` shape must not compile. */
 type Partitioned = DiagnosticCode | OperationErrorCode | TransportCode | ClientCode;
 type AssertSame<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 

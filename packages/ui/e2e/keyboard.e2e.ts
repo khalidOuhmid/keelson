@@ -16,7 +16,7 @@ async function open(page: Page): Promise<void> {
   await expect(page.getByRole("region", { name: "Pipeline graph" })).toBeVisible();
 }
 
-/** Extrait les items de la liste `stages:` dans l'ordre du fichier. */
+/** Extracts the items of the `stages:` list in file order. */
 function stageOrder(text: string): string[] {
   const lines = text.split("\n");
   const start = lines.findIndex((line) => line.startsWith("stages:"));
@@ -34,7 +34,7 @@ function stageOrder(text: string): string[] {
   return items;
 }
 
-/** Extrait le bloc d'un job, de sa clé jusqu'à la prochaine clé de premier niveau. */
+/** Extracts a job's block, from its key up to the next top-level key. */
 function jobBlock(text: string, id: string): string {
   const lines = text.split("\n");
   const start = lines.findIndex((line) => line.startsWith(`${id}:`));
@@ -46,7 +46,7 @@ function jobBlock(text: string, id: string): string {
   return [lines[start], ...(end === -1 ? rest : rest.slice(0, end))].join("\n");
 }
 
-/** Tabule jusqu'à ce que le nom accessible de l'élément focalisé corresponde, sans jamais cliquer. */
+/** Tabs until the focused element's accessible name matches, without ever clicking. */
 async function tabUntil(page: Page, matcher: RegExp, limit = 80): Promise<void> {
   for (let step = 0; step < limit; step += 1) {
     await page.keyboard.press("Tab");
@@ -66,10 +66,10 @@ async function tabUntil(page: Page, matcher: RegExp, limit = 80): Promise<void> 
       return;
     }
   }
-  throw new Error(`aucun élément focalisable ne correspond à ${matcher}`);
+  throw new Error(`no focusable element matches ${matcher}`);
 }
 
-test("un job se sélectionne au clavier, sans souris", async ({ page }) => {
+test("a job can be selected from the keyboard, without a mouse", async ({ page }) => {
   await open(page);
 
   await tabUntil(page, /^lint/);
@@ -79,7 +79,7 @@ test("un job se sélectionne au clavier, sans souris", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Job detail" })).toContainText("lint");
 });
 
-test("changer le stage d'un job se fait au clavier", async ({ page }) => {
+test("changing a job's stage works from the keyboard", async ({ page }) => {
   await open(page);
 
   await tabUntil(page, /^lint/);
@@ -89,11 +89,11 @@ test("changer le stage d'un job se fait au clavier", async ({ page }) => {
   await stage.focus();
   await stage.selectOption("scan");
 
-  // ADR 0004 : parcourir le selecteur n'ecrit rien. La revue du 2026-10-22 a montre que lire le
-  // disque juste apres `selectOption` gagnait la course contre l'ecriture fautive, et que
-  // l'assertion finale etait ensuite satisfaite par cette meme ecriture. On attend donc deux
-  // barrieres positives — le bouton redevenu actif, puis l'absence durable d'operation — avant
-  // d'affirmer que rien n'a ete ecrit.
+  // ADR 0004: browsing the select writes nothing. The 2026-10-22 review showed that reading the
+  // disk right after `selectOption` won the race against the faulty write, and that the final
+  // assertion was then satisfied by that very write. So we wait for two positive barriers — the
+  // button enabled again, then the lasting absence of an operation — before asserting that
+  // nothing was written.
   const move = page.getByRole("button", { name: "Move to stage" });
   await expect(move).toBeEnabled();
   await expect(page.getByTestId("pending-indicator")).toHaveCount(0);
@@ -108,7 +108,7 @@ test("changer le stage d'un job se fait au clavier", async ({ page }) => {
   await expect.poll(() => jobBlock(keelson.read(), "lint")).toContain("stage: scan");
 });
 
-test("ajouter un need se fait au clavier", async ({ page }) => {
+test("adding a need works from the keyboard", async ({ page }) => {
   await open(page);
 
   await tabUntil(page, /^lint/);
@@ -123,7 +123,7 @@ test("ajouter un need se fait au clavier", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Remove need build-image" })).toBeVisible();
 });
 
-test("retirer un need se fait au clavier", async ({ page }) => {
+test("removing a need works from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /unit-tests/ }).focus();
@@ -137,7 +137,7 @@ test("retirer un need se fait au clavier", async ({ page }) => {
   await expect.poll(() => jobBlock(keelson.read(), "unit-tests")).not.toContain("needs:");
 });
 
-test("créer un job se fait entièrement au clavier", async ({ page }) => {
+test("creating a job works entirely from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("textbox", { name: "New job id" }).focus();
@@ -155,7 +155,7 @@ test("créer un job se fait entièrement au clavier", async ({ page }) => {
   expect(keelson.read()).toContain("paquet:");
 });
 
-test("renommer un job se fait au clavier par Entrée", async ({ page }) => {
+test("renaming a job works from the keyboard with Enter", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /^lint/ }).focus();
@@ -171,7 +171,7 @@ test("renommer un job se fait au clavier par Entrée", async ({ page }) => {
   expect(keelson.read()).toContain("lint-sources:");
 });
 
-test("ajouter un stage se fait au clavier", async ({ page }) => {
+test("adding a stage works from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("textbox", { name: "New stage name" }).focus();
@@ -182,7 +182,7 @@ test("ajouter un stage se fait au clavier", async ({ page }) => {
   expect(keelson.read()).toContain("- verify");
 });
 
-test("déplacer un stage se fait au clavier", async ({ page }) => {
+test("moving a stage works from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: "Move deploy earlier" }).focus();
@@ -191,7 +191,7 @@ test("déplacer un stage se fait au clavier", async ({ page }) => {
   await expect.poll(() => stageOrder(keelson.read())).toEqual(["build", "test", "deploy", "scan"]);
 });
 
-test("définir puis retirer l'environnement se fait au clavier", async ({ page }) => {
+test("setting then removing the environment works from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /^lint/ }).focus();
@@ -210,7 +210,7 @@ test("définir puis retirer l'environnement se fait au clavier", async ({ page }
   await expect.poll(() => keelson.read()).not.toContain("environment: review");
 });
 
-test("supprimer un job se fait au clavier", async ({ page }) => {
+test("deleting a job works from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /^lint/ }).focus();
@@ -219,7 +219,7 @@ test("supprimer un job se fait au clavier", async ({ page }) => {
   await page.getByRole("button", { name: "Delete job" }).focus();
   await page.keyboard.press("Enter");
 
-  // ADR 0004 : la confirmation est atteignable et franchissable au clavier, comme le reste.
+  // ADR 0004: the confirmation can be reached and passed from the keyboard, like the rest.
   await expect(page.getByRole("alertdialog", { name: "Delete lint" })).toBeVisible();
   expect(keelson.read()).toContain("\nlint:");
 
@@ -230,7 +230,7 @@ test("supprimer un job se fait au clavier", async ({ page }) => {
   expect(keelson.read()).not.toContain("\nlint:");
 });
 
-test("annuler et rétablir se font au raccourci clavier", async ({ page }) => {
+test("undo and redo work with keyboard shortcuts", async ({ page }) => {
   await open(page);
   const original = keelson.read();
 
@@ -247,13 +247,11 @@ test("annuler et rétablir se font au raccourci clavier", async ({ page }) => {
   await expect.poll(() => keelson.read()).not.toBe(original);
 });
 
-test("le raccourci d'annulation ne vole pas l'annulation d'un champ de saisie", async ({
-  page,
-}) => {
-  // La revue independante du 2026-10-22 a prouve que la version precedente ne pouvait pas echouer :
-  // aucune operation n'etait soumise avant le Ctrl+Z, donc la pile d'annulation etait vide et
-  // `undo()` sortait immediatement, que le garde `inTextEntry` fonctionne ou non. Il faut d'abord
-  // une operation reussie, pour qu'un Ctrl+Z vole effectivement quelque chose s'il passe.
+test("the undo shortcut does not steal undo from a text field", async ({ page }) => {
+  // The 2026-10-22 independent review proved the previous version could not fail: no operation
+  // was submitted before Ctrl+Z, so the undo stack was empty and `undo()` returned immediately,
+  // whether the `inTextEntry` guard worked or not. A successful operation is needed first, so
+  // that a Ctrl+Z would actually steal something if it got through.
   await open(page);
 
   await page.getByRole("textbox", { name: "New stage name" }).fill("verify");
@@ -269,13 +267,13 @@ test("le raccourci d'annulation ne vole pas l'annulation d'un champ de saisie", 
   await page.keyboard.type("publish");
   await page.keyboard.press("Control+z");
 
-  // Le Ctrl+Z appartient au champ : l'annulation du document ne doit pas partir, donc le stage
-  // ajoute reste sur disque et Undo reste disponible.
+  // Ctrl+Z belongs to the field: the document undo must not fire, so the added stage stays on
+  // disk and Undo stays available.
   await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
   expect(keelson.read()).toBe(afterOperation);
 });
 
-test("un diagnostic se sélectionne au clavier", async ({ page }) => {
+test("a diagnostic can be selected from the keyboard", async ({ page }) => {
   keelson.write(
     [
       "stages:",

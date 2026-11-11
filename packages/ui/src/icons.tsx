@@ -1,6 +1,6 @@
-/** Icônes en SVG plutôt qu'en caractères texte. `✕ ! i ↳ ← →` rendaient au gré de la police du
- *  système, et `DESIGN.md` refuse de les canoniser. Toutes héritent de `currentColor` et se
- *  dimensionnent en `em`, donc elles suivent la couleur et la taille de leur contexte. */
+/** Icons as SVG rather than text characters. `✕ ! i ↳ ← →` rendered at the whim of the system
+ *  font, and `DESIGN.md` refuses to canonise them. All inherit `currentColor` and are sized in
+ *  `em`, so they follow the colour and size of their context. */
 type IconProps = { className?: string };
 
 function Glyph({ className, children }: IconProps & { children: React.ReactNode }) {
@@ -28,9 +28,8 @@ export function ErrorIcon(props: IconProps) {
   );
 }
 
-/** Un triangle, et non un trait surmonte d'un point : la version precedente etait une quasi-jumelle
- *  d'`InfoIcon` et les deux etaient indiscernables au plus petit
- *  degre de la rampe. */
+/** A triangle, not a bar topped by a dot: the previous version was a near-twin of `InfoIcon` and
+ *  the two were indistinguishable at the smallest step of the scale. */
 export function WarningIcon(props: IconProps) {
   return (
     <Glyph {...props}>
@@ -41,8 +40,8 @@ export function WarningIcon(props: IconProps) {
   );
 }
 
-/** Un disque, pour que la marque se distingue du triangle d'avertissement par sa silhouette et non
- *  par un detail interieur. */
+/** A disc, so that the mark differs from the warning triangle by its silhouette rather than by an
+ *  inner detail. */
 export function InfoIcon(props: IconProps) {
   return (
     <Glyph {...props}>
@@ -71,7 +70,7 @@ export function ArrowRightIcon(props: IconProps) {
   );
 }
 
-/** Marque d'héritage, en place du caractère `↳`. */
+/** Inheritance mark, in place of the `↳` character. */
 export function InheritedIcon(props: IconProps) {
   return (
     <Glyph {...props}>
@@ -81,8 +80,8 @@ export function InheritedIcon(props: IconProps) {
   );
 }
 
-/** Marque de pliage. Distincte d'`ArrowRightIcon` : une flèche dit « va là », un chevron dit
- *  « ceci se déplie ». Elle tourne de 90° quand le `details` est ouvert. */
+/** Disclosure mark. Distinct from `ArrowRightIcon`: an arrow says "go there", a chevron says "this
+ *  expands". It rotates 90° when the `details` is open. */
 export function ChevronRightIcon(props: IconProps) {
   return (
     <Glyph {...props}>
@@ -91,8 +90,8 @@ export function ChevronRightIcon(props: IconProps) {
   );
 }
 
-/** Un logo de `simple-icons` : un tracé plein sur une grille de 24. Il hérite de `currentColor`,
- *  donc il reste dans la palette du produit et n'importe aucune couleur de marque. */
+/** A `simple-icons` logo: a filled path on a 24 grid. It inherits `currentColor`, so it stays
+ *  within the product palette and imports no brand colour. */
 export function LogoGlyph({ path }: { path: string }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-[1em] shrink-0">
@@ -101,7 +100,7 @@ export function LogoGlyph({ path }: { path: string }) {
   );
 }
 
-/** Quand aucun logo n'est autorisé : une marque neutre, jamais un logo approché. */
+/** When no logo is allowed: a neutral mark, never an approximated logo. */
 export const LAYER_GENERIC_GLYPH = (
   <Glyph>
     <path d="M4 3h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />

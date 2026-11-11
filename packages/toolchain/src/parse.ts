@@ -52,8 +52,8 @@ function invalid(detail: string): ParsedToolchain {
   };
 }
 
-/** `text` nul veut dire que le fichier n'existe pas, ce qui est le cas normal. Un fichier invalide
- *  rend une toolchain vide : aucune opération ne l'éditera, et le diagnostic dit pourquoi. */
+/** A null `text` means the file does not exist, which is the normal case. An invalid file yields an
+ *  empty toolchain: no operation will edit it, and the diagnostic says why. */
 export function parseToolchain(text: string | null): ParsedToolchain {
   if (text === null) {
     return { toolchain: emptyToolchain(), diagnostics: [] };
@@ -68,7 +68,7 @@ export function parseToolchain(text: string | null): ParsedToolchain {
     return { toolchain: emptyToolchain(), diagnostics: [] };
   }
 
-  // `toJS` ne rend pas une clé `__proto__` : c'est sur le document qu'on la voit.
+  // `toJS` does not return a `__proto__` key: it is visible on the document.
   const services = isMap(document.contents) ? document.contents.get("services", true) : null;
   const illegal = isMap(services)
     ? services.items.find(
@@ -78,14 +78,14 @@ export function parseToolchain(text: string | null): ParsedToolchain {
   if (illegal !== undefined) {
     return invalid(`services: ${String(illegal.key)} is not a usable service id`);
   }
-  // `8080:` et `"8080":` sont deux clés pour `yaml`, et une seule une fois en objet.
+  // `8080:` and `"8080":` are two keys for `yaml`, and a single one once in an object.
   const keys = isMap(services) ? services.items.map((pair) => String(pair.key)) : [];
   const repeated = keys.find((key, position) => keys.indexOf(key) !== position);
   if (repeated !== undefined) {
     return invalid(`services: ${repeated} is declared twice`);
   }
 
-  // `toJS` lève sur un alias sans ancre : `parseDocument` ne le voit pas comme une erreur.
+  // `toJS` throws on an alias without an anchor: `parseDocument` does not see it as an error.
   let raw: unknown;
   try {
     raw = document.toJS({ mapAsMap: false });

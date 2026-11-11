@@ -1,19 +1,19 @@
-# ADR 0009 — `.devsecops/toolchain.yaml` s'édite par patch en place
+# ADR 0009 — `.devsecops/toolchain.yaml` is edited by in-place patches
 
-**Statut** : accepté, 2026-11-04.
+**Status**: accepted, 2026-11-04.
 
-## Contexte
+## Context
 
-Le fichier appartient à Keelson mais il se relit en diff et se corrige à la main : c'est là que
-l'utilisateur confirme une inférence. Le réécrire en entier perdrait commentaires et ordre.
+The file belongs to Keelson, but it is reviewed as a diff and fixed by hand: it is where the user
+confirms an inference. Rewriting it entirely would lose comments and ordering.
 
-## Décision
+## Decision
 
-Le fichier se lit par `yaml` et s'écrit par des remplacements de plages, comme le CI natif. Chaque
-opération rend un `splice` inverse. `services` est une map : l'identifiant est la clé, donc l'unicité
-vient du format. Une section en flow non vide est refusée par `INVALID_OPERATION`.
+The file is read with `yaml` and written through range replacements, like native CI. Each operation
+returns an inverse `splice`. `services` is a map: the identifier is the key, so uniqueness comes from
+the format. A non-empty flow-style section is refused with `INVALID_OPERATION`.
 
-## Conséquences
+## Consequences
 
-Les quatre propriétés de `adapter-gitlab` s'appliquent telles quelles. Le fichier absent vaut une
-toolchain vide : la première opération le crée, et son inverse le rend vide, sans le supprimer.
+The four `adapter-gitlab` properties apply as is. A missing file counts as an empty toolchain: the
+first operation creates it, and its inverse leaves it empty, without deleting it.

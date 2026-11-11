@@ -12,18 +12,18 @@ const files = ["starter-workflows", "edge-cases"].flatMap((group) =>
     .map((name) => ({ group, name })),
 );
 
-describe("licence du corpus", () => {
-  test("le commit source est épinglé", () => {
+describe("corpus licence", () => {
+  test("the source commit is pinned", () => {
     expect(licenses).toContain("e3c451d60f119b71caebf13c98ac45da6e15b4b7");
   });
 
-  test("la notice MIT est reproduite", () => {
+  test("the MIT notice is reproduced", () => {
     expect(licenses).toContain("Copyright (c) 2020 GitHub");
     expect(licenses).toContain("Permission is hereby granted, free of charge");
     expect(licenses).toContain('THE SOFTWARE IS PROVIDED "AS IS"');
   });
 
-  test("chaque fichier officiel est listé avec son SHA-256", () => {
+  test("every official file is listed with its SHA-256", () => {
     for (const { name } of files.filter((file) => file.group === "starter-workflows")) {
       expect(licenses).toContain(name);
       const digest = new Bun.CryptoHasher("sha256")
@@ -34,7 +34,7 @@ describe("licence du corpus", () => {
   });
 });
 
-describe("IR golden du corpus", () => {
+describe("corpus golden IR", () => {
   test.each(files.map((file) => [`${file.group}/${file.name}`, file] as const))(
     "%s",
     (_id, file) => {

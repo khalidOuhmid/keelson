@@ -1,23 +1,22 @@
-# ADR 0008 — Panneaux superposés sous `lg`
+# ADR 0008 — Overlay panels below `lg`
 
-Date : 2026-11-04 · Décidé par : le pilote · Statut : accepté
+Date: 2026-11-04 · Decided by: the autopilot · Status: accepted
 
-## Contexte
+## Context
 
-`DESIGN.md` refusait tout point de rupture : une seule composition, trois colonnes, un défilement
-horizontal sous sa largeur. Mesuré à 375 px, sélectionner un nœud ouvrait le panneau de détail
-entièrement hors de la fenêtre, et ce panneau ne peut pas revendiquer l'exception de WCAG 1.4.10
-pour un contenu bidimensionnel, que le graphe seul peut invoquer.
+`DESIGN.md` refused any breakpoint: a single composition, three columns, horizontal scrolling below
+its width. Measured at 375 px, selecting a node opened the detail panel entirely outside the
+viewport, and that panel cannot claim the WCAG 1.4.10 exception for two-dimensional content, which
+only the graph can invoke.
 
-## Décision
+## Decision
 
-Sous `lg` et là seulement, le panneau de détail, la barre gauche et la fiche outil passent en
-superposition plein écran. La barre gauche s'ouvre par un bouton `Panel`, le graphe garde la fenêtre.
-Le comportement desktop ne change pas.
+Below `lg`, and only there, the detail panel, the left sidebar and the tool catalogue entry become
+full-screen overlays. The left sidebar opens from a `Panel` button; the graph keeps the viewport.
+Desktop behavior does not change.
 
-## Conséquences
+## Consequences
 
-- Une exception nommée à la règle : c'est le seul point de rupture du produit, et il ne touche que le
-  placement de ces trois panneaux, jamais leur contenu.
-- Le focus n'est pas piégé dans la superposition : cela reste l'écart du 2026-10-22 sur la politique
-  de focus.
+- A named exception to the rule: it is the product's only breakpoint, and it affects only the
+  placement of these three panels, never their content.
+- Focus is not trapped in the overlay: that remains the 2026-10-22 gap on focus policy.

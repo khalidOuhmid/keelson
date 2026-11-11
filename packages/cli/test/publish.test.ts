@@ -25,8 +25,8 @@ function manifestOf(name: string, from: string): { path: string; json: Installed
   }
 }
 
-/** Les dépendances de production que le binaire embarque : celles de l'UI, servie par le
- *  binaire, et celles des packages runtime. Les `@types/*` ne sont que des déclarations. */
+/** The production dependencies the binary embeds: those of the UI, served by the binary, and
+ *  those of the runtime packages. `@types/*` are declarations only. */
 function bundled(): Map<string, string> {
   const found = new Map<string, string>();
   const visit = (name: string, from: string): void => {
@@ -76,18 +76,18 @@ type Manifest = {
 
 const manifest = packageJson as unknown as Manifest;
 
-describe("le paquet npm keelson est publiable", () => {
-  test("il n'est pas privé et porte une version semver publiable", () => {
+describe("the keelson npm package is publishable", () => {
+  test("it is not private and carries a publishable semver version", () => {
     expect(manifest.private).toBeUndefined();
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
     expect(manifest.version).not.toBe("0.0.0");
   });
 
-  test("aucune dépendance d'exécution : tout est embarqué dans le bundle", () => {
+  test("no runtime dependencies: everything is embedded in the bundle", () => {
     expect(manifest.dependencies ?? {}).toEqual({});
   });
 
-  test("il ne publie que dist, avec un README, la licence Apache-2.0 et les mentions tierces", () => {
+  test("it publishes only dist, with a README, the Apache-2.0 licence and the third-party notices", () => {
     expect(manifest.files).toEqual(["dist", "THIRD_PARTY_NOTICES.md"]);
     expect(readFileSync(join(packageRoot, "LICENSE"), "utf8")).toBe(
       readFileSync(join(repoRoot, "LICENSE"), "utf8"),
@@ -97,13 +97,13 @@ describe("le paquet npm keelson est publiable", () => {
     expect(readFileSync(join(packageRoot, "README.md"), "utf8")).toContain("npx keelson start");
   });
 
-  test("le binaire pointe sur le bundle Node, et le dépôt est nommé", () => {
+  test("the binary points at the Node bundle, and the repository is named", () => {
     expect(manifest.bin).toEqual({ keelson: "./dist/keelson.js" });
     expect(manifest.repository?.url).toContain("github.com/khalidOuhmid/keelson");
     expect(manifest.description).toMatch(/^[\x20-\x7e]+$/);
   });
 
-  test("chaque dépendance embarquée figure dans les mentions tierces avec sa licence", () => {
+  test("every embedded dependency appears in the third-party notices with its licence", () => {
     const notices = readFileSync(join(packageRoot, "THIRD_PARTY_NOTICES.md"), "utf8");
     const dependencies = bundled();
     expect(dependencies.size).toBeGreaterThan(10);

@@ -9,8 +9,8 @@ export type Origin =
   | { kind: "extends"; template: string }
   | { kind: "anchor"; name: string }
   | { kind: "reference"; path: string[] }
-  /** La valeur vient de la définition du même nom dans un fichier inclus, que le fichier courant
-   *  n'a pas surchargée. */
+  /** The value comes from the definition with the same name in an included file, which the
+   *  current file did not override. */
   | { kind: "include"; file: string };
 
 export type Valued<T> = {
@@ -33,15 +33,15 @@ export type Environment = {
 export type OpaqueBlock = {
   key: string;
   range: SourceRange;
-  /** Le fichier dont `range` est un offset. Un bloc opaque est rendu à l'écran en coupant les
-   *  octets du texte : lire ceux d'un autre fichier afficherait un fragment pris ailleurs. */
+  /** The file `range` is an offset into. An opaque block is rendered on screen by slicing the
+   *  bytes of the text: reading those of another file would show a fragment taken elsewhere. */
   file: string;
 };
 
-/** `file` est le chemin, relatif à la racine du dépôt, du fichier où vit la **dernière** définition
- *  de l'élément dans l'ordre de fusion de GitLab — donc celui qu'un utilisateur éditerait, et le
- *  seul que Keelson accepte de réécrire quand c'est le fichier principal. `range` est un offset
- *  dans le texte de **ce** fichier, pas dans celui du fichier principal. */
+/** `file` is the path, relative to the repository root, of the file holding the **last**
+ *  definition of the element in GitLab's merge order — hence the one a user would edit, and the
+ *  only one Keelson agrees to rewrite when it is the main file. `range` is an offset into the text
+ *  of **this** file, not into that of the main file. */
 export type Stage = {
   name: string;
   implicit: boolean;
@@ -49,13 +49,12 @@ export type Stage = {
   file: string;
 };
 
-/** Ce qu'un job exécute, valeurs effectives : c'est sur quoi la détection des couches travaille.
- *  Neutre vis-à-vis du fournisseur. `script` met bout à bout `before_script`, `script` et
- *  `after_script`. */
+/** What a job runs, as effective values: this is what layer detection works on.
+ *  Provider-neutral. `script` concatenates `before_script`, `script` and `after_script`. */
 export type JobSignals = {
   image: string | null;
   script: string[];
-  /** Les actions GitHub (`owner/repo@ref`) des étapes du job. Absent ailleurs. */
+  /** The GitHub actions (`owner/repo@ref`) of the job's steps. Absent elsewhere. */
   actions?: string[];
 };
 
@@ -63,8 +62,8 @@ export type Job = {
   id: string;
   stage: Valued<string>;
   needs: Valued<Need[]> | null;
-  /** La liste `needs` porte des items que l'IR ne modélise pas, inter-projets ou imbriqués : la
-   *  réécrire les perdrait. Absent quand il n'y en a pas. */
+  /** The `needs` list carries items the IR does not model, cross-project or nested: rewriting it
+   *  would lose them. Absent when there are none. */
   unmodelledNeeds?: true;
   environment: Valued<Environment> | null;
   extends: string[];
@@ -80,14 +79,13 @@ export type Template = {
   file: string;
 };
 
-/** Un `include` dont le contenu manque au pipeline affiché : les quatre formes distantes, et
- *  `local` quand l'appelant n'a fourni aucun lecteur ou que le fichier n'a pas pu être résolu.
- *  `detail` est la valeur telle qu'elle est écrite, pour que l'écran puisse dire ce qui manque et
- *  non seulement qu'il manque quelque chose. */
+/** An `include` whose content is missing from the displayed pipeline: the four remote forms, and
+ *  `local` when the caller provided no reader or the file could not be resolved. `detail` is the
+ *  value as written, so that the screen can say what is missing and not only that something is. */
 export type UnresolvedInclude = {
   form: "local" | "remote" | "project" | "template" | "component" | "workflow";
   detail: string;
-  /** Le fichier qui porte la clé `include`, pas la cible. */
+  /** The file that carries the `include` key, not the target. */
   from: string;
   range: SourceRange | null;
 };
@@ -97,24 +95,24 @@ export type Pipeline = {
   jobs: Job[];
   templates: Template[];
   opaque: OpaqueBlock[];
-  /** Le fichier principal : celui que Keelson écrit. */
+  /** The main file: the one Keelson writes. */
   main: string;
-  /** Le fichier principal et chaque fichier inclus résolu, dans l'ordre de fusion. */
+  /** The main file and every resolved included file, in merge order. */
   files: string[];
   unresolved: UnresolvedInclude[];
-  /** Absent sur GitLab. `github` : les stages sont dérivés de `needs` (ADR 0013). */
+  /** Absent on GitLab. `github`: stages are derived from `needs` (ADR 0013). */
   provider?: "github";
 };
 
-/** Un pipeline sans rien dedans, nommé une seule fois : l'UI en a besoin tant que rien n'est
- *  chargé, et `parse` quand la racine du fichier n'est pas une map. */
+/** A pipeline with nothing in it, named only once: the UI needs it while nothing is loaded, and
+ *  `parse` needs it when the file root is not a map. */
 export function emptyPipeline(main: string): Pipeline {
   return { stages: [], jobs: [], templates: [], opaque: [], main, files: [], unresolved: [] };
 }
 
-/** Plusieurs fichiers vus comme un seul dépôt, pour ce qui porte sur le dépôt et non sur un fichier :
- *  la toolchain, `keelson coverage` sans argument. Deux workflows peuvent porter un job du même nom :
- *  les deux restent, leur couverture compte. */
+/** Several files seen as a single repository, for what concerns the repository rather than one
+ *  file: the toolchain, `keelson coverage` without arguments. Two workflows can carry a job with
+ *  the same name: both stay, and their coverage counts. */
 export function mergePipelines(pipelines: readonly Pipeline[]): Pipeline {
   const first = pipelines[0];
   if (first === undefined) {
@@ -137,8 +135,8 @@ export function mergePipelines(pipelines: readonly Pipeline[]): Pipeline {
   };
 }
 
-/** Un pipeline est **partiel** dès qu'un include n'a pas été résolu : des jobs peuvent manquer à
- *  l'écran. Dérivé plutôt que stocké — un booléen stocké peut mentir, celui-ci ne peut pas. */
+/** A pipeline is **partial** as soon as an include was not resolved: jobs may be missing from the
+ *  screen. Derived rather than stored — a stored boolean can lie, this one cannot. */
 export function isPartial(pipeline: Pipeline): boolean {
   return pipeline.unresolved.length > 0;
 }

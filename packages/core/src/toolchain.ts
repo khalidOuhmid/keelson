@@ -8,7 +8,7 @@ export const INTEGRATION_KINDS = ["push", "upload-report", "fetch-secret", "noti
 
 export type IntegrationKind = (typeof INTEGRATION_KINDS)[number];
 
-/** Une instance nommée : deux Nexus sur deux environnements sont deux services. */
+/** A named instance: two Nexus on two environments are two services. */
 export type Service = {
   id: string;
   tool: string;
@@ -18,8 +18,8 @@ export type Service = {
 
 export type Integration = { job: string; service: string; kind: IntegrationKind };
 
-/** Une inférence que l'utilisateur a écartée : sans cela, un faux positif reviendrait à chaque
- *  analyse. */
+/** An inference the user dismissed: without it, a false positive would come back on every
+ *  analysis. */
 export type DismissedIntegration = { job: string; tool: string; kind: IntegrationKind };
 
 export type Toolchain = {

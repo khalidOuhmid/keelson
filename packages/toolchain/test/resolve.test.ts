@@ -41,8 +41,8 @@ const chain = (partial: Partial<Toolchain> = {}): Toolchain => ({
 
 const nexus = { id: "nexus-prod", tool: "nexus", url: null, environment: null };
 
-describe("propositions", () => {
-  test("un script qui nomme un service proposé, avec les services candidats", () => {
+describe("proposals", () => {
+  test("a script naming a service is proposed, with the candidate services", () => {
     expect(
       proposeIntegrations(
         pipeline({ build: ["nexus upload"] }),
@@ -52,13 +52,13 @@ describe("propositions", () => {
     ).toEqual([{ job: "build", tool: "nexus", kind: "push", services: ["nexus-prod"] }]);
   });
 
-  test("sans service déclaré, la proposition reste, sans candidat", () => {
+  test("without a declared service, the proposal stays, without candidates", () => {
     expect(proposeIntegrations(pipeline({ build: ["nexus x"] }), chain(), TOOLS)).toEqual([
       { job: "build", tool: "nexus", kind: "push", services: [] },
     ]);
   });
 
-  test("une intégration confirmée n'est plus proposée", () => {
+  test("a confirmed integration is no longer proposed", () => {
     const declared = chain({
       services: [nexus],
       integrations: [{ job: "build", service: "nexus-prod", kind: "push" }],
@@ -66,12 +66,12 @@ describe("propositions", () => {
     expect(proposeIntegrations(pipeline({ build: ["nexus x"] }), declared, TOOLS)).toEqual([]);
   });
 
-  test("une intégration écartée n'est plus proposée", () => {
+  test("a dismissed integration is no longer proposed", () => {
     const declared = chain({ dismissed: [{ job: "build", tool: "nexus", kind: "push" }] });
     expect(proposeIntegrations(pipeline({ build: ["nexus x"] }), declared, TOOLS)).toEqual([]);
   });
 
-  test("confirmer sur un autre type ne vaut pas confirmation", () => {
+  test("confirming another kind does not count as confirmation", () => {
     const declared = chain({
       services: [nexus],
       integrations: [{ job: "build", service: "nexus-prod", kind: "notify" }],
@@ -80,8 +80,8 @@ describe("propositions", () => {
   });
 });
 
-describe("deux workflows, un même nom de job", () => {
-  test("une proposition ne se répète pas", () => {
+describe("two workflows, one job name", () => {
+  test("a proposal is not repeated", () => {
     const twice = pipeline({ build: ["nexus x"] });
     const merged = { ...twice, jobs: [...twice.jobs, ...twice.jobs] };
     expect(proposeIntegrations(merged, chain(), TOOLS)).toHaveLength(1);
@@ -92,7 +92,7 @@ describe("validation", () => {
   const codes = (toolchain: Toolchain, piped: Pipeline = pipeline({ build: [] })) =>
     validateToolchain(toolchain, piped, TOOLS).map((entry) => [entry.code, entry.severity]);
 
-  test("une toolchain cohérente ne dit rien", () => {
+  test("a consistent toolchain reports nothing", () => {
     expect(
       codes(
         chain({
@@ -103,7 +103,7 @@ describe("validation", () => {
     ).toEqual([]);
   });
 
-  test("outil, service et job inconnus", () => {
+  test("unknown tool, service and job", () => {
     expect(
       codes(
         chain({
@@ -118,7 +118,7 @@ describe("validation", () => {
     ]);
   });
 
-  test("sur un pipeline partiel, un job inconnu n'est qu'un warning", () => {
+  test("on a partial pipeline, an unknown job is only a warning", () => {
     expect(
       codes(
         chain({
@@ -130,7 +130,7 @@ describe("validation", () => {
     ).toEqual([["TOOLCHAIN_UNKNOWN_JOB", "warning"]]);
   });
 
-  test("un doublon est signalé une fois", () => {
+  test("a duplicate is reported once", () => {
     const link = { job: "build", service: "nexus-prod", kind: "push" } as const;
     expect(codes(chain({ services: [nexus], integrations: [link, link, link] }))).toEqual([
       ["TOOLCHAIN_DUPLICATE_INTEGRATION", "warning"],

@@ -27,7 +27,7 @@ async function openStream(): Promise<{
   const response = await fetch(`http://127.0.0.1:${port}/api/events`);
   const reader = response.body?.getReader();
   if (reader === undefined) {
-    throw new Error("flux absent");
+    throw new Error("no stream");
   }
   const decoder = new TextDecoder();
   let buffer = "";
@@ -73,22 +73,22 @@ afterEach(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-describe("en-têtes du flux", () => {
-  test("le type de contenu est text/event-stream", async () => {
+describe("stream headers", () => {
+  test("the content type is text/event-stream", async () => {
     const stream = await openStream();
     expect(stream.headers.get("content-type")).toContain("text/event-stream");
     await stream.cancel();
   });
 
-  test("le cache est désactivé et la connexion maintenue", async () => {
+  test("caching is disabled and the connection kept alive", async () => {
     const stream = await openStream();
     expect(stream.headers.get("cache-control")).toContain("no-cache");
     await stream.cancel();
   });
 });
 
-describe("format des événements", () => {
-  test("document.changed porte son nom et ses données JSON", async () => {
+describe("event format", () => {
+  test("document.changed carries its name and its JSON data", async () => {
     const stream = await openStream();
     hub.broadcast({ kind: "document.changed", file: ".gitlab-ci.yml", hash: "a".repeat(64) });
 
@@ -101,7 +101,7 @@ describe("format des événements", () => {
     await stream.cancel();
   });
 
-  test("document.removed ne porte que le fichier", async () => {
+  test("document.removed carries only the file", async () => {
     const stream = await openStream();
     hub.broadcast({ kind: "document.removed", file: ".gitlab-ci.yml" });
 
@@ -112,7 +112,7 @@ describe("format des événements", () => {
     await stream.cancel();
   });
 
-  test("plusieurs événements arrivent dans l'ordre d'émission", async () => {
+  test("several events arrive in emission order", async () => {
     const stream = await openStream();
     hub.broadcast({ kind: "document.changed", file: "a", hash: "1".repeat(64) });
     hub.broadcast({ kind: "document.removed", file: "b" });
@@ -124,11 +124,11 @@ describe("format des événements", () => {
 });
 
 describe("heartbeat", () => {
-  test("l'intervalle par défaut est de 15 secondes", () => {
+  test("the default interval is 15 seconds", () => {
     expect(HEARTBEAT_MS).toBe(15_000);
   });
 
-  test("un commentaire de heartbeat est envoyé périodiquement", async () => {
+  test("a heartbeat comment is sent periodically", async () => {
     hub.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await listen(40);
@@ -141,8 +141,8 @@ describe("heartbeat", () => {
   });
 });
 
-describe("cycle de vie", () => {
-  test("le hub compte ses clients", async () => {
+describe("lifecycle", () => {
+  test("the hub counts its clients", async () => {
     expect(hub.clientCount()).toBe(0);
     const stream = await openStream();
     await stream.read(400);
@@ -150,7 +150,7 @@ describe("cycle de vie", () => {
     await stream.cancel();
   });
 
-  test("un client déconnecté est retiré", async () => {
+  test("a disconnected client is removed", async () => {
     const stream = await openStream();
     await stream.read(400);
     expect(hub.clientCount()).toBe(1);
@@ -159,7 +159,7 @@ describe("cycle de vie", () => {
     expect(hub.clientCount()).toBe(0);
   });
 
-  test("close ferme toutes les connexions et vide le compteur", async () => {
+  test("close closes every connection and empties the counter", async () => {
     const stream = await openStream();
     await stream.read(400);
     hub.close();
@@ -167,12 +167,12 @@ describe("cycle de vie", () => {
     await stream.cancel();
   });
 
-  test("broadcast après close ne lève pas", () => {
+  test("broadcast after close does not throw", () => {
     hub.close();
     expect(() => hub.broadcast({ kind: "document.removed", file: "a" })).not.toThrow();
   });
 
-  test("close est idempotent", () => {
+  test("close is idempotent", () => {
     expect(() => {
       hub.close();
       hub.close();

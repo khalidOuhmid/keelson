@@ -21,7 +21,7 @@ export type JobEditorProps = {
 export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEditorProps) {
   const needs = job.needs?.value ?? [];
   const required = new Set(needs.map((need) => need.job));
-  // Un job qui dépend de celui-ci créerait un cycle : le proposer ne servirait qu'à le refuser.
+  // A job that depends on this one would create a cycle: offering it would only lead to a refusal.
   const descendants = new Set<string>();
   const visit = (id: string): void => {
     for (const other of pipeline.jobs) {
@@ -38,9 +38,9 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
 
   const [name, setName] = useState(job.id);
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");
-  // `candidates` se recalcule à chaque rendu, mais le composant n'est remonté que sur `job.id` :
-  // après un ajout, la cible choisie quitte la liste et le navigateur affiche l'option 0 pendant
-  // que l'état garde l'ancienne. On soumet donc ce que le sélecteur montre, jamais autre chose.
+  // `candidates` is recomputed on every render, but the component is only remounted on `job.id`:
+  // after an addition, the chosen target leaves the list and the browser shows option 0 while the
+  // state keeps the old one. So we submit what the select shows, never anything else.
   const effectiveNeed = candidates.includes(needTarget) ? needTarget : (candidates[0] ?? "");
   const github = pipeline.provider === "github";
   const [optional, setOptional] = useState(false);
@@ -54,9 +54,9 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   const deleteTrigger = useRef<HTMLButtonElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
 
-  // Le focus entre dans le dialogue à l'ouverture et revient au déclencheur à la fermeture : sans
-  // cela, la question posée n'est jamais atteinte par un lecteur d'écran, et le focus retombe sur
-  // <body> au moment le plus destructeur du produit.
+  // Focus moves into the dialog when it opens and back to the trigger when it closes: otherwise a
+  // screen reader never reaches the question being asked, and focus falls back to <body> at the
+  // most destructive moment in the product.
   useEffect(() => {
     if (confirmingDelete) {
       confirmButton.current?.focus();
@@ -77,7 +77,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   };
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: fieldset est réservé aux contrôles d'un seul formulaire ; ce bloc en contient plusieurs
+    // biome-ignore lint/a11y/useSemanticElements: fieldset is reserved for the controls of a single form; this block contains several
     <div
       role="group"
       aria-label="Job editor"
@@ -268,8 +268,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           role="alertdialog"
           aria-modal="true"
           aria-label={`Delete ${job.id}`}
-          // Échap annule le dialogue, pas le panneau : sans `stopPropagation`, l'écouteur de
-          // document d'app.tsx refermerait tout le panneau de détail au lieu de répondre.
+          // Escape cancels the dialog, not the panel: without `stopPropagation`, the document
+          // listener in app.tsx would close the whole detail panel instead of answering.
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();

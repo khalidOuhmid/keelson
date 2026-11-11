@@ -38,7 +38,7 @@ export function ServicePanel({
   const [url, setUrl] = useState(service.url ?? "");
   const [environment, setEnvironment] = useState(service.environment ?? "");
   const [picked, setPicked] = useState(jobs[0] ?? "");
-  // Un job peut quitter le pipeline, panneau ouvert : il ne doit pas être écrit pour autant.
+  // A job can leave the pipeline while the panel is open: it must not be written all the same.
   const job = jobs.includes(picked) ? picked : (jobs[0] ?? "");
   const [kind, setKind] = useState<IntegrationKind>(tool?.integration ?? "push");
 
@@ -99,7 +99,7 @@ export function ServicePanel({
         </button>
       </form>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Integrations" className="flex flex-col gap-2">
         <h3 className={SECTION_HEADING}>Integrations</h3>
         {linked.length === 0 ? (

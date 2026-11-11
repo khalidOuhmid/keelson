@@ -8,8 +8,8 @@ function codes(diagnostics: readonly { code: string }[]): string[] {
   return diagnostics.map((diagnostic) => diagnostic.code);
 }
 
-describe("pipeline valide", () => {
-  test("aucun diagnostic sur un pipeline sain", () => {
+describe("valid pipeline", () => {
+  test("no diagnostic on a healthy pipeline", () => {
     const result = validate(
       pipeline({
         jobs: [job("compile", "build"), job("unit", "test", ["compile"])],
@@ -18,33 +18,33 @@ describe("pipeline valide", () => {
     expect(result).toEqual([]);
   });
 
-  test("aucun diagnostic sans needs du tout", () => {
+  test("no diagnostic without any needs", () => {
     expect(validate(pipeline({ jobs: [job("a", "build"), job("b", "test")] }))).toEqual([]);
   });
 
-  test("un need vers un job du même stage est accepté", () => {
+  test("a need on a job of the same stage is accepted", () => {
     expect(validate(pipeline({ jobs: [job("a", "test"), job("b", "test", ["a"])] }))).toEqual([]);
   });
 
-  test("une liste de needs vide est acceptée", () => {
+  test("an empty needs list is accepted", () => {
     expect(validate(pipeline({ jobs: [job("a", "build", [])] }))).toEqual([]);
   });
 });
 
 describe("UNKNOWN_NEED", () => {
-  test("signale un need vers un job inexistant", () => {
+  test("reports a need on a missing job", () => {
     const result = validate(pipeline({ jobs: [job("unit", "test", ["absent"])] }));
     expect(codes(result)).toEqual([UNKNOWN_NEED]);
     expect(result[0]?.severity).toBe("error");
     expect(result[0]?.params).toEqual({ job: "unit", need: "absent" });
   });
 
-  test("signale chaque need inexistant séparément", () => {
+  test("reports each missing need separately", () => {
     const result = validate(pipeline({ jobs: [job("unit", "test", ["x", "y"])] }));
     expect(codes(result)).toEqual([UNKNOWN_NEED, UNKNOWN_NEED]);
   });
 
-  test("un need vers un template est inconnu", () => {
+  test("a need on a template is unknown", () => {
     const result = validate(
       pipeline({
         jobs: [job("unit", "test", [".base"])],
@@ -54,27 +54,27 @@ describe("UNKNOWN_NEED", () => {
     expect(codes(result)).toEqual([UNKNOWN_NEED]);
   });
 
-  test("porte la plage du job fautif", () => {
+  test("carries the range of the faulty job", () => {
     const faulty = { ...job("unit", "test", ["absent"]), range: { start: 12, end: 42 } };
     expect(validate(pipeline({ jobs: [faulty] }))[0]?.range).toEqual({ start: 12, end: 42 });
   });
 });
 
 describe("NEEDS_CYCLE", () => {
-  test("signale un cycle de deux jobs avec le chemin", () => {
+  test("reports a two-job cycle with its path", () => {
     const result = validate(pipeline({ jobs: [job("a", "test", ["b"]), job("b", "test", ["a"])] }));
     expect(codes(result)).toEqual([NEEDS_CYCLE]);
     expect(result[0]?.severity).toBe("error");
     expect(result[0]?.params).toEqual({ cycle: ["a", "b", "a"] });
   });
 
-  test("signale un auto-need comme cycle", () => {
+  test("reports a self-need as a cycle", () => {
     const result = validate(pipeline({ jobs: [job("a", "test", ["a"])] }));
     expect(codes(result)).toEqual([NEEDS_CYCLE]);
     expect(result[0]?.params).toEqual({ cycle: ["a", "a"] });
   });
 
-  test("signale un cycle de trois jobs", () => {
+  test("reports a three-job cycle", () => {
     const result = validate(
       pipeline({
         jobs: [job("a", "test", ["c"]), job("b", "test", ["a"]), job("c", "test", ["b"])],
@@ -84,7 +84,7 @@ describe("NEEDS_CYCLE", () => {
     expect(result[0]?.params).toEqual({ cycle: ["a", "c", "b", "a"] });
   });
 
-  test("ne signale qu'une fois un cycle atteignable depuis plusieurs entrées", () => {
+  test("reports a cycle reachable from several entries only once", () => {
     const result = validate(
       pipeline({
         jobs: [
@@ -98,7 +98,7 @@ describe("NEEDS_CYCLE", () => {
     expect(codes(result)).toEqual([NEEDS_CYCLE]);
   });
 
-  test("signale deux cycles disjoints séparément", () => {
+  test("reports two disjoint cycles separately", () => {
     const result = validate(
       pipeline({
         jobs: [
@@ -112,7 +112,7 @@ describe("NEEDS_CYCLE", () => {
     expect(codes(result)).toEqual([NEEDS_CYCLE, NEEDS_CYCLE]);
   });
 
-  test("un graphe en losange sans cycle ne déclenche rien", () => {
+  test("a diamond graph without a cycle triggers nothing", () => {
     const result = validate(
       pipeline({
         jobs: [
@@ -128,14 +128,14 @@ describe("NEEDS_CYCLE", () => {
 });
 
 describe("UNKNOWN_STAGE", () => {
-  test("signale un job dans un stage non déclaré", () => {
+  test("reports a job in an undeclared stage", () => {
     const result = validate(pipeline({ jobs: [job("unit", "verify")] }));
     expect(codes(result)).toEqual([UNKNOWN_STAGE]);
     expect(result[0]?.severity).toBe("error");
     expect(result[0]?.params).toEqual({ job: "unit", stage: "verify" });
   });
 
-  test("accepte les stages implicites", () => {
+  test("accepts implicit stages", () => {
     const implicit = stages(".pre", "build", "test", "deploy", ".post").map((stage) => ({
       ...stage,
       implicit: true,
@@ -145,7 +145,7 @@ describe("UNKNOWN_STAGE", () => {
 });
 
 describe("NEED_LATER_STAGE", () => {
-  test("signale un need vers un job d'un stage ultérieur", () => {
+  test("reports a need on a job of a later stage", () => {
     const result = validate(
       pipeline({ jobs: [job("compile", "build", ["publish"]), job("publish", "deploy")] }),
     );
@@ -159,27 +159,27 @@ describe("NEED_LATER_STAGE", () => {
     });
   });
 
-  test("un need vers un stage antérieur ne déclenche rien", () => {
+  test("a need on an earlier stage triggers nothing", () => {
     expect(
       validate(pipeline({ jobs: [job("compile", "build"), job("unit", "test", ["compile"])] })),
     ).toEqual([]);
   });
 
-  test("ne signale pas de stage ultérieur quand le stage est lui-même inconnu", () => {
+  test("reports no later stage when the stage itself is unknown", () => {
     const result = validate(pipeline({ jobs: [job("a", "inconnu", ["b"]), job("b", "deploy")] }));
     expect(codes(result)).toEqual([UNKNOWN_STAGE]);
   });
 });
 
-describe("déterminisme et combinaisons", () => {
-  test("deux appels sur le même pipeline donnent le même résultat", () => {
+describe("determinism and combinations", () => {
+  test("two calls on the same pipeline give the same result", () => {
     const input = pipeline({
       jobs: [job("a", "test", ["absent", "b"]), job("b", "build", ["a"])],
     });
     expect(validate(input)).toEqual(validate(input));
   });
 
-  test("les diagnostics suivent l'ordre des jobs", () => {
+  test("diagnostics follow job order", () => {
     const result = validate(
       pipeline({ jobs: [job("premier", "inconnu1"), job("second", "inconnu2")] }),
     );
@@ -189,7 +189,7 @@ describe("déterminisme et combinaisons", () => {
     ]);
   });
 
-  test("les needs sous forme objet sont traités comme les chaînes", () => {
+  test("needs in object form are treated like strings", () => {
     const result = validate(
       pipeline({ jobs: [job("unit", "test", [need("absent", { optional: true })])] }),
     );

@@ -8,7 +8,7 @@ export type Catalog = {
   logos: Readonly<Record<string, Logo>>;
 };
 
-/** Embarqué dans le paquet : `npx keelson` n'a ni `tools/` ni `simple-icons` sous la main. */
+/** Bundled in the package: `npx keelson` has neither `tools/` nor `simple-icons` at hand. */
 export function loadCatalog(): Catalog {
   return generated as Catalog;
 }

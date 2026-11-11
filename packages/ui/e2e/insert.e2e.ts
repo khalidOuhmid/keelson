@@ -14,8 +14,8 @@ const TREE: Tree = {
   ].join("\n"),
 };
 
-test.describe("insertion sur le binaire réel", () => {
-  test("d'une couche non couverte au job écrit, puis annulé d'un coup", async ({ page }) => {
+test.describe("insertion on the real binary", () => {
+  test("from an uncovered layer to the written job, then undone in one step", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     const original = keelson.read();
     try {
@@ -50,7 +50,7 @@ test.describe("insertion sur le binaire réel", () => {
     }
   });
 
-  test("à 375 px, le retour d'insertion laisse Undo et le nœud atteignables", async ({ page }) => {
+  test("at 375 px, the insertion feedback leaves Undo and the node reachable", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson(TREE);
     try {
@@ -67,7 +67,7 @@ test.describe("insertion sur le binaire réel", () => {
     }
   });
 
-  test("un refus de nom coupe Insert et n'écrit rien", async ({ page }) => {
+  test("a rejected name disables Insert and writes nothing", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     const original = keelson.read();
     try {

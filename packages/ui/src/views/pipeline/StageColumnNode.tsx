@@ -9,7 +9,7 @@ export function StageColumnNode({ data }: StageColumnNodeProps) {
   const jobs = `${data.jobCount} ${data.jobCount === 1 ? "job" : "jobs"}`;
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: une colonne par stage ne doit pas devenir un landmark ; fieldset est réservé aux contrôles de formulaire
+    // biome-ignore lint/a11y/useSemanticElements: a column per stage must not become a landmark; fieldset is reserved for form controls
     <div
       role="group"
       aria-label={`Stage ${data.name}`}

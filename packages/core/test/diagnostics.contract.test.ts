@@ -8,25 +8,25 @@ import { OPERATION_ERROR_CODES } from "../src/operations.ts";
 const repoRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const documentation = readFileSync(join(repoRoot, "specs", "diagnostics.md"), "utf8");
 
-describe("contrat public des codes", () => {
+describe("public contract of the codes", () => {
   for (const code of DIAGNOSTIC_CODES) {
-    test(`le diagnostic ${code} est documenté dans specs/diagnostics.md`, () => {
+    test(`diagnostic ${code} is documented in specs/diagnostics.md`, () => {
       expect(documentation).toContain(`\`${code}\``);
     });
   }
 
   for (const code of OPERATION_ERROR_CODES) {
-    test(`l'erreur d'opération ${code} est documentée dans specs/diagnostics.md`, () => {
+    test(`operation error ${code} is documented in specs/diagnostics.md`, () => {
       expect(documentation).toContain(`\`${code}\``);
     });
   }
 
-  test("aucun code n'est déclaré deux fois", () => {
+  test("no code is declared twice", () => {
     const all = [...DIAGNOSTIC_CODES, ...OPERATION_ERROR_CODES];
     expect(new Set(all).size).toBe(all.length);
   });
 
-  test("les constantes valent leur propre nom", () => {
+  test("constants equal their own name", () => {
     for (const code of [...DIAGNOSTIC_CODES, ...OPERATION_ERROR_CODES]) {
       expect(code).toMatch(/^[A-Z][A-Z_]+$/);
     }

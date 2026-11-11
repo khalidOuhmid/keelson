@@ -27,40 +27,40 @@ function addStage(baseHash: string, name: string, opId: string): Promise<Respons
   });
 }
 
-describe("une seule vérité pour le hash d'une réponse", () => {
-  /** Ces deux premiers tests décrivent l'invariant, **mais ne gardent pas la duplication** : les
-   *  deux expressions fusionnées par le lot L2c rendaient la même valeur, parce qu'`apply` rend
-   *  `parse(texte).hash`. Ils restent verts avec le défaut réintroduit, et c'est le troisième test
-   *  qui protège. Les garder a une valeur distincte : ils rougiraient si le hash rendu cessait un
-   *  jour d'être celui que le serveur accepte ensuite, quelle qu'en soit la cause. */
-  test("le hash rendu par une opération est accepté par la suivante", async () => {
+describe("a single truth for a response's hash", () => {
+  /** These first two tests describe the invariant, **but do not guard the duplication**: the two
+   *  expressions merged by milestone L2c returned the same value, because `apply` returns
+   *  `parse(text).hash`. They stay green with the defect reintroduced, and it is the third test that
+   *  protects. Keeping them has a distinct value: they would turn red if the returned hash ever
+   *  stopped being the one the server then accepts, whatever the cause. */
+  test("the hash returned by an operation is accepted by the next one", async () => {
     const first = await addStage(await hashOf(), "verify", "op-1");
     expect(first.status).toBe(200);
     const returned = ((await first.json()) as { hash: string }).hash;
 
-    // Pas de rechargement entre les deux, exprès : le client n'a que ce que la réponse lui a dit.
+    // No reload in between, on purpose: the client only has what the response told it.
     const second = await addStage(returned, "publish", "op-2");
     expect(second.status).toBe(200);
   });
 
-  test("le hash rendu est aussi celui que le serveur garde en cache", async () => {
+  test("the returned hash is also the one the server caches", async () => {
     const response = await addStage(await hashOf(), "verify", "op-1");
     const returned = ((await response.json()) as { hash: string }).hash;
     expect(await hashOf()).toBe(returned);
   });
 
-  /** **C'est ce test, et lui seul, qui garde la duplication.** Il est structurel par nécessité :
-   *  les deux expressions rendaient la même valeur, donc aucun test de comportement ne peut rougir
-   *  dessus — seule leur divergence future le ferait, et ce serait trop tard. Ce qui se vérifie ici
-   *  est le nombre de hash que le store calcule lui-même par requête : zéro. Il n'en reprend qu'un,
-   *  celui de l'adaptateur.
+  /** **This test, and this test alone, guards the duplication.** It is structural by necessity:
+   *  the two expressions returned the same value, so no behaviour test can turn red on it — only
+   *  their future divergence would, and that would be too late. What is checked here is the number
+   *  of hashes the store computes itself per request: zero. It only takes one over, the adapter's.
    *
-   *  Les deux formes sont cherchées : l'appel direct à `hashText`, et le détour par `parse(…).hash`
-   *  que la première version du garde laissait passer — relevé par la revue du 2026-10-22. */
-  test("le store ne calcule aucun hash lui-même", () => {
+   *  Both forms are searched for: the direct call to `hashText`, and the detour through
+   *  `parse(…).hash` that the first version of the guard let through — found by the review of
+   *  2026-10-22. */
+  test("the store computes no hash itself", () => {
     const source = readFileSync(join(import.meta.dir, "..", "src", "store.ts"), "utf8");
-    // Les commentaires sont retirés d'abord : un garde qui lit la prose du fichier qu'il surveille
-    // se déclenche sur sa propre explication, et c'est le commentaire qu'on finit par réécrire.
+    // Comments are stripped first: a guard that reads the prose of the file it watches fires on
+    // its own explanation, and it is the comment that ends up being rewritten.
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     const recomputations = [
       ...(code.match(/hashText\s*\(/g) ?? []),

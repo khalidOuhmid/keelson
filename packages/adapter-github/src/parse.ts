@@ -31,13 +31,13 @@ export type ParseResult = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
-  /** Un workflow n'inclut rien : la forme reste celle de GitLab, l'appelant n'a pas à distinguer. */
+  /** A workflow includes nothing: the shape stays GitLab's, so the caller need not tell them apart. */
   included: Record<string, string>;
 };
 
 export type ParseOptions = { file?: string };
 
-/** Les clés de `jobs.<id>` que l'IR modélise : le reste est du bloc opaque. */
+/** The `jobs.<id>` keys the IR models: the rest is an opaque block. */
 const MODELLED = ["needs", "environment"];
 
 type Raw = Record<string, unknown>;
@@ -91,7 +91,7 @@ function signalsOf(job: Raw): JobSignals {
       script.push(step.run);
     }
     if (typeof step.uses === "string") {
-      // Une étape `docker://` garde sa place dans `actions` : un `container` n'efface pas son image.
+      // A `docker://` step keeps its place in `actions`: a `container` does not erase its image.
       if (step.uses.startsWith("docker://")) {
         image ??= step.uses.slice("docker://".length);
       }
@@ -101,8 +101,8 @@ function signalsOf(job: Raw): JobSignals {
   return { image, script, ...(actions.length === 0 ? {} : { actions }) };
 }
 
-/** Un job vaut un niveau de plus que sa dépendance la plus haute. Un cycle s'arrête à sa première
- *  visite : `validate` le signale, la vue doit quand même se dessiner. */
+/** A job sits one level above its highest dependency. A cycle stops at its first visit: `validate`
+ *  reports it, and the view must still render. */
 function levelsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, number> {
   const levels = new Map<string, number>();
   const visiting = new Set<string>();

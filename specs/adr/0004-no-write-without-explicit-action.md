@@ -1,66 +1,64 @@
-# ADR 0004 — Aucune écriture sans geste explicite
+# ADR 0004 — No write without an explicit action
 
-Date : 2026-10-22 · Décidé par : le pilote · Statut : accepté
+Date: 2026-10-22 · Decided by: the autopilot · Status: accepted
 
-## Contexte
+## Context
 
-La passe `/impeccable critique` du 2026-10-22 note la prévention d'erreur à **1/4** et relève deux
-chemins par lesquels Keelson réécrit le fichier de l'utilisateur sans qu'il ait demandé une écriture.
+The `/impeccable critique` pass of 2026-10-22 scores error prevention at **1/4** and identifies two
+paths through which Keelson rewrites the user's file without the user having asked for a write.
 
-Le premier est le plus grave parce qu'il est invisible. Le `<select>` de stage soumettait
-`setJobStage` sur `onChange`. Sous Windows et Linux, les flèches dans un `<select>` **fermé** émettent
-`change` à chaque appui : un utilisateur au clavier qui parcourt les options pour les **lire**
-réécrit son YAML une fois par touche. Descendre trois options produisait trois opérations, trois
-écritures atomiques et trois entrées d'historique. L'utilisateur n'avait rien choisi.
+The first is the more serious because it is invisible. The stage `<select>` submitted
+`setJobStage` on `onChange`. On Windows and Linux, arrow keys in a **closed** `<select>` fire
+`change` on every keypress: a keyboard user browsing the options to **read** them rewrites their
+YAML once per key. Moving down three options produced three operations, three atomic writes and
+three history entries. The user had chosen nothing.
 
-Le second est visible mais irréversible d'un geste : `Delete job` réécrivait le fichier sur un clic
-unique, sans confirmation, sans nommer ce qui dépendait du job. L'annulation existe — Ctrl+Z — mais
-n'est documentée nulle part à l'écran, et `PRODUCT.md` fait de la non-destruction du fichier la
-proposition centrale du produit.
+The second is visible but irreversible in one gesture: `Delete job` rewrote the file on a single
+click, with no confirmation, without naming what depended on the job. Undo exists — Ctrl+Z — but
+is documented nowhere on screen, and `PRODUCT.md` makes not destroying the file the product's
+central proposition.
 
-Les deux partagent une cause : l'UI traitait un **changement d'état de contrôle** comme une
-**intention d'écrire**.
+Both share a cause: the UI treated a **control state change** as an **intent to write**.
 
 ## Options
 
-1. **Laisser le select et ajouter un `debounce`.** Réduit le nombre d'écritures sans supprimer la
-   classe de défaut : parcourir les options écrit toujours, juste moins souvent. Et le dernier état
-   parcouru devient celui qui est écrit, ce qui est pire — l'utilisateur s'arrête sur une option en
-   la lisant et c'est celle-là qui part.
-2. **Remplacer le `<select>` par un contrôle non natif.** Supprime le symptôme en abandonnant une
-   affordance native que le brief demande explicitement de conserver, et crée une surface
-   d'accessibilité à maintenir à la main.
-3. **Séparer le choix de l'engagement**, pour tout ce qui écrit.
+1. **Keep the select and add a `debounce`.** Reduces the number of writes without removing the
+   class of defect: browsing the options still writes, just less often. And the last state browsed
+   becomes the one written, which is worse — the user stops on an option while reading it, and that
+   is the one that gets sent.
+2. **Replace the `<select>` with a non-native control.** Removes the symptom by giving up a native
+   affordance the brief explicitly asks to keep, and creates an accessibility surface to maintain by
+   hand.
+3. **Separate choosing from committing**, for everything that writes.
 
-## Décision
+## Decision
 
-Option 3. Une règle unique, tenue partout dans l'UI :
+Option 3. A single rule, held everywhere in the UI:
 
-**Un contrôle qui change une valeur ne déclenche jamais d'écriture. L'écriture part d'un geste
-nommé, dont le libellé dit ce qui va être écrit.**
+**A control that changes a value never triggers a write. The write comes from a named action whose
+label says what is about to be written.**
 
-- Le `<select>` de stage alimente un état local. Un bouton **« Move to stage »** soumet, et reste
-  inerte tant que le stage affiché est celui du job.
-- `Delete job` ouvre une confirmation `role="alertdialog"` qui **nomme le job** et **liste les jobs
-  qui en dépendent**, calculés depuis le pipeline. Le bouton de confirmation est libellé
-  **« Delete <job> »**, pas « OK » : le libellé est la dernière chance de voir ce qu'on fait.
-- Restent hors de cette règle les gestes dont l'intention est déjà portée par le geste lui-même :
-  `Add stage`, `Add need`, `Rename`, `Create job`, `Set environment`. Ce sont des boutons ; ils
-  n'ont jamais écrit sur un simple changement de valeur.
+- The stage `<select>` feeds local state. A **"Move to stage"** button submits, and stays inert as
+  long as the displayed stage is the job's current one.
+- `Delete job` opens a `role="alertdialog"` confirmation that **names the job** and **lists the jobs
+  that depend on it**, computed from the pipeline. The confirm button is labelled
+  **"Delete <job>"**, not "OK": the label is the last chance to see what you are doing.
+- Outside this rule remain the actions whose intent is already carried by the action itself:
+  `Add stage`, `Add need`, `Rename`, `Create job`, `Set environment`. These are buttons; they never
+  wrote on a mere value change.
 
-## Conséquences
+## Consequences
 
-- Le chemin clavier **gagne un geste** sur le déplacement de stage et la suppression. C'est assumé :
-  le geste supplémentaire est celui qui transforme un parcours en décision. Les tests E2E clavier
-  vérifient que la confirmation est atteignable et franchissable sans souris.
-- Trois tests qui asservissaient l'ancien comportement sont réécrits plutôt que supprimés — ils
-  décrivent la même intention utilisateur avec le geste explicite. Un test E2E vérifie en plus que
-  le fichier sur disque **n'a pas bougé** tant que la confirmation n'est pas franchie.
-- La confirmation calcule les référents **côté client, depuis le pipeline**, et ne remplace pas le
-  refus `JOB_REFERENCED` du serveur, qui reste l'autorité. Le client prévient, le serveur tranche.
-  Un test E2E couvre encore le cas où le serveur refuse après confirmation.
-- Cette règle s'étendra aux lots suivants : L4 (toolchain) et L5 (insertion de jobs) ajoutent des
-  contrôles qui écrivent, et ils héritent de la séparation choix / engagement sans la rediscuter.
-- Limite connue, non traitée ici : une fois l'écriture faite, rien ne dit encore **ce qui** a été
-  écrit. L'affichage du diff depuis `touched` est une surface nouvelle, consignée en écart au titre
-  de l'ADR 0003.
+- The keyboard path **gains one step** for moving a stage and for deleting. This is deliberate: the
+  extra step is what turns browsing into a decision. The keyboard E2E tests check that the
+  confirmation is reachable and can be passed without a mouse.
+- Three tests that pinned the old behavior are rewritten rather than deleted — they describe the
+  same user intent with the explicit action. An E2E test additionally checks that the file on disk
+  **has not changed** until the confirmation is passed.
+- The confirmation computes the referencing jobs **client-side, from the pipeline**, and does not
+  replace the server's `JOB_REFERENCED` refusal, which remains the authority. The client warns, the
+  server decides. An E2E test still covers the case where the server refuses after confirmation.
+- This rule will extend to later milestones: L4 (toolchain) and L5 (job insertion) add controls that
+  write, and they inherit the choose / commit separation without reopening it.
+- Known limit, not addressed here: once the write is done, nothing yet says **what** was written.
+  Showing the diff from `touched` is a new surface, recorded as a gap under ADR 0003.

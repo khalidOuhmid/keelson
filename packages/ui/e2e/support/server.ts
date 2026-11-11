@@ -25,9 +25,9 @@ export type Running = {
 
 export type Tree = Record<string, string>;
 
-/** `tree` remplace la fixture de dev par un arbre écrit sur place : les surfaces d'include ne
- *  s'exercent que sur plusieurs fichiers, et un seul fichier ne reproduirait pas leur forme. Les
- *  chemins sont relatifs à la racine, séparateurs `/`. */
+/** `tree` replaces the dev fixture with a tree written in place: include surfaces are only
+ *  exercised across several files, and a single file would not reproduce their shape. Paths
+ *  are relative to the root, with `/` separators. */
 export async function startKeelson(tree?: Tree): Promise<Running> {
   const dir = mkdtempSync(join(tmpdir(), "keelson-e2e-"));
   const file = join(dir, ".gitlab-ci.yml");
@@ -50,7 +50,7 @@ export async function startKeelson(tree?: Tree): Promise<Running> {
   let output = "";
   const url = await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`pas d'URL après 20 s ; sortie : ${output}`)),
+      () => reject(new Error(`no URL after 20 s; output: ${output}`)),
       20_000,
     );
     child.stdout?.on("data", (chunk: Buffer) => {
@@ -66,7 +66,7 @@ export async function startKeelson(tree?: Tree): Promise<Running> {
     });
     child.once("exit", (code) => {
       clearTimeout(timer);
-      reject(new Error(`le binaire est sorti en ${code} ; sortie : ${output}`));
+      reject(new Error(`the binary exited with ${code}; output: ${output}`));
     });
   });
 

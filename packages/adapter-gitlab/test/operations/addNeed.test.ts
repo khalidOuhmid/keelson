@@ -27,7 +27,7 @@ const trois = [
 ].join("\n");
 
 describe("addNeed", () => {
-  test("ajoute un item à une séquence de needs existante", () => {
+  test("adds an item to an existing needs sequence", () => {
     const applied = expectOk(trois, { kind: "addNeed", id: "unit", need: { job: "paquet" } });
     expect(jobOf(applied.text, "unit").needs?.value).toEqual([
       { job: "compile", optional: false, artifacts: true },
@@ -35,12 +35,12 @@ describe("addNeed", () => {
     ]);
   });
 
-  test("conserve les items existants octet pour octet", () => {
+  test("keeps existing items byte for byte", () => {
     const applied = expectOk(trois, { kind: "addNeed", id: "unit", need: { job: "paquet" } });
     expect(applied.text).toContain("  needs:\n    - compile\n    - paquet\n");
   });
 
-  test("écrit la forme objet quand le need porte des options", () => {
+  test("writes the object form when the need carries options", () => {
     const applied = expectOk(trois, {
       kind: "addNeed",
       id: "unit",
@@ -53,20 +53,20 @@ describe("addNeed", () => {
     });
   });
 
-  test("crée la clé needs quand le job n'en a pas", () => {
+  test("creates the needs key when the job has none", () => {
     const applied = expectOk(trois, { kind: "addNeed", id: "paquet", need: { job: "compile" } });
     expect(jobOf(applied.text, "paquet").needs?.value).toEqual([
       { job: "compile", optional: false, artifacts: true },
     ]);
   });
 
-  test("ajoute dans une séquence en flow style", () => {
+  test("adds into a flow-style sequence", () => {
     const flow = trois.replace("  needs:\n    - compile\n", "  needs: [compile]\n");
     const applied = expectOk(flow, { kind: "addNeed", id: "unit", need: { job: "paquet" } });
     expect(applied.text).toContain("needs: [compile, paquet]");
   });
 
-  test("écrit une surcharge locale quand les needs sont hérités", () => {
+  test("writes a local override when the needs are inherited", () => {
     const herite = [
       ".base:",
       "  needs:",
@@ -103,7 +103,7 @@ describe("addNeed", () => {
     ]);
   });
 
-  test("accepte un need optionnel vers un job absent", () => {
+  test("accepts an optional need to a missing job", () => {
     const applied = expectOk(trois, {
       kind: "addNeed",
       id: "unit",
@@ -116,12 +116,12 @@ describe("addNeed", () => {
     });
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(trois, { kind: "addNeed", id: "unit", need: { job: "paquet" } });
     roundTrip(trois, { kind: "addNeed", id: "paquet", need: { job: "compile" } });
   });
 
-  test("JOB_NOT_FOUND si le job n'existe pas", () => {
+  test("JOB_NOT_FOUND if the job does not exist", () => {
     expectUnchanged(
       trois,
       { kind: "addNeed", id: "absent", need: { job: "compile" } },
@@ -129,7 +129,7 @@ describe("addNeed", () => {
     );
   });
 
-  test("NEED_EXISTS si le need est déjà présent", () => {
+  test("NEED_EXISTS if the need is already present", () => {
     expectUnchanged(
       trois,
       { kind: "addNeed", id: "unit", need: { job: "compile" } },
@@ -137,26 +137,26 @@ describe("addNeed", () => {
     );
   });
 
-  test("CYCLE si le need crée un cycle", () => {
+  test("CYCLE if the need creates a cycle", () => {
     expectUnchanged(trois, { kind: "addNeed", id: "compile", need: { job: "unit" } }, "CYCLE");
   });
 
-  test("CYCLE pour un auto-need", () => {
+  test("CYCLE for a self-need", () => {
     expectUnchanged(trois, { kind: "addNeed", id: "unit", need: { job: "unit" } }, "CYCLE");
   });
 });
 
-describe("addNeed sur une liste partagée", () => {
-  /** `needs: *n` devenait `needs:\n  - c`, qui perdait a et b ; `!reference [.base, needs]` devenait
-   *  `!reference [.base, needs, c]`, un chemin faux. Aucun refus, aucun diagnostic. */
+describe("addNeed on a shared list", () => {
+  /** `needs: *n` became `needs:\n  - c`, which lost a and b; `!reference [.base, needs]` became
+   *  `!reference [.base, needs, c]`, a wrong path. No refusal, no diagnostic. */
   const HEAD = "stages:\n  - test\n\n.n: &n\n  - a\n  - b\n\n.base:\n  needs:\n    - a\n\n";
   const JOBS = "a:\n  script: x\nb:\n  script: x\nc:\n  script: x\n";
 
   for (const [label, value] of [
-    ["un alias d'anchor", "*n"],
-    ["un !reference", "!reference [.base, needs]"],
+    ["an anchor alias", "*n"],
+    ["a !reference", "!reference [.base, needs]"],
   ] as const) {
-    test(`${label} est refusé et le texte ne change pas`, () => {
+    test(`${label} is refused and the text does not change`, () => {
       const text = `${HEAD}${JOBS}unit:\n  stage: test\n  needs: ${value}\n  script: x\n`;
       const error = expectUnchanged(
         text,

@@ -27,25 +27,25 @@ const deux = [
 ].join("\n");
 
 describe("removeNeed", () => {
-  test("retire l'item visé en gardant les autres", () => {
+  test("removes the targeted item while keeping the others", () => {
     const applied = expectOk(deux, { kind: "removeNeed", id: "unit", job: "compile" });
     expect(jobOf(applied.text, "unit").needs?.value).toEqual([
       { job: "paquet", optional: false, artifacts: true },
     ]);
   });
 
-  test("retire la ligne complète de l'item", () => {
+  test("removes the item's whole line", () => {
     const applied = expectOk(deux, { kind: "removeNeed", id: "unit", job: "compile" });
     expect(applied.text).toContain("  needs:\n    - paquet\n");
   });
 
-  test("retire la clé needs entière quand c'était le dernier item", () => {
+  test("removes the whole needs key when it was the last item", () => {
     const applied = expectOk(BASE, { kind: "removeNeed", id: "unit", job: "compile" });
     expect(jobOf(applied.text, "unit").needs).toBeNull();
     expect(applied.text).not.toContain("needs");
   });
 
-  test("retire un item en forme objet", () => {
+  test("removes an item in object form", () => {
     const objet = deux.replace("    - compile\n", "    - job: compile\n      artifacts: false\n");
     const applied = expectOk(objet, { kind: "removeNeed", id: "unit", job: "compile" });
     expect(jobOf(applied.text, "unit").needs?.value).toEqual([
@@ -53,7 +53,7 @@ describe("removeNeed", () => {
     ]);
   });
 
-  test("retire un item d'une séquence en flow style", () => {
+  test("removes an item from a flow-style sequence", () => {
     const flow = deux.replace(
       "  needs:\n    - compile\n    - paquet\n",
       "  needs: [compile, paquet]\n",
@@ -64,7 +64,7 @@ describe("removeNeed", () => {
     ]);
   });
 
-  test("écrit une surcharge locale quand les needs sont hérités", () => {
+  test("writes a local override when the needs are inherited", () => {
     const herite = [
       ".base:",
       "  needs:",
@@ -99,20 +99,20 @@ describe("removeNeed", () => {
     expect(needs?.value).toEqual([{ job: "paquet", optional: false, artifacts: true }]);
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(deux, { kind: "removeNeed", id: "unit", job: "compile" });
     roundTrip(BASE, { kind: "removeNeed", id: "unit", job: "compile" });
   });
 
-  test("JOB_NOT_FOUND si le job n'existe pas", () => {
+  test("JOB_NOT_FOUND if the job does not exist", () => {
     expectUnchanged(deux, { kind: "removeNeed", id: "absent", job: "compile" }, "JOB_NOT_FOUND");
   });
 
-  test("NEED_NOT_FOUND si le need n'est pas présent", () => {
+  test("NEED_NOT_FOUND if the need is not present", () => {
     expectUnchanged(deux, { kind: "removeNeed", id: "unit", job: "absent" }, "NEED_NOT_FOUND");
   });
 
-  test("NEED_NOT_FOUND quand le job n'a aucun need", () => {
+  test("NEED_NOT_FOUND when the job has no need", () => {
     const error = expectUnchanged(
       deux,
       { kind: "removeNeed", id: "compile", job: "paquet" },
@@ -121,11 +121,11 @@ describe("removeNeed", () => {
     expect(error.code === "NEED_NOT_FOUND" ? error.params.reason : null).toBe("notNeeded");
   });
 
-  /** Le need est bien dans la valeur effective, mais la liste locale n'est pas une séquence lisible
-   *  item par item : la retirer demanderait de réécrire la liste partagée. Ce chemin n'était couvert
-   *  par aucun test — relevé par la revue indépendante du 2026-10-22, qui a vu que la phrase rendue
-   *  y disait l'inverse de la condition qui y mène. */
-  describe("need venant d'une liste partagée", () => {
+  /** The need is indeed in the effective value, but the local list is not a sequence readable
+   *  item by item: removing it would require rewriting the shared list. This path was covered by
+   *  no test — flagged by the independent review of 2026-10-22, which saw that the rendered
+   *  sentence there said the opposite of the condition leading to it. */
+  describe("need coming from a shared list", () => {
     const partagee = (ligne: string): string =>
       [
         "stages:",
@@ -153,12 +153,12 @@ describe("removeNeed", () => {
       ].join("\n");
 
     for (const [nom, ligne] of [
-      ["un alias d'anchor", "*shared"],
-      ["un !reference", "!reference [.base, needs]"],
+      ["an anchor alias", "*shared"],
+      ["a !reference", "!reference [.base, needs]"],
     ] as const) {
-      test(`${nom} rend NEED_NOT_FOUND / notLocal, fichier intact`, () => {
+      test(`${nom} returns NEED_NOT_FOUND / notLocal, file intact`, () => {
         const text = partagee(ligne);
-        // Le need *est* effectif : sans cela le refus viendrait de la branche précédente.
+        // The need *is* effective: otherwise the refusal would come from the previous branch.
         expect(jobOf(text, "unit").needs?.value.map((need) => need.job)).toEqual([
           "compile",
           "lint",

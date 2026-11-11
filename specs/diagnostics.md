@@ -1,73 +1,72 @@
-# Diagnostics et codes d'erreur
+# Diagnostics and error codes
 
-Les codes de ce document sont des **contrats publics**. Chacun est exporté comme constante depuis
-`@keelson/core/messages`, couvert par au moins un test, et consommé par
-`keelson validate --format json`. Renommer ou supprimer un code est une rupture de compatibilité.
+The codes in this document are **public contracts**. Each one is exported as a constant from
+`@keelson/core/messages`, covered by at least one test, and consumed by
+`keelson validate --format json`. Renaming or removing a code is a breaking change.
 
-**La forme des `params` est un contrat au même titre que le code** ([ADR
-0002](adr/0002-language-and-messages.md)) : en changer la forme est une rupture de compatibilité.
-`core`, les adaptateurs et `@keelson/server` ne produisent **jamais de texte** ; ils rendent
-`code` + `params`. Le seul endroit du produit qui transforme un `(code, params)` en phrase est
-`render()` dans `@keelson/core/messages`, utilisé par la CLI **et** par l'UI.
+**The shape of `params` is as much a contract as the code itself** ([ADR
+0002](adr/0002-language-and-messages.md)): changing it is a breaking change. `core`, the adapters
+and `@keelson/server` **never produce text**; they return `code` + `params`. The only place in the
+product that turns a `(code, params)` into a sentence is `render()` in `@keelson/core/messages`,
+used by the CLI **and** the UI.
 
-Un test échoue si un code de ce document n'a pas de message, si un message n'a pas de code, ou si
-l'ensemble des codes documentés ici diffère de celui du registre — **dans les deux sens**
+A test fails if a code in this document has no message, if a message has no code, or if the set of
+codes documented here differs from the registry's — **in both directions**
 (`packages/core/test/messages.test.ts`).
 
-**Chaque diagnostic porte un `file`**, chemin relatif à la racine du dépôt, et son `range` est un
-offset dans le texte de **ce** fichier. Depuis la résolution des `include` (lot L2b), un pipeline
-est fait de plusieurs fichiers : une plage sans fichier ne situe plus rien.
+**Every diagnostic carries a `file`**, a path relative to the repository root, and its `range` is an
+offset into the text of **that** file. Since `include` resolution (milestone L2b), a pipeline is made
+of several files: a range without a file no longer locates anything.
 
-Trois familles distinctes, plus les codes forgés par le client :
+Three distinct families, plus the codes forged by the client:
 
-- les **diagnostics** (`Diagnostic`) décrivent l'état d'un fichier analysé ; ils sont rendus par
-  `parse` et `validate`, portent une sévérité et une plage, et n'empêchent rien ;
-- les **erreurs d'opération** (`OperationError`) sont rendues par `apply` quand une édition est
-  refusée ; elles n'ont pas de sévérité et **aucune modification n'est écrite** ;
-- les **codes de transport** sont rendus par `@keelson/server` avant ou autour du traitement d'une
-  requête.
+- **diagnostics** (`Diagnostic`) describe the state of a parsed file; they are returned by `parse`
+  and `validate`, carry a severity and a range, and block nothing;
+- **operation errors** (`OperationError`) are returned by `apply` when an edit is refused; they
+  have no severity and **no change is written**;
+- **transport codes** are returned by `@keelson/server` before or around the handling of a
+  request.
 
-## Le discriminant `reason`
+## The `reason` discriminant
 
-Plusieurs codes couvrent chacun plusieurs situations distinctes.
-Plutôt que d'ajouter treize codes à un contrat public, leurs `params` portent un discriminant
-**`reason`**, et le rendu branche dessus. Le `reason` fait donc partie du contrat : les valeurs
-possibles sont listées ci-dessous, et l'exhaustivité des branches de rendu est garantie à la
-compilation.
+Several codes each cover several distinct situations. Rather than adding thirteen codes to a public
+contract, their `params` carry a **`reason`** discriminant, and rendering branches on it. The
+`reason` is therefore part of the contract: the possible values are listed below, and the
+exhaustiveness of the rendering branches is checked at compile time.
 
 ## Diagnostics
 
-| Code | Sévérité | Produit par | `params` | Signification |
+| Code | Severity | Produced by | `params` | Meaning |
 | --- | --- | --- | --- | --- |
-| `INVALID_YAML` | error | `parse` | `{ detail }` | Le fichier n'est pas du YAML valide. Un diagnostic par erreur rendue par la lib `yaml`, avec la position. `detail` est la phrase de la lib, reprise telle quelle : elle est déjà en anglais et plus précise que toute reformulation. Le parsing continue : le pipeline rendu est partiel. |
-| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | Un `include` d'une forme que Keelson ne résout pas : `remote`, `project`, `template` ou `component`. Un diagnostic par entrée, et non un seul par fichier. `detail` est la valeur telle qu'elle est écrite. Le pipeline affiché est **partiel** : voir `Pipeline.unresolved` et `isPartial()`, qui comptent aussi les `include` locaux cassés, signalés eux par `INCLUDE_NOT_FOUND`. |
-| `INCLUDE_NOT_FOUND` | error | `parse` | union sur `reason` : `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | Un `include: local` ne mène à rien d'utilisable. `missing` : le fichier n'existe pas. `notYaml` : GitLab exige l'extension `.yml` ou `.yaml`. `outsideRoot` : le chemin sort de la racine du dépôt — refusé **avant** toute lecture, parce que le serveur lit le disque pour le compte d'une page web. `malformed` : l'entrée n'a aucune forme reconnaissable. |
-| `INCLUDE_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`include` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
-| `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | Plus de `limit` fichiers inclus. Le pipeline est alors partiel : la première entrée coupée est dans `Pipeline.unresolved`. La limite documentée par GitLab est de **150** fichiers inclus par pipeline, nids compris — c'est un compte, pas une profondeur de nid, et Keelson n'en invente pas d'autre. |
-| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | `{ template }` | Un `extends` pointe vers une clé absente de **tous** les fichiers résolus. Dégradé en **warning** seulement si un `include` qu'on n'a pas pu lire peut expliquer l'absence : une forme distante, ou un `local` quand l'appelant n'a fourni aucun lecteur. Un `include` local **cassé** ne dégrade rien : sa cause est déjà un `INCLUDE_NOT_FOUND` en erreur ([ADR 0007](adr/0007-what-degrades-a-missing-extends-target.md)). Signalé une seule fois par cible. |
-| `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`extends` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
-| `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | Un job n'a ni `script`, ni `run`, ni `trigger`. Évalué **après** résolution des `extends` et des anchors. |
-| `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | Un `needs` pointe vers un job qui n'existe pas. Un template (clé commençant par `.`) n'est pas un job valide pour un `needs`. |
-| `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | Les `needs` forment un cycle. Un diagnostic par composante fortement connexe ; `cycle` est le chemin, premier élément répété en dernier. |
-| `UNKNOWN_STAGE` | error | `validate` | `{ job, stage }` | Un job référence un stage non déclaré. |
-| `NEED_LATER_STAGE` | warning | `validate` | `{ job, stage, need, needStage }` | Un job a besoin d'un job situé dans un stage ultérieur. Non évalué quand le stage du job est lui-même inconnu. |
-| `LAYOUT_INVALID` | warning | `parseLayout` | `{ detail }` | `.devsecops/layout.json` n'est pas du JSON valide ou ne suit pas son schéma. Il est alors ignoré : la détection s'applique. |
-| `LAYOUT_UNKNOWN_LAYER` | warning | `parseLayout` | `{ job, layer }` | Une surcharge nomme une couche absente de la taxonomie. Cette couche est ignorée, les autres s'appliquent. |
-| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | Une surcharge nomme un job absent du pipeline. |
-| `COVERAGE_LAYER_MISSING` | error | `keelson coverage` | `{ layer, name }` | Une couche demandée par `--require` n'est pas couverte. |
-| `CATALOG_INVALID_TOOL` | error | `catalog lint` | `{ detail }` | Une fiche ne suit pas le schéma. `detail` vient de zod ou de `yaml`. |
-| `CATALOG_DUPLICATE_TOOL` | error | `catalog lint` | `{ tool }` | Deux fiches portent le même identifiant. |
-| `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | La fiche nomme un logo absent du catalogue embarqué. |
-| `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | Un outil de type `job` n'a aucun snippet. |
-| `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | La fiche n'a pas été vérifiée depuis plus de six mois. |
-| `WORKFLOW_UNRESOLVED` | info | `parse` GitHub | `{ job, target }` | Un job `uses:` appelle un workflow réutilisable, que Keelson ne lit pas. Compté dans `Pipeline.unresolved`, donc le pipeline est partiel ([ADR 0013](adr/0013-github-without-stages.md)). |
-| `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` n'est pas du YAML valide ou ne suit pas son schéma. La toolchain est alors vide, et aucune opération ne l'édite. |
-| `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | Un service nomme un outil absent du catalogue. |
-| `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | Une intégration nomme un service non déclaré. |
-| `TOOLCHAIN_UNKNOWN_JOB` | error, ou warning | `validateToolchain` | `{ job }` | Une intégration nomme un job absent du pipeline. Warning sur un pipeline partiel : le job peut venir d'un include non résolu. |
-| `TOOLCHAIN_DUPLICATE_INTEGRATION` | warning | `validateToolchain` | `{ job, service, kind }` | La même intégration figure deux fois. |
+| `INVALID_YAML` | error | `parse` | `{ detail }` | The file is not valid YAML. One diagnostic per error returned by the `yaml` library, with its position. `detail` is the library's sentence, kept verbatim: it is already in English and more precise than any rewording. Parsing continues: the returned pipeline is partial. |
+| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | An `include` of a form Keelson does not resolve: `remote`, `project`, `template` or `component`. One diagnostic per entry, not one per file. `detail` is the value as written. The pipeline shown is **partial**: see `Pipeline.unresolved` and `isPartial()`, which also count broken local `include`s, themselves reported by `INCLUDE_NOT_FOUND`. |
+| `INCLUDE_NOT_FOUND` | error | `parse` | union on `reason`: `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | An `include: local` leads to nothing usable. `missing`: the file does not exist. `notYaml`: GitLab requires the `.yml` or `.yaml` extension. `outsideRoot`: the path leaves the repository root — refused **before** any read, because the server reads the disk on behalf of a web page. `malformed`: the entry has no recognisable shape. |
+| `INCLUDE_CYCLE` | error | `parse` | `{ trail }` | A chain of `include`s loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
+| `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | More than `limit` included files. The pipeline is then partial: the first entry cut off is in `Pipeline.unresolved`. GitLab's documented limit is **150** included files per pipeline, nested ones included — a count, not a nesting depth, and Keelson does not invent another. |
+| `EXTENDS_TARGET_NOT_FOUND` | error, or warning | `parse` | `{ template }` | An `extends` points to a key absent from **all** resolved files. Downgraded to a **warning** only if an `include` that could not be read may explain the absence: a remote form, or a `local` one when the caller supplied no reader. A **broken** local `include` downgrades nothing: its cause is already an `INCLUDE_NOT_FOUND` error ([ADR 0007](adr/0007-what-degrades-a-missing-extends-target.md)). Reported once per target. |
+| `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | A chain of `extends` loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
+| `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | A job has no `script`, `run` or `trigger`. Evaluated **after** resolving `extends` and anchors. |
+| `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | A `needs` entry points to a job that does not exist. A template (a key starting with `.`) is not a valid job for `needs`. |
+| `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | The `needs` form a cycle. One diagnostic per strongly connected component; `cycle` is the path, first element repeated last. |
+| `UNKNOWN_STAGE` | error | `validate` | `{ job, stage }` | A job references an undeclared stage. |
+| `NEED_LATER_STAGE` | warning | `validate` | `{ job, stage, need, needStage }` | A job needs a job in a later stage. Not evaluated when the job's own stage is unknown. |
+| `LAYOUT_INVALID` | warning | `parseLayout` | `{ detail }` | `.devsecops/layout.json` is not valid JSON or does not follow its schema. It is then ignored: detection applies. |
+| `LAYOUT_UNKNOWN_LAYER` | warning | `parseLayout` | `{ job, layer }` | An override names a layer absent from the taxonomy. That layer is ignored; the others apply. |
+| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from the pipeline. |
+| `COVERAGE_LAYER_MISSING` | error | `keelson coverage` | `{ layer, name }` | A layer required by `--require` is not covered. |
+| `CATALOG_INVALID_TOOL` | error | `catalog lint` | `{ detail }` | A catalogue entry does not follow the schema. `detail` comes from zod or `yaml`. |
+| `CATALOG_DUPLICATE_TOOL` | error | `catalog lint` | `{ tool }` | Two catalogue entries share the same identifier. |
+| `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | The catalogue entry names a logo absent from the bundled catalogue. |
+| `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | A tool of type `job` has no snippet. |
+| `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | The catalogue entry has not been verified for more than six months. |
+| `WORKFLOW_UNRESOLVED` | info | GitHub `parse` | `{ job, target }` | A `uses:` job calls a reusable workflow, which Keelson does not read. Counted in `Pipeline.unresolved`, so the pipeline is partial ([ADR 0013](adr/0013-github-without-stages.md)). |
+| `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` is not valid YAML or does not follow its schema. The toolchain is then empty, and no operation edits it. |
+| `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | A service names a tool absent from the catalogue. |
+| `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | An integration names an undeclared service. |
+| `TOOLCHAIN_UNKNOWN_JOB` | error, or warning | `validateToolchain` | `{ job }` | An integration names a job absent from the pipeline. A warning on a partial pipeline: the job may come from an unresolved include. |
+| `TOOLCHAIN_DUPLICATE_INTEGRATION` | warning | `validateToolchain` | `{ job, service, kind }` | The same integration appears twice. |
 
-### Exemples
+### Examples
 
 **`INVALID_YAML`**
 
@@ -78,7 +77,7 @@ a:
 ```
 
 ```
-fichier.yml:3:2 error INVALID_YAML All mapping items must start at the same column
+file.yml:3:2 error INVALID_YAML All mapping items must start at the same column
 ```
 
 **`INCLUDE_UNRESOLVED`**
@@ -89,10 +88,10 @@ include:
   - template: Jobs/SAST.gitlab-ci.yml
 ```
 
-Le premier est résolu, le second non : un seul diagnostic, pour le `template`.
+The first is resolved, the second is not: a single diagnostic, for the `template`.
 
 ```
-fichier.yml:3:5 info INCLUDE_UNRESOLVED this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete
+file.yml:3:5 info INCLUDE_UNRESOLVED this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete
 ```
 
 **`INCLUDE_CYCLE`**
@@ -111,7 +110,7 @@ error INCLUDE_CYCLE include cycle: .gitlab-ci.yml → ci/a.yml → .gitlab-ci.ym
 **`EXTENDS_TARGET_NOT_FOUND`**
 
 ```yaml
-orphelin:
+orphan:
   extends: .absent
   script: echo
 ```
@@ -132,7 +131,7 @@ error EXTENDS_CYCLE extends cycle: .a → .b → .a
 **`JOB_WITHOUT_SCRIPT`**
 
 ```yaml
-muet:
+silent:
   stage: build
 ```
 
@@ -145,7 +144,7 @@ unit:
 ```
 
 ```
-fichier.yml:1:1 error UNKNOWN_NEED job "unit" needs "absent", which does not exist
+file.yml:1:1 error UNKNOWN_NEED job "unit" needs "absent", which does not exist
 ```
 
 **`NEEDS_CYCLE`**
@@ -188,105 +187,104 @@ publish:
   stage: deploy
 ```
 
-## Erreurs d'opération
+## Operation errors
 
-Rendues par `apply` dans un `Result` en échec, et relayées telles quelles par `@keelson/server`.
-Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug de Keelson.
+Returned by `apply` in a failed `Result`, and relayed as-is by `@keelson/server`. None is thrown as
+an exception: an exception can only signal a Keelson bug.
 
-| Code | `params` | Signification |
+| Code | `params` | Meaning |
 | --- | --- | --- |
-| `STALE_DOCUMENT` | `{ expected, received }` | Le `baseHash` de l'opération ne correspond pas au hash du document, qui a changé depuis le calcul de l'opération. `expected` est le hash du document, `received` celui de l'opération. Les deux sont dans les `params` pour le diagnostic, jamais dans la phrase rendue : deux empreintes de 64 caractères n'aident aucun lecteur. |
-| `JOB_NOT_FOUND` | `{ job }` | Le job visé n'existe pas. Un template n'est pas un job. |
-| `JOB_REFERENCED` | `{ job, referencedBy }` | `removeJob` sur un job dont d'autres jobs ont besoin. `referencedBy` liste leurs identifiants ; la suppression en cascade se compose en plusieurs opérations. C'est le seul code que l'UI traite spécialement : elle lit `params.referencedBy` pour lister les référents. |
-| `NAME_CONFLICT` | `{ name }` | Le nom cible est déjà pris par une clé de premier niveau (job, template ou clé réservée). |
-| `INVALID_NAME` | `{ reason: "job", name }` ou `{ reason: "stage" }` | `reason: "job"` : le nom est vide, commence par `.`, ou est un mot réservé — `stages`, `variables`, `include`, `default`, `workflow`, `image`, `services`, `cache`, `before_script`, `after_script`. `reason: "stage"` : nom de stage vide. `reason: "service"`, avec `name` : un identifiant de service suit `^[a-z0-9][a-z0-9._-]*$`. |
-| `STAGE_NOT_FOUND` | `{ stage }` | Le stage visé n'est pas déclaré. Les stages implicites (`.pre`, `build`, `test`, `deploy`, `.post`) comptent comme déclarés. |
-| `STAGE_EXISTS` | `{ stage }` | `addStage` sur un stage déjà présent, implicite compris. |
-| `NEED_EXISTS` | `{ job, need }` | `addNeed` sur un need déjà présent dans la valeur effective. |
-| `NEED_NOT_FOUND` | `{ reason: "notNeeded", job, need }` ou `{ reason: "notLocal", job, need }` | `notNeeded` : `removeNeed` sur un need absent de la valeur effective. `notLocal` : le need **est** effectif, mais la liste `needs` du job n'est pas une séquence lisible item par item — un alias d'anchor ou un `!reference` — donc le retirer demanderait de réécrire la liste partagée, ce que Keelson ne fait pas. |
-| `CYCLE` | `{ operation }` | L'opération créerait un cycle dans les `needs` qui n'existait pas avant. Évalué sur l'IR du texte résultant, pour toutes les opérations sauf `splice`. |
-| `UNSUPPORTED_VERSION` | `{ received, supported }` | L'opération porte un `v` numérique différent de `1`. |
-| `INVALID_OPERATION` | union sur `reason`, voir ci-dessous | L'opération ne respecte pas son schéma, ou l'édition demandée n'est pas supportée. |
-| `RANGE_OUT_OF_BOUNDS` | union sur `reason`, voir ci-dessous | Une plage de source est introuvable, ou un index sort de sa liste. |
-| `FROM_INCLUDED_FILE` | union sur `reason`, voir ci-dessous | L'opération visait un élément qui ne vit pas dans le fichier principal. Keelson ne réécrit **jamais** un fichier inclus. |
-| `SERVICE_NOT_FOUND` | `{ service }` | L'opération de toolchain vise un service non déclaré. |
-| `SERVICE_REFERENCED` | `{ service, jobs }` | `removeService` sur un service encore relié à des jobs. |
-| `INTEGRATION_EXISTS` | `{ job, target, kind }` | L'intégration, ou son écart, figure déjà dans le fichier. `target` est le service ou l'outil. |
-| `INTEGRATION_NOT_FOUND` | `{ job, target, kind }` | L'intégration, ou son écart, ne figure pas dans le fichier. |
+| `STALE_DOCUMENT` | `{ expected, received }` | The operation's `baseHash` does not match the document's hash, which has changed since the operation was computed. `expected` is the document's hash, `received` the operation's. Both are in `params` for diagnosis, never in the rendered sentence: two 64-character digests help no reader. |
+| `JOB_NOT_FOUND` | `{ job }` | The target job does not exist. A template is not a job. |
+| `JOB_REFERENCED` | `{ job, referencedBy }` | `removeJob` on a job that other jobs need. `referencedBy` lists their identifiers; a cascading removal is composed of several operations. This is the only code the UI handles specially: it reads `params.referencedBy` to list the referrers. |
+| `NAME_CONFLICT` | `{ name }` | The target name is already taken by a top-level key (job, template or reserved key). |
+| `INVALID_NAME` | `{ reason: "job", name }` or `{ reason: "stage" }` | `reason: "job"`: the name is empty, starts with `.`, or is a reserved word — `stages`, `variables`, `include`, `default`, `workflow`, `image`, `services`, `cache`, `before_script`, `after_script`. `reason: "stage"`: empty stage name. `reason: "service"`, with `name`: a service identifier must match `^[a-z0-9][a-z0-9._-]*$`. |
+| `STAGE_NOT_FOUND` | `{ stage }` | The target stage is not declared. Implicit stages (`.pre`, `build`, `test`, `deploy`, `.post`) count as declared. |
+| `STAGE_EXISTS` | `{ stage }` | `addStage` on a stage that already exists, implicit ones included. |
+| `NEED_EXISTS` | `{ job, need }` | `addNeed` on a need already present in the effective value. |
+| `NEED_NOT_FOUND` | `{ reason: "notNeeded", job, need }` or `{ reason: "notLocal", job, need }` | `notNeeded`: `removeNeed` on a need absent from the effective value. `notLocal`: the need **is** effective, but the job's `needs` list is not a sequence readable item by item — an anchor alias or a `!reference` — so removing it would require rewriting the shared list, which Keelson does not do. |
+| `CYCLE` | `{ operation }` | The operation would create a cycle in the `needs` that did not exist before. Evaluated on the IR of the resulting text, for every operation except `splice`. |
+| `UNSUPPORTED_VERSION` | `{ received, supported }` | The operation carries a numeric `v` other than `1`. |
+| `INVALID_OPERATION` | union on `reason`, see below | The operation does not follow its schema, or the requested edit is not supported. |
+| `RANGE_OUT_OF_BOUNDS` | union on `reason`, see below | A source range cannot be found, or an index falls outside its list. |
+| `FROM_INCLUDED_FILE` | union on `reason`, see below | The operation targeted an element that does not live in the main file. Keelson **never** rewrites an included file. |
+| `SERVICE_NOT_FOUND` | `{ service }` | The toolchain operation targets an undeclared service. |
+| `SERVICE_REFERENCED` | `{ service, jobs }` | `removeService` on a service still linked to jobs. |
+| `INTEGRATION_EXISTS` | `{ job, target, kind }` | The integration, or its gap, is already in the file. `target` is the service or the tool. |
+| `INTEGRATION_NOT_FOUND` | `{ job, target, kind }` | The integration, or its gap, is not in the file. |
 
 ### `FROM_INCLUDED_FILE`
 
-| `reason` | Autres `params` | Situation |
+| `reason` | Other `params` | Situation |
 | --- | --- | --- |
-| `job` | `job`, `file` | Le job visé vient d'un fichier inclus. Un job inclus puis **redéfini** dans le fichier principal appartient au fichier principal et reste éditable : c'est l'ordre de fusion de GitLab. |
-| `nameTaken` | `name`, `file` | `addJob` ou `renameJob` vers un nom déjà pris par une clé d'un fichier inclus. Keelson refuse plutôt que d'écrire une surcharge partielle : le job résultant hériterait silencieusement des clés de l'include. |
-| `stages` | `file` | La liste `stages` est déclarée dans un fichier inclus. `addStage` et `moveStage` y sont donc refusés ; ajouter un job dans un de ces stages reste permis. |
-| `referencedByInclude` | `job`, `referencedBy: { job, file }[]` | `renameJob` sur un job dont un job d'un fichier inclus a besoin : renommer sans réécrire ce fichier casserait son `needs`. |
+| `job` | `job`, `file` | The target job comes from an included file. A job included and then **redefined** in the main file belongs to the main file and remains editable: that is GitLab's merge order. |
+| `nameTaken` | `name`, `file` | `addJob` or `renameJob` to a name already taken by a key of an included file. Keelson refuses rather than writing a partial override: the resulting job would silently inherit the include's keys. |
+| `stages` | `file` | The `stages` list is declared in an included file. `addStage` and `moveStage` are therefore refused; adding a job to one of those stages is still allowed. |
+| `referencedByInclude` | `job`, `referencedBy: { job, file }[]` | `renameJob` on a job needed by a job in an included file: renaming without rewriting that file would break its `needs`. |
 
 ### `INVALID_OPERATION`
 
-| `reason` | Autres `params` | Situation |
+| `reason` | Other `params` | Situation |
 | --- | --- | --- |
-| `notAnObject` | — | Le corps reçu n'est pas un objet JSON. |
-| `schema` | `path`, `detail` | Le schéma zod refuse l'opération. `detail` est la phrase de zod, en anglais ; `path` la situe dans l'opération, et vaut `""` quand l'erreur porte sur la racine. |
-| `flowStyleJob` | `job` | Le job est écrit en flow style (`{ … }`) ; l'édition en place supposerait un rendu par ligne. |
-| `jobWithoutScript` | — | `addJob` sans aucune ligne de script. |
-| `inheritedEnvironment` | `job`, `origin` | Retrait d'un environnement hérité : GitLab n'a pas de clé d'annulation. `origin` dit d'où il vient (`extends`, `anchor`, `default`). |
-| `sharedValue` | `job`, `key` | La valeur vient d'un alias d'anchor ou d'un `!reference` et l'écrire en place perdrait quelque chose : `addNeed` sur une liste partagée, ou `setJobStage` sur un `!reference` portant une ancre, un commentaire ou une clé explicite `?`. |
-| `flowStyleToolchain` | `section` | Une section de `toolchain.yaml` est écrite en flow style et n'est pas vide. |
-| `invalidToolchain` | — | `toolchain.yaml` porte un `TOOLCHAIN_INVALID` : Keelson n'édite pas un fichier qu'il ne comprend pas. |
-| `invalidSnippet` | — | `addSnippet` : le texte n'est pas le YAML d'un seul job en bloc, sans ancre ni alias. |
-| `citedInExpression` | `job` | GitHub Actions : `needs.<id>` ou `jobs.<id>` figure dans une expression, que Keelson ne réécrit pas. |
-| `dynamicExpression` | `job` | GitHub Actions : une expression lit le contexte `needs` ou `jobs` entier, ou par un indice calculé (`toJSON(needs)`, `needs[matrix.dep]`, `jobs[inputs.x]`), et peut donc viser `job` sans le nommer. Seule la racine du contexte compte : ni `env.NEEDS`, ni un libellé `'needs-review'`. |
-| `notForProvider` | `operation` | GitHub Actions : l'opération n'a pas de sens, faute de stages ou d'options de need. |
-| `invalidLayout` | — | **Serveur** : `layout.json` n'est pas lisible. Keelson n'écrase pas ce qu'il ne comprend pas. |
-| `outsideRoot` | `path` | **Serveur** : `.devsecops` mène hors du dépôt. Rien n'est écrit. |
-| `noRootMap` | — | Le fichier n'a pas de map YAML à la racine, et l'opération n'est pas un `splice`. |
-| `wouldBreakYaml` | `operation` | Le texte résultant serait un YAML invalide ; rien n'a été écrit. |
-| `unreadableBody` | — | **Serveur** : le corps de la requête n'est pas du JSON lisible. |
-| `missingOpId` | — | **Serveur** : `opId` absent ou vide. |
-| `missingOp` | — | **Serveur** : `op` absent ou invalide. |
+| `notAnObject` | — | The received body is not a JSON object. |
+| `schema` | `path`, `detail` | The zod schema rejects the operation. `detail` is zod's sentence, in English; `path` locates it within the operation, and is `""` when the error concerns the root. |
+| `flowStyleJob` | `job` | The job is written in flow style (`{ … }`); editing in place would assume a line-based rendering. |
+| `jobWithoutScript` | — | `addJob` without any script line. |
+| `inheritedEnvironment` | `job`, `origin` | Removing an inherited environment: GitLab has no cancellation key. `origin` says where it comes from (`extends`, `anchor`, `default`). |
+| `sharedValue` | `job`, `key` | The value comes from an anchor alias or a `!reference`, and writing it in place would lose something: `addNeed` on a shared list, or `setJobStage` on a `!reference` carrying an anchor, a comment or an explicit `?` key. |
+| `flowStyleToolchain` | `section` | A section of `toolchain.yaml` is written in flow style and is not empty. |
+| `invalidToolchain` | — | `toolchain.yaml` carries a `TOOLCHAIN_INVALID`: Keelson does not edit a file it does not understand. |
+| `invalidSnippet` | — | `addSnippet`: the text is not the YAML of a single block-style job, without anchors or aliases. |
+| `citedInExpression` | `job` | GitHub Actions: `needs.<id>` or `jobs.<id>` appears in an expression, which Keelson does not rewrite. |
+| `dynamicExpression` | `job` | GitHub Actions: an expression reads the whole `needs` or `jobs` context, or reads it through a computed index (`toJSON(needs)`, `needs[matrix.dep]`, `jobs[inputs.x]`), and may therefore target `job` without naming it. Only the context root counts: neither `env.NEEDS` nor a `'needs-review'` label. |
+| `notForProvider` | `operation` | GitHub Actions: the operation is meaningless, for lack of stages or need options. |
+| `invalidLayout` | — | **Server**: `layout.json` is not readable. Keelson does not overwrite what it does not understand. |
+| `outsideRoot` | `path` | **Server**: `.devsecops` leads outside the repository. Nothing is written. |
+| `noRootMap` | — | The file has no YAML map at its root, and the operation is not a `splice`. |
+| `wouldBreakYaml` | `operation` | The resulting text would be invalid YAML; nothing was written. |
+| `unreadableBody` | — | **Server**: the request body is not readable JSON. |
+| `missingOpId` | — | **Server**: `opId` missing or empty. |
+| `missingOp` | — | **Server**: `op` missing or invalid. |
 
 ### `RANGE_OUT_OF_BOUNDS`
 
-| `reason` | Autres `params` | Situation |
+| `reason` | Other `params` | Situation |
 | --- | --- | --- |
-| `jobRange` | `job` | Plage introuvable pour la clé du job. |
-| `stageKey` | — | Plage introuvable pour la clé `stage`. |
-| `needsKey` | — | Plage introuvable pour la clé `needs`. |
-| `lastNeed` | — | Plage introuvable pour le dernier élément de `needs`. |
-| `environmentKey` | — | Plage introuvable pour la clé `environment`. |
-| `stageList` | — | Plage introuvable dans la liste de stages. |
-| `emptyStageList` | — | La liste de stages est vide là où un élément est attendu. |
-| `stageIndex` | `index`, `count` | Index de stage au-delà de la liste. |
-| `textRange` | `start`, `end`, `length` | Un `splice` sort du texte. |
+| `jobRange` | `job` | Range not found for the job's key. |
+| `stageKey` | — | Range not found for the `stage` key. |
+| `needsKey` | — | Range not found for the `needs` key. |
+| `lastNeed` | — | Range not found for the last element of `needs`. |
+| `environmentKey` | — | Range not found for the `environment` key. |
+| `stageList` | — | Range not found in the stage list. |
+| `emptyStageList` | — | The stage list is empty where an element is expected. |
+| `stageIndex` | `index`, `count` | Stage index beyond the list. |
+| `textRange` | `start`, `end`, `length` | A `splice` falls outside the text. |
 
-## Codes de transport
+## Transport codes
 
-Rendus par `@keelson/server`. Toute erreur de l'API a la forme `{ code, params }`, plus `hash` pour
-le 409 `STALE_DOCUMENT`. **Il n'y a pas de clé `message` sur le fil** : le texte est rendu côté
-client.
+Returned by `@keelson/server`. Every API error has the shape `{ code, params }`, plus `hash` for the
+409 `STALE_DOCUMENT`. **There is no `message` key on the wire**: the text is rendered client-side.
 
-| Code | Statut | `params` | Signification |
+| Code | Status | `params` | Meaning |
 | --- | --- | --- | --- |
-| `FORBIDDEN_HOST` | 403 | `{}` | L'en-tête `Host` n'est pas une forme locale attendue. Refusé avant tout traitement. |
-| `FORBIDDEN_TOKEN` | 403 | `{}` | Token de session absent ou invalide sur une route `/api`. |
-| `METHOD_NOT_ALLOWED` | 405 | `{ method }` | La méthode HTTP n'est pas celle de la route. |
-| `NOT_FOUND` | 404 | union sur `reason` : `unreadableFileName` · `unknownFile {file}` · `missingFile {file}` · `unknownRoute {route}` · `noUiBundle` | `unknownFile` : le fichier n'est pas dans l'espace de travail. `missingFile` : il y est mais n'a pas pu être chargé. `noUiBundle` : ce serveur ne sert pas de bundle d'interface. |
-| `PAYLOAD_TOO_LARGE` | 413 | `{ limitBytes }` | Corps de requête au-delà de la limite. La connexion est fermée. |
-| `INTERNAL_ERROR` | 500 | `{}` | Le gestionnaire a levé. Aucun détail n'est exposé. |
+| `FORBIDDEN_HOST` | 403 | `{}` | The `Host` header is not an expected local form. Refused before any handling. |
+| `FORBIDDEN_TOKEN` | 403 | `{}` | Session token missing or invalid on an `/api` route. |
+| `METHOD_NOT_ALLOWED` | 405 | `{ method }` | The HTTP method is not the route's. |
+| `NOT_FOUND` | 404 | union on `reason`: `unreadableFileName` · `unknownFile {file}` · `missingFile {file}` · `unknownRoute {route}` · `noUiBundle` | `unknownFile`: the file is not in the workspace. `missingFile`: it is, but could not be loaded. `noUiBundle`: this server does not serve a UI bundle. |
+| `PAYLOAD_TOO_LARGE` | 413 | `{ limitBytes }` | Request body over the limit. The connection is closed. |
+| `INTERNAL_ERROR` | 500 | `{}` | The handler threw. No detail is exposed. |
 
-## Codes forgés par le client
+## Codes forged by the client
 
-Aucun serveur ne les émet. Ils entrent au registre pour que le test d'exhaustivité ne laisse pas
-l'UI rendre un code sans message.
+No server emits them. They are in the registry so that the exhaustiveness test does not let the UI
+render a code without a message.
 
-| Code | `params` | Signification |
+| Code | `params` | Meaning |
 | --- | --- | --- |
-| `NETWORK_ERROR` | `{ detail }` | La requête n'a pas abouti. `detail` est le message de l'exception. |
-| `UNEXPECTED_RESPONSE` | `{}` | La réponse d'erreur n'a pas la forme `{ code, params }`. |
+| `NETWORK_ERROR` | `{ detail }` | The request did not complete. `detail` is the exception's message. |
+| `UNEXPECTED_RESPONSE` | `{}` | The error response does not have the `{ code, params }` shape. |
 
-## Convention de position
+## Position convention
 
-`SourceRange` porte des **offsets en caractères** dans le texte source, pas des lignes. La CLI
-convertit en `ligne:colonne` à l'affichage, les deux comptant **à partir de 1**.
+`SourceRange` carries **character offsets** into the source text, not lines. The CLI converts them
+to `line:column` for display, both counted **from 1**.
