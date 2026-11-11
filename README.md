@@ -15,8 +15,8 @@ YAML — in place, byte for byte, comments and anchors preserved.
 
 [![Keelson coverage overlay: OWASP DevSecOps layers projected on a GitLab pipeline — click to watch the demo](docs/demo/coverage.png)](docs/demo/keelson-demo.mp4)
 
-*Click the image for the 1 min 54 demo: pipeline, OWASP coverage, closing a gap from the catalogue,
-toolchain, GitHub Actions, CI gate and fleet apply.*
+*Click the image for the 2-minute demo: pipeline, OWASP coverage, closing a gap from the catalogue,
+toolchain, editing a GitHub Actions workflow, CI gate and fleet apply.*
 
 Runs locally on Node ≥ 20. Nothing leaves your machine. Apache-2.0.
 
