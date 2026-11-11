@@ -29,6 +29,61 @@ const DESCRIPTIONS: Record<Command, string> = {
   apply: "apply a sequence of operations to one or more repositories",
 };
 
+const USAGES: Record<Command, readonly string[]> = {
+  start: [
+    "keelson start [dir] [--port <n>] [--no-open]",
+    "",
+    "  dir            repository to open (default: current directory)",
+    "  --port <n>     port to listen on, 127.0.0.1 only (default: a free port)",
+    "  --no-open      print the URL without opening a browser",
+  ],
+  validate: [
+    "keelson validate [file] [--format text|json]",
+    "",
+    "  file           .gitlab-ci.yml (default) or .github/workflows/<name>.yml",
+    "  --format       text (default) or json; exit 1 on any error",
+  ],
+  coverage: [
+    "keelson coverage [file] [--require <layers>] [--format text|json]",
+    "",
+    "  file           .gitlab-ci.yml (default) or .github/workflows/<name>.yml",
+    "  --require      comma-separated layer ids; exit 1 if one is not covered, 2 if unknown",
+    "  --format       text (default) or json",
+  ],
+  catalog: [
+    "keelson catalog lint [dir]",
+    "",
+    "  lint [dir]     lint tools/*.yaml in dir (default: the embedded catalogue)",
+  ],
+  export: [
+    "keelson export [file] [--format markdown|mermaid|json]",
+    "",
+    "  file           .gitlab-ci.yml (default) or .github/workflows/<name>.yml",
+    "  --format       markdown (default), mermaid or json",
+  ],
+  apply: [
+    "keelson apply <ops.json> [repo...] [--file <path>] [--rebase] [--dry-run] [--json]",
+    "",
+    "  ops.json       one operation or an array, applied in order, all or nothing per repo",
+    "  repo...        repositories to edit (default: current directory)",
+    "  --file <path>  CI file inside each repository (default: .gitlab-ci.yml)",
+    "  --rebase       anchor each operation on the current text of each repository",
+    "  --dry-run      print the diffs, write nothing",
+    "  --json         machine-readable report",
+  ],
+};
+
+function commandHelp(command: Command): string {
+  const [synopsis, ...rest] = USAGES[command];
+  return `${[`Usage: ${synopsis}`, ...rest, ""].join("\n")}\n`;
+}
+
+function asksForHelp(argv: readonly string[]): boolean {
+  const end = argv.indexOf("--");
+  const options = end === -1 ? argv : argv.slice(0, end);
+  return options.some((arg) => arg === "--help" || arg === "-h");
+}
+
 function helpText(): string {
   const lines = [
     `keelson ${packageJson.version}`,
@@ -39,7 +94,7 @@ function helpText(): string {
     ...COMMANDS.map((command) => `  ${command.padEnd(10)}${DESCRIPTIONS[command]}`),
     "",
     "Options:",
-    "  -h, --help       show this help",
+    "  -h, --help       show this help, or a command's usage after its name",
     "  -v, --version    show the version",
     "",
   ];
@@ -59,6 +114,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
 
   if (first === "--help" || first === "-h") {
     return { stdout: helpText(), stderr: "", exitCode: 0 };
+  }
+
+  if (COMMANDS.includes(first as Command) && asksForHelp(argv.slice(1))) {
+    return { stdout: commandHelp(first as Command), stderr: "", exitCode: 0 };
   }
 
   if (first === "validate") {

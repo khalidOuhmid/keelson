@@ -28,6 +28,40 @@ describe("--help", () => {
   });
 });
 
+describe("<commande> --help", () => {
+  const FLAGS: Record<string, string[]> = {
+    start: ["--port", "--no-open"],
+    validate: ["--format"],
+    coverage: ["--require", "--format"],
+    catalog: ["lint"],
+    export: ["--format"],
+    apply: ["--file", "--rebase", "--dry-run", "--json"],
+  };
+
+  for (const command of COMMANDS) {
+    test(`${command} --help rend l'usage de la commande et sort en 0, sans l'exécuter`, async () => {
+      const result = await run([command, "--help"], { cwd: "/nonexistent-keelson-dir" });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain(`Usage: keelson ${command}`);
+      for (const flag of FLAGS[command] ?? []) {
+        expect(result.stdout).toContain(flag);
+      }
+    });
+  }
+
+  test("-h vaut --help, où qu'il soit parmi les options", async () => {
+    const result = await run(["coverage", "x.yml", "-h"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Usage: keelson coverage");
+  });
+
+  test("après --, --help est un argument et non une demande d'aide", async () => {
+    const result = await run(["validate", "--", "--help"], { cwd: "/nonexistent-keelson-dir" });
+    expect(result.stdout).not.toContain("Usage: keelson validate");
+  });
+});
+
 describe("commandes", () => {
   test("COMMANDS déclare les commandes prévues", () => {
     expect(COMMANDS).toEqual(["start", "validate", "coverage", "catalog", "export", "apply"]);
