@@ -14,6 +14,9 @@ npx keelson start
 
 Runs locally on Node ≥ 20. Nothing leaves your machine. Apache-2.0.
 
+**Demo (1 min 54):** [docs/demo/keelson-demo.mp4](docs/demo/keelson-demo.mp4) — pipeline, OWASP
+coverage, closing a gap from the catalogue, toolchain, GitHub Actions, CI gate and fleet apply.
+
 ## Why
 
 Platform teams design security chains in diagram tools that drift from the code, or directly in YAML
