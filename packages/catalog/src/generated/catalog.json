@@ -15,6 +15,9 @@
         "images": [],
         "scripts": [
           "\\b42crunch\\b"
+        ],
+        "actions": [
+          "42Crunch/api-security-audit-action"
         ]
       },
       "snippets": {
@@ -114,6 +117,9 @@
         ],
         "scripts": [
           "\\bcheckov\\b"
+        ],
+        "actions": [
+          "bridgecrewio/checkov-action"
         ]
       },
       "snippets": {
@@ -138,6 +144,9 @@
         "images": [],
         "scripts": [
           "\\bcodeql\\s+(database|github)\\b"
+        ],
+        "actions": [
+          "github/codeql-action"
         ]
       },
       "snippets": {
@@ -215,6 +224,9 @@
         ],
         "scripts": [
           "\\bcosign\\b"
+        ],
+        "actions": [
+          "sigstore/cosign-installer"
         ]
       },
       "snippets": {
@@ -442,6 +454,9 @@
         ],
         "scripts": [
           "\\bggshield\\b"
+        ],
+        "actions": [
+          "GitGuardian/ggshield-action"
         ]
       },
       "snippets": {
@@ -534,6 +549,9 @@
         ],
         "scripts": [
           "\\bgitleaks\\b"
+        ],
+        "actions": [
+          "gitleaks/gitleaks-action"
         ]
       },
       "snippets": {
@@ -614,6 +632,9 @@
         ],
         "scripts": [
           "\\bgrype\\b"
+        ],
+        "actions": [
+          "anchore/scan-action"
         ]
       },
       "snippets": {
@@ -690,6 +711,9 @@
         ],
         "scripts": [
           "\\bkics\\s+scan\\b"
+        ],
+        "actions": [
+          "checkmarx/kics-github-action"
         ]
       },
       "snippets": {
@@ -743,6 +767,9 @@
         "images": [],
         "scripts": [
           "\\bkubescape\\s+scan\\b"
+        ],
+        "actions": [
+          "kubescape/github-action"
         ]
       },
       "snippets": {
@@ -894,6 +921,9 @@
         ],
         "scripts": [
           "\\bnuclei\\s+-"
+        ],
+        "actions": [
+          "projectdiscovery/nuclei-action"
         ]
       },
       "snippets": {
@@ -1023,6 +1053,9 @@
         ],
         "scripts": [
           "\\bosv-scanner\\b"
+        ],
+        "actions": [
+          "google/osv-scanner-action"
         ]
       },
       "snippets": {
@@ -1073,6 +1106,9 @@
         "images": [],
         "scripts": [
           "\\bpromptfoo\\s+(eval|redteam)\\b"
+        ],
+        "actions": [
+          "promptfoo/promptfoo-action"
         ]
       },
       "snippets": {
@@ -1179,6 +1215,9 @@
         ],
         "scripts": [
           "\\bscorecard\\s+--repo\\b"
+        ],
+        "actions": [
+          "ossf/scorecard-action"
         ]
       },
       "snippets": {
@@ -1206,6 +1245,10 @@
         ],
         "scripts": [
           "(^|[\\s/])semgrep\\s"
+        ],
+        "actions": [
+          "semgrep/semgrep-action",
+          "returntocorp/semgrep-action"
         ]
       },
       "snippets": {
@@ -1232,6 +1275,9 @@
         ],
         "scripts": [
           "\\bsentry-cli\\b"
+        ],
+        "actions": [
+          "getsentry/action-release"
         ]
       },
       "snippets": {
@@ -1260,6 +1306,9 @@
         ],
         "scripts": [
           "\\bsnyk\\s+(test|code|container|iac|monitor)\\b"
+        ],
+        "actions": [
+          "snyk/actions"
         ]
       },
       "snippets": {
@@ -1291,6 +1340,9 @@
           "\\bgradlew\\s+sonar\\b",
           "\\bgradle\\s+sonar\\b",
           "\\bsonarscanner\\b"
+        ],
+        "actions": [
+          "SonarSource/sonarqube-scan-action"
         ]
       },
       "snippets": {
@@ -1317,6 +1369,9 @@
         ],
         "scripts": [
           "\\bspectral\\s+lint\\b"
+        ],
+        "actions": [
+          "stoplightio/spectral-action"
         ]
       },
       "snippets": {
@@ -1343,6 +1398,9 @@
         ],
         "scripts": [
           "\\bsyft\\b"
+        ],
+        "actions": [
+          "anchore/sbom-action"
         ]
       },
       "snippets": {
@@ -1395,6 +1453,9 @@
         ],
         "scripts": [
           "\\btflint\\b"
+        ],
+        "actions": [
+          "terraform-linters/setup-tflint"
         ]
       },
       "snippets": {
@@ -1447,6 +1508,9 @@
         ],
         "scripts": [
           "(^|[\\s/])trivy\\s"
+        ],
+        "actions": [
+          "aquasecurity/trivy-action"
         ]
       },
       "snippets": {
@@ -1473,6 +1537,9 @@
         ],
         "scripts": [
           "\\btrufflehog\\b"
+        ],
+        "actions": [
+          "trufflesecurity/trufflehog"
         ]
       },
       "snippets": {
@@ -1499,6 +1566,9 @@
         ],
         "scripts": [
           "\\bvault\\s+(kv|read|login|write)\\b"
+        ],
+        "actions": [
+          "hashicorp/vault-action"
         ]
       },
       "snippets": {
@@ -1578,6 +1648,11 @@
         ],
         "scripts": [
           "\\bzap-(baseline|full-scan|api-scan)\\.py\\b"
+        ],
+        "actions": [
+          "zaproxy/action-baseline",
+          "zaproxy/action-full-scan",
+          "zaproxy/action-api-scan"
         ]
       },
       "snippets": {

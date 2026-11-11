@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['stoplight/spectral']
   scripts: ['\bspectral\s+lint\b']
+  actions: ['stoplightio/spectral-action']
 snippets:
   gitlab: |
     spectral:

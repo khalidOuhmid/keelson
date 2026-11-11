@@ -420,3 +420,48 @@ describe("découpage shell de la détection", () => {
     expect(found(line)).toContain(tool);
   });
 });
+
+describe("détection par les actions GitHub", () => {
+  const scanner = tool("scanner", {
+    detect: { images: [], scripts: [], actions: ["acme/scan-action"] },
+  });
+
+  test("une action nommée par la fiche désigne l'outil, sans tenir compte de la casse", () => {
+    expect(
+      detectTools({ image: null, script: [], actions: ["Acme/Scan-Action"] }, [scanner]),
+    ).toEqual([{ tool: "scanner", layers: ["sast"] }]);
+  });
+
+  test("un sous-chemin de l'action la désigne aussi, un autre dépôt non", () => {
+    expect(
+      detectTools({ image: null, script: [], actions: ["acme/scan-action/init"] }, [scanner]),
+    ).toHaveLength(1);
+    expect(
+      detectTools({ image: null, script: [], actions: ["acme/scan-action-fork"] }, [scanner]),
+    ).toEqual([]);
+  });
+
+  test("une action de service prouve l'intégration", () => {
+    const vault = tool("vault", {
+      kind: "service",
+      integration: "fetch-secret",
+      detect: { images: [], scripts: [], actions: ["hashicorp/vault-action"] },
+    });
+    expect(
+      detectIntegrations({ image: null, script: [], actions: ["hashicorp/vault-action"] }, [vault]),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
+  test.each([
+    ["github/codeql-action/analyze", "codeql"],
+    ["aquasecurity/trivy-action", "trivy"],
+    ["gitleaks/gitleaks-action", "gitleaks"],
+    ["semgrep/semgrep-action", "semgrep"],
+    ["sigstore/cosign-installer", "cosign"],
+    ["hashicorp/vault-action", "vault"],
+  ])("l'action réelle %s est reconnue comme %s", (action, id) => {
+    expect(
+      detectTools({ image: null, script: [], actions: [action] }, tools).map((entry) => entry.tool),
+    ).toContain(id);
+  });
+});

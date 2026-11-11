@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['osv-scanner']
   scripts: ['\bosv-scanner\b']
+  actions: ['google/osv-scanner-action']
 snippets:
   gitlab: |
     osv-scanner:

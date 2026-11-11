@@ -9,6 +9,7 @@ logo: null
 detect:
   images: []
   scripts: ['\bkubescape\s+scan\b']
+  actions: ['kubescape/github-action']
 snippets:
   gitlab: |
     kubescape:

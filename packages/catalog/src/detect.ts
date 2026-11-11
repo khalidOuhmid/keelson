@@ -26,19 +26,29 @@ function onScript(tool: Tool, commands: readonly string[]): boolean {
   return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
+/** `owner/repo` et ses sous-chemins (`github/codeql-action/init`), jamais un autre dépôt qui
+ *  commencerait par le même nom. */
+function onAction(tool: Tool, actions: readonly string[] = []): boolean {
+  const names = (tool.detect.actions ?? []).map((name) => name.toLowerCase());
+  return actions.some((action) => {
+    const called = action.toLowerCase();
+    return names.some((name) => called === name || called.startsWith(`${name}/`));
+  });
+}
+
 const commandsOf = (signals: JobSignals): string[] =>
   signals.script.flatMap((line) => executedCommands(line));
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };
 
-/** Sur le script seul : l'image d'un client ne prouve pas qu'un job parle au service. */
+/** Sur le script et les actions : l'image d'un client ne prouve pas qu'un job parle au service. */
 export function detectIntegrations(
   signals: JobSignals,
   tools: readonly Tool[],
 ): DetectedIntegration[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): DetectedIntegration[] =>
-    tool.integration !== null && onScript(tool, commands)
+    tool.integration !== null && (onScript(tool, commands) || onAction(tool, signals.actions))
       ? [{ tool: tool.id, kind: tool.integration }]
       : [],
   );
@@ -48,7 +58,7 @@ export function detectIntegrations(
 export function detectTools(signals: JobSignals, tools: readonly Tool[]): Detection[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): Detection[] =>
-    onImage(tool, signals.image) || onScript(tool, commands)
+    onImage(tool, signals.image) || onScript(tool, commands) || onAction(tool, signals.actions)
       ? [{ tool: tool.id, layers: tool.layers }]
       : [],
   );

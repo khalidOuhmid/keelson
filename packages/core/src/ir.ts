@@ -55,6 +55,8 @@ export type Stage = {
 export type JobSignals = {
   image: string | null;
   script: string[];
+  /** Les actions GitHub appelées par le job, sans leur version. Absent hors GitHub Actions. */
+  actions?: string[];
 };
 
 export type Job = {

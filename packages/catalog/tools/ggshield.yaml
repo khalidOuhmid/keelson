@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['ggshield']
   scripts: ['\bggshield\b']
+  actions: ['GitGuardian/ggshield-action']
 snippets:
   gitlab: |
     ggshield:

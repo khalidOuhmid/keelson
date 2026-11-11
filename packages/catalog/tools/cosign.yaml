@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['sigstore/cosign']
   scripts: ['\bcosign\b']
+  actions: ['sigstore/cosign-installer']
 snippets:
   gitlab: null
   github: |

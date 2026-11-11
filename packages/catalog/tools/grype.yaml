@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['anchore/grype']
   scripts: ['\bgrype\b']
+  actions: ['anchore/scan-action']
 snippets:
   gitlab: null
   github: |

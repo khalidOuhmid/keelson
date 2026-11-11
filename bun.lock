@@ -18,6 +18,10 @@
     "packages/adapter-github": {
       "name": "@keelson/adapter-github",
       "version": "0.0.0",
+      "dependencies": {
+        "@keelson/core": "workspace:*",
+        "yaml": "^2.9.1",
+      },
     },
     "packages/adapter-gitlab": {
       "name": "@keelson/adapter-gitlab",

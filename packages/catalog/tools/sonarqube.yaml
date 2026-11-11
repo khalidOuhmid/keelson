@@ -9,6 +9,7 @@ logo: sonarqubeserver
 detect:
   images: ['sonarsource/sonar-scanner-cli']
   scripts: ['\bsonar-scanner\b', '\bsonar:sonar\b', '\bgradlew\s+sonar\b', '\bgradle\s+sonar\b', '\bsonarscanner\b']
+  actions: ['SonarSource/sonarqube-scan-action']
 snippets:
   gitlab: |
     sonarqube:

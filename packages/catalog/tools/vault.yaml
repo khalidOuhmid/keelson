@@ -9,6 +9,7 @@ logo: vault
 detect:
   images: ['hashicorp/vault']
   scripts: ['\bvault\s+(kv|read|login|write)\b']
+  actions: ['hashicorp/vault-action']
 snippets:
   gitlab: |
     vault:

@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['projectdiscovery/nuclei']
   scripts: ['\bnuclei\s+-']
+  actions: ['projectdiscovery/nuclei-action']
 snippets:
   gitlab: |
     nuclei:
