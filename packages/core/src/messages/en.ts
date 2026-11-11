@@ -120,6 +120,8 @@ export const EN: Catalogue = {
       `job ${quoted(p.job)} is cited in an expression that Keelson cannot rewrite, so this change would break it`,
     dynamicExpression: (p) =>
       `an expression reads needs or jobs as a whole or by a computed index, so it may reach ${quoted(p.job)}: Keelson refuses rather than break it`,
+    readsOwnId: (p) =>
+      `job ${quoted(p.job)} compares its own id at run time (github.job or GITHUB_JOB) with its name: renaming it would change what it does`,
     notForProvider: (p) => `operation ${p.operation} has no meaning in a GitHub Actions workflow`,
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,

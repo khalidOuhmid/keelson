@@ -285,6 +285,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'an expression reads needs or jobs as a whole or by a computed index, so it may reach "build": Keelson refuses rather than break it',
     },
     {
+      params: { reason: "readsOwnId", job: "build" },
+      text: 'job "build" compares its own id at run time (github.job or GITHUB_JOB) with its name: renaming it would change what it does',
+    },
+    {
       params: { reason: "notForProvider", operation: "addStage" },
       text: "operation addStage has no meaning in a GitHub Actions workflow",
     },

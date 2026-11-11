@@ -238,6 +238,7 @@ an exception: an exception can only signal a Keelson bug.
 | `invalidSnippet` | — | `addSnippet`: the text is not the YAML of a single block-style job, without anchors or aliases. |
 | `citedInExpression` | `job` | GitHub Actions: `needs.<id>` or `jobs.<id>` appears in an expression, which Keelson does not rewrite. |
 | `dynamicExpression` | `job` | GitHub Actions: an expression reads the whole `needs` or `jobs` context, or reads it through a computed index (`toJSON(needs)`, `needs[matrix.dep]`, `jobs[inputs.x]`), and may therefore target `job` without naming it. Only the context root counts: neither `env.NEEDS` nor a `'needs-review'` label. |
+| `readsOwnId` | `job` | GitHub Actions, `renameJob` only: the job reads its own id at run time — `github.job` in an expression or `GITHUB_JOB` in a value — and its old name appears as a word in its own values, as in `test "$GITHUB_JOB" = build` or `if: github.job == 'build'`. A shell script cannot read `needs` or `jobs` except through an expression, which the two reasons above already read: this is the one way a script names a job outside `${{ }}`. Reading the id without naming the job, as in a cache key, blocks nothing. |
 | `notForProvider` | `operation` | GitHub Actions: the operation is meaningless, for lack of stages or need options. |
 | `invalidLayout` | — | **Server**: `layout.json` is not readable. Keelson does not overwrite what it does not understand. |
 | `outsideRoot` | `path` | **Server**: `.devsecops` leads outside the repository. Nothing is written. |

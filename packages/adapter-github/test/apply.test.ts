@@ -443,6 +443,38 @@ jobs:
     });
   });
 
+  test("a shell script reaches a job only through an expression, which is read", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    env:\n      ALL: \${{ toJSON(needs) }}\n    steps:\n      - run: echo "$ALL" | jq -r .a.result\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "dynamicExpression", job: "a" } },
+    });
+    const bare =
+      "jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo needs.a.result\n";
+    expect(run(bare, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
+  });
+
+  test.each([
+    ["GITHUB_JOB in a script", '      - run: test "$GITHUB_JOB" = build && make\n'],
+    ["github.job in an if", "      - if: github.job == 'build'\n        run: make\n"],
+    ["github['job'] in an if", "      - if: github['job'] == 'build'\n        run: make\n"],
+    ["github.job in a run", `      - run: '[ "\${{ github.job }}" = build ]'\n`],
+  ])("a job comparing its own id at run time cannot be renamed: %s", (_label, step) => {
+    const text = `jobs:\n  build:\n    steps:\n${step}`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
+      error: { params: { reason: "readsOwnId", job: "build" } },
+    });
+  });
+
+  test("reading its own id without naming it leaves the job free to rename", () => {
+    const text = `jobs:\n  build:\n    steps:\n      - run: echo "$GITHUB_JOB"\n      - uses: actions/cache@v4\n        with:\n          key: \${{ github.job }}-deps\n`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
+  });
+
+  test("another job reading its own id does not block a rename", () => {
+    const text = `jobs:\n  build:\n    steps:\n      - run: make\n  other:\n    steps:\n      - run: test "$GITHUB_JOB" = build\n`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
+  });
+
   test("a file whose values cannot be read is not rewritten", () => {
     const uses = Array.from({ length: 120 }, (_, index) => `  v${index}: *x\n`).join("");
     const text = `env:\n  a: &x [1]\n${uses}jobs:\n  build:\n    steps:\n      - run: a\n  b:\n    needs: build\n    if: needs.build.result\n    steps:\n      - run: y\n`;
