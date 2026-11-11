@@ -9,6 +9,6 @@
 ## Checklist
 
 - [ ] Conventional commits
-- [ ] Out-of-scope findings logged in `specs/ecarts.md`, debt dated as `DETTE(YYYY-MM-DD)`
+- [ ] Out-of-scope findings logged in `specs/gaps.md`, debt dated as `DEBT(YYYY-MM-DD)`
 - [ ] New error codes documented in `specs/diagnostics.md` with their `params`
 - [ ] UI changes went through the Impeccable steps (`shape`, `critique`, `audit`, `polish`)

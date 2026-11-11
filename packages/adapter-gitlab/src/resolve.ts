@@ -367,8 +367,8 @@ function needFrom(item: unknown): Need | null {
     return null;
   }
 
-  // DETTE(2026-10-20): les needs inter-projets (clés project / pipeline) sont ignorés de l'IR
-  // — ils doivent devenir un bloc opaque porté par le job ; voir specs/ecarts.md (2026-10-20).
+  // DEBT(2026-10-20): les needs inter-projets (clés project / pipeline) sont ignorés de l'IR
+  // — ils doivent devenir un bloc opaque porté par le job ; voir specs/gaps.md (2026-10-20).
   if (localPair(item, "project") !== undefined || localPair(item, "pipeline") !== undefined) {
     return null;
   }

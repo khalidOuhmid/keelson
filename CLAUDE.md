@@ -16,8 +16,8 @@ Plan détaillé et découpage en lots : [specs/01-plan.md](specs/01-plan.md). Vi
 
 - **Mode final, pas de POC. TDD strict.** Pour chaque comportement : écrire le test, constater qu'il
   échoue, puis implémenter. Aucun code non testé.
-- **Toute dette est datée dans le code** : `// DETTE(AAAA-MM-JJ): <quoi> — <pourquoi>`.
-- **Tout ce qui est hors périmètre du lot en cours va dans [specs/ecarts.md](specs/ecarts.md)**
+- **Toute dette est datée dans le code** : `// DEBT(AAAA-MM-JJ): <quoi> — <pourquoi>`.
+- **Tout ce qui est hors périmètre du lot en cours va dans [specs/gaps.md](specs/gaps.md)**
   (date, constat, impact, proposition). Jamais dans le lot courant.
 - **Frontière de test du rendu.** Tout état ou toute donnée calculée pour l'UI — le store, une
   couche pure comme `graph.ts` ou `layout.ts` — doit avoir au moins un test qui vérifie son **effet

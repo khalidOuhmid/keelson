@@ -6,7 +6,7 @@ labels: enhancement
 
 **What you are trying to do** (the architecture or review question, not the solution):
 
-**What Keelson does today** (check [specs/ecarts.md](https://github.com/khalidOuhmid/keelson/blob/main/specs/ecarts.md): it may already be a known gap):
+**What Keelson does today** (check [specs/gaps.md](https://github.com/khalidOuhmid/keelson/blob/main/specs/gaps.md): it may already be a known gap):
 
 **What you would like it to do**:
 

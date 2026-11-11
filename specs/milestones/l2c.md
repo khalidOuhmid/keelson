@@ -1,7 +1,7 @@
 # Lot L2c — messages : `code` + `params`, anglais unique, `details` fusionné
 
 Document de cadrage écrit **avant** toute ligne de code, depuis l'inventaire du dépôt à
-`b8106c2`. Il exécute l'[ADR 0002](../adr/0002-langue-et-messages.md), complété par l'écart du
+`b8106c2`. Il exécute l'[ADR 0002](../adr/0002-language-and-messages.md), complété par l'écart du
 2026-10-22 sur `@keelson/server`.
 
 ## Objet
@@ -224,6 +224,6 @@ Chaque correctif et chaque invariant est **vérifié rouge en réintroduisant le
   `bun run e2e`, puis le binaire buildé exécuté sous `node`.
 - Aucun message français dans `packages/*/src` hors commentaires, vérifié par `grep`.
 - `specs/diagnostics.md` documente les `params` de chaque code, transport du serveur compris.
-- `specs/ecarts.md` à jour : écarts traités clos avec leur preuve, nouveaux écarts ajoutés.
+- `specs/gaps.md` à jour : écarts traités clos avec leur preuve, nouveaux écarts ajoutés.
 - L'ADR 0002 porte sa ligne de portée complétée, et l'écart du 2026-10-22 qui la motivait est clos.
 - Journal dans `specs/progress.md`, merge `--no-ff` dans `main`, `bun run check` vert sur `main`.

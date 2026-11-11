@@ -57,7 +57,7 @@ packages/core/src/ir.ts                         commentaire de UnresolvedInclude
 packages/ui/src/views/pipeline/{origin.ts,OriginBadge.tsx}
 packages/ui/src/panels/JobDetailPanel.tsx
 packages/ui/test/includes.test.tsx
-specs/{diagnostics.md,ecarts.md,progress.md,adr/0007-*.md}
+specs/{diagnostics.md,gaps.md,progress.md,adr/0007-*.md}
 ```
 
 ## Définition de terminé

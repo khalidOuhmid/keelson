@@ -1,7 +1,7 @@
 # Suivi des lots
 
 Statut : TOUS LES LOTS DU PLAN LIVRÉS (2026-11-11), en revue dans la PR #1
-Lot courant : aucun — suite dans `specs/ecarts.md`
+Lot courant : aucun — suite dans `specs/gaps.md`
 Prochaine action : fusion de la PR #1 dans `main`, secret `NPM_TOKEN`, puis tag `v0.1.0`.
 Blocage : aucun
 
@@ -25,7 +25,7 @@ Blocage : aucun
 
 ### 2026-10-21 — L2 — création du suivi, puis étapes 4 et 5
 
-`specs/progress.md` et `specs/lots/l2.md` n'existaient pas : le premier est reconstruit depuis le
+`specs/progress.md` et `specs/milestones/l2.md` n'existaient pas : le premier est reconstruit depuis le
 dépôt, le second écrit depuis le code livré, le lot ayant été piloté par prompts successifs sans son
 document de cadrage. Commit `4a4ed95`.
 
@@ -54,7 +54,7 @@ Commandes : `bun install --frozen-lockfile` → 133 installs / 203 packages, no 
 complet. `detect.mjs --json packages/ui/src` → 0 entrée à chaque étape.
 
 **Dettes datées** : aucune ajoutée. **Écarts** : aucun nouveau, les cinq entrées de
-`specs/ecarts.md` sont inchangées. **ADR** : aucun créé — toutes les décisions de ces deux étapes
+`specs/gaps.md` sont inchangées. **ADR** : aucun créé — toutes les décisions de ces deux étapes
 étaient des choix locaux de composant, sans conséquence d'architecture à consigner.
 
 Deux décisions d'accessibilité prises aux étapes précédentes et qui restent en vigueur :
@@ -98,7 +98,7 @@ et le panneau de diagnostics occupait un quart fixe de la hauteur pour afficher 
 Commandes : `bun run check` → lint 218 fichiers 0 erreur, typecheck 0 erreur, **894 pass / 0 fail**.
 `bun run e2e` → **24 passed**. `detect.mjs` → 0 entrée.
 
-**ADR** : `specs/adr/0001-ce-qui-interdit-l-edition.md`. **Dettes datées** : aucune ajoutée.
+**ADR** : `specs/adr/0001-what-forbids-editing.md`. **Dettes datées** : aucune ajoutée.
 **Écarts** : trois ajoutés le 2026-10-22 (recadrage du graphe, barre latérale sans regroupement,
 passes `critique` et `audit` non exécutées).
 
@@ -152,7 +152,7 @@ luminance relative : `border-default` sur `surface-1` à **1,63:1** et `text-mut
 **4,03:1**, au centième près des chiffres annoncés. Les deux manquent à l'engagement WCAG 2.1 AA de
 `PRODUCT.md`.
 
-**ADR créé : `0003-ce-qu-une-revue-rouvre-dans-un-lot.md`.** La règle « hors périmètre → écart »,
+**ADR créé : `0003-what-a-review-reopens-in-a-milestone.md`.** La règle « hors périmètre → écart »,
 prise à la lettre, aurait permis de fusionner L2 en sachant sa vue principale fausse. L'ADR tranche
 par nature de défaut et non par date de découverte : rouvre le lot ce qui fait qu'une étape livrée
 ne tient pas ce qu'elle annonçait ; part en écart toute surface d'interaction nouvelle, qui exige
@@ -271,7 +271,7 @@ sous `node`. Merge `--no-ff` dans `main` (`894464c`), `bun run check` vert sur `
 Vérification de reprise : arbre propre, `main` à `b8106c2` (après `894464c`), `bun run check` vert
 (**1011 pass / 0 fail**). Aucune divergence entre `progress.md` et le dépôt.
 
-**Étape 0 — inventaire avant toute ligne de code** (`cecfa4c`). `specs/lots/l2c.md` recense les 9
+**Étape 0 — inventaire avant toute ligne de code** (`cecfa4c`). `specs/milestones/l2c.md` recense les 9
 diagnostics, les 13 erreurs d'opération, les **6 codes de transport du serveur** — non documentés,
 non déclarés comme constantes, écrits en littéral à chaque site — et les 44 appels à `fail()` de
 `apply.ts`, avec fichier et ligne. Deux complétions du périmètre y sont consignées, pas des
@@ -386,7 +386,7 @@ commentaire** dans `packages/*/src`.
 Vérification de reprise : arbre propre, `main` à `c1c15e4`, `bun run check` vert
 (**1044 pass / 0 fail**). Aucune divergence entre `progress.md` et le dépôt.
 
-**Étape 0 — cadrage avant toute ligne de code** (`a5dc9e5`). `specs/lots/l2b.md` recense la
+**Étape 0 — cadrage avant toute ligne de code** (`a5dc9e5`). `specs/milestones/l2b.md` recense la
 sémantique d'`include` de GitLab **vérifiée sur la documentation officielle**, citation par
 citation : chemin depuis la racine du dépôt, extensions `.yml`/`.yaml`, jokers `*` et `**`, ordre de
 fusion, précédence du dernier inclus, non-dédoublonnage, limite de 150 fichiers. Neuf décisions de
@@ -585,7 +585,7 @@ preuves concernées ont été refaites depuis une base verte.
 
 **ADR** : 0007. **Dettes datées** : aucune. **Écarts** : 12 nouveaux, dont deux écritures fausses à
 reprendre en tête de L3, et la ligne du 2026-10-20 sur les needs inter-projets corrigée, elle
-affirmait que l'édition ne réécrit jamais la liste entière. `specs/pilote.md` complété.
+affirmait que l'édition ne réécrit jamais la liste entière. `specs/autopilot.md` complété.
 
 **Ce qui reste volontairement non traité** : les formes rares de `setJobStage`, `keelson validate`
 sans le lecteur, et `writeAtomic` à travers un lien interne, tous consignés.
@@ -603,7 +603,7 @@ cassé rend `INCLUDE_NOT_FOUND` et `EXTENDS_TARGET_NOT_FOUND` en `error`, sur le
 `.devsecops/layout.json`) ; `Job.signals` ; `/api/catalog`, `coverage` dans les charges,
 `coverage.changed` ; vues Coverage et Catalog, posture de lecture, fiche outil ; `keelson coverage`
 et `keelson catalog lint`. ADR 0008. Onze écarts clos au lot, chacun avec sa preuve dans
-`specs/ecarts.md`.
+`specs/gaps.md`.
 
 **Revue indépendante.** Huit constats rouvrants, tous corrigés (`ecf83e4`). `critique` et `audit` :
 un P0 (emphase invisible) et six P1, corrigés (`d22b63a`). Dix-sept preuves rouges ; seize tenues.
@@ -632,7 +632,7 @@ Sections de `CoveragePanel` passées en groupes, licence seule en monospace. Les
 Traités aussi, parce que la valeur effective est une promesse de D1 : `inherit` et `image` fusionnés
 à travers `extends`, job `trigger` sans signaux. Traités parce que faux : le message `partial` de la
 CLI, le `file` de `COVERAGE_LAYER_MISSING`, la colonne Tool à 48 px à 375 px. Six mutations
-rouges, `git diff` vide après chacune. Bornes de la détection shell et mineurs : `specs/ecarts.md`.
+rouges, `git diff` vide après chacune. Bornes de la détection shell et mineurs : `specs/gaps.md`.
 
 **Deuxième et troisième contre-revues, chacune sur le correctif de la précédente.** Le bilan dit
 pourquoi la règle existe : `inherit` fusionné à tort à travers `<<` ; garde de `coverage.changed`
@@ -788,7 +788,7 @@ lue après le `git commit`. Corrigée au commit suivant.
 
 ### 2026-11-11 — L8 — `keelson apply`
 
-Cadrage dans `specs/lots/l8.md`, écrit depuis `main` à `f044143`. L6 reste le lot courant, L7 à
+Cadrage dans `specs/milestones/l8.md`, écrit depuis `main` à `f044143`. L6 reste le lot courant, L7 à
 faire : L8 a été mené en parallèle, sur une branche à part, parce qu'il ne touche que la CLI.
 
 **Livré.** `keelson apply <ops.json> [<dépôt>...] [--file] [--rebase] [--dry-run] [--json]`. Le
@@ -848,7 +848,7 @@ contradictoire. Appliqué :
   recalcule les dépendances embarquées et exige chacune avec sa licence ;
 - `packages/ui/.impeccable/review/` hors suivi (l'écart du 2026-10-22 est clos), `.gitkeep`
   obsolète retiré, `baseURL` mort de Playwright retiré, CI du binaire sur Node 20, 22 et 24 ;
-- modèles d'issue et de PR, `specs/README.md`, `pilote.md` marqué archivé ;
+- modèles d'issue et de PR, `specs/README.md`, `autopilot.md` marqué archivé ;
 - README : démarrage depuis les sources vérifié, badges, schéma, usage exact des commandes, feuille
   de route ; écarts périmés clos ou renvoyés à un lot à définir ; `findJob`, export mort, retiré.
 

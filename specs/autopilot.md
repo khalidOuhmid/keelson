@@ -8,13 +8,13 @@ Ce fichier est la consigne complète de l'agent jusqu'à la fin du projet. Il se
 
 ## Démarrage de session
 1. Lis `specs/progress.md` et reprends à sa « Prochaine action ». Vérifie que l'état décrit correspond au dépôt (branche, derniers commits, `bun run check` vert) ; en cas de divergence, le dépôt fait foi et la divergence va au journal.
-2. Lis `CLAUDE.md`, `PRODUCT.md`, `DESIGN.md`, `specs/01-plan.md`, `specs/diagnostics.md`, `specs/ecarts.md` et tous les fichiers de `specs/adr/`. Toutes leurs règles s'appliquent, sans exception : TDD strict, dette datée, écarts consignés, aucune valeur en dur hors `tokens.css`, frontière de test du rendu, `code` + `params` uniquement (ADR 0002), ADR 0003 et 0004, revue indépendante en lecture seule, aucune API Bun dans les packages runtime, déterminisme.
+2. Lis `CLAUDE.md`, `PRODUCT.md`, `DESIGN.md`, `specs/01-plan.md`, `specs/diagnostics.md`, `specs/gaps.md` et tous les fichiers de `specs/adr/`. Toutes leurs règles s'appliquent, sans exception : TDD strict, dette datée, écarts consignés, aucune valeur en dur hors `tokens.css`, frontière de test du rendu, `code` + `params` uniquement (ADR 0002), ADR 0003 et 0004, revue indépendante en lecture seule, aucune API Bun dans les packages runtime, déterminisme.
 3. Ne lance jamais `claude` depuis le shell. Ne demande aucune validation.
 
 ## Boucle par lot
-1. **Cadrage** : branche `lot/<id>-<nom>` depuis `main` ; `specs/lots/<id>.md` écrit à partir du code réel (arborescence cible, API ou routes, arborescence des tests, définition de terminé) ; commit `docs:`.
+1. **Cadrage** : branche `lot/<id>-<nom>` depuis `main` ; `specs/milestones/<id>.md` écrit à partir du code réel (arborescence cible, API ou routes, arborescence des tests, définition de terminé) ; commit `docs:`.
 2. **Implémentation** en TDD, un commit par étape verte. Tout test d'invariant est prouvé rouge en réintroduisant temporairement le défaut, puis le fichier est restauré et `git diff` vérifié vide sur ce fichier. Jamais `git stash` ni `git checkout-index` pour ce contrôle. Avant de régénérer un golden, relis le diff du golden : une régénération ne bénit jamais une régression.
-3. **Revue indépendante**, par un sous-agent qui n'a pas vu l'implémentation, strictement en lecture seule (un `git worktree` temporaire pour expérimenter). Les commits qui corrigent ses constats reçoivent une contre-revue, par un autre sous-agent, avant la fusion. Elle relit le diff contre `specs/lots/<id>.md`, cherche en priorité les tests incapables d'échouer et les commentaires qui promettent plus que le test ne vérifie. Corrections selon l'ADR 0003.
+3. **Revue indépendante**, par un sous-agent qui n'a pas vu l'implémentation, strictement en lecture seule (un `git worktree` temporaire pour expérimenter). Les commits qui corrigent ses constats reçoivent une contre-revue, par un autre sous-agent, avant la fusion. Elle relit le diff contre `specs/milestones/<id>.md`, cherche en priorité les tests incapables d'échouer et les commentaires qui promettent plus que le test ne vérifie. Corrections selon l'ADR 0003.
 4. **Vérification** : `bun install --frozen-lockfile && bun run check && bun run e2e` depuis un arbre sans aucun `dist/`, smoke test Node du binaire buildé, définition de terminé cochée point par point.
 5. **Intégration** : `git checkout main && git merge --no-ff lot/<id>-<nom>`, `bun run check` sur `main`.
 6. **Suivi** : `progress.md` mis à jour (lot terminé, prochaine action, journal), commit sur `main`, puis lot suivant sans attendre.
@@ -36,7 +36,7 @@ Ne t'arrête jamais de toi-même : la compaction automatique du contexte gère l
 - Détection des couches par job via `detect` (sur `image` et `script`), surchargeable dans `.devsecops/layout.json`.
 - UI : overlay colorant les jobs par couche, panneau « couches non couvertes », vue Catalogue (filtres couche, licence, adaptateur), fiche outil.
 - CLI : `keelson coverage [--require <couches>] [--format json]` (code 1 si une couche requise manque) ; `keelson catalog lint` (schéma, logos, `lastVerified` > 6 mois).
-- Les écarts déjà rattachés à L3 dans `specs/ecarts.md` sont traités et clos avec preuve.
+- Les écarts déjà rattachés à L3 dans `specs/gaps.md` sont traités et clos avec preuve.
 
 ### L4 — toolchain
 `.devsecops/toolchain.yaml` : services en instances nommées (nom, outil du catalogue, URL, environnement) et intégrations job → service (`push`, `upload-report`, `fetch-secret`, `notify`). Inférence des intégrations depuis les scripts via le catalogue, confirmées ou corrigées dans le fichier. Aller-retour du fichier par opérations avec les quatre propriétés fast-check. Vue Toolchain avec positions libres persistées dans `.devsecops/layout.json`. `keelson validate` couvre la toolchain.

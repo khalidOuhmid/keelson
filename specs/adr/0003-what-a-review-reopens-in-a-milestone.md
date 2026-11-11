@@ -18,7 +18,7 @@ Les deux étaient verts au test. `layout.test.ts` et `graph.test.ts` vérifient 
 **calculée**, jamais qu'elle est **vraie** ; aucun test ne monte `JobEditor` deux fois avec deux jobs
 différents.
 
-La règle de pilotage dit : « ce qui est hors périmètre du lot en cours va dans `specs/ecarts.md`,
+La règle de pilotage dit : « ce qui est hors périmètre du lot en cours va dans `specs/gaps.md`,
 jamais dans le lot ». Appliquée à la lettre, elle enverrait ces deux défauts en écart et permettrait
 de fusionner L2 en sachant que sa vue principale affiche un job dans la mauvaise colonne.
 
@@ -52,10 +52,10 @@ La ligne de partage, en une phrase : **une revue peut rouvrir une promesse, jama
 ## Conséquences
 
 - La règle « hors périmètre → écart » se lit désormais : hors périmètre signifie *non promis par le
-  lot*, pas *découvert tard*. `specs/ecarts.md` reste le registre de ce qui est reporté, jamais celui
+  lot*, pas *découvert tard*. `specs/gaps.md` reste le registre de ce qui est reporté, jamais celui
   de ce qui est abandonné.
 - L2 ne peut pas fusionner tant que les défauts de la première catégorie ne sont pas corrigés, test
-  d'abord. Sa définition de terminé dans `specs/lots/l2.md` est donc étendue d'un point : *aucun
+  d'abord. Sa définition de terminé dans `specs/milestones/l2.md` est donc étendue d'un point : *aucun
   défaut ouvert de catégorie « promesse non tenue »*.
 - Un test d'invariant de mise en page est ajouté : le centre de tout nœud de job tombe dans la boîte
   de la colonne de **son** stage, vérifié sur l'ensemble des fixtures. Le défaut P0 de colonne est né

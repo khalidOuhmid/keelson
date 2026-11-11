@@ -5,7 +5,7 @@ Les codes de ce document sont des **contrats publics**. Chacun est exporté comm
 `keelson validate --format json`. Renommer ou supprimer un code est une rupture de compatibilité.
 
 **La forme des `params` est un contrat au même titre que le code** ([ADR
-0002](adr/0002-langue-et-messages.md)) : en changer la forme est une rupture de compatibilité.
+0002](adr/0002-language-and-messages.md)) : en changer la forme est une rupture de compatibilité.
 `core`, les adaptateurs et `@keelson/server` ne produisent **jamais de texte** ; ils rendent
 `code` + `params`. Le seul endroit du produit qui transforme un `(code, params)` en phrase est
 `render()` dans `@keelson/core/messages`, utilisé par la CLI **et** par l'UI.
@@ -44,7 +44,7 @@ compilation.
 | `INCLUDE_NOT_FOUND` | error | `parse` | union sur `reason` : `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | Un `include: local` ne mène à rien d'utilisable. `missing` : le fichier n'existe pas. `notYaml` : GitLab exige l'extension `.yml` ou `.yaml`. `outsideRoot` : le chemin sort de la racine du dépôt — refusé **avant** toute lecture, parce que le serveur lit le disque pour le compte d'une page web. `malformed` : l'entrée n'a aucune forme reconnaissable. |
 | `INCLUDE_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`include` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
 | `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | Plus de `limit` fichiers inclus. Le pipeline est alors partiel : la première entrée coupée est dans `Pipeline.unresolved`. La limite documentée par GitLab est de **150** fichiers inclus par pipeline, nids compris — c'est un compte, pas une profondeur de nid, et Keelson n'en invente pas d'autre. |
-| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | `{ template }` | Un `extends` pointe vers une clé absente de **tous** les fichiers résolus. Dégradé en **warning** seulement si un `include` qu'on n'a pas pu lire peut expliquer l'absence : une forme distante, ou un `local` quand l'appelant n'a fourni aucun lecteur. Un `include` local **cassé** ne dégrade rien : sa cause est déjà un `INCLUDE_NOT_FOUND` en erreur ([ADR 0007](adr/0007-ce-qui-degrade-une-cible-extends-absente.md)). Signalé une seule fois par cible. |
+| `EXTENDS_TARGET_NOT_FOUND` | error, ou warning | `parse` | `{ template }` | Un `extends` pointe vers une clé absente de **tous** les fichiers résolus. Dégradé en **warning** seulement si un `include` qu'on n'a pas pu lire peut expliquer l'absence : une forme distante, ou un `local` quand l'appelant n'a fourni aucun lecteur. Un `include` local **cassé** ne dégrade rien : sa cause est déjà un `INCLUDE_NOT_FOUND` en erreur ([ADR 0007](adr/0007-what-degrades-a-missing-extends-target.md)). Signalé une seule fois par cible. |
 | `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | Une chaîne d'`extends` boucle. `trail` est le chemin du cycle, premier élément répété en dernier. La résolution s'arrête à la boucle, le parsing aboutit. |
 | `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | Un job n'a ni `script`, ni `run`, ni `trigger`. Évalué **après** résolution des `extends` et des anchors. |
 | `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | Un `needs` pointe vers un job qui n'existe pas. Un template (clé commençant par `.`) n'est pas un job valide pour un `needs`. |
@@ -60,7 +60,7 @@ compilation.
 | `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | La fiche nomme un logo absent du catalogue embarqué. |
 | `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | Un outil de type `job` n'a aucun snippet. |
 | `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | La fiche n'a pas été vérifiée depuis plus de six mois. |
-| `WORKFLOW_UNRESOLVED` | info | `parse` GitHub | `{ job, target }` | Un job `uses:` appelle un workflow réutilisable, que Keelson ne lit pas. Compté dans `Pipeline.unresolved`, donc le pipeline est partiel ([ADR 0013](adr/0013-github-sans-stages.md)). |
+| `WORKFLOW_UNRESOLVED` | info | `parse` GitHub | `{ job, target }` | Un job `uses:` appelle un workflow réutilisable, que Keelson ne lit pas. Compté dans `Pipeline.unresolved`, donc le pipeline est partiel ([ADR 0013](adr/0013-github-without-stages.md)). |
 | `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` n'est pas du YAML valide ou ne suit pas son schéma. La toolchain est alors vide, et aucune opération ne l'édite. |
 | `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | Un service nomme un outil absent du catalogue. |
 | `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | Une intégration nomme un service non déclaré. |

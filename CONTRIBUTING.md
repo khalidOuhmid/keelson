@@ -25,8 +25,8 @@ bun run dev          # local server on a dev fixture + Vite UI on http://localho
 - **Error codes are a public contract**: every code is documented in
   [specs/diagnostics.md](specs/diagnostics.md) with its `params`, and rendered in English by
   `@keelson/core/messages`. Nothing on the wire carries prose.
-- **Dated debt**: `// DETTE(YYYY-MM-DD): what — why`. Out-of-scope findings go to
-  [specs/ecarts.md](specs/ecarts.md).
+- **Dated debt**: `// DEBT(YYYY-MM-DD): what — why`. Out-of-scope findings go to
+  [specs/gaps.md](specs/gaps.md).
 - **Never add CI files from an employer or a client to the test corpus.**
 - Conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `build:`, `ci:`, `chore:`).
 

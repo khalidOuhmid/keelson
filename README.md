@@ -159,7 +159,7 @@ packages/cli             the `keelson` binary (bundled for Node)
 Design notes are in French: architecture decisions in [specs/adr/](specs/adr/), public error codes
 in [specs/diagnostics.md](specs/diagnostics.md), the plan in [specs/01-plan.md](specs/01-plan.md),
 the delivery log in [specs/progress.md](specs/progress.md), known gaps in
-[specs/ecarts.md](specs/ecarts.md) — index in [specs/README.md](specs/README.md). Product principles
+[specs/gaps.md](specs/gaps.md) — index in [specs/README.md](specs/README.md). Product principles
 and the design system are in [PRODUCT.md](PRODUCT.md) and [DESIGN.md](DESIGN.md); `CLAUDE.md`,
 `.claude/` and `.impeccable/` hold the AI-assisted workflow configuration used to build the project.
 
@@ -187,7 +187,7 @@ All planned lots (L0–L8) are delivered; see [specs/progress.md](specs/progress
 - local reusable workflows and composite actions on GitHub; cached resolution of remote GitLab
   `include:` (`project:`, `remote:`, `template:`), which are reported but not resolved today.
 
-Every known gap is logged with its impact and a proposed fix in [specs/ecarts.md](specs/ecarts.md).
+Every known gap is logged with its impact and a proposed fix in [specs/gaps.md](specs/gaps.md).
 
 ## Contributing
 

@@ -166,8 +166,8 @@ function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target
   }
 
   if (map.flow === true) {
-    // DETTE(2026-10-20): les jobs écrits en flow style ({ … }) ne sont pas éditables
-    // — le patch en place supposerait un rendu par ligne. Voir specs/ecarts.md (2026-10-20), lot à définir.
+    // DEBT(2026-10-20): les jobs écrits en flow style ({ … }) ne sont pas éditables
+    // — le patch en place supposerait un rendu par ligne. Voir specs/gaps.md (2026-10-20), lot à définir.
     return fail(INVALID_OPERATION, { reason: "flowStyleJob", job: id });
   }
 
@@ -659,8 +659,8 @@ function planSetEnvironment(
         : ok([{ ...range, text: "" }]);
     }
     if (inherited !== null) {
-      // DETTE(2026-10-20): pas de mécanisme pour annuler un environnement hérité
-      // — GitLab n'a pas de clé d'annulation. Voir specs/ecarts.md (2026-10-20, 2026-11-04), lot à définir.
+      // DEBT(2026-10-20): pas de mécanisme pour annuler un environnement hérité
+      // — GitLab n'a pas de clé d'annulation. Voir specs/gaps.md (2026-10-20, 2026-11-04), lot à définir.
       return fail(INVALID_OPERATION, {
         reason: "inheritedEnvironment",
         job: operation.id,

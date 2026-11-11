@@ -1,6 +1,6 @@
 /** Ce qui se lance dans une ligne de script, sans exécuter de shell : assez pour ne pas prendre un
  *  argument pour une commande, pas un parseur. Les formes qu'il ne comprend pas restent entières, et
- *  la détection reste une borne (`specs/ecarts.md`). */
+ *  la détection reste une borne (`specs/gaps.md`). */
 
 type Split = { commands: string[]; nested: string[] };
 

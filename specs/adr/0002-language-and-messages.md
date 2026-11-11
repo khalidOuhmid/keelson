@@ -8,7 +8,7 @@ Les messages de diagnostic de `core` et ceux de la CLI sont en français, alors 
 anglais depuis le lot L2. Le panneau de diagnostics affiche donc du français dans une interface
 anglaise, et `PRODUCT.md` laissait ce point explicitement à trancher.
 
-Deux écarts le consignaient déjà (`specs/ecarts.md`, 2026-10-21). Le lot L3 va produire des
+Deux écarts le consignaient déjà (`specs/gaps.md`, 2026-10-21). Le lot L3 va produire des
 **centaines** de messages supplémentaires — couverture OWASP, validation du catalogue, `catalog
 lint` — et le lot L7 prévoyait de traiter la langue au moment du packaging. Trancher après L3
 obligerait à repasser sur tout ce que L3 aura produit.

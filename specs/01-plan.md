@@ -110,7 +110,7 @@ l'appliquer de l'autre, la journaliser, la rejouer, l'annuler. C'est la base du 
 (flotte)** : produire des opérations pour N dépôts depuis un seul endroit, puis les appliquer en
 masse via `keelson apply ops.json`. `--rebase` réancre chaque `baseHash` sur le texte de chaque
 dépôt, ce qui rend un même fichier applicable à des dépôts dont les textes diffèrent ; l'écriture
-est en tout ou rien par dépôt ([lots/l8.md](lots/l8.md)). Les codes d'erreur étant des contrats publics documentés dans
+est en tout ou rien par dépôt ([milestones/l8.md](milestones/l8.md)). Les codes d'erreur étant des contrats publics documentés dans
 [diagnostics.md](diagnostics.md), un client distant peut interpréter un refus sans lire le code.
 
 ## 7 ter. Serveur local et modèle de sécurité
@@ -139,7 +139,7 @@ Les `diagnostics` de ces réponses combinent ceux de `parse` **et** ceux de `val
 `{ code, params }`, plus `hash` sur le 409, avec les codes et la forme de leurs `params` documentés
 dans [diagnostics.md](diagnostics.md). **Aucune clé `message` n'est sur le fil** : le serveur ne
 produit pas de texte, le client rend la phrase par `render()` de `@keelson/core/messages`
-([ADR 0002](adr/0002-langue-et-messages.md)).
+([ADR 0002](adr/0002-language-and-messages.md)).
 
 ### Garanties d'écriture
 

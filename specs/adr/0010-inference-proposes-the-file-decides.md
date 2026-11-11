@@ -16,5 +16,5 @@ existe parce qu'un faux positif reviendrait à chaque analyse.
 
 ## Conséquences
 
-La détection garde ses bornes (`specs/ecarts.md`) sans jamais fausser le fichier. Un outil à plusieurs
+La détection garde ses bornes (`specs/gaps.md`) sans jamais fausser le fichier. Un outil à plusieurs
 usages ne propose qu'un type ; l'utilisateur écrit les autres à la main.
