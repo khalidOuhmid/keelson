@@ -212,6 +212,22 @@ function renderNeedItem(need: Need, prefix: string, eol: string): string {
   return lines.map((line) => `${line}${eol}`).join("");
 }
 
+function renderFlowNeed(need: Need): string {
+  if (!need.optional && need.artifacts) {
+    return need.job;
+  }
+  const options = [
+    ...(need.optional ? ["optional: true"] : []),
+    ...(need.artifacts ? [] : ["artifacts: false"]),
+  ];
+  return `{ job: ${need.job}, ${options.join(", ")} }`;
+}
+
+/** An anchored node is shared: every alias of it would change with it. */
+function anchored(node: AnyNode): boolean {
+  return (node as { anchor?: string } | null | undefined)?.anchor !== undefined;
+}
+
 function renderNeedsBlock(needs: readonly Need[], geometry: Geometry, pad: string): string {
   const { eol, indent } = geometry;
   const itemPrefix = `${pad}${indent}- `;
@@ -524,9 +540,10 @@ function planAddNeed(
   }
 
   const seq = local.value as AnyNode;
-  // A shared list is not extended in place: the replacement would lose its items, and an item
-  // added to a `!reference` would be a wrong path. Keelson does not rewrite what it shares.
-  if (isAlias(seq) || (seq as { tag?: string }).tag === REFERENCE_TAG) {
+  // A shared list is not extended in place: the replacement would lose its items, an item added
+  // to a `!reference` would be a wrong path, and one added to an anchored list would reach every
+  // alias of it. Keelson does not rewrite what it shares.
+  if (isAlias(seq) || anchored(seq) || (seq as { tag?: string }).tag === REFERENCE_TAG) {
     return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
   }
 
@@ -538,12 +555,12 @@ function planAddNeed(
       const range = valueContent(seq);
       return range === null
         ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
-        : ok([{ ...range, text: `[${added.job}]` }]);
+        : ok([{ ...range, text: `[${renderFlowNeed(added)}]` }]);
     }
     const end = nodeRange(last)?.[1];
     return end === undefined
       ? fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" })
-      : ok([{ start: end, end, text: `, ${added.job}` }]);
+      : ok([{ start: end, end, text: `, ${renderFlowNeed(added)}` }]);
   }
 
   if (last === undefined) {
@@ -603,6 +620,10 @@ function planRemoveNeed(
     return unmodelledRefusal(operation.id);
   }
 
+  if (local !== undefined && anchored(local.value as AnyNode)) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
+  }
+
   if (local === undefined) {
     const at = overrideInsertAt(geometry, located.value);
     return ok([
@@ -618,6 +639,9 @@ function planRemoveNeed(
   }
 
   if (remaining.length === 0) {
+    if (seqItems(local.value as AnyNode).some(anchored)) {
+      return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
+    }
     const range = pairLineRange(geometry.text, local);
     return range === null
       ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
@@ -638,6 +662,9 @@ function planRemoveNeed(
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
   if (victimRange === undefined) {
     return fail(NEED_NOT_FOUND, { reason: "notLocal", job: operation.id, need: operation.job });
+  }
+  if (anchored(victim)) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
   }
 
   if (isSeq(seq) && seq.flow === true) {
