@@ -938,6 +938,7 @@ describe("include limit and partial pipeline", () => {
 describe("variables in a local include", () => {
   /** “You can use certain CI/CD variables” in `include:local`
    *  <https://docs.gitlab.com/ci/yaml/#includelocal>: the path is only known at run time. */
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: a GitLab variable, written as in the file
   test.each([["ci/$ENV.yml"], ["ci/${ENV}.yml"], ["$CI_PROJECT_DIR/ci/jobs.yml"]])(
     "%s is unresolved, not missing",
     (path) => {
