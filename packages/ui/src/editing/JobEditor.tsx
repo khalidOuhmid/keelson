@@ -27,9 +27,9 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
 
   const [name, setName] = useState(job.id);
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");
-  // `candidates` se recalcule a chaque rendu, mais le composant n'est recle que sur `job.id` :
-  // apres un ajout, la cible choisie quitte la liste et le navigateur affiche l'option 0 pendant
-  // que l'etat garde l'ancienne. On soumet donc ce que le selecteur montre, jamais autre chose.
+  // `candidates` se recalcule à chaque rendu, mais le composant n'est remonté que sur `job.id` :
+  // après un ajout, la cible choisie quitte la liste et le navigateur affiche l'option 0 pendant
+  // que l'état garde l'ancienne. On soumet donc ce que le sélecteur montre, jamais autre chose.
   const effectiveNeed = candidates.includes(needTarget) ? needTarget : (candidates[0] ?? "");
   const [optional, setOptional] = useState(false);
   const [artifacts, setArtifacts] = useState(true);
@@ -42,8 +42,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   const deleteTrigger = useRef<HTMLButtonElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
 
-  // Le focus entre dans le dialogue a l'ouverture et revient au declencheur a la fermeture : sans
-  // cela, la question posee n'est jamais atteinte par un lecteur d'ecran, et le focus retombe sur
+  // Le focus entre dans le dialogue à l'ouverture et revient au déclencheur à la fermeture : sans
+  // cela, la question posée n'est jamais atteinte par un lecteur d'écran, et le focus retombe sur
   // <body> au moment le plus destructeur du produit.
   useEffect(() => {
     if (confirmingDelete) {
@@ -250,8 +250,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           role="alertdialog"
           aria-modal="true"
           aria-label={`Delete ${job.id}`}
-          // Echap annule le dialogue, pas le panneau : sans `stopPropagation`, l'ecouteur de
-          // document d'app.tsx refermerait tout le panneau de detail au lieu de repondre.
+          // Échap annule le dialogue, pas le panneau : sans `stopPropagation`, l'écouteur de
+          // document d'app.tsx refermerait tout le panneau de détail au lieu de répondre.
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();

@@ -116,10 +116,6 @@ export function isPartial(pipeline: Pipeline): boolean {
   return pipeline.unresolved.length > 0;
 }
 
-export function findJob(pipeline: Pipeline, id: string): Job | undefined {
-  return pipeline.jobs.find((candidate) => candidate.id === id);
-}
-
 export function stageIndex(pipeline: Pipeline, name: string): number {
   return pipeline.stages.findIndex((stage) => stage.name === name);
 }
