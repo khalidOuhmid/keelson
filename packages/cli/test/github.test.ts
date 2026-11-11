@@ -50,4 +50,14 @@ describe("keelson sur un workflow GitHub Actions", () => {
     expect(layer("secrets")?.jobs).toEqual(["secrets"]);
     expect(layer("sast")?.jobs).toEqual(["sast"]);
   });
+
+  test("sans dossier .git, la racine est celle qui porte .github", async () => {
+    const bare = mkdtempSync(join(tmpdir(), "keelson-cli-github-bare-"));
+    mkdirSync(join(bare, ".github", "workflows"), { recursive: true });
+    writeFileSync(join(bare, FILE), WORKFLOW);
+    const result = await run(["coverage", FILE, "--format", "json"], { cwd: bare });
+    const body = JSON.parse(result.stdout) as { layers: { layer: string; jobs: string[] }[] };
+    expect(body.layers.find((entry) => entry.layer === "secrets")?.jobs).toEqual(["secrets"]);
+    rmSync(bare, { recursive: true, force: true });
+  });
 });

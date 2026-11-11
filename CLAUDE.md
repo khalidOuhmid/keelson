@@ -78,7 +78,7 @@ de `scripts/check-runtime.ts` et ajouter son `test/` à `tsconfig.tests.json`.
 
 | Dépendance      | Où                              | Usage                                        |
 | --------------- | ------------------------------- | -------------------------------------------- |
-| `yaml` (eemeli) | `adapter-gitlab`, `catalog`, `toolchain` | parsing, ranges des nœuds, anchors, merge |
+| `yaml` (eemeli) | `adapter-gitlab`, `adapter-github`, `catalog`, `toolchain` | parsing, ranges des nœuds, anchors, merge |
 | `zod` v4        | `core`, `adapter-gitlab`, `catalog`, `toolchain` | schémas des opérations, fiches, layout |
 | `@xyflow/react` | `ui`                            | rendu du graphe pipeline                      |
 | `elkjs`         | `ui`                            | mise en page en couches, déterministe         |

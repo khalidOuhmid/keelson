@@ -13,6 +13,16 @@ import {
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
 
+/** Un workflow GitHub vit toujours sous `<racine>/.github/workflows/` : sans `.git`, c'est cette
+ *  racine-là, et non le dossier du fichier, qui permet de le reconnaître comme workflow. */
+function workflowRoot(file: string): string | null {
+  const workflows = dirname(file);
+  const github = dirname(workflows);
+  return basename(workflows) === "workflows" && basename(github) === ".github"
+    ? dirname(github)
+    : null;
+}
+
 /** La racine depuis laquelle GitLab résout les `include: local`. On remonte jusqu'au premier
  *  dossier qui contient un `.git`, parce que c'est la racine du dépôt que GitLab utilise. Sans
  *  dépôt — un fichier isolé, un test — c'est le dossier du fichier, ce qui revient au cas normal
@@ -25,7 +35,7 @@ function repositoryRoot(file: string): string {
     }
     const parent = dirname(current);
     if (parent === current) {
-      return dirname(file);
+      return workflowRoot(file) ?? dirname(file);
     }
     current = parent;
   }

@@ -1,8 +1,8 @@
 # Suivi des lots
 
-Statut : EN COURS
-Lot courant : **L6 — adaptateur GitHub Actions**, à cadrer depuis `main`
-Prochaine action : cadrage de L6, `specs/lots/l6.md`, branche `lot/l6-github`.
+Statut : TOUS LES LOTS DU PLAN LIVRÉS (2026-11-11)
+Lot courant : aucun — suite dans `specs/ecarts.md` (édition GitHub Actions en tête)
+Prochaine action : revue de la branche `claude/wonderful-edison-vituwb`, puis publication npm `v0.1.0`.
 Blocage : aucun
 
 
@@ -17,9 +17,9 @@ Blocage : aucun
 | L3 — taxonomie, catalogue, overlay OWASP | TERMINÉ | `36caaa1` (`--no-ff`) |
 | L4 — toolchain | TERMINÉ | `fd63570` (`--no-ff`) |
 | L5 — propositions et insertion | TERMINÉ | `971ae5b` (`--no-ff`) |
-| L6 — adaptateur GitHub Actions | **LOT COURANT** | — |
-| L7 — packaging open source | À FAIRE | — |
-| L8 — flotte | TERMINÉ | branche `worktree-agent-a2e944e08d1f71c15`, non fusionnée |
+| L6 — adaptateur GitHub Actions (lecture, couverture) | TERMINÉ | branche `claude/wonderful-edison-vituwb` |
+| L7 — packaging open source | TERMINÉ | branche `claude/wonderful-edison-vituwb` |
+| L8 — flotte | TERMINÉ | fusionné dans `claude/wonderful-edison-vituwb` |
 
 ## Journal
 
@@ -791,3 +791,20 @@ préexistants, qui échouent parce que le conteneur tourne en root.
 **Écarts.** Quatre, du 2026-11-11 : `baseHash` encore exigé sous `--rebase`, deux diffs de même
 algorithme, aucune relecture du disque avant le `rename`, GitLab seul. **Dettes datées** : aucune.
 **ADR** : aucun, les décisions de forme sont dans le cadrage.
+
+### 2026-11-11 — L6 et L7
+
+**L6** (cadrage `specs/lots/l6.md`) : `adapter-github` lit les workflows dans l'IR, stages remplacés
+par des niveaux de dépendance ; `JobSignals.actions` et `detect.actions` (24 fiches renseignées) ;
+le serveur détecte `.github/workflows/*`, sert ces fichiers et refuse leur édition par
+`READ_ONLY_ADAPTER` ; `validate` et `coverage` choisissent l'adaptateur par le chemin ; l'UI gagne un
+sélecteur de fichier et une étiquette de lecture seule. Un défaut trouvé en installant le tarball
+npm : sans `.git`, un workflow était lu comme du GitLab — test rouge puis corrigé.
+
+**L7** : README anglais, `CONTRIBUTING.md`, `SECURITY.md`, `packages/cli/README.md`, manifeste
+publiable (`0.1.0`, aucune dépendance d'exécution, dépôt, mots-clés, provenance) gardé par
+`packages/cli/test/publish.test.ts`, workflow `release.yml` sur tag `v*`. Tarball vérifié par
+`npm pack` puis `npm install` et exécution sous Node.
+
+**Vérification** : `bun run check` vert hors les 4 tests `chmod` connus, qui échouent seulement parce
+que le conteneur tourne en root ; `bun run e2e` 75 / 75.

@@ -44,11 +44,11 @@
     },
     "packages/cli": {
       "name": "keelson",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "bin": {
         "keelson": "./dist/keelson.js",
       },
-      "dependencies": {
+      "devDependencies": {
         "@keelson/adapter-github": "workspace:*",
         "@keelson/adapter-gitlab": "workspace:*",
         "@keelson/catalog": "workspace:*",
