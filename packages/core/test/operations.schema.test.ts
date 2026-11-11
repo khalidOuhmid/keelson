@@ -58,7 +58,7 @@ describe("valid operations", () => {
   });
 
   test("renameJob", () => {
-    expectAccepted({ kind: "renameJob", from: "unit", to: "tests-unitaires" });
+    expectAccepted({ kind: "renameJob", from: "unit", to: "unit-tests" });
   });
 
   test("setJobStage", () => {
@@ -135,7 +135,7 @@ describe("invalid operations", () => {
 
   test("rejects a baseHash that is not hex SHA-256", () => {
     expectRejected(
-      { v: OPERATION_VERSION, baseHash: "pas-un-hash", kind: "removeJob", id: "unit" },
+      { v: OPERATION_VERSION, baseHash: "not-a-hash", kind: "removeJob", id: "unit" },
       INVALID_OPERATION,
     );
   });

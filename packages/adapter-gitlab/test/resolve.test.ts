@@ -90,13 +90,13 @@ describe("local values take precedence", () => {
       "  - build",
       "  - test",
       "",
-      "boulot:",
+      "worker:",
       "  extends: .base",
       "  stage: test",
       "  script: echo",
       "",
     ].join("\n");
-    expect(job(text, "boulot").stage).toEqual({ value: "test", origin: { kind: "local" } });
+    expect(job(text, "worker").stage).toEqual({ value: "test", origin: { kind: "local" } });
   });
 });
 

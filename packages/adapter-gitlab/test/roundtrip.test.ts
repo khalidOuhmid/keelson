@@ -34,7 +34,7 @@ describe("round-trip without operation", () => {
   });
 
   test("a file made only of comments is preserved", () => {
-    const text = "# rien que des commentaires\n# sur deux lignes\n";
+    const text = "# nothing but comments\n# over two lines\n";
     expect(emit(parse(text).document)).toBe(text);
   });
 

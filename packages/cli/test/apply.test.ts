@@ -27,7 +27,7 @@ const BASE = [
 ].join("\n");
 
 const OTHER = [
-  "# un autre dépôt, un autre texte",
+  "# another repository, another text",
   "stages:",
   "  - build",
   "  - test",
@@ -417,14 +417,14 @@ describe("usage", () => {
   });
 
   test("a missing operations file exits 2", async () => {
-    const result = await run(["apply", "/chemin/absent/ops.json"]);
+    const result = await run(["apply", "/path/absent/ops.json"]);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toBe("keelson apply: file not found: /chemin/absent/ops.json\n");
+    expect(result.stderr).toBe("keelson apply: file not found: /path/absent/ops.json\n");
   });
 
   test("unreadable JSON exits 2 without touching the repositories", async () => {
     const root = repository(BASE);
-    const result = await run(["apply", opsFile("{ pas du json"), root]);
+    const result = await run(["apply", opsFile("{ not json"), root]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("is not valid JSON");
     expect(result.stdout).toBe("");

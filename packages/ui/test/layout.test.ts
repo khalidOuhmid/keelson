@@ -80,10 +80,10 @@ describe("columns", () => {
 
   test("a stage without jobs keeps its column", async () => {
     const layout = await layoutPipeline(
-      pipeline(["build", "vide", "test"], [{ id: "a", stage: "build" }]),
+      pipeline(["build", "empty", "test"], [{ id: "a", stage: "build" }]),
       METRICS,
     );
-    expect(layout.columns.map((column) => column.name)).toEqual(["build", "vide", "test"]);
+    expect(layout.columns.map((column) => column.name)).toEqual(["build", "empty", "test"]);
     expect(layout.columns[1]?.jobIds).toEqual([]);
   });
 
@@ -312,7 +312,7 @@ describe("invariant: a job is drawn in its stage's column", () => {
     assertContained(
       await layoutPipeline(
         pipeline(
-          ["build", "vide", "deploy"],
+          ["build", "empty", "deploy"],
           [
             { id: "a", stage: "build" },
             { id: "b", stage: "deploy", needs: [need("a")] },
@@ -391,9 +391,9 @@ describe("invariant: two jobs in the same column do not overlap", () => {
         ["build", "test"],
         [
           { id: "compile", stage: "build" },
-          { id: "lié", stage: "test", needs: [need("compile")] },
-          { id: "isolé-a", stage: "test" },
-          { id: "isolé-b", stage: "test" },
+          { id: "linked", stage: "test", needs: [need("compile")] },
+          { id: "isolated-a", stage: "test" },
+          { id: "isolated-b", stage: "test" },
         ],
       ),
     ).toEqual([]);

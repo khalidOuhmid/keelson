@@ -217,8 +217,8 @@ describe("undo and redo", () => {
   });
 
   test("two operations are undone in reverse order", async () => {
-    await addStage("un");
-    await addStage("deux");
+    await addStage("one");
+    await addStage("two");
     await state().undo();
     await state().undo();
     expect(state().canUndo()).toBe(false);
@@ -600,7 +600,7 @@ describe("editing disabled", () => {
         {
           code: "JOB_WITHOUT_SCRIPT",
           severity: "warning",
-          params: { job: "muet" },
+          params: { job: "silent" },
           range: null,
           file: MAIN,
         },
@@ -713,10 +713,10 @@ describe("the text follows operations", () => {
   test("an undo restores the previous text", async () => {
     api.queue({
       ok: true,
-      value: { ...operationPayload(HASH_B, HASH_B), text: "après" },
+      value: { ...operationPayload(HASH_B, HASH_B), text: "after" },
     });
     await addStage("verify");
-    expect(state().text).toBe("après");
+    expect(state().text).toBe("after");
 
     api.queue({
       ok: true,

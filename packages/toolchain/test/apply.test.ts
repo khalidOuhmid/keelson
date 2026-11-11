@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { hashText, type ToolchainOperation } from "@keelson/core";
 import { applyToolchain, parseToolchain } from "../src/index.ts";
 
-const BASE = `# plateforme
+const BASE = `# platform
 version: 1
 
 services:
-  # le dépôt d'images
+  # the image registry
   nexus:
-    tool: nexus # interne
+    tool: nexus # internal
     url: https://nexus.example.org
 
   vault:
@@ -19,7 +19,7 @@ integrations:
     service: nexus
     kind: push
 
-# fin
+# end
 `;
 
 type Draft = ToolchainOperation extends infer O
@@ -59,8 +59,8 @@ describe("services", () => {
     expect(text).toContain(
       "  vault:\n    tool: vault\n  harbor:\n    tool: harbor\n    url: https://h\n    environment: prod\n",
     );
-    expect(text).toContain("# le dépôt d'images");
-    expect(text).toContain("# fin");
+    expect(text).toContain("# the image registry");
+    expect(text).toContain("# end");
   });
 
   test("adding under an empty section or [] / {}", () => {
@@ -108,7 +108,7 @@ describe("services", () => {
 
   test("updating replaces the value and keeps the comment", () => {
     const text = edited(BASE, { kind: "updateService", id: "nexus", tool: "harbor" });
-    expect(text).toContain("    tool: harbor # interne\n");
+    expect(text).toContain("    tool: harbor # internal\n");
   });
 
   test("updating adds a missing field, and null removes it", () => {
@@ -118,7 +118,7 @@ describe("services", () => {
       url: null,
       environment: "staging",
     });
-    expect(text).toContain("    tool: nexus # interne\n    environment: staging\n");
+    expect(text).toContain("    tool: nexus # internal\n    environment: staging\n");
     expect(text).not.toContain("url:");
   });
 
@@ -140,7 +140,7 @@ describe("services", () => {
       kind: "removeService",
       id: "nexus",
     });
-    expect(text).toContain("# le dépôt d'images\n\n  vault:");
+    expect(text).toContain("# the image registry\n\n  vault:");
     expect(text).not.toContain("nexus");
   });
 
@@ -205,7 +205,7 @@ describe("integrations", () => {
       integration: "push",
     });
     expect(parseToolchain(text).toolchain.integrations).toEqual([]);
-    expect(text).toContain("# fin");
+    expect(text).toContain("# end");
   });
 
   test("removing a missing item is rejected", () => {
@@ -331,8 +331,8 @@ describe("hand-written files", () => {
   });
 
   test("a comment on the section's line stays there", () => {
-    expect(edited("version: 1\nservices: # plateforme\n", { ...add, id: "h" })).toBe(
-      "version: 1\nservices: # plateforme\n  h:\n    tool: harbor\n",
+    expect(edited("version: 1\nservices: # platform\n", { ...add, id: "h" })).toBe(
+      "version: 1\nservices: # platform\n  h:\n    tool: harbor\n",
     );
   });
 

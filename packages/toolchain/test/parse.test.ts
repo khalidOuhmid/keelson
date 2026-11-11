@@ -22,7 +22,7 @@ dismissed:
 
 describe("reading toolchain.yaml", () => {
   test("a missing or empty file is an empty toolchain, without diagnostics", () => {
-    for (const text of [null, "", "# rien\n"]) {
+    for (const text of [null, "", "# nothing\n"]) {
       expect(parseToolchain(text)).toEqual({
         toolchain: { services: [], integrations: [], dismissed: [] },
         diagnostics: [],
@@ -56,10 +56,10 @@ describe("reading toolchain.yaml", () => {
     ["duplicate key", "version: 1\nversion: 1\n"],
     ["missing version", "services: {}\n"],
     ["unknown version", "version: 2\n"],
-    ["scalar root", "bonjour\n"],
+    ["scalar root", "hello\n"],
     ["illegal id", "version: 1\nservices:\n  __proto__:\n    tool: x\n"],
     ["unknown integration kind", "version: 1\nintegrations:\n  - {job: a, service: b, kind: x}\n"],
-    ["unknown key", "version: 1\nvoici: 1\n"],
+    ["unknown key", "version: 1\nunexpected: 1\n"],
     [
       "two keys with the same text",
       'version: 1\nservices:\n  8080:\n    tool: a\n  "8080":\n    tool: b\n',

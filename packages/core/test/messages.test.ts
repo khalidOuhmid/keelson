@@ -82,7 +82,7 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   ],
   EXTENDS_CYCLE: [{ params: { trail: [".a", ".b", ".a"] }, text: "extends cycle: .a → .b → .a" }],
   JOB_WITHOUT_SCRIPT: [
-    { params: { job: "muet" }, text: 'job "muet" has no script, no run and no trigger' },
+    { params: { job: "silent" }, text: 'job "silent" has no script, no run and no trigger' },
   ],
   UNKNOWN_NEED: [
     {
@@ -473,7 +473,7 @@ describe("English rendering", () => {
    *  renderer returns when it is not a sentence. */
   test("rendering never throws and always returns a sentence", () => {
     expect(rendered("JOB_REFERENCED", { job: "compile" })).toBe("unexpected server response");
-    expect(rendered("NOT_FOUND", { reason: "inventé" })).toBe("unexpected server response");
+    expect(rendered("NOT_FOUND", { reason: "made-up" })).toBe("unexpected server response");
     expect(rendered("NEEDS_CYCLE", {})).toBe("unexpected server response");
     expect(rendered("INVALID_YAML", {})).toBe("unexpected server response");
     expect(rendered("INVALID_YAML", { detail: "   " })).toBe("unexpected server response");

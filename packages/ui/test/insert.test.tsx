@@ -236,7 +236,7 @@ describe("insertion from the catalogue entry", () => {
     const onInsert = mock(async () => ({
       status: 0,
       code: "NETWORK_ERROR" as const,
-      params: { detail: "coupé" },
+      params: { detail: "cut off" },
     }));
     render(
       <Harness
@@ -251,7 +251,7 @@ describe("insertion from the catalogue entry", () => {
     await open();
     await screen.findByText("trivy:");
     await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
-    expect((await screen.findByRole("alert")).textContent).toContain("coupé");
+    expect((await screen.findByRole("alert")).textContent).toContain("cut off");
   });
 
   test("the document changes during a rejected write: the preview resumes", async () => {
@@ -271,7 +271,7 @@ describe("insertion from the catalogue entry", () => {
     rerender(<Harness {...props} pipeline={{ ...PIPELINE }} text={`${BEFORE}# x\n`} />);
     await new Promise((settle) => setTimeout(settle, 10));
     preview.mockClear();
-    refuse({ status: 409, code: "NETWORK_ERROR", params: { detail: "coupé" } });
+    refuse({ status: 409, code: "NETWORK_ERROR", params: { detail: "cut off" } });
     await waitFor(() => expect(preview).toHaveBeenCalled());
   });
 

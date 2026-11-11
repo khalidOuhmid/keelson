@@ -93,17 +93,17 @@ describe("wildcards", () => {
    *  not. Without the second half, a pattern translated to `.*` would pass everywhere. */
   test("* does not cross a separator", () => {
     expect(matchesWildcard("configs/*.yml", "configs/a.yml")).toBe(true);
-    expect(matchesWildcard("configs/*.yml", "configs/sous/a.yml")).toBe(false);
+    expect(matchesWildcard("configs/*.yml", "configs/sub/a.yml")).toBe(false);
   });
 
   test("** crosses separators, including zero", () => {
     expect(matchesWildcard("configs/**.yml", "configs/a.yml")).toBe(true);
-    expect(matchesWildcard("configs/**.yml", "configs/sous/a.yml")).toBe(true);
-    expect(matchesWildcard("configs/**.yml", "autre/a.yml")).toBe(false);
+    expect(matchesWildcard("configs/**.yml", "configs/sub/a.yml")).toBe(true);
+    expect(matchesWildcard("configs/**.yml", "other/a.yml")).toBe(false);
   });
 
   test("**/ * .yml takes only the subfolders", () => {
-    expect(matchesWildcard("configs/**/*.yml", "configs/sous/a.yml")).toBe(true);
+    expect(matchesWildcard("configs/**/*.yml", "configs/sub/a.yml")).toBe(true);
     expect(matchesWildcard("configs/**/*.yml", "configs/a.yml")).toBe(false);
   });
 
@@ -126,10 +126,10 @@ describe("resolution", () => {
     expect(
       jobIds({
         [GITLAB_CI_FILE]: "include: ci/a.yml\n",
-        "ci/a.yml": `include: ci/b.yml\n\n${JOB("depuis-a", "build")}`,
-        "ci/b.yml": JOB("depuis-b", "build"),
+        "ci/a.yml": `include: ci/b.yml\n\n${JOB("from-a", "build")}`,
+        "ci/b.yml": JOB("from-b", "build"),
       }),
-    ).toEqual(["depuis-b", "depuis-a"]);
+    ).toEqual(["from-b", "from-a"]);
   });
 
   test("a list mixing forms resolves the local ones and reports the remote ones", () => {
@@ -139,7 +139,7 @@ describe("resolution", () => {
         "  - ci/a.yml",
         "  - local: /ci/b.yml",
         "  - template: Jobs/SAST.gitlab-ci.yml",
-        "  - remote: https://exemple/ci.yml",
+        "  - remote: https://example/ci.yml",
         "",
       ].join("\n"),
       "ci/a.yml": JOB("a", "build"),
@@ -213,9 +213,9 @@ describe("resolution", () => {
       "configs/c.yml": JOB("c", "build"),
       "configs/a.yml": JOB("a", "build"),
       "configs/b.yml": JOB("b", "build"),
-      "configs/sous/z.yml": JOB("z", "build"),
+      "configs/sub/z.yml": JOB("z", "build"),
     });
-    // `configs/sous/z.yml` is excluded: `*` does not cross a separator.
+    // `configs/sub/z.yml` is excluded: `*` does not cross a separator.
     expect(parsed.pipeline.files).toEqual([
       "configs/a.yml",
       "configs/b.yml",
@@ -320,7 +320,7 @@ describe("merging definitions", () => {
         "",
         "compile:",
         "  script:",
-        "    - make autre",
+        "    - make other",
         "",
       ].join("\n"),
       "ci/jobs.yml": JOB("compile", "build"),
@@ -335,17 +335,17 @@ describe("merging definitions", () => {
   test("a stages list declared in an include is used as is", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: "include: ci/stages.yml\n",
-      "ci/stages.yml": ["stages:", "  - preparer", "  - livrer", ""].join("\n"),
+      "ci/stages.yml": ["stages:", "  - prepare", "  - deliver", ""].join("\n"),
     });
 
-    expect(parsed.pipeline.stages.map((stage) => stage.name)).toEqual(["preparer", "livrer"]);
+    expect(parsed.pipeline.stages.map((stage) => stage.name)).toEqual(["prepare", "deliver"]);
     expect(parsed.pipeline.stages.every((stage) => stage.file === "ci/stages.yml")).toBe(true);
   });
 
   test("a stages list in the main file overrides the include's, it does not add to it", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include: ci/stages.yml", "", "stages:", "  - unique", ""].join("\n"),
-      "ci/stages.yml": ["stages:", "  - preparer", "  - livrer", ""].join("\n"),
+      "ci/stages.yml": ["stages:", "  - prepare", "  - deliver", ""].join("\n"),
     });
     expect(parsed.pipeline.stages.map((stage) => stage.name)).toEqual(["unique"]);
   });
@@ -386,7 +386,7 @@ describe("severity of EXTENDS_TARGET_NOT_FOUND", () => {
     "stages:",
     "  - build",
     "",
-    "orphelin:",
+    "orphan:",
     "  extends: .absent",
     "  script:",
     "    - make",
@@ -398,8 +398,8 @@ describe("severity of EXTENDS_TARGET_NOT_FOUND", () => {
    *  includes, not the presence of the key. */
   test("all includes resolved: the error regains its severity", () => {
     const parsed = parseTree({
-      [GITLAB_CI_FILE]: `include: ci/vide.yml\n\n${MAIN_WITH_ORPHAN}`,
-      "ci/vide.yml": "variables:\n  A: 1\n",
+      [GITLAB_CI_FILE]: `include: ci/empty.yml\n\n${MAIN_WITH_ORPHAN}`,
+      "ci/empty.yml": "variables:\n  A: 1\n",
     });
 
     expect(
@@ -467,14 +467,14 @@ describe("diagnostics attributed to the right file", () => {
   test("a job without script in an include is blamed on the include", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include: ci/jobs.yml", "", "stages:", "  - build", ""].join("\n"),
-      "ci/jobs.yml": ["muet:", "  stage: build", ""].join("\n"),
+      "ci/jobs.yml": ["silent:", "  stage: build", ""].join("\n"),
     });
 
     const found = parsed.diagnostics.find((entry) => entry.code === "JOB_WITHOUT_SCRIPT");
     expect(found?.file).toBe("ci/jobs.yml");
 
     /* The range is an offset into the text of **this** file, and the assertion **slices** it. The
-       first version wrote `expect(range ? "muet:" : "").toBe("muet:")`: a ternary that returned
+       first version wrote `expect(range ? "silent:" : "").toBe("silent:")`: a ternary that returned
        the expected literal string as soon as the range existed, so it read no byte and its
        comment overstated everything it protected. Found by the independent review of
        2026-10-23, which defeated it with an absurd range. */
@@ -482,26 +482,28 @@ describe("diagnostics attributed to the right file", () => {
     if (range === null || range === undefined) {
       throw new Error("JOB_WITHOUT_SCRIPT without a range");
     }
-    const included = parsed.pipeline.files.includes("ci/jobs.yml") ? "muet:\n  stage: build\n" : "";
-    expect(included.slice(range.start, range.end)).toStartWith("muet:");
+    const included = parsed.pipeline.files.includes("ci/jobs.yml")
+      ? "silent:\n  stage: build\n"
+      : "";
+    expect(included.slice(range.start, range.end)).toStartWith("silent:");
   });
 
   test("invalid YAML in an include is reported with its file", () => {
     expect(
       codes({
-        [GITLAB_CI_FILE]: "include: ci/casse.yml\n",
-        "ci/casse.yml": "a:\n  - x\n bad: [1,\n",
+        [GITLAB_CI_FILE]: "include: ci/broken.yml\n",
+        "ci/broken.yml": "a:\n  - x\n bad: [1,\n",
       }),
     ).toContain("INVALID_YAML");
 
     const parsed = parseTree({
-      [GITLAB_CI_FILE]: "include: ci/casse.yml\n",
-      "ci/casse.yml": "a:\n  - x\n bad: [1,\n",
+      [GITLAB_CI_FILE]: "include: ci/broken.yml\n",
+      "ci/broken.yml": "a:\n  - x\n bad: [1,\n",
     });
     expect(
       parsed.diagnostics
         .filter((entry) => entry.code === "INVALID_YAML")
-        .every((entry) => entry.file === "ci/casse.yml"),
+        .every((entry) => entry.file === "ci/broken.yml"),
     ).toBe(true);
   });
 });
@@ -539,7 +541,7 @@ describe("a broken local include makes the pipeline partial", () => {
         "include:",
         "  - /ci/absent.yml",
         "  - /ci/jobs.txt",
-        "  - /../dehors.yml",
+        "  - /../outside.yml",
         "  - 42",
         "",
       ].join("\n"),
@@ -563,8 +565,8 @@ describe("a broken local include makes the pipeline partial", () => {
 
   test("a resolved include does not count, even next to a broken one", () => {
     const parsed = parseTree({
-      [GITLAB_CI_FILE]: ["include:", "  - /ci/bon.yml", "  - /ci/absent.yml", ""].join("\n"),
-      "ci/bon.yml": JOB("a", "build"),
+      [GITLAB_CI_FILE]: ["include:", "  - /ci/good.yml", "  - /ci/absent.yml", ""].join("\n"),
+      "ci/good.yml": JOB("a", "build"),
     });
     expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["ci/absent.yml"]);
     expect(parsed.pipeline.jobs.map((entry) => entry.id)).toEqual(["a"]);
@@ -647,27 +649,27 @@ describe("precedence between extends and cross-file definitions", () => {
         "stages:",
         "  - build",
         "",
-        ".du-principal:",
+        ".from-main:",
         "  script:",
         "    - make",
         "",
         "compile:",
         "  extends:",
-        "    - .du-principal",
-        "    - .de-l-include",
+        "    - .from-main",
+        "    - .from-include",
         "",
       ].join("\n"),
       "ci/jobs.yml": [
-        ".de-l-include:",
+        ".from-include:",
         "  stage: build",
         "",
         "compile:",
-        "  extends: .de-l-include",
+        "  extends: .from-include",
         "",
       ].join("\n"),
     });
 
-    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".de-l-include", ".du-principal"]);
+    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".from-include", ".from-main"]);
   });
 });
 
@@ -725,7 +727,7 @@ describe("opaque blocks of an overridden job", () => {
         "",
         "compile:",
         "  script:",
-        "    - make autre",
+        "    - make other",
         "",
       ].join("\n"),
       "ci/jobs.yml": "compile:\n  stage: build\n  script:\n    - make\n",
@@ -754,7 +756,7 @@ describe("a !reference crosses files", () => {
       "  script:",
       "    - make",
       "",
-      "livrer:",
+      "deliver:",
       "  stage: !reference [.base, stage]",
       "  needs: !reference [.base, needs]",
       "  environment: !reference [.base, environment]",
@@ -773,20 +775,20 @@ describe("a !reference crosses files", () => {
     ].join("\n"),
   };
 
-  function livrer() {
-    return parseTree(TREE).pipeline.jobs.find((job) => job.id === "livrer");
+  function deliver() {
+    return parseTree(TREE).pipeline.jobs.find((job) => job.id === "deliver");
   }
 
   test("the referenced stage is the included file's", () => {
-    expect(livrer()?.stage).toEqual({
+    expect(deliver()?.stage).toEqual({
       value: "deploy",
       origin: { kind: "reference", path: [".base", "stage"] },
     });
   });
 
   test("the referenced needs and environment too", () => {
-    expect(livrer()?.needs?.value.map((need) => need.job)).toEqual(["compile"]);
-    expect(livrer()?.environment?.value.name).toBe("production");
+    expect(deliver()?.needs?.value.map((need) => need.job)).toEqual(["compile"]);
+    expect(deliver()?.environment?.value.name).toBe("production");
   });
 
   test("the main file wins when both define the target", () => {
@@ -794,7 +796,7 @@ describe("a !reference crosses files", () => {
       ...TREE,
       [GITLAB_CI_FILE]: `${TREE[GITLAB_CI_FILE]}\n.base:\n  stage: build\n`,
     });
-    expect(parsed.pipeline.jobs.find((job) => job.id === "livrer")?.stage.value).toBe("build");
+    expect(parsed.pipeline.jobs.find((job) => job.id === "deliver")?.stage.value).toBe("build");
   });
 });
 
@@ -838,12 +840,12 @@ describe("the target of a !reference follows the merged configuration", () => {
         "  - ci/y.yml",
         "  - ci/x.yml",
         "",
-        "par-extends:",
+        "via-extends:",
         "  extends: .t",
         "  script:",
         "    - make",
         "",
-        "par-reference:",
+        "via-reference:",
         "  stage: !reference [.t, stage]",
         "  script:",
         "    - make",
@@ -877,7 +879,7 @@ describe("remote include in short form", () => {
         "include:",
         `  - ${URL}`,
         "",
-        "orphelin:",
+        "orphan:",
         "  extends: .absent",
         "  script:",
         "    - make",
@@ -915,7 +917,7 @@ describe("include limit and partial pipeline", () => {
   });
 
   test("a missing extends target stays a warning there", () => {
-    const parsed = beyond("\norphelin:\n  extends: .absent\n  script:\n    - make\n");
+    const parsed = beyond("\norphan:\n  extends: .absent\n  script:\n    - make\n");
     expect(
       parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
     ).toBe("warning");

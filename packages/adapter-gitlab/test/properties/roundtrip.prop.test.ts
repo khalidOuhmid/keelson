@@ -26,14 +26,14 @@ describe("property: parse then emit is the identity", () => {
   test("on arbitrary YAML built piece by piece", () => {
     const fragment = fc.constantFrom(
       "stages:\n  - build\n",
-      "# un commentaire\n",
+      "# a comment\n",
       "\n",
-      "boulot:\n  script:\n    - echo\n",
-      "  - item mal indenté\n",
+      "worker:\n  script:\n    - echo\n",
+      "  - misindented café item\n",
       "\r\n",
-      "cle: valeur # en ligne\n",
-      "\t tabulation\n",
-      ".tpl: &ancre\n  image: node\n",
+      "key: value # inline\n",
+      "\t tab\n",
+      ".tpl: &anchor\n  image: node\n",
     );
 
     fc.assert(

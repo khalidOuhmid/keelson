@@ -9,8 +9,8 @@ describe("splice", () => {
   });
 
   test("a pure insertion has start equal to end", () => {
-    const applied = expectOk(BASE, { kind: "splice", start: 0, end: 0, text: "# tête\n" });
-    expect(applied.text).toBe(`# tête\n${BASE}`);
+    const applied = expectOk(BASE, { kind: "splice", start: 0, end: 0, text: "# head\n" });
+    expect(applied.text).toBe(`# head\n${BASE}`);
   });
 
   test("a pure deletion has an empty text", () => {
@@ -32,7 +32,7 @@ describe("splice", () => {
 
   test("the inverse restores the original bytes", () => {
     roundTrip(BASE, { kind: "splice", start: 0, end: 6, text: "STAGES" });
-    roundTrip(BASE, { kind: "splice", start: 5, end: 5, text: "\n# insere\n" });
+    roundTrip(BASE, { kind: "splice", start: 5, end: 5, text: "\n# inserted\n" });
   });
 
   test("the inverse carries the hash of the new text", () => {
@@ -67,9 +67,9 @@ describe("splice", () => {
       kind: "splice",
       start: BASE.length,
       end: BASE.length,
-      text: "# fin\n",
+      text: "# end\n",
     });
-    expect(applied.text).toBe(`${BASE}# fin\n`);
+    expect(applied.text).toBe(`${BASE}# end\n`);
   });
 
   test("STALE_DOCUMENT if the baseHash does not match", () => {

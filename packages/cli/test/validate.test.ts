@@ -44,7 +44,7 @@ const WITH_ERROR = [
   "",
 ].join("\n");
 
-const WITH_WARNING_ONLY = ["stages:", "  - test", "", "muet:", "  stage: test", ""].join("\n");
+const WITH_WARNING_ONLY = ["stages:", "  - test", "", "silent:", "  stage: test", ""].join("\n");
 
 beforeAll(() => {
   workspace = mkdtempSync(join(tmpdir(), "keelson-validate-"));
@@ -70,9 +70,9 @@ describe("exit code", () => {
   });
 
   test("2 when the file is not found", async () => {
-    const result = await run(["validate", join(workspace, "fantome.yml")]);
+    const result = await run(["validate", join(workspace, "ghost.yml")]);
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("fantome.yml");
+    expect(result.stderr).toContain("ghost.yml");
   });
 
   test("2 on an unknown output format", async () => {
@@ -101,7 +101,7 @@ describe("text output", () => {
   });
 
   test("names the analysed file", async () => {
-    const path = fixture("nomme.yml", WITH_ERROR);
+    const path = fixture("named.yml", WITH_ERROR);
     expect((await run(["validate", path])).stdout).toContain(path);
   });
 
@@ -116,13 +116,13 @@ describe("text output", () => {
   });
 
   test("announces there are no diagnostics on a healthy file", async () => {
-    const result = await run(["validate", fixture("sain.yml", VALID)]);
+    const result = await run(["validate", fixture("healthy.yml", VALID)]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("no diagnostics");
   });
 
   test("combines parse and validate diagnostics", async () => {
-    const melange = [
+    const mixed = [
       "include:",
       "  - template: Jobs/SAST.gitlab-ci.yml",
       "",
@@ -137,13 +137,13 @@ describe("text output", () => {
       "    - x",
       "",
     ].join("\n");
-    const output = (await run(["validate", fixture("melange.yml", melange)])).stdout;
+    const output = (await run(["validate", fixture("mixed.yml", mixed)])).stdout;
     expect(output).toContain("INCLUDE_UNRESOLVED");
     expect(output).toContain("UNKNOWN_NEED");
   });
 
   test("reports invalid YAML", async () => {
-    const output = await run(["validate", fixture("casse.yml", "a:\n  - x\n bad: [1,\n")]);
+    const output = await run(["validate", fixture("broken.yml", "a:\n  - x\n bad: [1,\n")]);
     expect(output.exitCode).toBe(1);
     expect(output.stdout).toContain("INVALID_YAML");
   });
@@ -152,7 +152,7 @@ describe("text output", () => {
    *  one family per origin — parse, extends resolution, validation — so that `params` substitution
    *  is checked on the real path, not only in the registry. */
   test("renders the English text of each diagnostic family", async () => {
-    const melange = [
+    const mixed = [
       "include:",
       "  - template: Jobs/SAST.gitlab-ci.yml",
       "",
@@ -160,10 +160,10 @@ describe("text output", () => {
       "  - build",
       "  - test",
       "",
-      "muet:",
+      "silent:",
       "  stage: build",
       "",
-      "orphelin:",
+      "orphan:",
       "  stage: test",
       "  extends: .absent",
       "  script: a",
@@ -171,18 +171,18 @@ describe("text output", () => {
       "unit:",
       "  stage: test",
       "  needs:",
-      "    - introuvable",
+      "    - nowhere",
       "  script: b",
       "",
     ].join("\n");
 
-    const output = (await run(["validate", fixture("anglais.yml", melange)])).stdout;
+    const output = (await run(["validate", fixture("english.yml", mixed)])).stdout;
     expect(output).toContain(
       "this template include is not resolved (Jobs/SAST.gitlab-ci.yml), so the pipeline shown may be incomplete",
     );
     expect(output).toContain('extends target ".absent" does not exist in any resolved file');
-    expect(output).toContain('job "muet" has no script, no run and no trigger');
-    expect(output).toContain('job "unit" needs "introuvable", which does not exist');
+    expect(output).toContain('job "silent" has no script, no run and no trigger');
+    expect(output).toContain('job "unit" needs "nowhere", which does not exist');
   });
 });
 
@@ -239,7 +239,7 @@ describe("JSON output", () => {
 
 describe("default file", () => {
   test("looks for .gitlab-ci.yml in the current directory", async () => {
-    const result = await run(["validate"], { cwd: join(workspace, "vide-sans-ci") });
+    const result = await run(["validate"], { cwd: join(workspace, "empty-without-ci") });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain(".gitlab-ci.yml");
   });
@@ -256,7 +256,7 @@ describe("help", () => {
   });
 
   test("validate is no longer announced as not implemented", async () => {
-    expect((await run(["validate", fixture("aide.yml", VALID)])).stderr).not.toContain(
+    expect((await run(["validate", fixture("help.yml", VALID)])).stderr).not.toContain(
       "not implemented yet",
     );
   });
@@ -275,11 +275,11 @@ describe("local includes", () => {
     writeFileSync(
       join(root, "ci", "jobs.yml"),
       [
-        "muet:",
+        "silent:",
         "  stage: build",
         "",
-        "casse:",
-        "  stage: inconnu",
+        "broken:",
+        "  stage: unknown",
         "  script:",
         "    - x",
         "",
@@ -310,9 +310,9 @@ describe("local includes", () => {
       line: number;
     }[];
 
-    const muet = parsed.find((entry) => entry.code === "JOB_WITHOUT_SCRIPT");
-    expect(muet?.file).toBe(included);
-    expect(muet?.line).toBe(1);
+    const silent = parsed.find((entry) => entry.code === "JOB_WITHOUT_SCRIPT");
+    expect(silent?.file).toBe(included);
+    expect(silent?.line).toBe(1);
   });
 
   test("the line is counted in the included file's text, not the main file's", async () => {
@@ -321,7 +321,7 @@ describe("local includes", () => {
       code: string;
       line: number;
     }[];
-    // `casse:` is on line 4 of `ci/jobs.yml`. The main file has only six lines, so a conversion
+    // `broken:` is on line 4 of `ci/jobs.yml`. The main file has only six lines, so a conversion
     // done with its text would give a plausible number: that is why the assertion checks the
     // exact value and not "some line exists".
     expect(parsed.find((entry) => entry.code === "UNKNOWN_STAGE")?.line).toBe(4);

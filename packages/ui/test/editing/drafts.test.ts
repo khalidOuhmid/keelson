@@ -32,7 +32,7 @@ describe("scriptLines", () => {
   });
 
   test("leaves inner whitespace alone", () => {
-    expect(scriptLines("echo  'deux  espaces'")).toEqual(["echo  'deux  espaces'"]);
+    expect(scriptLines("echo  'two  spaces'")).toEqual(["echo  'two  spaces'"]);
   });
 });
 
@@ -214,7 +214,7 @@ describe("referencedBy", () => {
 
   test("returns an empty list when params have the wrong shape", () => {
     expect(referencedBy(failure({ autre: 1 }))).toEqual([]);
-    expect(referencedBy(failure("texte"))).toEqual([]);
+    expect(referencedBy(failure("text"))).toEqual([]);
     expect(referencedBy(failure({ referencedBy: "unit" }))).toEqual([]);
   });
 

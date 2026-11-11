@@ -95,15 +95,15 @@ describe("a symbolic link that escapes the root", () => {
    *  value: it is that the content of an arbitrary file ends up in the payload sent to the browser.
    *  `reader.test.ts` guards the reader, this test guards the payload. */
   test("its content does not enter the document payload", async () => {
-    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-dehors-"));
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-outside-"));
     try {
-      writeFileSync(join(outside, "secret.txt"), "SECRET-HORS-DEPOT\n");
-      symlinkSync(join(outside, "secret.txt"), join(root, "ci", "fuite.yml"));
-      write(".gitlab-ci.yml", MAIN.replace("/ci/jobs.yml", "/ci/fuite.yml"));
+      writeFileSync(join(outside, "secret.txt"), "SECRET-OUTSIDE-REPO\n");
+      symlinkSync(join(outside, "secret.txt"), join(root, "ci", "leak.yml"));
+      write(".gitlab-ci.yml", MAIN.replace("/ci/jobs.yml", "/ci/leak.yml"));
 
       const loaded = await store.load(".gitlab-ci.yml");
 
-      expect(JSON.stringify(loaded)).not.toContain("SECRET-HORS-DEPOT");
+      expect(JSON.stringify(loaded)).not.toContain("SECRET-OUTSIDE-REPO");
       expect(loaded?.included).toEqual({});
       expect(loaded?.diagnostics.map((entry) => entry.code)).toContain("INCLUDE_NOT_FOUND");
     } finally {
@@ -118,7 +118,7 @@ describe("a main file linked outside the root", () => {
    *  through the only path the L2b fix had not closed. */
   function linkMainOutside(): string {
     const outside = mkdtempSync(join(tmpdir(), "keelson-srv-main-"));
-    writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
+    writeFileSync(join(outside, "s.yml"), "SECRET_KEY: OUTSIDE-ROOT\n");
     rmSync(join(root, ".gitlab-ci.yml"));
     symlinkSync(join(outside, "s.yml"), join(root, ".gitlab-ci.yml"));
     return outside;
@@ -175,7 +175,7 @@ describe("writes bounded to the main file", () => {
         v: 1,
         baseHash: store.currentHash(".gitlab-ci.yml") ?? "",
         kind: "addStage",
-        name: "livrer",
+        name: "ship",
       },
       "op-2",
     );
@@ -226,9 +226,9 @@ describe("watching included files", () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
 
-    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-devenu-"));
+    const outside = mkdtempSync(join(tmpdir(), "keelson-srv-became-"));
     try {
-      writeFileSync(join(outside, "s.yml"), "SECRET_KEY: HORS-RACINE\n");
+      writeFileSync(join(outside, "s.yml"), "SECRET_KEY: OUTSIDE-ROOT\n");
       rmSync(join(root, ".gitlab-ci.yml"));
       symlinkSync(join(outside, "s.yml"), join(root, ".gitlab-ci.yml"));
 
@@ -260,7 +260,7 @@ describe("watching included files", () => {
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
 
-    write("ci/jamais-inclus.yml", "rien:\n  stage: build\n  script:\n    - make\n");
+    write("ci/never-included.yml", "nothing:\n  stage: build\n  script:\n    - make\n");
     await settle(300);
     expect(events).toEqual([]);
   });

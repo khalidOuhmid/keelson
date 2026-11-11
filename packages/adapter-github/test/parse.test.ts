@@ -121,8 +121,8 @@ describe("reading a workflow", () => {
   });
 
   test.each([
-    ["vide", ""],
-    ["scalaire", "bonjour\n"],
+    ["empty", ""],
+    ["scalar", "hello\n"],
     ["alias without anchor", "*x\n"],
     ["broken YAML", "jobs: [\n"],
     ["jobs is not a map", "jobs: 3\n"],

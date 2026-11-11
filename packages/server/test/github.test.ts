@@ -30,7 +30,7 @@ beforeEach(async () => {
   mkdirSync(join(root, ".github", "workflows"), { recursive: true });
   writeFileSync(join(root, ".github/workflows/ci.yml"), CI);
   writeFileSync(join(root, ".github/workflows/release.yaml"), REL);
-  writeFileSync(join(root, ".github/workflows/notes.txt"), "pas un workflow");
+  writeFileSync(join(root, ".github/workflows/notes.txt"), "not a workflow");
   server = await createServer({ root, port: 0 });
 });
 

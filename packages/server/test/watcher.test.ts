@@ -59,7 +59,7 @@ afterEach(() => {
 
 describe("external modification", () => {
   test("an outside write emits document.changed with the new hash", async () => {
-    writeFileSync(path(), `${BASE}\nautre:\n  stage: build\n  script:\n    - echo\n`);
+    writeFileSync(path(), `${BASE}\nother:\n  stage: build\n  script:\n    - echo\n`);
     const event = await waitForEvent("document.changed");
     expect(event).toMatchObject({ file: ".gitlab-ci.yml" });
     expect(event.kind).toBe("document.changed");
@@ -69,17 +69,17 @@ describe("external modification", () => {
   });
 
   test("the store is reloaded after an external modification", async () => {
-    writeFileSync(path(), `${BASE}\nautre:\n  stage: build\n  script:\n    - echo\n`);
+    writeFileSync(path(), `${BASE}\nother:\n  stage: build\n  script:\n    - echo\n`);
     await waitForEvent("document.changed");
-    expect(store.currentText(".gitlab-ci.yml")).toContain("autre:");
+    expect(store.currentText(".gitlab-ci.yml")).toContain("other:");
   });
 
   test("a replacement by rename is detected", async () => {
-    const temporary = join(root, "remplacant.tmp");
-    writeFileSync(temporary, `${BASE}\nremplace:\n  stage: build\n  script:\n    - echo\n`);
+    const temporary = join(root, "replacement.tmp");
+    writeFileSync(temporary, `${BASE}\nreplaced:\n  stage: build\n  script:\n    - echo\n`);
     renameSync(temporary, path());
     await waitForEvent("document.changed");
-    expect(store.currentText(".gitlab-ci.yml")).toContain("remplace:");
+    expect(store.currentText(".gitlab-ci.yml")).toContain("replaced:");
   });
 
   test("deleting the file emits document.removed", async () => {
@@ -153,14 +153,14 @@ describe("lifecycle", () => {
     await waitForEvent("document.removed");
     events = [];
 
-    writeFileSync(path(), `${BASE}\nrecree:\n  stage: build\n  script:\n    - echo\n`);
+    writeFileSync(path(), `${BASE}\nrecreated:\n  stage: build\n  script:\n    - echo\n`);
     const event = await waitForEvent("document.changed");
     expect(event.kind).toBe("document.changed");
-    expect(store.currentText(".gitlab-ci.yml")).toContain("recree:");
+    expect(store.currentText(".gitlab-ci.yml")).toContain("recreated:");
   });
 
   test("another file in the directory is ignored", async () => {
-    writeFileSync(join(root, "sans-rapport.txt"), "bruit\n");
+    writeFileSync(join(root, "unrelated.txt"), "noise\n");
     await settle(400);
     expect(events).toEqual([]);
   });

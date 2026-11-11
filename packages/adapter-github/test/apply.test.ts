@@ -4,14 +4,14 @@ import { apply, parse } from "../src/index.ts";
 
 const FILE = ".github/workflows/ci.yml";
 
-const BASE = `# le CI
+const BASE = `# the CI
 name: CI
 on: [push]
 
 jobs:
-  # compile tout
+  # compiles everything
   build:
-    runs-on: ubuntu-latest # vite
+    runs-on: ubuntu-latest # fast
     steps:
       - run: make
 
@@ -140,7 +140,9 @@ describe("removeJob and renameJob", () => {
     const text = written(BASE, { kind: "renameJob", from: "build", to: "compile" });
     expect(needsOf(text, "test")).toEqual(["compile"]);
     expect(needsOf(text, "deploy")).toEqual(["compile", "test"]);
-    expect(text).toContain("# compile tout\n  compile:\n    runs-on: ubuntu-latest # vite\n");
+    expect(text).toContain(
+      "# compiles everything\n  compile:\n    runs-on: ubuntu-latest # fast\n",
+    );
   });
 
   test("refusals: not found, name taken", () => {
@@ -469,7 +471,7 @@ jobs:
 });
 
 describe("almost empty files", () => {
-  test.each([[""], ["# rien\n"], ["name: x\n"]])("addJob on %j", (text) => {
+  test.each([[""], ["# nothing\n"], ["name: x\n"]])("addJob on %j", (text) => {
     expect(run(text, { kind: "addJob", job: { id: "n", stage: "", script: ["x"] } }).ok).toBe(true);
   });
 

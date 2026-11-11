@@ -42,21 +42,21 @@ describe("options with a value", () => {
 
 describe("positionals", () => {
   test("collects positionals in order", () => {
-    const result = parseCommandArgs(["un", "deux"], formatSpec);
-    expect(result.ok && result.positionals).toEqual(["un", "deux"]);
+    const result = parseCommandArgs(["one", "two"], formatSpec);
+    expect(result.ok && result.positionals).toEqual(["one", "two"]);
   });
 
   test("separates positionals and options", () => {
-    const result = parseCommandArgs(["fichier.yml", "--format", "json"], formatSpec);
+    const result = parseCommandArgs(["file.yml", "--format", "json"], formatSpec);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.positionals).toEqual(["fichier.yml"]);
+      expect(result.positionals).toEqual(["file.yml"]);
       expect(result.values.format).toBe("json");
     }
   });
 
   test("refuses a positional when they are not allowed", () => {
-    const result = parseCommandArgs(["trop"], {
+    const result = parseCommandArgs(["extra"], {
       options: {},
       allowPositionals: false,
     });
@@ -99,7 +99,7 @@ describe("robustness", () => {
   });
 
   test("the error message is always a non-empty string", () => {
-    const result = parseCommandArgs(["--inconnu"], formatSpec);
+    const result = parseCommandArgs(["--unknown"], formatSpec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message.length).toBeGreaterThan(0);

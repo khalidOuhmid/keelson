@@ -32,7 +32,7 @@ export function assertOptions(): fc.Parameters<unknown> {
 const SCRIPT_LINES = ["echo hi", "make", "npm test", "./deploy.sh", "bun run check"] as const;
 const SNIPPETS = [
   'scan:\n  stage: test\n  image:\n    name: aquasec/trivy:latest\n    entrypoint: [""]\n  script:\n    - trivy fs .\n',
-  "scan:\n  script:\n    - |\n      multi\n      ligne\n  allow_failure: true\n",
+  "scan:\n  script:\n    - |\n      multi\n      line\n  allow_failure: true\n",
 ] as const;
 const SUFFIXES = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta"] as const;
 const ENVIRONMENTS = ["production", "staging", "review", "integration"] as const;
@@ -56,7 +56,7 @@ function environmentArb(): fc.Arbitrary<{
   return fc.record(
     {
       name: fc.constantFrom(...ENVIRONMENTS),
-      url: fc.option(fc.constantFrom("https://exemple.org", "https://staging.exemple.org"), {
+      url: fc.option(fc.constantFrom("https://example.org", "https://staging.example.org"), {
         nil: undefined,
       }),
       action: fc.option(fc.constantFrom("start", "stop", "prepare"), { nil: undefined }),
@@ -98,7 +98,7 @@ export function operationArb(text: string, given?: Pipeline): fc.Arbitrary<Draft
   if (stageNames.length > 0) {
     candidates.push(
       fc
-        .tuple(freshName("etape", taken), fc.nat(stageNames.length))
+        .tuple(freshName("stage", taken), fc.nat(stageNames.length))
         .map(([name, index]) => ({ kind: "addStage", name, index }) as Draft),
       fc
         .tuple(fc.constantFrom(...stageNames), fc.nat(stageNames.length - 1))
@@ -110,9 +110,9 @@ export function operationArb(text: string, given?: Pipeline): fc.Arbitrary<Draft
     const snippet = fc.constantFrom(...SNIPPETS);
     candidates.push(
       fc
-        .tuple(freshName("outil", taken), fc.constantFrom(...stageNames), snippet)
+        .tuple(freshName("tool", taken), fc.constantFrom(...stageNames), snippet)
         .map(([id, stage, text]) => ({ kind: "addSnippet", id, stage, snippet: text }) as Draft),
-      fc.tuple(freshName("etape", taken), freshName("outil", taken), snippet).map(
+      fc.tuple(freshName("stage", taken), freshName("tool", taken), snippet).map(
         ([name, id, text]) =>
           ({
             kind: "composite",
@@ -129,7 +129,7 @@ export function operationArb(text: string, given?: Pipeline): fc.Arbitrary<Draft
     candidates.push(
       fc
         .record({
-          id: freshName("boulot", taken),
+          id: freshName("job", taken),
           stage: fc.constantFrom(...stageNames),
           script: fc.array(fc.constantFrom(...SCRIPT_LINES), { minLength: 1, maxLength: 3 }),
           needs: fc.option(
@@ -146,7 +146,7 @@ export function operationArb(text: string, given?: Pipeline): fc.Arbitrary<Draft
         .map((job) => ({ kind: "addJob", job }) as Draft),
       fc.constantFrom(...jobIds).map((id) => ({ kind: "removeJob", id }) as Draft),
       fc
-        .tuple(fc.constantFrom(...jobIds), freshName("renomme", taken))
+        .tuple(fc.constantFrom(...jobIds), freshName("renamed", taken))
         .map(([from, to]) => ({ kind: "renameJob", from, to }) as Draft),
       fc
         .tuple(fc.constantFrom(...jobIds), fc.constantFrom(...stageNames))

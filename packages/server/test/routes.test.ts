@@ -38,11 +38,11 @@ describe("GET /api/workspace", () => {
   });
 
   test("returns an empty list when no CI file is detected", async () => {
-    const vide = await startHarness({ text: null });
-    const response = await vide.api("/api/workspace");
+    const empty = await startHarness({ text: null });
+    const response = await empty.api("/api/workspace");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ files: [] });
-    await vide.close();
+    await empty.close();
   });
 
   test("refuses another method", async () => {
@@ -64,7 +64,7 @@ describe("GET /api/documents/:file", () => {
   });
 
   test("returns 404 for a file outside the workspace", async () => {
-    const response = await harness.api("/api/documents/autre.yml");
+    const response = await harness.api("/api/documents/other.yml");
     expect(response.status).toBe(404);
     expect(await codeOf(response)).toBe("NOT_FOUND");
   });
@@ -100,7 +100,7 @@ describe("POST /api/documents/:file/operations", () => {
   });
 
   test("returns 400 when the body is not JSON", async () => {
-    const response = await post("pas du json{");
+    const response = await post("not json{");
     expect(response.status).toBe(400);
     expect(await codeOf(response)).toBe("INVALID_OPERATION");
   });
@@ -136,7 +136,7 @@ describe("POST /api/documents/:file/operations", () => {
   });
 
   test("returns 404 for a file outside the workspace", async () => {
-    const response = await harness.api("/api/documents/autre.yml/operations", {
+    const response = await harness.api("/api/documents/other.yml/operations", {
       method: "POST",
       body: JSON.stringify({
         opId: "op-1",
@@ -289,14 +289,14 @@ describe("error shape", () => {
     },
     {
       label: "404 on an unknown API route",
-      call: () => harness.api("/api/inconnu"),
+      call: () => harness.api("/api/unknown"),
       status: 404,
-      body: { code: "NOT_FOUND", params: { reason: "unknownRoute", route: "/api/inconnu" } },
+      body: { code: "NOT_FOUND", params: { reason: "unknownRoute", route: "/api/unknown" } },
     },
     {
       label: "404 on an operation targeting a file outside the workspace",
       call: () =>
-        harness.api("/api/documents/autre.yml/operations", {
+        harness.api("/api/documents/other.yml/operations", {
           method: "POST",
           body: JSON.stringify({
             opId: "op-1",
@@ -304,11 +304,11 @@ describe("error shape", () => {
           }),
         }),
       status: 404,
-      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "autre.yml" } },
+      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "other.yml" } },
     },
     {
       label: "400 on an unreadable body",
-      call: () => post("pas du json{"),
+      call: () => post("not json{"),
       status: 400,
       body: { code: "INVALID_OPERATION", params: { reason: "unreadableBody" } },
     },

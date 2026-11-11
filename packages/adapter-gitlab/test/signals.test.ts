@@ -46,9 +46,9 @@ describe("signals of a job", () => {
   test("a !reference in a script list is expanded, and nested lists too", () => {
     expect(
       signals(
-        ".s:\n  script:\n    - un\n    - - deux\n\njob:\n  script:\n    - !reference [.s, script]\n    - trois\n",
+        ".s:\n  script:\n    - one\n    - - two\n\njob:\n  script:\n    - !reference [.s, script]\n    - three\n",
       )?.script,
-    ).toEqual(["un", "deux", "trois"]);
+    ).toEqual(["one", "two", "three"]);
   });
 
   test("a job with neither image nor script returns empty, not an error", () => {

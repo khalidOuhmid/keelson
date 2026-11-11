@@ -70,12 +70,12 @@ describe("moveStage without effect", () => {
   });
 
   test("never throws on a commented file", () => {
-    const commente = [
+    const commented = [
       "stages:",
-      "  - build # un commentaire",
+      "  - build # a comment",
       "  - test",
       "",
-      "boulot:",
+      "worker:",
       "  stage: build",
       "  script:",
       "    - x",
@@ -83,7 +83,9 @@ describe("moveStage without effect", () => {
     ].join("\n");
     for (let index = 0; index < 2; index += 1) {
       for (const name of ["build", "test"]) {
-        expect(() => expectOk(commente, { kind: "moveStage", name, toIndex: index })).not.toThrow();
+        expect(() =>
+          expectOk(commented, { kind: "moveStage", name, toIndex: index }),
+        ).not.toThrow();
       }
     }
   });

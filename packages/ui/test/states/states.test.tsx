@@ -78,7 +78,7 @@ describe("InvalidDocument", () => {
           {
             code: "JOB_WITHOUT_SCRIPT",
             severity: "warning",
-            params: { job: "muet" },
+            params: { job: "silent" },
             range: null,
             file: MAIN,
           },
@@ -86,7 +86,7 @@ describe("InvalidDocument", () => {
       />,
     );
     expect(screen.getByText(/blocking/)).toBeDefined();
-    expect(screen.queryByText(/muet/)).toBeNull();
+    expect(screen.queryByText(/silent/)).toBeNull();
   });
 
   test("says that the file stays intact on disk", () => {
@@ -123,7 +123,7 @@ describe("DocumentRemoved", () => {
 });
 
 describe("NoticeBar", () => {
-  function notice(kind: Notice["kind"], message = "quelque chose a changé"): Notice {
+  function notice(kind: Notice["kind"], message = "something changed"): Notice {
     return { kind, message } as Notice;
   }
 
@@ -133,10 +133,8 @@ describe("NoticeBar", () => {
   });
 
   test("shows the notice message", () => {
-    render(
-      <NoticeBar notice={notice("reloaded", "rechargé depuis le disque")} onDismiss={() => {}} />,
-    );
-    expect(screen.getByText(/rechargé depuis le disque/)).toBeDefined();
+    render(<NoticeBar notice={notice("reloaded", "reloaded from disk")} onDismiss={() => {}} />);
+    expect(screen.getByText(/reloaded from disk/)).toBeDefined();
   });
 
   test("a stale notice is an alert: it carries a consequence", () => {

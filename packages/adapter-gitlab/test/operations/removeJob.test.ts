@@ -27,7 +27,7 @@ describe("removeJob", () => {
   });
 
   test("also removes the empty separator line that follows", () => {
-    const sansNeeds = [
+    const withoutNeeds = [
       "stages:",
       "  - build",
       "  - test",
@@ -43,7 +43,7 @@ describe("removeJob", () => {
       "    - make check",
       "",
     ].join("\n");
-    const applied = expectOk(sansNeeds, { kind: "removeJob", id: "compile" });
+    const applied = expectOk(withoutNeeds, { kind: "removeJob", id: "compile" });
     expect(applied.text).toBe(
       [
         "stages:",
@@ -60,7 +60,7 @@ describe("removeJob", () => {
   });
 
   test("preserves the comment preceding the next job", () => {
-    const avecCommentaire = [
+    const withComment = [
       "stages:",
       "  - build",
       "  - test",
@@ -70,15 +70,15 @@ describe("removeJob", () => {
       "  script:",
       "    - make",
       "",
-      "# à propos de unit",
+      "# about unit",
       "unit:",
       "  stage: test",
       "  script:",
       "    - make check",
       "",
     ].join("\n");
-    const applied = expectOk(avecCommentaire, { kind: "removeJob", id: "compile" });
-    expect(applied.text).toContain("# à propos de unit");
+    const applied = expectOk(withComment, { kind: "removeJob", id: "compile" });
+    expect(applied.text).toContain("# about unit");
   });
 
   test("removes the last job of a file", () => {
@@ -95,8 +95,8 @@ describe("removeJob", () => {
   });
 
   test("JOB_NOT_FOUND for a template", () => {
-    const avecTemplate = `.base:\n  image: node\n\n${BASE}`;
-    expectUnchanged(avecTemplate, { kind: "removeJob", id: ".base" }, "JOB_NOT_FOUND");
+    const withTemplate = `.base:\n  image: node\n\n${BASE}`;
+    expectUnchanged(withTemplate, { kind: "removeJob", id: ".base" }, "JOB_NOT_FOUND");
   });
 
   test("JOB_REFERENCED if another job needs it", () => {
@@ -110,8 +110,8 @@ describe("removeJob", () => {
   });
 
   test("removing the dependent first then allows removing the target", () => {
-    const sansUnit = expectOk(BASE, { kind: "removeJob", id: "unit" });
-    const sansRien = expectOk(sansUnit.text, { kind: "removeJob", id: "compile" });
-    expect(sansRien.pipeline.jobs).toEqual([]);
+    const withoutUnit = expectOk(BASE, { kind: "removeJob", id: "unit" });
+    const empty = expectOk(withoutUnit.text, { kind: "removeJob", id: "compile" });
+    expect(empty.pipeline.jobs).toEqual([]);
   });
 });

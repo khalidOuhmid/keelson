@@ -40,7 +40,7 @@ describe("INVALID_YAML", () => {
 
   test("parsing never throws on broken YAML", () => {
     expect(() => parse("{{{\n:::\n- - -\n")).not.toThrow();
-    expect(() => parse("\t\tindentation par tabulation\n")).not.toThrow();
+    expect(() => parse("\t\ttab indentation\n")).not.toThrow();
   });
 });
 
@@ -108,11 +108,11 @@ describe("EXTENDS_TARGET_NOT_FOUND", () => {
       "stages:",
       "  - test",
       "",
-      "un:",
+      "one:",
       "  extends: .absent",
       "  script: a",
       "",
-      "deux:",
+      "two:",
       "  extends: .absent",
       "  script: b",
       "",
@@ -127,7 +127,7 @@ describe("EXTENDS_CYCLE", () => {
   });
 
   test("an extends to itself is a cycle", () => {
-    const text = "stages:\n  - test\n\nmoi:\n  extends: moi\n  script: x\n";
+    const text = "stages:\n  - test\n\nself:\n  extends: self\n  script: x\n";
     expect(codes(text)).toContain(EXTENDS_CYCLE);
   });
 
@@ -161,15 +161,15 @@ describe("JOB_WITHOUT_SCRIPT", () => {
 
   test("is evaluated after extends resolution", () => {
     const inherited = [
-      ".avec-script:",
+      ".with-script:",
       "  script:",
-      "    - echo herite",
+      "    - echo inherited",
       "",
       "stages:",
       "  - test",
       "",
-      "herite:",
-      "  extends: .avec-script",
+      "inherited:",
+      "  extends: .with-script",
       "  stage: test",
       "",
     ].join("\n");
@@ -182,7 +182,7 @@ describe("JOB_WITHOUT_SCRIPT", () => {
       "  script:",
       "    - echo anchor",
       "",
-      "boulot:",
+      "worker:",
       "  <<: *base",
       "",
     ].join("\n");
@@ -199,12 +199,12 @@ describe("deduplication by code and params", () => {
       "stages:",
       "  - test",
       "",
-      "un:",
-      "  extends: .absent-un",
+      "one:",
+      "  extends: .absent-one",
       "  script: a",
       "",
-      "deux:",
-      "  extends: .absent-deux",
+      "two:",
+      "  extends: .absent-two",
       "  script: b",
       "",
     ].join("\n");
@@ -213,8 +213,8 @@ describe("deduplication by code and params", () => {
       (candidate) => candidate.code === EXTENDS_TARGET_NOT_FOUND,
     );
     expect(found.map((candidate) => candidate.params)).toEqual([
-      { template: ".absent-un" },
-      { template: ".absent-deux" },
+      { template: ".absent-one" },
+      { template: ".absent-two" },
     ]);
   });
 });
@@ -228,10 +228,10 @@ describe("shape of diagnostics", () => {
       "stages:",
       "  - test",
       "",
-      "muet:",
+      "silent:",
       "  stage: test",
       "",
-      "orphelin:",
+      "orphan:",
       "  extends: .absent",
       "  script: a",
       "",
