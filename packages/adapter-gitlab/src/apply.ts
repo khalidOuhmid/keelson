@@ -1000,6 +1000,14 @@ function planFor(
   }
 }
 
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
 /** Steps are applied in memory: nothing exists until all of them have passed. The inverse is
  *  computed on the final text, from the first to the last differing byte (ADR 0012). */
 function applyComposite(
@@ -1033,6 +1041,12 @@ function applyComposite(
     before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
   ) {
     suffix += 1;
+  }
+  if (prefix > 0 && isHighSurrogate(before.charCodeAt(prefix - 1))) {
+    prefix -= 1;
+  }
+  if (suffix > 0 && isLowSurrogate(before.charCodeAt(before.length - suffix))) {
+    suffix -= 1;
   }
 
   const end = after.length - suffix;
