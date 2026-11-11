@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { Coverage, Tool } from "@keelson/catalog";
 import type { Job, Pipeline } from "@keelson/core";
-import { findLayer, LAYERS, type LayerId } from "@keelson/taxonomy";
+import { findLayer, GUIDELINE_COMMIT, LAYERS, type LayerId } from "@keelson/taxonomy";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -116,7 +116,7 @@ describe("coverage panel", () => {
 
     const link = within(rowOf("Dynamic testing")).getByRole("link", { name: "OWASP guideline" });
     expect(link.getAttribute("href")).toBe(
-      `https://github.com/OWASP/DevSecOpsGuideline/blob/master/${findLayer("dast").guideline}`,
+      `https://github.com/OWASP/DevSecOpsGuideline/blob/${GUIDELINE_COMMIT}/${findLayer("dast").guideline}`,
     );
     const platform = screen.getByRole("group", { name: "Platform categories not seen" });
     const row = within(platform).getByText("Source control").closest("li") as HTMLElement;
