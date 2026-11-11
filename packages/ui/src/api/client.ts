@@ -14,7 +14,7 @@ import { MESSAGE_CODES, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "@keelson/core
 import type { Layer } from "@keelson/taxonomy";
 import type { Positions, ProposedIntegration } from "@keelson/toolchain";
 
-export type AdapterName = "gitlab";
+export type AdapterName = "gitlab" | "github";
 
 export type WorkspaceFile = {
   path: string;

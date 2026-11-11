@@ -111,7 +111,11 @@ type Harness = {
 };
 
 function harness(
-  options: { files?: { path: string; adapter: "gitlab" }[]; document?: DocumentPayload } = {},
+  options: {
+    files?: { path: string; adapter: "gitlab" | "github" }[];
+    document?: DocumentPayload;
+    byFile?: Record<string, DocumentPayload>;
+  } = {},
 ): Harness {
   const submitted: Harness["submitted"] = [];
   const submits: ApiResult<OperationPayload>[] = [];
@@ -148,8 +152,11 @@ function harness(
           value: { files: options.files ?? [{ path: ".gitlab-ci.yml", adapter: "gitlab" }] },
         }),
         catalog: async () => ({ ok: true, value: CATALOG }),
-        document: async () =>
-          documents.shift() ?? { ok: true, value: options.document ?? DOCUMENT },
+        document: async (file) =>
+          documents.shift() ?? {
+            ok: true,
+            value: options.byFile?.[file] ?? options.document ?? DOCUMENT,
+          },
         submit: async (_file, op, opId) => {
           submitted.push({ op, opId });
           return submits.shift() ?? { ok: true, value: ok };
@@ -673,5 +680,80 @@ describe("Échap dans la confirmation n'atteint pas le panneau", () => {
 
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByRole("region", { name: /job detail/i })).toBeDefined();
+  });
+});
+
+const WORKFLOW = ".github/workflows/ci.yml";
+
+function workflowDocument(): DocumentPayload {
+  return {
+    text: "jobs:\n  lint:\n    runs-on: ubuntu-latest\n",
+    pipeline: {
+      stages: [{ name: "level 1", implicit: true, range: null, file: WORKFLOW }],
+      jobs: [
+        {
+          id: "lint",
+          stage: { value: "level 1", origin: { kind: "default" } },
+          needs: null,
+          environment: null,
+          extends: [],
+          opaque: [],
+          signals: { image: null, script: ["npm run lint"], actions: [] },
+          range: { start: 6, end: 40 },
+          file: WORKFLOW,
+        },
+      ],
+      templates: [],
+      opaque: [],
+      main: WORKFLOW,
+      files: [WORKFLOW],
+      unresolved: [],
+    },
+    diagnostics: [],
+    hash: NEXT,
+    included: {},
+    coverage: NO_COVERAGE,
+  };
+}
+
+describe("plusieurs fichiers CI dans le dépôt", () => {
+  const files = [
+    { path: MAIN, adapter: "gitlab" as const },
+    { path: WORKFLOW, adapter: "github" as const },
+  ];
+
+  test("un sélecteur liste chaque fichier et ouvre celui qu'on choisit", async () => {
+    await renderApp(harness({ files, byFile: { [WORKFLOW]: workflowDocument() } }));
+    const picker = screen.getByRole("combobox", { name: /ci file/i });
+    expect([...(picker as HTMLSelectElement).options].map((option) => option.textContent)).toEqual([
+      MAIN,
+      WORKFLOW,
+    ]);
+
+    await userEvent.selectOptions(picker, WORKFLOW);
+    expect(await screen.findByRole("button", { name: /lint/ })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /compile/ })).toBeNull();
+    expect((picker as HTMLSelectElement).value).toBe(WORKFLOW);
+  });
+
+  test("un workflow GitHub est en lecture seule, et l'écran le dit en mots", async () => {
+    await renderApp(harness({ files, byFile: { [WORKFLOW]: workflowDocument() } }));
+    expect(screen.queryByTestId("read-only-tag")).toBeNull();
+    expect((screen.getByRole("button", { name: /add stage/i }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /ci file/i }), WORKFLOW);
+    await screen.findByRole("button", { name: /lint/ });
+    expect(screen.getByTestId("read-only-tag").textContent).toMatch(/read-only/i);
+    expect((screen.getByRole("button", { name: /add stage/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  test("un seul fichier : pas de sélecteur, le chemin reste affiché", async () => {
+    await renderApp(harness());
+    expect(screen.queryByRole("combobox", { name: /ci file/i })).toBeNull();
+    expect(screen.getByText(MAIN)).toBeDefined();
   });
 });

@@ -9,6 +9,7 @@ import type {
   CatalogPayload,
   DocumentPayload,
   OperationPayload,
+  WorkspaceFile,
 } from "../api/client.ts";
 import type { ServerEvent } from "../api/events.ts";
 
@@ -68,7 +69,14 @@ export type KeelsonState = {
   error: ApiFailure | null;
   notice: Notice | null;
   pending: boolean;
+  /** Les fichiers CI du dépôt, tels que `/api/workspace` les a listés. */
+  files: WorkspaceFile[];
 
+  workspaceLoaded(files: WorkspaceFile[]): void;
+  /** Ouvre un autre fichier du dépôt : l'historique d'annulation est celui d'un fichier. */
+  openFile(file: string): Promise<void>;
+  /** Le fichier courant est lu par un adaptateur que Keelson n'édite pas encore. */
+  readOnly(): boolean;
   documentLoaded(file: string, payload: DocumentPayload): void;
   workspaceEmpty(): void;
   selectJob(id: string | null): void;
@@ -218,6 +226,30 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       error: null,
       notice: null,
       pending: false,
+      files: [],
+
+      workspaceLoaded(files) {
+        set({ files });
+      },
+
+      async openFile(file) {
+        if (file === get().file) {
+          return;
+        }
+        clearHistory();
+        set({ status: "loading", selectedJobId: null, error: null, notice: null });
+        const result = await dependencies.document(file);
+        if (result.ok) {
+          get().documentLoaded(file, result.value);
+          return;
+        }
+        set({ file, status: "removed", error: result.error });
+      },
+
+      readOnly() {
+        const { file, files } = get();
+        return files.find((entry) => entry.path === file)?.adapter === "github";
+      },
 
       documentLoaded(file, payload) {
         clearHistory();
@@ -297,7 +329,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       canEdit() {
         const { status, diagnostics } = get();
-        return status === "ready" && !diagnostics.some(blocksEditing);
+        return status === "ready" && !diagnostics.some(blocksEditing) && !get().readOnly();
       },
 
       canUndo() {

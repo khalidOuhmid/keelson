@@ -16,6 +16,7 @@ import {
   type OperationPayload,
   type ToolchainOperationPayload,
   type ToolchainPayload,
+  type WorkspaceFile,
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
@@ -51,7 +52,7 @@ const VIEWS = [
 ] as const;
 
 type ClientSurface = {
-  workspace: () => Promise<ApiResult<{ files: { path: string; adapter: "gitlab" }[] }>>;
+  workspace: () => Promise<ApiResult<{ files: WorkspaceFile[] }>>;
   document: (file: string) => Promise<ApiResult<DocumentPayload>>;
   submit: (
     file: string,
@@ -169,6 +170,7 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
 
+      store.getState().workspaceLoaded(workspace.value.files);
       setRoot(first.path);
       const document = await resolved.client.document(first.path);
       if (document.ok) {
@@ -400,9 +402,35 @@ export function App({ deps }: AppProps = {}) {
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
         <span className="flex items-baseline gap-2 overflow-hidden">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
-          {state.file === null ? null : (
+          {state.file === null ? null : state.files.length > 1 ? (
+            <select
+              aria-label="CI file"
+              value={state.file}
+              disabled={state.pending}
+              onChange={(event) => {
+                setSidebarOpen(false);
+                void store.getState().openFile(event.target.value);
+              }}
+              className="min-w-0 max-w-64 truncate rounded-sm border border-border-default bg-surface-inset px-1 py-0.5 font-mono text-xs text-text-secondary disabled:cursor-not-allowed"
+            >
+              {state.files.map((entry) => (
+                <option key={entry.path} value={entry.path}>
+                  {entry.path}
+                </option>
+              ))}
+            </select>
+          ) : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
           )}
+          {state.readOnly() ? (
+            <span
+              data-testid="read-only-tag"
+              title="Keelson reads GitHub Actions workflows and maps their coverage; editing them is not supported yet."
+              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+            >
+              GitHub Actions · read-only
+            </span>
+          ) : null}
           {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
               testé et invisible — ce que `CLAUDE.md` interdit. Il dit à l'utilisateur que ce qu'il
               lit vient de plusieurs fichiers, ce que ni le graphe ni le chemin de l'en-tête ne
