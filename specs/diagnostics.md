@@ -59,6 +59,7 @@ exhaustiveness of the rendering branches is checked at compile time.
 | `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | The catalogue entry names a logo absent from the bundled catalogue. |
 | `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | A tool of type `job` has no snippet. |
 | `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | The catalogue entry has not been verified for more than six months. |
+| `CATALOG_FUTURE_VERIFIED` | error | `catalog lint` | `{ tool, lastVerified }` | The catalogue entry claims a verification date after today: freshness could not be judged. |
 | `WORKFLOW_UNRESOLVED` | info | GitHub `parse` | `{ job, target }` | A `uses:` job calls a reusable workflow, which Keelson does not read. Counted in `Pipeline.unresolved`, so the pipeline is partial ([ADR 0013](adr/0013-github-without-stages.md)). |
 | `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` is not valid YAML or does not follow its schema. The toolchain is then empty, and no operation edits it. |
 | `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | A service names a tool absent from the catalogue. |

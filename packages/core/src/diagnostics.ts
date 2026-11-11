@@ -22,6 +22,7 @@ export type Diagnostic = {
 export type { DiagnosticCode } from "./messages/codes.ts";
 export {
   CATALOG_DUPLICATE_TOOL,
+  CATALOG_FUTURE_VERIFIED,
   CATALOG_INVALID_TOOL,
   CATALOG_MISSING_SNIPPET,
   CATALOG_STALE_TOOL,

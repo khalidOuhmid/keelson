@@ -132,6 +132,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     { params: { tool: "x", logo: "y" }, text: 'tool "x" names unknown logo "y"' },
   ],
   CATALOG_MISSING_SNIPPET: [{ params: { tool: "x" }, text: 'job tool "x" has no snippet' }],
+  CATALOG_FUTURE_VERIFIED: [
+    {
+      params: { tool: "x", lastVerified: "2027-01-01" },
+      text: 'tool "x" claims a verification on 2027-01-01, which is in the future',
+    },
+  ],
   CATALOG_STALE_TOOL: [
     {
       params: { tool: "x", lastVerified: "2026-01-01" },
