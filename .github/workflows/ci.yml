@@ -25,16 +25,6 @@ jobs:
       - name: Lint, typecheck, test, build
         run: bun run check
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-
-      - name: Smoke test du binaire buildé sous Node
-        run: |
-          node --version
-          bun test packages/cli/test/node-smoke.test.ts
-
       - name: Cache des navigateurs Playwright
         uses: actions/cache@v4
         id: playwright-cache
@@ -54,3 +44,32 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  node-smoke:
+    name: Binaire sous Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run build
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Smoke test du binaire buildé sous Node
+        run: |
+          node --version
+          bun test packages/cli/test/node-smoke.test.ts

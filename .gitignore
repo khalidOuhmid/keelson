@@ -9,3 +9,9 @@ test-results/
 # Journaux de session Impeccable (seul config.json est de la config projet)
 packages/ui/.impeccable/live/*
 !packages/ui/.impeccable/live/config.json
+
+# Captures régénérées par packages/ui/e2e/shots.e2e.ts pour la revue Impeccable
+packages/ui/.impeccable/review/
+
+# Configuration Playwright propre à un poste (chemin de navigateur local)
+playwright.local.config.ts

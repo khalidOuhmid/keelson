@@ -1,4 +1,8 @@
-# Pilote autonome — lots L3 à L8
+# Pilote autonome — lots L3 à L8 (archivé)
+
+> Archivé le 2026-11-11 : consigne de l'agent autonome qui a livré L3 à L8, conservée comme trace du
+> processus (TDD, revue indépendante en lecture seule, ADR). Elle n'est plus active : l'état du
+> projet est dans [progress.md](progress.md).
 
 Ce fichier est la consigne complète de l'agent jusqu'à la fin du projet. Il se relit à chaque session. L'état de reprise est dans `specs/progress.md`, jamais dans la conversation.
 
