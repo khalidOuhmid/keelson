@@ -43,7 +43,7 @@ function pairsOf(map: YAMLMap): Pair<unknown, unknown>[] {
   return map.items.filter((item) => isPair(item));
 }
 
-function valueOf(map: YAMLMap, key: string): AnyNode {
+function fieldOf(map: YAMLMap, key: string): AnyNode {
   return pairsOf(map).find((pair) => keyOf(pair) === key)?.value;
 }
 
@@ -94,11 +94,11 @@ function environmentOf(node: AnyNode): Valued<Environment> | null {
   if (!isMap(node)) {
     return null;
   }
-  const name = stringOf(valueOf(node, "name"));
+  const name = stringOf(fieldOf(node, "name"));
   if (name === null) {
     return null;
   }
-  const url = stringOf(valueOf(node, "url"));
+  const url = stringOf(fieldOf(node, "url"));
   return { value: url === null ? { name } : { name, url }, origin: { kind: "local" } };
 }
 
@@ -108,7 +108,7 @@ function actionName(reference: string): string {
 }
 
 function imageOf(node: AnyNode): string | null {
-  return stringOf(node) ?? (isMap(node) ? stringOf(valueOf(node, "image")) : null);
+  return stringOf(node) ?? (isMap(node) ? stringOf(fieldOf(node, "image")) : null);
 }
 
 type Signals = { image: string | null; script: string[]; actions: string[] };
@@ -117,34 +117,34 @@ function signalsOf(job: YAMLMap): Signals {
   const script: string[] = [];
   const actions: string[] = [];
 
-  const called = stringOf(valueOf(job, "uses"));
+  const called = stringOf(fieldOf(job, "uses"));
   if (called !== null) {
     actions.push(actionName(called));
   }
 
-  const steps = valueOf(job, "steps");
+  const steps = fieldOf(job, "steps");
   if (isSeq(steps)) {
     for (const step of steps.items) {
       if (!isMap(step)) {
         continue;
       }
-      const uses = stringOf(valueOf(step, "uses"));
+      const uses = stringOf(fieldOf(step, "uses"));
       if (uses !== null) {
         actions.push(actionName(uses));
       }
-      const run = stringOf(valueOf(step, "run"));
+      const run = stringOf(fieldOf(step, "run"));
       if (run !== null) {
         script.push(...run.split("\n").filter((line) => line.trim() !== ""));
       }
     }
   }
 
-  return { image: imageOf(valueOf(job, "container")), script, actions };
+  return { image: imageOf(fieldOf(job, "container")), script, actions };
 }
 
 function hasWork(job: YAMLMap): boolean {
-  const steps = valueOf(job, "steps");
-  return stringOf(valueOf(job, "uses")) !== null || (isSeq(steps) && steps.items.length > 0);
+  const steps = fieldOf(job, "steps");
+  return stringOf(fieldOf(job, "uses")) !== null || (isSeq(steps) && steps.items.length > 0);
 }
 
 function opaqueOf(map: YAMLMap, file: string, skipped: readonly string[]): OpaqueBlock[] {
@@ -207,7 +207,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     return { pipeline: { ...emptyPipeline(file), files: [file] }, diagnostics, hash, included: {} };
   }
 
-  const jobsNode = valueOf(root, "jobs");
+  const jobsNode = fieldOf(root, "jobs");
   const entries = isMap(jobsNode)
     ? pairsOf(jobsNode).flatMap((pair) => {
         const id = keyOf(pair);
@@ -221,7 +221,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
   const needs = new Map(
     entries.map((entry) => [
       entry.id,
-      (needsOf(valueOf(entry.map, "needs"))?.value ?? []).map((need) => need.job),
+      (needsOf(fieldOf(entry.map, "needs"))?.value ?? []).map((need) => need.job),
     ]),
   );
   const levels = levelsOf(
@@ -250,8 +250,8 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     return {
       id: entry.id,
       stage: { value: levelName(levels.get(entry.id) ?? 1), origin: { kind: "default" } },
-      needs: needsOf(valueOf(entry.map, "needs")),
-      environment: environmentOf(valueOf(entry.map, "environment")),
+      needs: needsOf(fieldOf(entry.map, "needs")),
+      environment: environmentOf(fieldOf(entry.map, "environment")),
       extends: [],
       opaque: opaqueOf(entry.map, file, MODELLED_JOB_KEYS),
       signals: signalsOf(entry.map),
