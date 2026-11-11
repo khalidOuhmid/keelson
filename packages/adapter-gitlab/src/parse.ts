@@ -17,7 +17,13 @@ import {
 } from "@keelson/core";
 import type { Document } from "yaml";
 import { isMap, isSeq, type YAMLMap } from "yaml";
-import { DEFAULT_STAGE, DEFAULT_STAGES, isReservedTopLevel } from "./defaults.ts";
+import {
+  DEFAULT_STAGE,
+  DEFAULT_STAGES,
+  FIRST_STAGE,
+  isReservedTopLevel,
+  LAST_STAGE,
+} from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import {
   type IncludeReader,
@@ -100,7 +106,12 @@ function declaredStages(root: YAMLMap, file: string): Stage[] | null {
     return typeof value === "string" ? [{ name: value, implicit: false, range, file }] : [];
   });
 
-  return stages.length === 0 ? null : stages;
+  if (stages.length === 0) {
+    return null;
+  }
+  const rank = (stage: Stage): number =>
+    stage.name === FIRST_STAGE ? 0 : stage.name === LAST_STAGE ? 2 : 1;
+  return stages.toSorted((left, right) => rank(left) - rank(right));
 }
 
 function yamlDiagnostics(parsed: ParsedFile): Diagnostic[] {

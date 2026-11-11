@@ -56,7 +56,7 @@ import {
   YAMLMap,
   type YAMLSeq,
 } from "yaml";
-import { DEFAULT_STAGES } from "./defaults.ts";
+import { DEFAULT_STAGES, FIRST_STAGE, LAST_STAGE } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
 import { parse } from "./parse.ts";
@@ -299,7 +299,7 @@ function planAddJob(
 
   const body = [
     `${job.id}:${eol}`,
-    `${indent}stage: ${job.stage}${eol}`,
+    `${indent}stage: ${scalarText(job.stage)}${eol}`,
     needs.length === 0 ? "" : renderNeedsBlock(needs, geometry, indent),
     job.environment === undefined ? "" : renderEnvironmentBlock(job.environment, geometry, indent),
     `${indent}script:${eol}`,
@@ -457,7 +457,7 @@ function planSetJobStage(
     const end =
       isSeq(value) && value.flow !== true ? nodeRange(seqItems(value).at(-1))?.[1] : range.end;
     if (!tagged || keyStart === undefined || end === undefined) {
-      return ok([{ ...range, text: operation.stage }]);
+      return ok([{ ...range, text: scalarText(operation.stage) }]);
     }
 
     // An anchor, a comment or an explicit key live in the rewritten range: losing them silently
@@ -469,12 +469,16 @@ function planSetJobStage(
     if (anchored || commented || explicitKey) {
       return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "stage" });
     }
-    return ok([{ start: keyStart, end, text: `stage: ${operation.stage}` }]);
+    return ok([{ start: keyStart, end, text: `stage: ${scalarText(operation.stage)}` }]);
   }
 
   const at = overrideInsertAt(geometry, located.value);
   return ok([
-    { start: at, end: at, text: `${geometry.indent}stage: ${operation.stage}${geometry.eol}` },
+    {
+      start: at,
+      end: at,
+      text: `${geometry.indent}stage: ${scalarText(operation.stage)}${geometry.eol}`,
+    },
   ]);
 }
 
@@ -744,10 +748,80 @@ function stagesSeq(root: YAMLMap): { pair: Pair<unknown, unknown>; seq: YAMLSeq 
 
 function materialiseStages(names: readonly string[], geometry: Geometry, root: YAMLMap): Splice {
   const { eol, indent } = geometry;
-  const body = names.map((name) => `${indent}- ${name}${eol}`).join("");
+  const body = names.map((name) => `${indent}- ${scalarText(name)}${eol}`).join("");
   const first = localPairs(root)[0];
   const at = nodeRange(first?.key as AnyNode)?.[0] ?? 0;
   return { start: at, end: at, text: `stages:${eol}${body}${eol}` };
+}
+
+/** Where a stage other than `.pre` and `.post` can stand: GitLab pins those two at the ends. */
+function movableBounds(names: readonly string[]): { low: number; high: number } {
+  return {
+    low: names[0] === FIRST_STAGE ? 1 : 0,
+    high: names.at(-1) === LAST_STAGE ? names.length - 1 : names.length,
+  };
+}
+
+function clamp(value: number, low: number, high: number): number {
+  return Math.min(Math.max(value, low), high);
+}
+
+/** The list item a displayed stage was read from. The display order is not the list's order once
+ *  `.pre` or `.post` is written elsewhere than at its end: the item is found by its range. */
+function stageItem(items: readonly Node[], pipeline: Pipeline, name: string): Node | undefined {
+  const start = pipeline.stages.find((stage) => stage.name === name)?.range?.start;
+  return start === undefined ? undefined : items.find((item) => nodeRange(item)?.[0] === start);
+}
+
+/** Inserts `text` in a stage list next to displayed neighbours: before `next`'s item, otherwise
+ *  after `previous`'s. A block item takes its own line; the comments around it stay where they
+ *  are. */
+function stageInsertion(
+  declared: { seq: YAMLSeq },
+  pipeline: Pipeline,
+  neighbours: { previous: string | undefined; next: string | undefined },
+  value: string,
+  geometry: Geometry,
+  ownPrefix?: string,
+): Splice | null {
+  const { text, eol } = geometry;
+  const items = declared.seq.items as Node[];
+  const next =
+    neighbours.next === undefined ? undefined : stageItem(items, pipeline, neighbours.next);
+  const previous =
+    neighbours.previous === undefined ? undefined : stageItem(items, pipeline, neighbours.previous);
+  // `.post` can be written anywhere in the list: next to it says nothing of the displayed order.
+  const pinned = neighbours.next === LAST_STAGE && previous !== undefined;
+  const nextRange = next === undefined || pinned ? undefined : nodeRange(next);
+  const previousRange = previous === undefined ? undefined : nodeRange(previous);
+
+  if (declared.seq.flow === true) {
+    if (nextRange !== undefined) {
+      return { start: nextRange[0], end: nextRange[0], text: `${value}, ` };
+    }
+    return previousRange === undefined
+      ? null
+      : { start: previousRange[1], end: previousRange[1], text: `, ${value}` };
+  }
+
+  if (nextRange !== undefined) {
+    const at = lineStart(text, nextRange[0]);
+    return {
+      start: at,
+      end: at,
+      text: `${ownPrefix ?? itemPrefix(text, nextRange[0])}${value}${eol}`,
+    };
+  }
+  if (previousRange === undefined) {
+    return null;
+  }
+  const at = afterLine(text, previousRange[1]);
+  const glue = at === text.length && !text.endsWith("\n") ? eol : "";
+  return {
+    start: at,
+    end: at,
+    text: `${glue}${ownPrefix ?? itemPrefix(text, previousRange[0])}${value}${eol}`,
+  };
 }
 
 function planAddStage(
@@ -771,64 +845,32 @@ function planAddStage(
     return fail(FROM_INCLUDED_FILE, { reason: "stages", file: foreignStagesAdd });
   }
 
-  const index = operation.index ?? pipeline.stages.length;
-  if (index > pipeline.stages.length) {
+  const names = pipeline.stages.map((stage) => stage.name);
+  if ((operation.index ?? 0) > names.length) {
     return fail(RANGE_OUT_OF_BOUNDS, {
       reason: "stageIndex",
-      index,
-      count: pipeline.stages.length,
+      index: operation.index ?? 0,
+      count: names.length,
     });
   }
+  const { low, high } = movableBounds(names);
+  const index = clamp(operation.index ?? high, low, high);
 
   const declared = stagesSeq(root);
   if (declared === null) {
-    const names: string[] = [...DEFAULT_STAGES];
-    names.splice(index, 0, operation.name);
-    return ok([materialiseStages(names, geometry, root)]);
+    const materialised: string[] = [...DEFAULT_STAGES];
+    materialised.splice(index, 0, operation.name);
+    return ok([materialiseStages(materialised, geometry, root)]);
   }
 
-  const items = declared.seq.items as Node[];
-  const { text, eol } = geometry;
-
-  if (declared.seq.flow === true) {
-    const anchor = items[index];
-    if (anchor !== undefined) {
-      const start = nodeRange(anchor)?.[0];
-      return start === undefined
-        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" })
-        : ok([{ start, end: start, text: `${operation.name}, ` }]);
-    }
-    const last = items.at(-1);
-    const end = last === undefined ? undefined : nodeRange(last)?.[1];
-    return end === undefined
-      ? fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" })
-      : ok([{ start: end, end, text: `, ${operation.name}` }]);
-  }
-
-  const anchor = items[index];
-  if (anchor !== undefined) {
-    const anchorStart = nodeRange(anchor)?.[0];
-    if (anchorStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
-    }
-    const at = lineStart(text, anchorStart);
-    return ok([
-      { start: at, end: at, text: `${itemPrefix(text, anchorStart)}${operation.name}${eol}` },
-    ]);
-  }
-
-  const last = items.at(-1);
-  const lastRange = last === undefined ? undefined : nodeRange(last);
-  if (lastRange === undefined) {
-    return fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" });
-  }
-  return ok([
-    {
-      start: lastRange[2],
-      end: lastRange[2],
-      text: `${itemPrefix(text, lastRange[0])}${operation.name}${eol}`,
-    },
-  ]);
+  const splice = stageInsertion(
+    declared,
+    pipeline,
+    { previous: names[index - 1], next: names[index] },
+    scalarText(operation.name),
+    geometry,
+  );
+  return splice === null ? fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" }) : ok([splice]);
 }
 
 function planMoveStage(
@@ -838,8 +880,7 @@ function planMoveStage(
   pipeline: Pipeline,
 ): Planned {
   const names = pipeline.stages.map((stage) => stage.name);
-  const from = names.indexOf(operation.name);
-  if (from === -1) {
+  if (!names.includes(operation.name)) {
     return fail(STAGE_NOT_FOUND, { stage: operation.name });
   }
 
@@ -854,47 +895,65 @@ function planMoveStage(
       count: names.length,
     });
   }
+  if (operation.name === FIRST_STAGE || operation.name === LAST_STAGE) {
+    return ok([]);
+  }
 
-  const declared = stagesSeq(root);
-  const reordered = names.filter((name) => name !== operation.name);
-  reordered.splice(operation.toIndex, 0, operation.name);
+  const rest = names.filter((name) => name !== operation.name);
+  const { low, high } = movableBounds(rest);
+  const to = clamp(operation.toIndex, low, high);
+  const reordered = [...rest];
+  reordered.splice(to, 0, operation.name);
 
   if (reordered.every((name, position) => name === names[position])) {
     return ok([]);
   }
 
+  const declared = stagesSeq(root);
   if (declared === null) {
     return ok([materialiseStages(reordered, geometry, root)]);
   }
 
   const items = declared.seq.items as Node[];
-  const victim = items[from];
+  const victim = stageItem(items, pipeline, operation.name);
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
-  if (victimRange === undefined) {
+  if (victim === undefined || victimRange === undefined) {
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
   }
 
-  const { text, eol } = geometry;
-  const prefix = linePrefix(text, victimRange[0]);
-  const line = `${prefix}${operation.name}${eol}`;
-  const removal: Splice = { start: lineStart(text, victimRange[0]), end: victimRange[2], text: "" };
-
-  const rest = items.filter((_, position) => position !== from);
-  const anchor = rest[operation.toIndex];
-  if (anchor !== undefined) {
-    const anchorStart = nodeRange(anchor)?.[0];
-    if (anchorStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
-    }
-    const at = lineStart(text, anchorStart);
-    return ok([removal, { start: at, end: at, text: line }]);
+  const { text } = geometry;
+  // The item is moved as written: its quotes and anchor go with it.
+  const written = text.slice(victimRange[0], victimRange[1]);
+  const ownPrefix = linePrefix(text, victimRange[0]);
+  const position = items.indexOf(victim);
+  let removal: Splice;
+  if (declared.seq.flow === true) {
+    const following = nodeRange(items[position + 1])?.[0];
+    const preceding = nodeRange(items[position - 1])?.[1];
+    removal =
+      following !== undefined
+        ? { start: victimRange[0], end: following, text: "" }
+        : { start: preceding ?? victimRange[0], end: victimRange[1], text: "" };
+  } else {
+    removal = {
+      start: lineStart(text, victimRange[0]),
+      end: afterLine(text, victimRange[1]),
+      text: "",
+    };
   }
 
-  const last = rest.at(-1);
-  const lastEnd = last === undefined ? undefined : nodeRange(last)?.[2];
-  return lastEnd === undefined
-    ? fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" })
-    : ok([removal, { start: lastEnd, end: lastEnd, text: line }]);
+  const insertion = stageInsertion(
+    declared,
+    pipeline,
+    { previous: reordered[to - 1], next: reordered[to + 1] },
+    written,
+    geometry,
+    ownPrefix.includes("-") ? ownPrefix : undefined,
+  );
+  if (insertion === null) {
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" });
+  }
+  return ok([removal, insertion]);
 }
 
 function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
@@ -910,9 +969,11 @@ function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
   return ok([{ start: operation.start, end: operation.end, text: operation.text }]);
 }
 
-function jobKeyText(value: string): string {
-  const plain = stringify(value, { lineWidth: 0 }).replace(/\r?\n$/, "");
-  return plain.includes("\n") ? JSON.stringify(value) : plain;
+/** A scalar as GitLab will read it back: Psych is YAML 1.1, where `yes`, `on` or `012` are not
+ *  strings, so they are quoted. A flow indicator is quoted too, the value may land in a flow list. */
+function scalarText(value: string): string {
+  const plain = stringify(value, { lineWidth: 0, version: "1.1" }).replace(/\r?\n$/, "");
+  return plain.includes("\n") || /[,[\]{}]/.test(plain) ? JSON.stringify(value) : plain;
 }
 
 /** A block job, with no anchor or alias: copied into another file, an alias would no longer have a
@@ -996,13 +1057,13 @@ function planAddSnippet(
     (firstKey?.[0] ?? 2) - (snippet.lastIndexOf("\n", firstKey?.[0] ?? 0) + 1),
   );
   const edits = [
-    { start: keyRange[0], end: keyRange[1], text: jobKeyText(id) },
+    { start: keyRange[0], end: keyRange[1], text: scalarText(id) },
     stageRange
-      ? { start: stageRange[0], end: stageRange[1], text: jobKeyText(stage) }
+      ? { start: stageRange[0], end: stageRange[1], text: scalarText(stage) }
       : {
           start: snippet.indexOf("\n", keyRange[1]) + 1,
           end: snippet.indexOf("\n", keyRange[1]) + 1,
-          text: `${indent}stage: ${jobKeyText(stage)}\n`,
+          text: `${indent}stage: ${scalarText(stage)}\n`,
         },
   ].sort((left, right) => right.start - left.start);
   const rewritten = edits.reduce(
