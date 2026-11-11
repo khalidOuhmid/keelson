@@ -105,6 +105,8 @@ export const EN: Catalogue = {
     invalidSnippet: () => "this snippet is not a single job Keelson can copy as it is",
     citedInExpression: (p) =>
       `job ${quoted(p.job)} is cited in an expression that Keelson cannot rewrite, so this change would break it`,
+    dynamicExpression: (p) =>
+      `an expression reads needs or jobs as a whole or by a computed index, so it may reach ${quoted(p.job)}: Keelson refuses rather than break it`,
     notForProvider: (p) => `operation ${p.operation} has no meaning in a GitHub Actions workflow`,
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,

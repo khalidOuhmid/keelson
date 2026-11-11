@@ -359,7 +359,72 @@ jobs:
   ])("%s peut citer n'importe quel job : refusé", (_label, expression) => {
     const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "${expression}"\n`;
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
-      error: { params: { reason: "citedInExpression" } },
+      error: { params: { reason: "dynamicExpression", job: "a" } },
+    });
+  });
+
+  test.each([
+    ["un jobs indexé par une entrée", "${{ jobs[inputs.which].outputs.v }}"],
+    ["jobs entier", "${{ toJSON(jobs) }}"],
+  ])("%s dans les sorties d'un workflow réutilisable : refusé", (_label, expression) => {
+    const text = `on:\n  workflow_call:\n    outputs:\n      v:\n        value: ${expression}\njobs:\n  a:\n    steps:\n      - run: x\n`;
+    for (const op of [
+      { kind: "renameJob", from: "a", to: "c" },
+      { kind: "removeJob", id: "a" },
+    ] as const) {
+      expect(run(text, op)).toMatchObject({
+        error: { params: { reason: "dynamicExpression", job: "a" } },
+      });
+    }
+  });
+
+  test.each([
+    [
+      "un libellé entre apostrophes",
+      "if: contains(github.event.pull_request.labels.*.name, 'needs-review')",
+    ],
+    ["une phrase entre apostrophes", "if: github.event.label.name == 'needs triage'"],
+    ["une propriété d'env, en capitales", "if: env.NEEDS == 'x'"],
+    ["une entrée", "if: inputs.needs"],
+    ["une variable de matrice", "if: matrix.needs"],
+    ["un libellé qui contient jobs", "if: github.event.label.name == 'jobs'"],
+  ])("%s ne lit pas le contexte needs : renommer et retirer restent permis", (_label, line) => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n  b:\n    needs: z\n    ${line}\n    steps:\n      - run: y\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
+    expect(run(text, { kind: "removeJob", id: "a" }).ok).toBe(true);
+  });
+
+  test("needs['z'] vise z seulement : renommer un autre job reste permis", () => {
+    for (const index of ["needs['z']", 'needs["z"]']) {
+      const text = `jobs:\n  a:\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n  b:\n    needs: [a, z]\n    if: ${index}.result == 'success'\n    steps:\n      - run: y\n`;
+      expect(run(text, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
+    }
+  });
+
+  test("chaque expression d'une valeur est lue, pas seulement la première", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo "\${{ github.sha }} \${{ needs.a.outputs.v }}"\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "citedInExpression", job: "a" } },
+    });
+  });
+
+  test("needs dynamique ne voit que les needs de son job : un job hors de sa portée reste libre", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    if: \${{ toJSON(needs) != '' }}\n    steps:\n      - run: y\n  c:\n    steps:\n      - run: z\n`;
+    expect(run(text, { kind: "renameJob", from: "c", to: "d" }).ok).toBe(true);
+    expect(run(text, { kind: "removeJob", id: "c" }).ok).toBe(true);
+    expect(run(text, { kind: "renameJob", from: "a", to: "d" })).toMatchObject({
+      error: { params: { reason: "dynamicExpression", job: "a" } },
+    });
+  });
+
+  test("le refus dynamique vaut aussi pour removeNeed et removeJob", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    if: \${{ toJSON(needs) != '' }}\n    steps:\n      - run: y\n  c:\n    steps:\n      - run: z\n`;
+    expect(run(text, { kind: "removeNeed", id: "b", job: "a" })).toMatchObject({
+      error: { params: { reason: "dynamicExpression", job: "a" } },
+    });
+    const called = `on:\n  workflow_call:\n    outputs:\n      v:\n        value: \${{ toJSON(jobs) }}\n${text}`;
+    expect(run(called, { kind: "removeJob", id: "c" })).toMatchObject({
+      error: { params: { reason: "dynamicExpression", job: "c" } },
     });
   });
 

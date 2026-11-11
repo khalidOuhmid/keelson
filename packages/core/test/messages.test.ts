@@ -250,6 +250,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'job "build" is cited in an expression that Keelson cannot rewrite, so this change would break it',
     },
     {
+      params: { reason: "dynamicExpression", job: "build" },
+      text: 'an expression reads needs or jobs as a whole or by a computed index, so it may reach "build": Keelson refuses rather than break it',
+    },
+    {
       params: { reason: "notForProvider", operation: "addStage" },
       text: "operation addStage has no meaning in a GitHub Actions workflow",
     },

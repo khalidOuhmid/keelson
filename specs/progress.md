@@ -1,8 +1,8 @@
 # Suivi des lots
 
-Statut : EN COURS — intégration avant la PR
-Lot courant : fusion de `lot/l6-github` dans `claude/wonderful-edison-vituwb` (L6 complet, édition comprise)
-Prochaine action : contre-revue de `226b88d` restée en suspens sur `lot/l6-github`, `bun run check && bun run e2e`, PR vers `main`.
+Statut : TOUS LES LOTS DU PLAN LIVRÉS (2026-11-11), en revue dans la PR #1
+Lot courant : aucun — suite dans `specs/ecarts.md`
+Prochaine action : fusion de la PR #1 dans `main`, secret `NPM_TOKEN`, puis tag `v0.1.0`.
 Blocage : aucun
 
 
@@ -17,7 +17,7 @@ Blocage : aucun
 | L3 — taxonomie, catalogue, overlay OWASP | TERMINÉ | `36caaa1` (`--no-ff`) |
 | L4 — toolchain | TERMINÉ | `fd63570` (`--no-ff`) |
 | L5 — propositions et insertion | TERMINÉ | `971ae5b` (`--no-ff`) |
-| L6 — adaptateur GitHub Actions | TERMINÉ, contre-revue finale en cours | `lot/l6-github` fusionné dans `claude/wonderful-edison-vituwb` |
+| L6 — adaptateur GitHub Actions | TERMINÉ | `lot/l6-github` fusionné dans `claude/wonderful-edison-vituwb` |
 | L7 — packaging open source | TERMINÉ | branche `claude/wonderful-edison-vituwb` |
 | L8 — flotte | TERMINÉ | fusionné dans `claude/wonderful-edison-vituwb` |
 
@@ -777,8 +777,9 @@ rechargement, badge `implicit` faux sur GitHub.
 
 **Contre-revues.** Quatre passes. `citesJob` a demandé le plus de travail : crochets et casse échappaient
 à une regex sur le texte, puis lire toutes les valeurs refusait des phrases ordinaires, puis une
-coupure au premier `}}` manquait `format('{{0}}', …)`. Le contrôle lit désormais les valeurs, de `${{`
-à leur fin, et les clés `if`. Six surfaces sans preuve (`descendants`, `scope`, notice, `opening`,
+coupure au premier `}}` manquait `format('{{0}}', …)`. Le contrôle lit chaque `${{ … }}` jusqu'à
+son `}}` hors chaîne, dans les valeurs et les clés, plus toute valeur `if` (état à `226b88d`, revu
+le 2026-11-11, voir plus bas). Six surfaces sans preuve (`descendants`, `scope`, notice, `opening`,
 garde de `reload`) ont reçu un test.
 
 **Une erreur de méthode.** Le commit `feat(adapter-github)` est parti avec une erreur de typage de test,
@@ -861,4 +862,23 @@ Non fait, à la main du propriétaire : `CODE_OF_CONDUCT.md`, qui demande un con
 GitHub ; L7, L8, `--help` et le ménage gardés par-dessus. `apply.ts` (L8) lit `DEFAULT_FILE` dans
 `analysis.ts`. Deux tests de la version abandonnée, contraires aux choix de `lot/l6-github`, sont
 retirés : l'étiquette de lecture seule et l'intégration déduite d'une action (portée aux écarts).
+
+### 2026-11-11 — contre-revue de `226b88d`
+
+La contre-revue restée en suspens sur `lot/l6-github` : trois relecteurs indépendants (justesse,
+tests incapables d'échouer, contrats), chaque constat reproduit par trois sceptiques dans leur propre
+worktree, majorité requise. Neuf constats confirmés, aucun réfuté, ramenés à quatre :
+
+- **Régression** : le `needs` dynamique se lisait partout, donc `'needs-review'`, `env.NEEDS` ou
+  `matrix.needs` refusaient le renommage et la suppression de tous les jobs. Seule la racine du
+  contexte compte désormais, après neutralisation des chaînes `'…'`.
+- **Trou** : `jobs[inputs.x]` et `toJSON(jobs)` dans les sorties d'un workflow réutilisable
+  n'étaient pas vus ; ils sont refusés.
+- **Portée** : le `needs` d'un job ne contient que ses propres needs ; un `toJSON(needs)` ne protège
+  plus que ceux-là, au lieu de tous les jobs du fichier.
+- **Contrat** : le refus dynamique a sa raison, `dynamicExpression`, documentée dans
+  `diagnostics.md`, au lieu de dire qu'un job est cité quand aucun ne l'est. Tests ajoutés pour
+  plusieurs `${{ }}` dans une valeur, l'indice littéral `needs['z']`, et removeNeed et removeJob.
+
+Propriétés de `adapter-github` et `adapter-gitlab` à `KEELSON_FC_RUNS=500` : 673 / 673.
 

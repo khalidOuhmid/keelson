@@ -237,6 +237,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `invalidToolchain` | — | `toolchain.yaml` porte un `TOOLCHAIN_INVALID` : Keelson n'édite pas un fichier qu'il ne comprend pas. |
 | `invalidSnippet` | — | `addSnippet` : le texte n'est pas le YAML d'un seul job en bloc, sans ancre ni alias. |
 | `citedInExpression` | `job` | GitHub Actions : `needs.<id>` ou `jobs.<id>` figure dans une expression, que Keelson ne réécrit pas. |
+| `dynamicExpression` | `job` | GitHub Actions : une expression lit le contexte `needs` ou `jobs` entier, ou par un indice calculé (`toJSON(needs)`, `needs[matrix.dep]`, `jobs[inputs.x]`), et peut donc viser `job` sans le nommer. Seule la racine du contexte compte : ni `env.NEEDS`, ni un libellé `'needs-review'`. |
 | `notForProvider` | `operation` | GitHub Actions : l'opération n'a pas de sens, faute de stages ou d'options de need. |
 | `invalidLayout` | — | **Serveur** : `layout.json` n'est pas lisible. Keelson n'écrase pas ce qu'il ne comprend pas. |
 | `outsideRoot` | `path` | **Serveur** : `.devsecops` mène hors du dépôt. Rien n'est écrit. |

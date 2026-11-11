@@ -201,6 +201,7 @@ export type MessageParams = {
     | { reason: "invalidSnippet" }
     | { reason: "notForProvider"; operation: string }
     | { reason: "citedInExpression"; job: string }
+    | { reason: "dynamicExpression"; job: string }
     | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }

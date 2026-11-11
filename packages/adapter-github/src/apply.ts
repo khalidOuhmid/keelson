@@ -361,27 +361,84 @@ function expressionsIn(value: unknown, found: string[], seen: Set<unknown>, key 
   }
 }
 
+/** Le contenu de chaque chaîne `'…'` remplacé par `_` : un libellé `'needs-review'` ne lit aucun
+ *  contexte, et un indice littéral `needs['z']` garde sa forme. `''` est l'apostrophe échappée. */
+function withoutLiterals(expression: string): string {
+  return expression.replace(/'(?:[^']|'')*'/g, "'_'");
+}
+
+const dynamicRoot = (context: "needs" | "jobs"): RegExp =>
+  new RegExp(
+    `(?<![\\w.-])${context}\\b(?!\\s*\\.\\s*[\\w*-]+|\\s*\\[\\s*['"][\\w-]+['"]\\s*\\])`,
+    "i",
+  );
+const DYNAMIC_NEEDS = dynamicRoot("needs");
+const DYNAMIC_JOBS = dynamicRoot("jobs");
+
+function expressionsOfValue(value: unknown): string[] {
+  const found: string[] = [];
+  expressionsIn(value, found, new Set());
+  return found.map(withoutLiterals);
+}
+
+function needsOf(job: unknown): string[] {
+  const needs = (job as { needs?: unknown } | null)?.needs;
+  return typeof needs === "string" ? [needs] : Array.isArray(needs) ? needs.map(String) : [];
+}
+
+/** Le contexte `needs` d'un job ne contient que ses propres needs : lu en entier ou par un calcul,
+ *  il ne peut viser que ceux-là. */
+const readsNeedsOf = (job: unknown, id: string): boolean =>
+  needsOf(job).includes(id) && expressionsOfValue(job).some((value) => DYNAMIC_NEEDS.test(value));
+
 /** `needs.<id>` et `jobs.<id>` dans une expression, en point ou en crochets : le nom vit aussi là, et
- *  ne se réécrit pas sans comprendre ce langage. Un `needs` entier ou indexé par un calcul peut viser
- *  n'importe quel job. Refuser vaut mieux qu'un `if:` qui devient faux en silence. Un document qu'on
- *  ne peut pas lire en valeurs se refuse pour la même raison. */
-function citesJob(values: unknown, id: string): boolean {
+ *  ne se réécrit pas sans comprendre ce langage. Un contexte lu en entier ou par un indice calculé
+ *  peut viser le job sans le nommer : `needs` dans un job qui a `id` pour need, `jobs` (sorties d'un
+ *  workflow réutilisable) partout. Seule la racine du contexte compte, pas `env.NEEDS` ni un libellé.
+ *  Refuser vaut mieux qu'un `if:` qui devient faux en silence. Un document qu'on ne peut pas lire en
+ *  valeurs se refuse pour la même raison. `scope` dit si `values` est le document ou un seul job. */
+function citation(
+  values: unknown,
+  id: string,
+  scope: "document" | "job",
+): "named" | "dynamic" | null {
   if (values === null) {
-    return true;
+    return "named";
   }
   const name = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const named = new RegExp(
-    `\\b(?:needs|jobs)\\s*(?:\\.\\s*${name}(?![\\w-])|\\[\\s*['"]${name}['"]\\s*\\])`,
+    `(?<![\\w.-])(?:needs|jobs)\\s*(?:\\.\\s*${name}(?![\\w-])|\\[\\s*['"]${name}['"]\\s*\\])`,
     "i",
   );
-  const dynamic = /\bneeds\b(?!\s*\.\s*[\w*-]+|\s*\[\s*['"][\w-]+['"]\s*\])/i;
-  const expressions: string[] = [];
-  expressionsIn(values, expressions, new Set());
-  return expressions.some((value) => named.test(value) || dynamic.test(value));
+  const raw: string[] = [];
+  expressionsIn(values, raw, new Set());
+  if (raw.some((value) => named.test(value))) {
+    return "named";
+  }
+  if (scope === "job") {
+    return readsNeedsOf(values, id) ? "dynamic" : null;
+  }
+  if (expressionsOfValue(values).some((value) => DYNAMIC_JOBS.test(value))) {
+    return "dynamic";
+  }
+  const jobs = (values as { jobs?: unknown }).jobs;
+  const entries = typeof jobs === "object" && jobs !== null ? Object.values(jobs) : [];
+  return entries.some((job) => readsNeedsOf(job, id)) ? "dynamic" : null;
 }
 
-const cited = (job: string): Planned =>
-  refuse({ code: INVALID_OPERATION, params: { reason: "citedInExpression", job } });
+function citesJob(
+  values: unknown,
+  id: string,
+  scope: "document" | "job" = "document",
+): Planned | null {
+  const found = citation(values, id, scope);
+  return found === null
+    ? null
+    : refuse({
+        code: INVALID_OPERATION,
+        params: { reason: found === "named" ? "citedInExpression" : "dynamicExpression", job: id },
+      });
+}
 
 function readValues(document: Document.Parsed): unknown {
   try {
@@ -396,8 +453,9 @@ function planRemoveJob(id: string, geometry: Geometry): Planned {
   if (!located.ok) {
     return located;
   }
-  if (citesJob(geometry.values, id)) {
-    return cited(id);
+  const refused = citesJob(geometry.values, id);
+  if (refused !== null) {
+    return refused;
   }
   const referencedBy = referencing(id, geometry);
   if (referencedBy.length > 0) {
@@ -423,8 +481,9 @@ function planRename(from: string, to: string, geometry: Geometry): Planned {
   if (refused !== null) {
     return refuse(refused);
   }
-  if (citesJob(geometry.values, from)) {
-    return cited(from);
+  const cited = citesJob(geometry.values, from);
+  if (cited !== null) {
+    return cited;
   }
   const map = jobsMap(geometry) as YAMLMap;
   const key = (pairOf(map, from) as Pair).key;
@@ -514,8 +573,13 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
 
   const { text } = geometry;
   const values = (geometry.values as { jobs?: Record<string, unknown> } | null)?.jobs;
-  if (citesJob(values?.[operation.id] ?? (values === undefined ? null : {}), operation.job)) {
-    return cited(operation.job);
+  const refused = citesJob(
+    values?.[operation.id] ?? (values === undefined ? null : {}),
+    operation.job,
+    "job",
+  );
+  if (refused !== null) {
+    return refused;
   }
   const pair = pairOf(located.value, "needs") as Pair;
   const value = pair.value as Node | null;
