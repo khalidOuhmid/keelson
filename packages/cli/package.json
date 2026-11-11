@@ -1,7 +1,7 @@
 {
   "name": "keelson",
   "version": "0.0.0",
-  "description": "Concevoir visuellement une cha\u00eene DevSecOps avant de l'impl\u00e9menter",
+  "description": "Concevoir visuellement une chaîne DevSecOps avant de l'implémenter",
   "license": "Apache-2.0",
   "author": "Khalid Ouhmid",
   "type": "module",
@@ -23,6 +23,7 @@
     "build": "bun build ./src/bin.ts --target=node --format=esm --outfile ./dist/keelson.js --banner '#!/usr/bin/env node'"
   },
   "dependencies": {
+    "@keelson/adapter-github": "workspace:*",
     "@keelson/adapter-gitlab": "workspace:*",
     "@keelson/core": "workspace:*",
     "@keelson/server": "workspace:*",

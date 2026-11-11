@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, join, sep } from "node:path";
-import { createFileReader, type ParseResult, parse, readInsideRoot } from "@keelson/adapter-gitlab";
+import { isWorkflowPath, parse as parseGithub } from "@keelson/adapter-github";
+import { createFileReader, parse, readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
-import type { Diagnostic } from "@keelson/core";
+import type { Diagnostic, Pipeline } from "@keelson/core";
 import { TOOLCHAIN_FILE, validate } from "@keelson/core";
 import {
   analyseToolchain,
@@ -37,10 +38,16 @@ function relativeTo(root: string, file: string): string {
   return file.startsWith(prefix) ? file.slice(prefix.length).split(sep).join("/") : basename(file);
 }
 
+export type ParsedDocument = {
+  pipeline: Pipeline;
+  diagnostics: Diagnostic[];
+  included: Record<string, string>;
+};
+
 export type Analysis = {
   root: string;
   main: string;
-  result: ParseResult;
+  result: ParsedDocument;
   layout: ParsedLayout;
   toolchain: ToolchainAnalysis;
   diagnostics: Diagnostic[];
@@ -50,7 +57,9 @@ export type Analysis = {
 export function analyse(file: string, text: string): Analysis {
   const root = repositoryRoot(file);
   const main = relativeTo(root, file);
-  const result = parse(text, { file: main, read: createFileReader(root) });
+  const result: ParsedDocument = isWorkflowPath(main)
+    ? parseGithub(text, { file: main })
+    : parse(text, { file: main, read: createFileReader(root) });
   const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), result.pipeline);
   const toolchain = analyseToolchain(
     readInsideRoot(root, TOOLCHAIN_FILE),

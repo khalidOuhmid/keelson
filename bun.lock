@@ -49,6 +49,7 @@
         "keelson": "./dist/keelson.js",
       },
       "dependencies": {
+        "@keelson/adapter-github": "workspace:*",
         "@keelson/adapter-gitlab": "workspace:*",
         "@keelson/catalog": "workspace:*",
         "@keelson/core": "workspace:*",
