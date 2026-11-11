@@ -138,7 +138,10 @@ describe("setEnvironment", () => {
     );
   });
 
-  test("INVALID_OPERATION when removing an inherited environment", () => {
+  /** GitLab: “To exclude a key from the extended content, assign it to null”
+   *  <https://docs.gitlab.com/ci/yaml/yaml_optimization/#exclude-a-key-from-extends>. A deep
+   *  merge, and Psych's merge keys, let a `null` written by the job win the same way. */
+  describe("cancelling an inherited environment", () => {
     const inherited = [
       ".base:",
       "  environment:",
@@ -154,10 +157,69 @@ describe("setEnvironment", () => {
       "    - x",
       "",
     ].join("\n");
-    expectUnchanged(
-      inherited,
-      { kind: "setEnvironment", id: "worker", environment: null },
-      "INVALID_OPERATION",
-    );
+
+    test("writes environment: null in the job, not in the template", () => {
+      const applied = expectOk(inherited, {
+        kind: "setEnvironment",
+        id: "worker",
+        environment: null,
+      });
+      expect(applied.text).toContain("worker:\n  environment: null\n  extends: .base");
+      expect(applied.text).toContain(".base:\n  environment:\n    name: inherited");
+      expect(jobOf(applied.text, "worker").environment).toBeNull();
+    });
+
+    test("the inverse restores the original bytes", () => {
+      roundTrip(inherited, { kind: "setEnvironment", id: "worker", environment: null });
+    });
+
+    test("removing a local environment that hides an inherited one writes null instead", () => {
+      const hiding = inherited.replace(
+        "  stage: deploy\n",
+        "  stage: deploy\n  environment: own\n",
+      );
+      const applied = expectOk(hiding, { kind: "setEnvironment", id: "worker", environment: null });
+      expect(applied.text).toContain("  environment: null\n");
+      expect(applied.text).not.toContain("environment: own");
+      expect(jobOf(applied.text, "worker").environment).toBeNull();
+    });
+
+    test("an environment merged from an anchor is cancelled after the merge key", () => {
+      const anchored = [
+        ".base: &base",
+        "  environment: inherited",
+        "",
+        "stages:",
+        "  - deploy",
+        "",
+        "worker:",
+        "  <<: *base",
+        "  stage: deploy",
+        "  script:",
+        "    - x",
+        "",
+      ].join("\n");
+      const applied = expectOk(anchored, {
+        kind: "setEnvironment",
+        id: "worker",
+        environment: null,
+      });
+      expect(jobOf(applied.text, "worker").environment).toBeNull();
+    });
+
+    test("a cancelled environment can be set again", () => {
+      const applied = expectOk(inherited, {
+        kind: "setEnvironment",
+        id: "worker",
+        environment: null,
+      });
+      const again = expectOk(applied.text, {
+        kind: "setEnvironment",
+        id: "worker",
+        environment: { name: "review" },
+      });
+      expect(jobOf(again.text, "worker").environment?.value).toEqual({ name: "review" });
+      expect(again.text).not.toContain("null");
+    });
   });
 });

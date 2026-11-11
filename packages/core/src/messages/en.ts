@@ -99,8 +99,6 @@ export const EN: Catalogue = {
     flowStyleJob: (p) =>
       `job ${quoted(p.job)} is written in flow style, in-place editing is not supported`,
     jobWithoutScript: () => "an added job must have at least one script line",
-    inheritedEnvironment: (p) =>
-      `the environment of ${quoted(p.job)} is inherited (${p.origin}) and cannot be removed locally`,
     sharedValue: (p) =>
       `the ${p.key} of ${quoted(p.job)} comes through an anchor or a !reference that Keelson cannot rewrite in place`,
     flowStyleToolchain: (p) =>

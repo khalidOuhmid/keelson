@@ -152,5 +152,8 @@ a `kind`. Every successful operation returns an inverse `splice` that restores t
 | `composite` | `steps[]` | yes | yes |
 | `splice` | `start`, `end`, `text` | yes | yes |
 
-Refusals carry a stable `{ code, params }`; see [specs/diagnostics.md](../specs/diagnostics.md).
+On GitLab, `setEnvironment` with `null` on a job that inherits an environment (through `extends`,
+a merge key or an include) writes `environment: null` in the job, which is how GitLab excludes an
+inherited key. Refusals carry a stable `{ code, params }`; see
+[specs/diagnostics.md](../specs/diagnostics.md).
 `keelson apply` currently targets GitLab CI files; GitHub workflows are edited through the UI.

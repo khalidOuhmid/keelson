@@ -88,6 +88,8 @@ type Geometry = {
   text: string;
   eol: string;
   indent: string;
+  /** The pipeline another text of the same file would give, includes resolved the same way. */
+  reparse: (text: string) => Pipeline;
 };
 
 type Target = {
@@ -667,20 +669,24 @@ function planSetEnvironment(
   const inherited = pipeline.jobs.find((job) => job.id === operation.id)?.environment ?? null;
 
   if (operation.environment === null) {
+    const cancel = (pad: string) => `${pad}environment: null${geometry.eol}`;
     if (local !== undefined) {
       const range = pairLineRange(geometry.text, local);
-      return range === null
-        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" })
-        : ok([{ ...range, text: "" }]);
+      const keyStart = nodeRange(local.key as AnyNode)?.[0];
+      if (range === null || keyStart === undefined) {
+        return fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" });
+      }
+      const removed = applySplices(geometry.text, [{ ...range, text: "" }]).text;
+      const resurfaces =
+        geometry.reparse(removed).jobs.find((job) => job.id === operation.id)?.environment !== null;
+      return ok([
+        { ...range, text: resurfaces ? cancel(linePrefix(geometry.text, keyStart)) : "" },
+      ]);
     }
     if (inherited !== null) {
-      // DEBT(2026-10-20): no mechanism to cancel an inherited environment
-      // — GitLab has no cancellation key. See specs/gaps.md (2026-10-20, 2026-11-04), milestone to be defined.
-      return fail(INVALID_OPERATION, {
-        reason: "inheritedEnvironment",
-        job: operation.id,
-        origin: inherited.origin.kind,
-      });
+      // GitLab: “to exclude a key from the extended content, assign it to null”.
+      const at = overrideInsertAt(geometry, located.value);
+      return ok([{ start: at, end: at, text: cancel(geometry.indent) }]);
     }
     return ok([]);
   }
@@ -1160,6 +1166,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     text: document.text,
     eol: eolOf(document.text),
     indent: indentUnit(document.text),
+    reparse: (text) => reparse(document, text).pipeline,
   };
 
   if (root === null && op.kind !== "splice") {

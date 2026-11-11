@@ -243,10 +243,6 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: "an added job must have at least one script line",
     },
     {
-      params: { reason: "inheritedEnvironment", job: "deploy", origin: "extends" },
-      text: 'the environment of "deploy" is inherited (extends) and cannot be removed locally',
-    },
-    {
       params: { reason: "flowStyleToolchain", section: "services" },
       text: "the services section is written in flow style, in-place editing is not supported",
     },

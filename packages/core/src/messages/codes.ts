@@ -199,7 +199,6 @@ export type MessageParams = {
     | { reason: "schema"; path: string; detail: string }
     | { reason: "flowStyleJob"; job: string }
     | { reason: "jobWithoutScript" }
-    | { reason: "inheritedEnvironment"; job: string; origin: string }
     | { reason: "sharedValue"; job: string; key: string }
     | { reason: "flowStyleToolchain"; section: string }
     | { reason: "invalidToolchain" }

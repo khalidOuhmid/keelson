@@ -254,7 +254,6 @@ an exception: an exception can only signal a Keelson bug.
 | `schema` | `path`, `detail` | The zod schema rejects the operation. `detail` is zod's sentence, in English; `path` locates it within the operation, and is `""` when the error concerns the root. |
 | `flowStyleJob` | `job` | The job is written in flow style (`{ … }`); editing in place would assume a line-based rendering. |
 | `jobWithoutScript` | — | `addJob` without any script line. |
-| `inheritedEnvironment` | `job`, `origin` | Removing an inherited environment: GitLab has no cancellation key. `origin` says where it comes from (`extends`, `anchor`, `default`). |
 | `sharedValue` | `job`, `key` | The value comes from an anchor alias or a `!reference`, and writing it in place would lose something: `addNeed` on a shared list, or `setJobStage` on a `!reference` carrying an anchor, a comment or an explicit `?` key. |
 | `flowStyleToolchain` | `section` | A section of `toolchain.yaml` is written in flow style and is not empty. |
 | `invalidToolchain` | — | `toolchain.yaml` carries a `TOOLCHAIN_INVALID`: Keelson does not edit a file it does not understand. |
