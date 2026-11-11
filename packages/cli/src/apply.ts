@@ -5,10 +5,10 @@ import type { Operation, OperationError } from "@keelson/core";
 import { parseOperation } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
 import { writeInsideRoot } from "@keelson/server";
+import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import { hunks, renderUnified } from "./diff.ts";
 import type { CliResult } from "./result.ts";
-import { DEFAULT_FILE } from "./validate.ts";
 
 type Options = {
   operations: string;

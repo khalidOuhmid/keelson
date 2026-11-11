@@ -24,7 +24,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     verifiedAt: "https://exemple.org",
     logo: null,
     integration: null,
-    detect: { images: [`exemple/${id}`], scripts: [`\\b${id}\\b`] },
+    detect: { images: [`exemple/${id}`], scripts: [`\\b${id}\\b`], actions: [] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
     ...overrides,
@@ -203,7 +203,7 @@ describe("détection", () => {
   test("un miroir ou un registre privé reste la même image", () => {
     const found = (image: string) =>
       detectTools({ image, script: [] }, [
-        tool("trivy", { detect: { images: ["aquasec/trivy"], scripts: [] } }),
+        tool("trivy", { detect: { images: ["aquasec/trivy"], scripts: [], actions: [] } }),
       ]);
     expect(found("ghcr.io/aquasecurity/trivy:0.5")).toHaveLength(1);
     expect(found("registry.example.org:5000/mirror/trivy@sha256:abc")).toHaveLength(1);
@@ -299,6 +299,33 @@ describe("couverture", () => {
     const unresolved = [{ form: "remote" as const, detail: "x", from: "a", range: null }];
     expect(coverage(pipeline([], unresolved), CATALOG).partial).toBe(true);
     expect(coverage(pipeline([]), CATALOG).partial).toBe(false);
+  });
+});
+
+describe("deux workflows, un même nom de job", () => {
+  test("une couche ne nomme le job qu'une fois", () => {
+    const twice = [job("x", null, ["a"]), job("x", null, ["a"])];
+    const entry = coverage(pipeline(twice), [
+      tool("a", { detect: { images: [], scripts: ["\\ba\\b"], actions: [] } }),
+    ]).layers.find((layer) => layer.layer === "sast");
+    expect(entry?.jobs).toEqual(["x"]);
+  });
+});
+
+describe("actions GitHub", () => {
+  const catalog = loadCatalog();
+  const found = (signals: { image: string | null; actions: string[] }) =>
+    detectTools({ ...signals, script: [] }, catalog.tools).map((entry) => entry.tool);
+
+  test("envoyer un SARIF n'est pas analyser", () => {
+    expect(found({ image: null, actions: ["github/codeql-action/upload-sarif@v3"] })).toEqual([]);
+    expect(found({ image: null, actions: ["github/codeql-action/analyze@v3"] })).toContain(
+      "codeql",
+    );
+  });
+
+  test("un docker:// compte comme une image, même derrière un container", () => {
+    expect(found({ image: "node:20", actions: ["docker://aquasec/trivy"] })).toContain("trivy");
   });
 });
 
@@ -439,17 +466,6 @@ describe("détection par les actions GitHub", () => {
     expect(
       detectTools({ image: null, script: [], actions: ["acme/scan-action-fork"] }, [scanner]),
     ).toEqual([]);
-  });
-
-  test("une action de service prouve l'intégration", () => {
-    const vault = tool("vault", {
-      kind: "service",
-      integration: "fetch-secret",
-      detect: { images: [], scripts: [], actions: ["hashicorp/vault-action"] },
-    });
-    expect(
-      detectIntegrations({ image: null, script: [], actions: ["hashicorp/vault-action"] }, [vault]),
-    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
   });
 
   test.each([

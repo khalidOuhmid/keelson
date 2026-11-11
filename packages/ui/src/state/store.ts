@@ -23,6 +23,7 @@ export type Notice =
   | { kind: "stale"; message: string }
   | { kind: "reloaded"; message: string }
   | { kind: "written"; message: string }
+  | { kind: "opened"; message: string }
   | { kind: "removed"; message: string };
 
 export type Status = "loading" | "ready" | "removed" | "empty";
@@ -97,6 +98,7 @@ export type KeelsonState = {
   dismissNotice(): void;
   /** Dit ce qui vient d'être écrit à la demande de l'utilisateur. */
   announce(message: string): void;
+  announceOpened(file: string, historyLost: boolean): void;
   dismissError(): void;
 };
 
@@ -142,6 +144,9 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
     const reload = async (file: string, notice: Notice): Promise<void> => {
       const result = await dependencies.document(file);
+      if (get().file !== file) {
+        return;
+      }
       clearHistory();
 
       if (!result.ok) {
@@ -180,6 +185,11 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       set({ pending: false });
       const owed = reloadOwed;
       reloadOwed = false;
+
+      // L'écriture a eu lieu sur le fichier quitté : sa réponse ne dit rien de celui à l'écran.
+      if (get().file !== file) {
+        return false;
+      }
 
       if (result.ok) {
         applyPayload(result.value);
@@ -424,6 +434,11 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         }
 
         await reload(event.file, RELOADED);
+      },
+
+      announceOpened(file, historyLost) {
+        const suffix = historyLost ? " Undo history of the previous file was cleared." : "";
+        set({ notice: { kind: "opened", message: `${file} opened.${suffix}` } });
       },
 
       announce(message) {

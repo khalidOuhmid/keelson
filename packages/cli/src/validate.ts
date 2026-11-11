@@ -1,20 +1,17 @@
-import { readFileSync, statSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { Diagnostic } from "@keelson/core";
 import { hasErrors } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { analyse } from "./analysis.ts";
+import { analyse, readTargets } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
-
-export const DEFAULT_FILE = ".gitlab-ci.yml";
 
 const FORMATS = ["text", "json"] as const;
 
 type Format = (typeof FORMATS)[number];
 
 type Options = {
-  file: string;
+  file: string | undefined;
   format: Format;
 };
 
@@ -22,7 +19,7 @@ function usage(message: string): CliResult {
   return { stdout: "", stderr: `keelson validate: ${message}\n`, exitCode: 2 };
 }
 
-function parseArguments(argv: readonly string[], cwd: string): Options | CliResult {
+function parseArguments(argv: readonly string[]): Options | CliResult {
   const parsed = parseCommandArgs<{ format?: string }>(argv, {
     options: { format: { type: "string" } },
     allowPositionals: true,
@@ -41,11 +38,7 @@ function parseArguments(argv: readonly string[], cwd: string): Options | CliResu
     return usage(`unknown format "${requested}", expected text or json`);
   }
 
-  const target = parsed.positionals[0] ?? DEFAULT_FILE;
-  return {
-    file: isAbsolute(target) ? target : resolve(cwd, target),
-    format: (requested ?? "text") as Format,
-  };
+  return { file: parsed.positionals[0], format: (requested ?? "text") as Format };
 }
 
 function positionOf(text: string, offset: number): { line: number; column: number } {
@@ -108,23 +101,17 @@ function renderText(reported: readonly Reported[]): string {
 }
 
 export function validateCommand(argv: readonly string[], cwd: string): CliResult {
-  const parsed = parseArguments(argv, cwd);
+  const parsed = parseArguments(argv);
   if ("exitCode" in parsed) {
     return parsed;
   }
 
-  let text: string;
-  try {
-    if (!statSync(parsed.file).isFile()) {
-      return usage(`"${parsed.file}" is not a file`);
-    }
-    text = readFileSync(parsed.file, "utf8");
-  } catch {
-    return usage(`file not found: ${parsed.file}`);
+  const read = readTargets(parsed.file, cwd);
+  if (!read.ok) {
+    return usage(read.message);
   }
 
-  const { root, main, result, diagnostics } = analyse(parsed.file, text);
-  const texts = new Map<string, string>([[main, text], ...Object.entries(result.included)]);
+  const { root, texts, diagnostics } = analyse(read.targets);
   const reported = report(root, texts, diagnostics);
 
   return {

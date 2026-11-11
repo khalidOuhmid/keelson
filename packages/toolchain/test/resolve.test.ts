@@ -14,7 +14,7 @@ function tool(id: string, integration: Tool["integration"]): Tool {
     verifiedAt: "https://exemple.org",
     logo: null,
     integration,
-    detect: { images: [], scripts: [`\\b${id}\\b`] },
+    detect: { images: [], scripts: [`\\b${id}\\b`], actions: [] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
   };
@@ -77,6 +77,14 @@ describe("propositions", () => {
       integrations: [{ job: "build", service: "nexus-prod", kind: "notify" }],
     });
     expect(proposeIntegrations(pipeline({ build: ["nexus x"] }), declared, TOOLS)).toHaveLength(1);
+  });
+});
+
+describe("deux workflows, un même nom de job", () => {
+  test("une proposition ne se répète pas", () => {
+    const twice = pipeline({ build: ["nexus x"] });
+    const merged = { ...twice, jobs: [...twice.jobs, ...twice.jobs] };
+    expect(proposeIntegrations(merged, chain(), TOOLS)).toHaveLength(1);
   });
 });
 

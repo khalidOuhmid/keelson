@@ -100,7 +100,9 @@ confirmée ou écartée, vue Toolchain à positions libres.
 **Livré au lot L5** : insertion d'un outil du catalogue avec diff préalable, annulée d'un coup,
 `keelson export`.
 
-**Pas encore livré** : GitHub Actions (L6), packaging npm (L7), flotte (L8). Rien n'est utilisable
+**Livré au lot L6** : GitHub Actions, workflows lus et écrits comme le CI GitLab, stages dérivés de `needs`.
+
+**Pas encore livré** : packaging npm (L7), flotte (L8). Rien n'est utilisable
 par un utilisateur final à ce jour.
 
 **Terminologie du modèle** (noms de code, à traduire dans l'UI) : `Pipeline`, `Stage`, `Job`,

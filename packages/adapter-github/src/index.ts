@@ -1,9 +1,10 @@
 export const PACKAGE_NAME = "@keelson/adapter-github";
 
+export { apply } from "./apply.ts";
 export {
-  GITHUB_WORKFLOWS_DIR,
-  isWorkflowPath,
+  type GithubDocument,
   type ParseOptions,
   type ParseResult,
   parse,
+  WORKFLOWS_DIR,
 } from "./parse.ts";

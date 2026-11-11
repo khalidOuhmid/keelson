@@ -41,7 +41,7 @@ function snippetStage(snippet: string): string | null {
 
 function draftFor(id: string, stage: string, snippet: string, pipeline: Pipeline): Draft {
   const add = { kind: "addSnippet", id, stage, snippet } as const;
-  return pipeline.stages.some((entry) => entry.name === stage)
+  return pipeline.provider === "github" || pipeline.stages.some((entry) => entry.name === stage)
     ? add
     : { kind: "composite", steps: [{ kind: "addStage", name: stage }, add] };
 }
@@ -82,7 +82,8 @@ function Form({
     [pipeline],
   );
   const stages = pipeline.stages.map((stage) => stage.name);
-  const wanted = snippetStage(snippet);
+  const github = pipeline.provider === "github";
+  const wanted = github ? null : snippetStage(snippet);
   const created = wanted !== null && !stages.includes(wanted) ? wanted : null;
 
   const [id, setId] = useState(() => freeName(tool.id, taken));
@@ -167,22 +168,24 @@ function Form({
           {renderMessage(failure)}
         </p>
       )}
-      <label className={GROUP}>
-        <span className={LABEL}>Stage</span>
-        <select
-          className={FIELD}
-          value={stage}
-          disabled={disabled}
-          onChange={(event) => setStage(event.target.value)}
-        >
-          {stages.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-          {created === null ? null : <option value={created}>{created} (new stage)</option>}
-        </select>
-      </label>
+      {github ? null : (
+        <label className={GROUP}>
+          <span className={LABEL}>Stage</span>
+          <select
+            className={FIELD}
+            value={stage}
+            disabled={disabled}
+            onChange={(event) => setStage(event.target.value)}
+          >
+            {stages.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+            {created === null ? null : <option value={created}>{created} (new stage)</option>}
+          </select>
+        </label>
+      )}
 
       {layers.length === 0 ? null : (
         <p data-testid="insert-layers" className="flex flex-wrap items-center gap-1 text-sm">
@@ -243,7 +246,8 @@ export function InsertTool(
   props: InsertToolProps & { open: boolean; onOpen: (open: boolean) => void },
 ) {
   const { open, onOpen, ...insertion } = props;
-  const snippet = props.tool.snippets.gitlab;
+  const snippet =
+    props.pipeline.provider === "github" ? props.tool.snippets.github : props.tool.snippets.gitlab;
   if (snippet === null) {
     return null;
   }

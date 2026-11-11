@@ -40,13 +40,13 @@ const USAGES: Record<Command, readonly string[]> = {
   validate: [
     "keelson validate [file] [--format text|json]",
     "",
-    "  file           .gitlab-ci.yml (default) or .github/workflows/<name>.yml",
+    "  file           one CI file (default: every CI file of the repository)",
     "  --format       text (default) or json; exit 1 on any error",
   ],
   coverage: [
     "keelson coverage [file] [--require <layers>] [--format text|json]",
     "",
-    "  file           .gitlab-ci.yml (default) or .github/workflows/<name>.yml",
+    "  file           one CI file (default: every CI file of the repository)",
     "  --require      comma-separated layer ids; exit 1 if one is not covered, 2 if unknown",
     "  --format       text (default) or json",
   ],
@@ -58,7 +58,7 @@ const USAGES: Record<Command, readonly string[]> = {
   export: [
     "keelson export [file] [--format markdown|mermaid|json]",
     "",
-    "  file           .gitlab-ci.yml (default) or .github/workflows/<name>.yml",
+    "  file           one CI file (default: every CI file of the repository)",
     "  --format       markdown (default), mermaid or json",
   ],
   apply: [

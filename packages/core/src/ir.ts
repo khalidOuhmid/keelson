@@ -55,7 +55,7 @@ export type Stage = {
 export type JobSignals = {
   image: string | null;
   script: string[];
-  /** Les actions GitHub appelées par le job, sans leur version. Absent hors GitHub Actions. */
+  /** Les actions GitHub (`owner/repo@ref`) des étapes du job. Absent ailleurs. */
   actions?: string[];
 };
 
@@ -85,7 +85,7 @@ export type Template = {
  *  `detail` est la valeur telle qu'elle est écrite, pour que l'écran puisse dire ce qui manque et
  *  non seulement qu'il manque quelque chose. */
 export type UnresolvedInclude = {
-  form: "local" | "remote" | "project" | "template" | "component";
+  form: "local" | "remote" | "project" | "template" | "component" | "workflow";
   detail: string;
   /** Le fichier qui porte la clé `include`, pas la cible. */
   from: string;
@@ -102,6 +102,8 @@ export type Pipeline = {
   /** Le fichier principal et chaque fichier inclus résolu, dans l'ordre de fusion. */
   files: string[];
   unresolved: UnresolvedInclude[];
+  /** Absent sur GitLab. `github` : les stages sont dérivés de `needs` (ADR 0013). */
+  provider?: "github";
 };
 
 /** Un pipeline sans rien dedans, nommé une seule fois : l'UI en a besoin tant que rien n'est
@@ -110,10 +112,39 @@ export function emptyPipeline(main: string): Pipeline {
   return { stages: [], jobs: [], templates: [], opaque: [], main, files: [], unresolved: [] };
 }
 
+/** Plusieurs fichiers vus comme un seul dépôt, pour ce qui porte sur le dépôt et non sur un fichier :
+ *  la toolchain, `keelson coverage` sans argument. Deux workflows peuvent porter un job du même nom :
+ *  les deux restent, leur couverture compte. */
+export function mergePipelines(pipelines: readonly Pipeline[]): Pipeline {
+  const first = pipelines[0];
+  if (first === undefined) {
+    return emptyPipeline("");
+  }
+  const stages = new Map<string, Stage>();
+  for (const stage of pipelines.flatMap((pipeline) => pipeline.stages)) {
+    if (!stages.has(stage.name)) {
+      stages.set(stage.name, stage);
+    }
+  }
+  return {
+    ...first,
+    jobs: pipelines.flatMap((pipeline) => pipeline.jobs),
+    stages: [...stages.values()],
+    templates: pipelines.flatMap((pipeline) => pipeline.templates),
+    opaque: pipelines.flatMap((pipeline) => pipeline.opaque),
+    files: [...new Set(pipelines.flatMap((pipeline) => pipeline.files))],
+    unresolved: pipelines.flatMap((pipeline) => pipeline.unresolved),
+  };
+}
+
 /** Un pipeline est **partiel** dès qu'un include n'a pas été résolu : des jobs peuvent manquer à
  *  l'écran. Dérivé plutôt que stocké — un booléen stocké peut mentir, celui-ci ne peut pas. */
 export function isPartial(pipeline: Pipeline): boolean {
   return pipeline.unresolved.length > 0;
+}
+
+export function findJob(pipeline: Pipeline, id: string): Job | undefined {
+  return pipeline.jobs.find((candidate) => candidate.id === id);
 }
 
 export function stageIndex(pipeline: Pipeline, name: string): number {

@@ -37,7 +37,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     homepage: "https://exemple.org/",
     verifiedAt: "https://exemple.org/verif",
     logo: null,
-    detect: { images: [], scripts: [] },
+    detect: { images: [], scripts: [], actions: [] },
     snippets: { gitlab: "a:\n  script: x\n", github: null },
     lastVerified: "2026-11-04",
     integration: null,
@@ -77,6 +77,21 @@ describe("panneau de couverture", () => {
     });
     const group = screen.getByRole("group", { name: "Covered layers" });
     expect(group.textContent).toContain("service git");
+  });
+
+  test("plusieurs fichiers : le panneau dit lequel", () => {
+    render(
+      <CoveragePanel
+        coverage={coverage({})}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3 }}
+      />,
+    );
+    expect(screen.getByTestId("coverage-scope").textContent).toBe(
+      "In ci.yml, 1 of 3 pipeline files.",
+    );
   });
 
   test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {

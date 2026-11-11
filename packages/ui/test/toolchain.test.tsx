@@ -19,7 +19,7 @@ function tool(id: string, integration: Tool["integration"] = "push"): Tool {
     verifiedAt: "https://exemple.org",
     logo: null,
     integration,
-    detect: { images: [], scripts: [] },
+    detect: { images: [], scripts: [], actions: [] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
   };

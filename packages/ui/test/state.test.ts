@@ -450,6 +450,53 @@ describe("coverage.changed pendant une opération", () => {
   });
 });
 
+describe("changer de fichier pendant une écriture", () => {
+  test("la réponse du fichier quitté ne touche pas le fichier ouvert", async () => {
+    let settle: (value: ApiResult<OperationPayload>) => void = () => {};
+    const held = createStore({
+      submit: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      document: api.document,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    held.getState().documentLoaded("a.yml", documentPayload(HASH_A));
+    const submitted = held.getState().submit({ kind: "addStage", name: "x" });
+    held.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    settle({ ok: true, value: operationPayload(HASH_C, HASH_A) });
+    await submitted;
+    expect(held.getState().file).toBe("b.yml");
+    expect(held.getState().hash).toBe(HASH_B);
+    expect(held.getState().canUndo()).toBe(false);
+    expect(held.getState().pending).toBe(false);
+  });
+});
+
+describe("changer de fichier pendant un rechargement", () => {
+  test("la réponse du fichier quitté ne remplace pas le fichier ouvert", async () => {
+    let settle: (value: ApiResult<DocumentPayload>) => void = () => {};
+    const held = createStore({
+      submit: api.submit,
+      document: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    held.getState().documentLoaded("a.yml", documentPayload(HASH_A));
+    const handled = held
+      .getState()
+      .serverEvent({ kind: "document.changed", file: "a.yml", hash: HASH_C });
+    held.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    settle({ ok: true, value: documentPayload(HASH_C) });
+    await handled;
+    expect(held.getState().hash).toBe(HASH_B);
+  });
+});
+
 describe("annonce d'écriture", () => {
   test("elle ne survit pas à l'annulation qui la dément", async () => {
     await addStage("verify");

@@ -57,7 +57,7 @@ scales the answer to a fleet of repositories.
 | | |
 | --- | --- |
 | **Pipeline view** | Stages, jobs and `needs` from `.gitlab-ci.yml` (local `include`, `extends`, anchors resolved) and from `.github/workflows/*.yml` (jobs laid out by dependency level). |
-| **Lossless round-trip** | GitLab CI edits are patches on the original bytes. Parse → emit with no change is byte-identical; every edit returns a `splice` inverse. Verified by fast-check property tests (round-trip, inverse, determinism, locality) over 34 files — 20 official GitLab templates and 14 hand-written edge cases — plus 11 multi-file include trees. |
+| **Lossless round-trip** | GitLab CI and GitHub Actions edits are patches on the original bytes. Parse → emit with no change is byte-identical; every edit returns a `splice` inverse. Verified by fast-check property tests (round-trip, inverse, determinism, locality) over 34 GitLab files — 20 official templates and 14 hand-written edge cases — plus 11 multi-file include trees, and 22 MIT workflows from `actions/starter-workflows`. |
 | **Coverage overlay** | 13 OWASP DevSecOps layers plus 8 platform categories, detected from job images, scripts (read as a minimal shell, not grepped) and GitHub Actions `uses:`. |
 | **Toolchain view** | Named service instances (`.devsecops/toolchain.yaml`) and their integrations with jobs: push, upload-report, fetch-secret, notify. Inference proposes, the file decides. |
 | **Catalogue** | 62 tools with licence, logo, detection patterns and ready-to-insert GitLab and GitHub snippets. Insertion is previewed as a diff before anything is written. |
@@ -74,7 +74,7 @@ flowchart LR
     tc[".devsecops/toolchain.yaml"]
   end
   gl -- "CST parse" --> agl["adapter-gitlab"]
-  gh -- "read-only" --> agh["adapter-github"]
+  gh -- "CST parse" --> agh["adapter-github"]
   agl --> ir["core: pipeline IR"]
   agh --> ir
   tc --> tcp["toolchain"] --> ir
@@ -84,12 +84,14 @@ flowchart LR
   ir --> cli["CLI: validate · coverage · export · apply"]
   ui -- "operation (JSON)" --> srv
   srv --> agl
+  srv --> agh
   cli -- "operation (JSON)" --> agl
   agl -- "byte-level splice + inverse" --> gl
+  agh -- "byte-level splice + inverse" --> gh
 ```
 
-Every edit is a serialisable operation `{ v, baseHash, kind, … }`. The GitLab adapter turns it into
-a patch on the original bytes and returns the inverse patch. The same JSON drives the UI, undo/redo,
+Every edit is a serialisable operation `{ v, baseHash, kind, … }`. Each adapter turns it into a
+patch on the original bytes and returns the inverse patch. The same JSON drives the UI, undo/redo,
 `--dry-run` diffs and fleet replay — which is why a fleet edit is just a file.
 
 ## Commands
@@ -103,7 +105,8 @@ keelson catalog lint [dir]                                    # no dir: lint the
 keelson apply <ops.json> [repo...] [--file <path>] [--rebase] [--dry-run] [--json]  # fleet edits
 ```
 
-`[file]` defaults to `.gitlab-ci.yml`; pass `.github/workflows/<name>.yml` for a GitHub workflow.
+Without `[file]`, `validate`, `coverage` and `export` cover every CI file of the repository
+(`.gitlab-ci.yml` and `.github/workflows/*.yml`); name one file to restrict them.
 `keelson <command> --help` prints the usage of one command.
 
 ### Fleet example
@@ -137,14 +140,14 @@ refuses symlinks that leave the repository, caps request bodies at 1 MB, and wri
 | | Read | Coverage | Edit |
 | --- | --- | --- | --- |
 | GitLab CI (`.gitlab-ci.yml`, local includes) | yes | yes | yes |
-| GitHub Actions (`.github/workflows/*.yml`) | yes | yes | not yet |
+| GitHub Actions (`.github/workflows/*.yml`) | yes | yes | yes, in the UI (`keelson apply`: GitLab only for now) |
 
 ## Project layout
 
 ```
 packages/core            pipeline + toolchain IR, operations, diagnostics, messages
 packages/adapter-gitlab  GitLab CI ↔ IR, CST-based lossless editing
-packages/adapter-github  GitHub Actions → IR
+packages/adapter-github  GitHub Actions ↔ IR, CST-based lossless editing
 packages/taxonomy        OWASP layers + platform categories
 packages/catalog         tools/*.yaml, schema, detection, compiled catalog.json
 packages/toolchain       .devsecops/toolchain.yaml, layout.json, integration proposals
@@ -170,7 +173,7 @@ and the design system are in [PRODUCT.md](PRODUCT.md) and [DESIGN.md](DESIGN.md)
   under Node 20, 22 and 24.
 - End-to-end Playwright tests run against the real built binary.
 - Every error code is a documented public contract; nothing on the wire carries prose.
-- 12 architecture decision records in [specs/adr/](specs/adr/).
+- 13 architecture decision records in [specs/adr/](specs/adr/).
 
 Run everything CI runs: `bun run check && bun run e2e`.
 
@@ -180,7 +183,7 @@ All planned lots (L0–L8) are delivered; see [specs/progress.md](specs/progress
 
 - publish `keelson@0.1.0` to npm (a `v*` tag triggers `.github/workflows/release.yml`, with
   provenance);
-- **editing GitHub Actions workflows** (reading and coverage already work);
+- `keelson apply` on GitHub workflows and on the toolchain file (the UI already edits both);
 - local reusable workflows and composite actions on GitHub; cached resolution of remote GitLab
   `include:` (`project:`, `remote:`, `template:`), which are reported but not resolved today.
 

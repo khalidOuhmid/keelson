@@ -20,7 +20,7 @@ import {
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
-import { BUTTON, SECTION_HEADING } from "./editing/controls.ts";
+import { BUTTON, FIELD, SECTION_HEADING } from "./editing/controls.ts";
 import { ErrorBanner } from "./editing/ErrorBanner.tsx";
 import { HistoryControls } from "./editing/HistoryControls.tsx";
 import { JobEditor } from "./editing/JobEditor.tsx";
@@ -149,7 +149,25 @@ export function App({ deps }: AppProps = {}) {
   }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
+
+  const opening = useRef(0);
+  const openFile = async (path: string): Promise<void> => {
+    opening.current += 1;
+    const turn = opening.current;
+    const hadHistory = store.getState().canUndo();
+    const document = await resolved.client.document(path);
+    if (turn !== opening.current) {
+      return;
+    }
+    if (!document.ok) {
+      store.setState({ error: document.error });
+      return;
+    }
+    store.getState().documentLoaded(path, document.value);
+    store.getState().announceOpened(path, hadHistory);
+  };
 
   useEffect(() => {
     if (loaded.current) {
@@ -170,8 +188,8 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
 
-      store.getState().workspaceLoaded(workspace.value.files);
       setRoot(first.path);
+      setFiles(workspace.value.files);
       const document = await resolved.client.document(first.path);
       if (document.ok) {
         store.getState().documentLoaded(first.path, document.value);
@@ -359,7 +377,7 @@ export function App({ deps }: AppProps = {}) {
         <Loading />
       ) : (
         <CatalogView
-          key={state.catalogLayer ?? "any"}
+          key={`${state.file}:${state.catalogLayer ?? "any"}`}
           catalog={state.catalog}
           initialLayer={state.catalogLayer}
           insertion={insertion}
@@ -400,37 +418,43 @@ export function App({ deps }: AppProps = {}) {
       />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
-        <span className="flex items-baseline gap-2 overflow-hidden">
+        <span className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
-          {state.file === null ? null : state.files.length > 1 ? (
+          {state.file === null ? null : files.length > 1 ? (
             <select
-              aria-label="CI file"
-              value={state.file}
+              aria-label="Pipeline file"
+              title={state.file}
               disabled={state.pending}
-              onChange={(event) => {
-                setSidebarOpen(false);
-                void store.getState().openFile(event.target.value);
-              }}
-              className="min-w-0 max-w-64 truncate rounded-sm border border-border-default bg-surface-inset px-1 py-0.5 font-mono text-xs text-text-secondary disabled:cursor-not-allowed"
+              className={`${FIELD} w-auto min-w-0 max-w-[var(--keelson-panel-width)]`}
+              value={state.file}
+              onChange={(event) => void openFile(event.target.value)}
             >
-              {state.files.map((entry) => (
-                <option key={entry.path} value={entry.path}>
-                  {entry.path}
-                </option>
-              ))}
+              {files.some((entry) => entry.adapter === "gitlab") ? (
+                <optgroup label="GitLab CI">
+                  {files
+                    .filter((entry) => entry.adapter === "gitlab")
+                    .map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        {entry.path}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
+              {files.some((entry) => entry.adapter === "github") ? (
+                <optgroup label="GitHub Actions">
+                  {files
+                    .filter((entry) => entry.adapter === "github")
+                    .map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        {entry.path.slice(entry.path.lastIndexOf("/") + 1)}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
             </select>
           ) : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
           )}
-          {state.readOnly() ? (
-            <span
-              data-testid="read-only-tag"
-              title="Keelson reads GitHub Actions workflows and maps their coverage; editing them is not supported yet."
-              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
-            >
-              GitHub Actions · read-only
-            </span>
-          ) : null}
           {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
               testé et invisible — ce que `CLAUDE.md` interdit. Il dit à l'utilisateur que ce qu'il
               lit vient de plusieurs fichiers, ce que ni le graphe ni le chemin de l'en-tête ne
@@ -536,6 +560,7 @@ export function App({ deps }: AppProps = {}) {
             ) : reading && state.coverage !== null ? (
               <CoveragePanel
                 coverage={state.coverage}
+                scope={files.length > 1 ? { file: state.file ?? "", count: files.length } : null}
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}
                 onShowTools={(layer) => {
@@ -545,15 +570,18 @@ export function App({ deps }: AppProps = {}) {
               />
             ) : (
               <>
-                <Section title="Stages">
-                  <StageControls
-                    pipeline={state.pipeline}
-                    onSubmit={(draft) => void store.getState().submit(draft)}
-                    disabled={!editable}
-                  />
-                </Section>
+                {state.pipeline.provider === "github" ? null : (
+                  <Section title="Stages">
+                    <StageControls
+                      pipeline={state.pipeline}
+                      onSubmit={(draft) => void store.getState().submit(draft)}
+                      disabled={!editable}
+                    />
+                  </Section>
+                )}
                 <Section title="New job">
                   <NewJobForm
+                    key={state.file}
                     pipeline={state.pipeline}
                     onSubmit={(draft) => void store.getState().submit(draft)}
                     disabled={!editable}
@@ -593,6 +621,7 @@ export function App({ deps }: AppProps = {}) {
               job={selected}
               textOf={(file) => state.textOf(file)}
               main={state.pipeline.main}
+              derivedStages={state.pipeline.provider === "github"}
               coverage={
                 reading
                   ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)

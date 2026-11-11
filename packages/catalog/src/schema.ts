@@ -45,7 +45,8 @@ export const toolSchema = z
     detect: z.strictObject({
       images: z.array(z.string().min(1)),
       scripts: z.array(pattern),
-      actions: z.array(z.string().regex(/^[\w.-]+\/[\w.-]+(\/[\w./-]+)?$/)).optional(),
+      /** Les actions GitHub officielles de l'outil, sans leur `@ref`. */
+      actions: z.array(z.string().min(1)).default([]),
     }),
     snippets: z.strictObject({
       gitlab: z.string().refine(isJobMap, "not a map of jobs").nullable(),

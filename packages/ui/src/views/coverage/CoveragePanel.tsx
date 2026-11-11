@@ -6,13 +6,15 @@ import { LayerTag } from "./LayerTag.tsx";
 export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/master/";
 
 export const LOWER_BOUND_NOTE =
-  "Coverage is a lower bound: some includes are not resolved, and a layer listed as uncovered may be covered by what Keelson cannot read.";
+  "Coverage is a lower bound: part of the pipeline could not be read, and a layer listed as uncovered may be covered by what Keelson cannot read.";
 
 export type CoveragePanelProps = {
   coverage: Coverage;
   selected: LayerId | null;
   onSelect: (layer: LayerId) => void;
   onShowTools: (layer: LayerId) => void;
+  /** Plusieurs fichiers de pipeline : ce panneau n'en dit qu'un, et il doit le dire. */
+  scope?: { file: string; count: number } | null;
 };
 
 function Uncovered({
@@ -53,7 +55,13 @@ function Uncovered({
   );
 }
 
-export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: CoveragePanelProps) {
+export function CoveragePanel({
+  coverage,
+  selected,
+  onSelect,
+  onShowTools,
+  scope = null,
+}: CoveragePanelProps) {
   const ofSource = (source: LayerSource) =>
     coverage.layers.filter((entry) => findLayer(entry.layer).source === source);
   const owasp = ofSource("owasp");
@@ -69,6 +77,12 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         {seen(owasp).length} of {owasp.length} OWASP layers covered, {seen(platform).length} of{" "}
         {platform.length} platform categories seen
       </p>
+
+      {scope === null ? null : (
+        <p data-testid="coverage-scope" className="text-sm text-text-muted">
+          In {scope.file}, 1 of {scope.count} pipeline files.
+        </p>
+      )}
 
       {coverage.partial ? (
         <p data-testid="coverage-lower-bound" className="text-sm text-text-secondary">

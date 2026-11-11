@@ -1,0 +1,78 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-docker-image.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 141,
+              "end": 163
+            },
+            "file": ".github/workflows/ci-docker-image.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 169,
+              "end": 319
+            },
+            "file": ".github/workflows/ci-docker-image.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["docker build . --file Dockerfile --tag my-image-name:$(date +%s)"],
+          "actions": ["actions/checkout@v4"]
+        },
+        "range": {
+          "start": 129,
+          "end": 319
+        },
+        "file": ".github/workflows/ci-docker-image.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 21
+        },
+        "file": ".github/workflows/ci-docker-image.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 23,
+          "end": 119
+        },
+        "file": ".github/workflows/ci-docker-image.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-docker-image.yml",
+    "files": [".github/workflows/ci-docker-image.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

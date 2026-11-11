@@ -1,0 +1,107 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/pages-static.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "deploy",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": {
+          "value": {
+            "name": "github-pages",
+            "url": "${{ steps.deployment.outputs.page_url }}"
+          },
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 855,
+              "end": 877
+            },
+            "file": ".github/workflows/pages-static.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 882,
+              "end": 1259
+            },
+            "file": ".github/workflows/pages-static.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [],
+          "actions": [
+            "actions/checkout@v4",
+            "actions/configure-pages@v5",
+            "actions/upload-pages-artifact@v3",
+            "actions/deploy-pages@v5"
+          ]
+        },
+        "range": {
+          "start": 749,
+          "end": 1259
+        },
+        "file": ".github/workflows/pages-static.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 63,
+          "end": 99
+        },
+        "file": ".github/workflows/pages-static.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 101,
+          "end": 357
+        },
+        "file": ".github/workflows/pages-static.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 357,
+          "end": 420
+        },
+        "file": ".github/workflows/pages-static.yml"
+      },
+      {
+        "key": "concurrency",
+        "range": {
+          "start": 633,
+          "end": 691
+        },
+        "file": ".github/workflows/pages-static.yml"
+      }
+    ],
+    "main": ".github/workflows/pages-static.yml",
+    "files": [".github/workflows/pages-static.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

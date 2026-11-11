@@ -19,6 +19,8 @@ export type JobDetailPanelProps = {
   textOf: (file: string) => string;
   /** Le fichier principal, pour savoir si ce job est éditable. */
   main: string;
+  /** GitHub Actions : le stage n'est qu'un niveau calculé, il n'a rien à dire ici (ADR 0013). */
+  derivedStages?: boolean;
   /** Sur la vue Coverage : ce qui a décidé des couches de ce job. */
   coverage?: JobCoverage | null;
   onClose: () => void;
@@ -64,6 +66,7 @@ export function JobDetailPanel({
   job,
   textOf,
   main,
+  derivedStages = false,
   coverage = null,
   onClose,
 }: JobDetailPanelProps) {
@@ -128,9 +131,11 @@ export function JobDetailPanel({
         </Field>
       )}
 
-      <Field label="Stage" testId="job-stage" origin={job.stage.origin} readOnly={included}>
-        <span className="font-mono">{job.stage.value}</span>
-      </Field>
+      {derivedStages ? null : (
+        <Field label="Stage" testId="job-stage" origin={job.stage.origin} readOnly={included}>
+          <span className="font-mono">{job.stage.value}</span>
+        </Field>
+      )}
 
       <Field
         label="Needs"

@@ -2,11 +2,19 @@ import { lstatSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
-import type { Diagnostic, MessageCode, ParamsOf, SpliceOperation, Toolchain } from "@keelson/core";
+import type {
+  Diagnostic,
+  MessageCode,
+  ParamsOf,
+  Pipeline,
+  SpliceOperation,
+  Toolchain,
+} from "@keelson/core";
 import {
   emptyPipeline,
   hashText,
   INVALID_OPERATION,
+  mergePipelines,
   parseToolchainOperation,
   STALE_DOCUMENT,
   TOOLCHAIN_FILE,
@@ -95,15 +103,20 @@ export class ToolchainStore {
     }
   }
 
-  private async pipeline() {
-    const main = this.documents.workspaceFiles()[0]?.path;
-    if (main === undefined) {
-      return emptyPipeline("");
+  /** Une toolchain porte sur le dépôt : ses jobs sont ceux de tous les fichiers du workspace. */
+  private async pipeline(): Promise<Pipeline> {
+    const files = this.documents.workspaceFiles().map((entry) => entry.path);
+    const pipelines: Pipeline[] = [];
+    for (const file of files) {
+      if (this.documents.currentPipeline(file) === undefined) {
+        await this.documents.load(file);
+      }
+      const pipeline = this.documents.currentPipeline(file);
+      if (pipeline !== undefined) {
+        pipelines.push(pipeline);
+      }
     }
-    if (this.documents.currentPipeline(main) === undefined) {
-      await this.documents.load(main);
-    }
-    return this.documents.currentPipeline(main) ?? emptyPipeline(main);
+    return mergePipelines(pipelines);
   }
 
   private async body(text: string): Promise<ToolchainBody> {

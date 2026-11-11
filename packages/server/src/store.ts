@@ -1,11 +1,4 @@
-import { parse as parseGithub } from "@keelson/adapter-github";
-import {
-  apply,
-  createFileReader,
-  type IncludeReader,
-  parse,
-  readInsideRoot,
-} from "@keelson/adapter-gitlab";
+import { createFileReader, type IncludeReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type {
   Diagnostic,
@@ -16,9 +9,10 @@ import type {
   SourceRange,
   SpliceOperation,
 } from "@keelson/core";
-import { parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { NOT_FOUND, READ_ONLY_ADAPTER, STALE_DOCUMENT } from "@keelson/core/messages";
+import { mergePipelines, parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
+import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
+import { adapterFor } from "./adapters.ts";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
@@ -28,10 +22,16 @@ type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
 
 /** Ce que l'écran sait d'un pipeline, calculé au même endroit au chargement et après une opération :
  *  la CLI fait le même calcul, et les deux doivent dire la même chose. */
-function analyse(root: string, parsing: readonly Diagnostic[], pipeline: Pipeline): Analysis {
+function analyse(
+  root: string,
+  parsing: readonly Diagnostic[],
+  pipeline: Pipeline,
+  repository: Pipeline,
+): Analysis {
   const { tools } = loadCatalog();
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
-  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), pipeline, tools);
+  // `layout.json` et la toolchain portent sur le dépôt : un job d'un autre workflow n'y est pas inconnu.
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository);
+  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), repository, tools);
   return {
     diagnostics: [
       ...parsing,
@@ -96,6 +96,7 @@ export class DocumentStore {
   private readonly loaded = new Map<string, Loaded>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private readonly seen = new Map<string, Map<string, StoreResponse>>();
+  private readonly neighbours = new Map<string, { text: string; pipeline: Pipeline }>();
 
   /** Un lecteur par store, donc un seul parcours du dépôt pour les candidats d'un joker, quel que
    *  soit le nombre de requêtes. */
@@ -121,18 +122,37 @@ export class DocumentStore {
     this.files = files;
   }
 
-  private adapterOf(file: string): WorkspaceFile["adapter"] | undefined {
-    return this.files.find((entry) => entry.path === file)?.adapter;
-  }
-
-  private parseAny(file: string, text: string) {
-    return this.adapterOf(file) === "github"
-      ? parseGithub(text, { file })
-      : parse(text, { file, read: this.reader });
-  }
-
   private absolute(file: string): string | null {
     return resolveWorkspaceFile(this.root, this.files, file);
+  }
+
+  /** Ce pipeline, plus ceux des autres fichiers du workspace tels qu'ils sont sur le disque. Un voisin
+   *  que le parseur ne sait pas lire ne doit pas empêcher d'ouvrir ce fichier. Par texte : le
+   *  relire pour chaque document rendrait l'ouverture du dépôt quadratique. */
+  private repository(file: string, pipeline: Pipeline): Pipeline {
+    const others = this.files
+      .filter((entry) => entry.path !== file)
+      .flatMap((entry) => {
+        const text = this.reader.read(entry.path);
+        if (text === null) {
+          return [];
+        }
+        const known = this.neighbours.get(entry.path);
+        if (known?.text === text) {
+          return [known.pipeline];
+        }
+        try {
+          const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
+          // Un workflow ne dépend que de son texte ; un fichier GitLab dépend aussi de ses includes.
+          if (read.pipeline.provider === "github") {
+            this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
+          }
+          return [read.pipeline];
+        } catch {
+          return [];
+        }
+      });
+    return mergePipelines([pipeline, ...others]);
   }
 
   async load(file: string): Promise<DocumentBody | null> {
@@ -149,11 +169,12 @@ export class DocumentStore {
       return null;
     }
 
-    const parsed = this.parseAny(file, text);
+    const parsed = adapterFor(file).parse(text, { file, read: this.reader });
     const { diagnostics, coverage: covered } = analyse(
       this.root,
       parsed.diagnostics,
       parsed.pipeline,
+      this.repository(file, parsed.pipeline),
     );
     this.loaded.set(file, {
       absolute,
@@ -271,13 +292,6 @@ export class DocumentStore {
       };
     }
 
-    if (this.adapterOf(file) === "github") {
-      return {
-        status: 422,
-        body: { code: READ_ONLY_ADAPTER, params: { adapter: "github", file } },
-      };
-    }
-
     const validated = parseOperation(operation);
     if (!validated.ok) {
       return { status: 400, body: validated.error };
@@ -294,7 +308,7 @@ export class DocumentStore {
         return { status: 404, body: { code: NOT_FOUND, params: { reason: "missingFile", file } } };
       }
       if (!write) {
-        const { hash } = parse(onDisk as string, { file, read: this.reader });
+        const { hash } = adapterFor(file).parse(onDisk as string, { file, read: this.reader });
         return {
           status: 409,
           body: {
@@ -315,8 +329,9 @@ export class DocumentStore {
       };
     }
 
-    const parsed = parse(current.text, { file, read: this.reader });
-    const result = apply(parsed.document, validated.value);
+    const adapter = adapterFor(file);
+    const parsed = adapter.parse(current.text, { file, read: this.reader });
+    const result = adapter.apply(parsed, validated.value);
 
     if (!result.ok) {
       const stale = result.error.code === STALE_DOCUMENT;
@@ -330,6 +345,7 @@ export class DocumentStore {
       this.root,
       result.value.diagnostics,
       result.value.pipeline,
+      this.repository(file, result.value.pipeline),
     );
 
     if (!write) {

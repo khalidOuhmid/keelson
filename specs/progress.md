@@ -1,8 +1,8 @@
 # Suivi des lots
 
-Statut : TOUS LES LOTS DU PLAN LIVRÉS (2026-11-11)
-Lot courant : aucun — suite dans `specs/ecarts.md` (édition GitHub Actions en tête)
-Prochaine action : revue de la branche `claude/wonderful-edison-vituwb`, puis publication npm `v0.1.0`.
+Statut : EN COURS — intégration avant la PR
+Lot courant : fusion de `lot/l6-github` dans `claude/wonderful-edison-vituwb` (L6 complet, édition comprise)
+Prochaine action : contre-revue de `226b88d` restée en suspens sur `lot/l6-github`, `bun run check && bun run e2e`, PR vers `main`.
 Blocage : aucun
 
 
@@ -17,7 +17,7 @@ Blocage : aucun
 | L3 — taxonomie, catalogue, overlay OWASP | TERMINÉ | `36caaa1` (`--no-ff`) |
 | L4 — toolchain | TERMINÉ | `fd63570` (`--no-ff`) |
 | L5 — propositions et insertion | TERMINÉ | `971ae5b` (`--no-ff`) |
-| L6 — adaptateur GitHub Actions (lecture, couverture) | TERMINÉ | branche `claude/wonderful-edison-vituwb` |
+| L6 — adaptateur GitHub Actions | TERMINÉ, contre-revue finale en cours | `lot/l6-github` fusionné dans `claude/wonderful-edison-vituwb` |
 | L7 — packaging open source | TERMINÉ | branche `claude/wonderful-edison-vituwb` |
 | L8 — flotte | TERMINÉ | fusionné dans `claude/wonderful-edison-vituwb` |
 
@@ -756,6 +756,34 @@ rouvre rien.
 **Clôture.** Fusion `971ae5b`. Depuis un clone sans `dist/` : `bun run check`, propriétés à 500 runs,
 71 E2E, smoke test Node, `export` compris. `check` vert sur `main`.
 
+### 2026-11-05 — L6
+
+**Livré.** `adapter-github` : lecture et écriture des workflows, stages dérivés de `needs` (ADR 0013),
+`uses:` signalé par `WORKFLOW_UNRESOLVED`, corpus de 22 fichiers d'`actions/starter-workflows` au SHA
+épinglé, licence lue dans le `LICENSE` du commit (MIT avec une phrase sur les marques) ; `detect.actions`
+sur treize fiches, dépôts vérifiés ; `adapterFor`, workspace multi-fichiers, `mergePipelines` pour la
+toolchain et la CLI ; choix du fichier, surfaces sans stages, snippets `github`.
+
+**Revue indépendante : treize rouvertures.** Les plus lourdes : `renameJob` laissait `if: needs.build`
+pointer dans le vide, un dossier sans `.git` lisait les workflows avec l'adaptateur GitLab, un job de
+même nom dans deux workflows effaçait une couverture, `upload-sarif` comptait comme CodeQL, le watcher
+ne prévenait que le dernier fichier, changer de fichier pendant une écriture mêlait deux documents, et
+`level 1` pouvait partir dans `.gitlab-ci.yml`. La relecture couvre désormais tout ce que l'opération
+ne vise pas : `|+` raccourci, alias qui change de cible, clé ancrée sont refusés.
+
+**`critique` et `audit`.** Cinq P1, tous traités : select actif pendant une écriture, formulaire survivant
+au changement de fournisseur, couverture d'un seul fichier sans le dire, `NoCiFile` qui promettait un
+rechargement, badge `implicit` faux sur GitHub.
+
+**Contre-revues.** Quatre passes. `citesJob` a demandé le plus de travail : crochets et casse échappaient
+à une regex sur le texte, puis lire toutes les valeurs refusait des phrases ordinaires, puis une
+coupure au premier `}}` manquait `format('{{0}}', …)`. Le contrôle lit désormais les valeurs, de `${{`
+à leur fin, et les clés `if`. Six surfaces sans preuve (`descendants`, `scope`, notice, `opening`,
+garde de `reload`) ont reçu un test.
+
+**Une erreur de méthode.** Le commit `feat(adapter-github)` est parti avec une erreur de typage de test,
+lue après le `git commit`. Corrigée au commit suivant.
+
 
 ### 2026-11-11 — L8 — `keelson apply`
 
@@ -792,14 +820,12 @@ préexistants, qui échouent parce que le conteneur tourne en root.
 algorithme, aucune relecture du disque avant le `rename`, GitLab seul. **Dettes datées** : aucune.
 **ADR** : aucun, les décisions de forme sont dans le cadrage.
 
-### 2026-11-11 — L6 et L7
+### 2026-11-11 — L7, et une seconde implémentation de L6 abandonnée
 
-**L6** (cadrage `specs/lots/l6.md`) : `adapter-github` lit les workflows dans l'IR, stages remplacés
-par des niveaux de dépendance ; `JobSignals.actions` et `detect.actions` (24 fiches renseignées) ;
-le serveur détecte `.github/workflows/*`, sert ces fichiers et refuse leur édition par
-`READ_ONLY_ADAPTER` ; `validate` et `coverage` choisissent l'adaptateur par le chemin ; l'UI gagne un
-sélecteur de fichier et une étiquette de lecture seule. Un défaut trouvé en installant le tarball
-npm : sans `.git`, un workflow était lu comme du GitLab — test rouge puis corrigé.
+Une implémentation de L6 en lecture seule a d'abord été écrite sur `claude/wonderful-edison-vituwb`,
+depuis `f044143`, sans voir `lot/l6-github`, qui n'avait pas été fusionnée. Elle est **remplacée**
+par `lot/l6-github` à la fusion (voir plus bas) : ses conflits ont été résolus en faveur de cette
+branche, son code d'erreur `READ_ONLY_ADAPTER`, devenu sans émetteur, est retiré.
 
 **L7** : README anglais, `CONTRIBUTING.md`, `SECURITY.md`, `packages/cli/README.md`, manifeste
 publiable (`0.1.0`, aucune dépendance d'exécution, dépôt, mots-clés, provenance) gardé par
@@ -826,3 +852,13 @@ contradictoire. Appliqué :
   de route ; écarts périmés clos ou renvoyés à un lot à définir ; `findJob`, export mort, retiré.
 
 Non fait, à la main du propriétaire : `CODE_OF_CONDUCT.md`, qui demande un contact de modération.
+
+### 2026-11-11 — fusion de `lot/l6-github`
+
+`lot/l6-github` (L6 complet : lecture **et** édition des workflows, corpus de 22 workflows MIT de
+`actions/starter-workflows`, propriétés fast-check, ADR 0013) fusionnée dans
+`claude/wonderful-edison-vituwb`. Conflits résolus en faveur de `lot/l6-github` pour tout le code
+GitHub ; L7, L8, `--help` et le ménage gardés par-dessus. `apply.ts` (L8) lit `DEFAULT_FILE` dans
+`analysis.ts`. Deux tests de la version abandonnée, contraires aux choix de `lot/l6-github`, sont
+retirés : l'étiquette de lecture seule et l'intégration déduite d'une action (portée aux écarts).
+

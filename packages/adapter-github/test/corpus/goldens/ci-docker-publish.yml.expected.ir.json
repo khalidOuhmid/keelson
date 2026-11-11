@@ -1,0 +1,101 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-docker-publish.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 574,
+              "end": 596
+            },
+            "file": ".github/workflows/ci-docker-publish.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 601,
+              "end": 793
+            },
+            "file": ".github/workflows/ci-docker-publish.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 798,
+              "end": 3698
+            },
+            "file": ".github/workflows/ci-docker-publish.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["echo \"${TAGS}\" | xargs -I {} cosign sign --yes {}@${DIGEST}"],
+          "actions": [
+            "actions/checkout@v4",
+            "sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20",
+            "docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226",
+            "docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d",
+            "docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934",
+            "docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09"
+          ]
+        },
+        "range": {
+          "start": 562,
+          "end": 3698
+        },
+        "file": ".github/workflows/ci-docker-publish.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 12
+        },
+        "file": ".github/workflows/ci-docker-publish.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 209,
+          "end": 403
+        },
+        "file": ".github/workflows/ci-docker-publish.yml"
+      },
+      {
+        "key": "env",
+        "range": {
+          "start": 404,
+          "end": 552
+        },
+        "file": ".github/workflows/ci-docker-publish.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-docker-publish.yml",
+    "files": [".github/workflows/ci-docker-publish.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

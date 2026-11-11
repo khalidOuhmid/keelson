@@ -4,60 +4,84 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "../src/run.ts";
 
-const FILE = ".github/workflows/ci.yml";
-
-const WORKFLOW = `on: push
-jobs:
-  secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: gitleaks/gitleaks-action@v2
-  sast:
-    runs-on: ubuntu-latest
-    needs: [secrets, ghost]
-    steps:
-      - run: semgrep ci
-`;
-
-let root = "";
+let root: string;
 
 beforeAll(() => {
-  root = mkdtempSync(join(tmpdir(), "keelson-cli-github-"));
+  root = mkdtempSync(join(tmpdir(), "keelson-cli-gh-"));
   mkdirSync(join(root, ".git"));
-  mkdirSync(join(root, ".github", "workflows"), { recursive: true });
-  writeFileSync(join(root, FILE), WORKFLOW);
+  mkdirSync(join(root, ".github/workflows"), { recursive: true });
+  writeFileSync(
+    join(root, ".github/workflows/ci.yml"),
+    "on: push\njobs:\n  scan:\n    runs-on: ubuntu-latest\n    steps:\n      - run: trivy fs .\n",
+  );
+  writeFileSync(
+    join(root, ".github/workflows/secrets.yml"),
+    "on: push\njobs:\n  leaks:\n    needs: fantome\n    runs-on: ubuntu-latest\n    steps:\n      - uses: gitleaks/gitleaks-action@v2\n",
+  );
 });
 
-afterAll(() => {
-  rmSync(root, { recursive: true, force: true });
+afterAll(() => rmSync(root, { recursive: true }));
+
+describe("hors d'un dépôt git", () => {
+  test("le chemin du fichier suffit à choisir l'adaptateur", async () => {
+    const bare = mkdtempSync(join(tmpdir(), "keelson-bare-"));
+    mkdirSync(join(bare, ".github/workflows"), { recursive: true });
+    writeFileSync(
+      join(bare, ".github/workflows/one.yml"),
+      "jobs:\n  a:\n    runs-on: x\n    steps:\n      - run: trivy fs .\n",
+    );
+    const result = await run(["validate", ".github/workflows/one.yml"], { cwd: bare });
+    expect(result.stdout).toBe("no diagnostics\n");
+    expect((await run(["coverage", "--require", "sca"], { cwd: bare })).exitCode).toBe(0);
+    rmSync(bare, { recursive: true });
+  });
 });
 
-describe("keelson sur un workflow GitHub Actions", () => {
-  test("validate lit le workflow par l'adaptateur GitHub et situe ses diagnostics", async () => {
-    const result = await run(["validate", FILE, "--format", "json"], { cwd: root });
-    const reported = JSON.parse(result.stdout) as { code: string; line: number; file: string }[];
-    expect(reported.map((entry) => entry.code)).toEqual(["UNKNOWN_NEED"]);
-    expect(reported[0]?.file).toBe(join(root, FILE));
+describe("deux jobs de même nom", () => {
+  test("coverage garde les deux", async () => {
+    const twin = mkdtempSync(join(tmpdir(), "keelson-twin-"));
+    mkdirSync(join(twin, ".git"));
+    mkdirSync(join(twin, ".github/workflows"), { recursive: true });
+    writeFileSync(
+      join(twin, ".github/workflows/a.yml"),
+      "jobs:\n  scan:\n    steps:\n      - run: gitleaks detect\n",
+    );
+    writeFileSync(
+      join(twin, ".github/workflows/b.yml"),
+      "jobs:\n  scan:\n    steps:\n      - run: trivy fs .\n",
+    );
+    expect((await run(["coverage", "--require", "sca,secrets"], { cwd: twin })).exitCode).toBe(0);
+    rmSync(twin, { recursive: true });
+  });
+});
+
+describe("la CLI sur GitHub Actions", () => {
+  test("validate sans argument couvre tous les workflows", async () => {
+    const result = await run(["validate"], { cwd: root });
     expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("secrets.yml");
+    expect(result.stdout).toContain("UNKNOWN_NEED");
   });
 
-  test("coverage détecte par les actions comme par les scripts", async () => {
-    const result = await run(["coverage", FILE, "--format", "json"], { cwd: root });
-    const body = JSON.parse(result.stdout) as {
-      layers: { layer: string; covered: boolean; jobs: string[] }[];
-    };
-    const layer = (id: string) => body.layers.find((entry) => entry.layer === id);
-    expect(layer("secrets")?.jobs).toEqual(["secrets"]);
-    expect(layer("sast")?.jobs).toEqual(["sast"]);
+  test("validate sur un fichier nommé ne regarde que lui", async () => {
+    const result = await run(["validate", ".github/workflows/ci.yml"], { cwd: root });
+    expect(result.exitCode).toBe(0);
   });
 
-  test("sans dossier .git, la racine est celle qui porte .github", async () => {
-    const bare = mkdtempSync(join(tmpdir(), "keelson-cli-github-bare-"));
-    mkdirSync(join(bare, ".github", "workflows"), { recursive: true });
-    writeFileSync(join(bare, FILE), WORKFLOW);
-    const result = await run(["coverage", FILE, "--format", "json"], { cwd: bare });
-    const body = JSON.parse(result.stdout) as { layers: { layer: string; jobs: string[] }[] };
-    expect(body.layers.find((entry) => entry.layer === "secrets")?.jobs).toEqual(["secrets"]);
-    rmSync(bare, { recursive: true, force: true });
+  test("coverage sans argument additionne les workflows", async () => {
+    const result = await run(["coverage", "--require", "sca,secrets"], { cwd: root });
+    expect(result.exitCode).toBe(0);
+  });
+
+  test("export fusionne les jobs dans un seul graphe", async () => {
+    const { stdout } = await run(["export", "--format", "mermaid"], { cwd: root });
+    expect(stdout).toContain('"scan"');
+    expect(stdout).toContain('"leaks"');
+  });
+
+  test("un dossier sans CI le dit, code 2", async () => {
+    const empty = mkdtempSync(join(tmpdir(), "keelson-none-"));
+    expect((await run(["validate"], { cwd: empty })).exitCode).toBe(2);
+    rmSync(empty, { recursive: true });
   });
 });

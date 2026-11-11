@@ -13,7 +13,9 @@ const label = (text: string): string =>
 
 /** Identifiants par position : les noms de jobs n'ont aucune forme garantie, Mermaid si. */
 export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string {
-  const jobId = new Map(pipeline.jobs.map((job, index) => [job.id, `j${index}`]));
+  // Par fichier : deux workflows peuvent porter un job du même nom.
+  const keyOf = (job: { id: string; file: string }): string => JSON.stringify([job.file, job.id]);
+  const jobId = new Map(pipeline.jobs.map((job, index) => [keyOf(job), `j${index}`]));
   const serviceId = new Map(toolchain.services.map((service, index) => [service.id, `v${index}`]));
 
   // Un job peut viser un stage que ce fichier ne déclare pas, un include distant par exemple.
@@ -29,7 +31,7 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
       ? []
       : [
           `  subgraph s${index}[${label(name)}]`,
-          ...jobs.map((job) => `    ${jobId.get(job.id)}[${label(job.id)}]`),
+          ...jobs.map((job) => `    ${jobId.get(keyOf(job))}[${label(job.id)}]`),
           "  end",
         ];
   });
@@ -40,8 +42,14 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
 
   const needs = pipeline.jobs.flatMap((job) =>
     (job.needs?.value ?? []).flatMap((need) => {
-      const source = jobId.get(need.job);
-      const target = jobId.get(job.id);
+      // GitLab permet un `needs` vers un fichier inclus ; deux workflows, eux, ne se voient pas.
+      const elsewhere = job.file.includes(".github/workflows/")
+        ? undefined
+        : pipeline.jobs.find((other) => other.id === need.job);
+      const source =
+        jobId.get(keyOf({ id: need.job, file: job.file })) ??
+        (elsewhere === undefined ? undefined : jobId.get(keyOf(elsewhere)));
+      const target = jobId.get(keyOf(job));
       if (source === undefined || target === undefined) {
         return [];
       }
@@ -50,11 +58,12 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
   );
 
   const integrations = toolchain.integrations.flatMap((entry) => {
-    const source = jobId.get(entry.job);
     const target = serviceId.get(entry.service);
-    return source === undefined || target === undefined
+    return target === undefined
       ? []
-      : [`  ${source} -->|${entry.kind}| ${target}`];
+      : pipeline.jobs
+          .filter((job) => job.id === entry.job)
+          .map((job) => `  ${jobId.get(keyOf(job))} -->|${entry.kind}| ${target}`);
   });
 
   return `${["flowchart LR", ...stages, ...services, ...needs, ...integrations].join("\n")}\n`;

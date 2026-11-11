@@ -123,7 +123,7 @@ et écrit.
 
 | Méthode | Route | Réponses |
 |---|---|---|
-| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }` |
+| GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }`, `adapter` valant `gitlab` ou `github` |
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
 | POST | `/api/documents/:file/operations` | corps `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` avec le `hash` courant · 413 · 422 `{ code, params }` |
@@ -194,8 +194,8 @@ navigateur. Il doit donc se défendre contre elles.
 | `keelson catalog lint [dossier]` | sans dossier, le catalogue embarqué ; 1 sur une erreur, 0 sur un simple signalement de fraîcheur |
 | `keelson apply <ops.json> [<dépôt>...] [--file <chemin>] [--rebase] [--dry-run] [--json]` | applique une séquence d'opérations à chaque dépôt, tout ou rien par dépôt ; 1 si un dépôt échoue, 2 sur un fichier d'opérations invalide |
 
-Chaque commande accepte `-h` / `--help`, qui affiche son usage sans l'exécuter. `[fichier]` vaut
-`.gitlab-ci.yml` par défaut ; un chemin `.github/workflows/<nom>.yml` passe par l'adaptateur GitHub.
+Chaque commande accepte `-h` / `--help`, qui affiche son usage sans l'exécuter. Sans `[fichier]`,
+`validate`, `coverage` et `export` portent sur tous les fichiers CI du dépôt.
 
 ## 9. Logos et licences
 

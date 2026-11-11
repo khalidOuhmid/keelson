@@ -2,172 +2,111 @@ import type {
   Diagnostic,
   Environment,
   Job,
-  Need,
+  JobSignals,
   OpaqueBlock,
   Pipeline,
   SourceRange,
   Stage,
-  Valued,
 } from "@keelson/core";
-import { emptyPipeline, hashText, INVALID_YAML, JOB_WITHOUT_SCRIPT } from "@keelson/core";
-import { isMap, isPair, isScalar, isSeq, type Pair, parseDocument, type YAMLMap } from "yaml";
+import {
+  emptyPipeline,
+  hashText,
+  INVALID_YAML,
+  JOB_WITHOUT_SCRIPT,
+  WORKFLOW_UNRESOLVED,
+} from "@keelson/core";
+import { type Document, isMap, isScalar, type Node, type Pair, parseDocument } from "yaml";
 
-export const GITHUB_WORKFLOWS_DIR = ".github/workflows";
+export const WORKFLOWS_DIR = ".github/workflows";
 
-const WORKFLOW_PATH = /^\.github\/workflows\/[^/]+\.ya?ml$/;
-
-export function isWorkflowPath(path: string): boolean {
-  return WORKFLOW_PATH.test(path);
-}
-
-export type ParseOptions = {
-  file?: string;
+export type GithubDocument = {
+  text: string;
+  hash: string;
+  yaml: Document.Parsed;
+  file: string;
 };
 
 export type ParseResult = {
+  document: GithubDocument;
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
+  /** Un workflow n'inclut rien : la forme reste celle de GitLab, l'appelant n'a pas à distinguer. */
   included: Record<string, string>;
 };
 
-const MODELLED_JOB_KEYS = ["needs", "environment"] as const;
+export type ParseOptions = { file?: string };
 
-type AnyNode = unknown;
+/** Les clés de `jobs.<id>` que l'IR modélise : le reste est du bloc opaque. */
+const MODELLED = ["needs", "environment"];
 
-function keyOf(pair: Pair<unknown, unknown>): string | null {
-  return isScalar(pair.key) && typeof pair.key.value === "string" ? pair.key.value : null;
+type Raw = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is Raw =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+function pairRange(pair: Pair): SourceRange {
+  const key = (pair.key as Node).range ?? [0, 0, 0];
+  const value = (pair.value as Node | null)?.range;
+  return { start: key[0], end: value?.[1] ?? key[1] };
 }
 
-function pairsOf(map: YAMLMap): Pair<unknown, unknown>[] {
-  return map.items.filter((item) => isPair(item));
-}
-
-function fieldOf(map: YAMLMap, key: string): AnyNode {
-  return pairsOf(map).find((pair) => keyOf(pair) === key)?.value;
-}
-
-function pairRange(pair: Pair<unknown, unknown>): SourceRange | null {
-  const keyRange = (pair.key as { range?: [number, number, number] } | null)?.range;
-  if (keyRange === undefined) {
-    return null;
+function namesOf(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
   }
-  const valueRange = (pair.value as { range?: [number, number, number] } | null)?.range;
-  return { start: keyRange[0], end: valueRange?.[2] ?? keyRange[2] };
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
-function stringOf(node: AnyNode): string | null {
-  if (!isScalar(node)) {
-    return null;
+function environmentOf(value: unknown): Environment | null {
+  if (typeof value === "string") {
+    return { name: value };
   }
-  const value = node.value;
-  return typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-    ? String(value)
-    : null;
-}
-
-function needsOf(node: AnyNode): Valued<Need[]> | null {
-  const single = stringOf(node);
-  const names =
-    single !== null
-      ? [single]
-      : isSeq(node)
-        ? node.items.flatMap((item) => {
-            const name = stringOf(item);
-            return name === null ? [] : [name];
-          })
-        : null;
-  if (names === null) {
-    return null;
+  if (isRecord(value) && typeof value.name === "string") {
+    return typeof value.url === "string"
+      ? { name: value.name, url: value.url }
+      : { name: value.name };
   }
-  return {
-    value: names.map((job) => ({ job, optional: false, artifacts: false })),
-    origin: { kind: "local" },
-  };
+  return null;
 }
 
-function environmentOf(node: AnyNode): Valued<Environment> | null {
-  const short = stringOf(node);
-  if (short !== null) {
-    return { value: { name: short }, origin: { kind: "local" } };
-  }
-  if (!isMap(node)) {
-    return null;
-  }
-  const name = stringOf(fieldOf(node, "name"));
-  if (name === null) {
-    return null;
-  }
-  const url = stringOf(fieldOf(node, "url"));
-  return { value: url === null ? { name } : { name, url }, origin: { kind: "local" } };
-}
-
-function actionName(reference: string): string {
-  const at = reference.lastIndexOf("@");
-  return at > 0 ? reference.slice(0, at) : reference;
-}
-
-function imageOf(node: AnyNode): string | null {
-  return stringOf(node) ?? (isMap(node) ? stringOf(fieldOf(node, "image")) : null);
-}
-
-type Signals = { image: string | null; script: string[]; actions: string[] };
-
-function signalsOf(job: YAMLMap): Signals {
+function signalsOf(job: Raw): JobSignals {
   const script: string[] = [];
   const actions: string[] = [];
+  const container = job.container;
+  let image =
+    typeof container === "string"
+      ? container
+      : isRecord(container) && typeof container.image === "string"
+        ? container.image
+        : null;
 
-  const called = stringOf(fieldOf(job, "uses"));
-  if (called !== null) {
-    actions.push(actionName(called));
-  }
-
-  const steps = fieldOf(job, "steps");
-  if (isSeq(steps)) {
-    for (const step of steps.items) {
-      if (!isMap(step)) {
-        continue;
+  for (const step of Array.isArray(job.steps) ? job.steps : []) {
+    if (!isRecord(step)) {
+      continue;
+    }
+    if (typeof step.run === "string") {
+      script.push(step.run);
+    }
+    if (typeof step.uses === "string") {
+      // Une étape `docker://` garde sa place dans `actions` : un `container` n'efface pas son image.
+      if (step.uses.startsWith("docker://")) {
+        image ??= step.uses.slice("docker://".length);
       }
-      const uses = stringOf(fieldOf(step, "uses"));
-      if (uses !== null) {
-        actions.push(actionName(uses));
-      }
-      const run = stringOf(fieldOf(step, "run"));
-      if (run !== null) {
-        script.push(...run.split("\n").filter((line) => line.trim() !== ""));
-      }
+      actions.push(step.uses);
     }
   }
-
-  return { image: imageOf(fieldOf(job, "container")), script, actions };
+  return { image, script, ...(actions.length === 0 ? {} : { actions }) };
 }
 
-function hasWork(job: YAMLMap): boolean {
-  const steps = fieldOf(job, "steps");
-  return stringOf(fieldOf(job, "uses")) !== null || (isSeq(steps) && steps.items.length > 0);
-}
-
-function opaqueOf(map: YAMLMap, file: string, skipped: readonly string[]): OpaqueBlock[] {
-  return pairsOf(map).flatMap((pair) => {
-    const key = keyOf(pair);
-    const range = pairRange(pair);
-    return key === null || range === null || skipped.includes(key) ? [] : [{ key, range, file }];
-  });
-}
-
-function levelName(level: number): string {
-  return `level ${level}`;
-}
-
-/** GitHub Actions n'a pas de stages : un job s'ouvre quand ses needs sont finis. La colonne d'un
- *  job est donc la longueur de la plus longue chaîne de needs qui y mène, comme le graphe que
- *  GitHub dessine lui-même. Un cycle ou un need inconnu ne fait pas monter le niveau : la
- *  validation les signale, la mise en page ne doit pas boucler. */
-function levelsOf(ids: readonly string[], needs: ReadonlyMap<string, readonly string[]>) {
+/** Un job vaut un niveau de plus que sa dépendance la plus haute. Un cycle s'arrête à sa première
+ *  visite : `validate` le signale, la vue doit quand même se dessiner. */
+function levelsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, number> {
   const levels = new Map<string, number>();
   const visiting = new Set<string>();
-
-  const levelOf = (id: string): number => {
+  const level = (id: string): number => {
     const known = levels.get(id);
     if (known !== undefined) {
       return known;
@@ -176,102 +115,142 @@ function levelsOf(ids: readonly string[], needs: ReadonlyMap<string, readonly st
       return 0;
     }
     visiting.add(id);
-    const parents = (needs.get(id) ?? []).filter((parent) => needs.has(parent));
-    const level = 1 + Math.max(0, ...parents.map(levelOf));
+    const deepest = Math.max(
+      0,
+      ...(needs.get(id) ?? []).filter((target) => needs.has(target)).map(level),
+    );
     visiting.delete(id);
-    levels.set(id, level);
-    return level;
+    levels.set(id, deepest + 1);
+    return deepest + 1;
   };
-
-  for (const id of ids) {
-    levelOf(id);
+  for (const id of needs.keys()) {
+    level(id);
   }
   return levels;
 }
 
 export function parse(text: string, options: ParseOptions = {}): ParseResult {
-  const file = options.file ?? `${GITHUB_WORKFLOWS_DIR}/ci.yml`;
+  const file = options.file ?? `${WORKFLOWS_DIR}/workflow.yml`;
+  const yaml = parseDocument(text, { keepSourceTokens: false });
   const hash = hashText(text);
-  const yaml = parseDocument(text, { keepSourceTokens: true });
+  const document: GithubDocument = { text, hash, yaml, file };
 
   const diagnostics: Diagnostic[] = yaml.errors.map((error) => ({
     code: INVALID_YAML,
-    severity: "error" as const,
+    severity: "error",
     params: { detail: error.message },
     range: { start: error.pos[0], end: error.pos[1] },
     file,
   }));
 
-  const root = yaml.contents;
-  if (!isMap(root)) {
-    return { pipeline: { ...emptyPipeline(file), files: [file] }, diagnostics, hash, included: {} };
+  let raw: unknown = null;
+  try {
+    raw = yaml.toJS({ mapAsMap: false });
+  } catch (error) {
+    diagnostics.push({
+      code: INVALID_YAML,
+      severity: "error",
+      params: { detail: error instanceof Error ? error.message : "unreadable YAML" },
+      range: null,
+      file,
+    });
   }
 
-  const jobsNode = fieldOf(root, "jobs");
-  const entries = isMap(jobsNode)
-    ? pairsOf(jobsNode).flatMap((pair) => {
-        const id = keyOf(pair);
-        const range = pairRange(pair);
-        return id !== null && range !== null && isMap(pair.value)
-          ? [{ id, range, map: pair.value }]
-          : [];
-      })
-    : [];
+  const root = yaml.contents;
+  const pipeline: Pipeline = { ...emptyPipeline(file), files: [file], provider: "github" };
+  if (!isMap(root) || !isRecord(raw)) {
+    return { document, pipeline, diagnostics, hash, included: {} };
+  }
 
-  const needs = new Map(
-    entries.map((entry) => [
-      entry.id,
-      (needsOf(fieldOf(entry.map, "needs"))?.value ?? []).map((need) => need.job),
-    ]),
+  pipeline.opaque = root.items.flatMap((pair): OpaqueBlock[] =>
+    isScalar(pair.key) && pair.key.value !== "jobs"
+      ? [{ key: String(pair.key.value), range: pairRange(pair), file }]
+      : [],
   );
-  const levels = levelsOf(
-    entries.map((entry) => entry.id),
-    needs,
-  );
-  const deepest = Math.max(0, ...levels.values());
 
-  const stages: Stage[] = Array.from({ length: deepest }, (_, index) => ({
-    name: levelName(index + 1),
-    implicit: true,
-    range: null,
-    file,
-  }));
+  const jobsNode = root.items.find(
+    (pair) => isScalar(pair.key) && pair.key.value === "jobs",
+  )?.value;
+  const jobsRaw = isRecord(raw.jobs) ? raw.jobs : {};
+  const pairs = isMap(jobsNode) ? jobsNode.items : [];
 
-  const jobs: Job[] = entries.map((entry) => {
-    if (!hasWork(entry.map)) {
+  const needs = new Map<string, string[]>();
+  for (const pair of pairs) {
+    const id = String((pair.key as { value?: unknown }).value);
+    const job = jobsRaw[id];
+    needs.set(id, isRecord(job) ? namesOf(job.needs) : []);
+  }
+  const levels = levelsOf(needs);
+
+  for (const pair of pairs) {
+    const id = String((pair.key as { value?: unknown }).value);
+    const job = jobsRaw[id];
+    if (!isRecord(job)) {
+      continue;
+    }
+
+    const range = pairRange(pair);
+    const body = pair.value;
+    const opaque = (isMap(body) ? body.items : []).flatMap((entry): OpaqueBlock[] => {
+      const key = isScalar(entry.key) ? String(entry.key.value) : "";
+      return MODELLED.includes(key) ? [] : [{ key, range: pairRange(entry), file }];
+    });
+
+    const target = typeof job.uses === "string" ? job.uses : null;
+    if (target !== null) {
+      diagnostics.push({
+        code: WORKFLOW_UNRESOLVED,
+        severity: "info",
+        params: { job: id, target },
+        range,
+        file,
+      });
+      pipeline.unresolved.push({ form: "workflow", detail: target, from: file, range });
+    } else if (!Array.isArray(job.steps) || job.steps.length === 0) {
       diagnostics.push({
         code: JOB_WITHOUT_SCRIPT,
         severity: "warning",
-        params: { job: entry.id },
-        range: entry.range,
+        params: { job: id },
+        range,
         file,
       });
     }
-    return {
-      id: entry.id,
-      stage: { value: levelName(levels.get(entry.id) ?? 1), origin: { kind: "default" } },
-      needs: needsOf(fieldOf(entry.map, "needs")),
-      environment: environmentOf(fieldOf(entry.map, "environment")),
+
+    const environment = environmentOf(job.environment);
+    const entry: Job = {
+      id,
+      stage: { value: `level ${levels.get(id) ?? 1}`, origin: { kind: "local" } },
+      needs:
+        job.needs === undefined
+          ? null
+          : {
+              value: (needs.get(id) ?? []).map((name) => ({
+                job: name,
+                optional: false,
+                artifacts: true,
+              })),
+              origin: { kind: "local" },
+            },
+      environment: environment === null ? null : { value: environment, origin: { kind: "local" } },
       extends: [],
-      opaque: opaqueOf(entry.map, file, MODELLED_JOB_KEYS),
-      signals: signalsOf(entry.map),
-      range: entry.range,
+      opaque,
+      signals: signalsOf(job),
+      range,
       file,
     };
-  });
+    pipeline.jobs.push(entry);
+  }
 
-  return {
-    pipeline: {
-      stages,
-      jobs,
-      templates: [],
-      opaque: opaqueOf(root, file, ["jobs"]),
-      main: file,
-      files: [file],
-      unresolved: [],
-    },
-    diagnostics,
-    hash,
-    included: {},
-  };
+  const deepest = Math.max(0, ...levels.values());
+  pipeline.stages = Array.from(
+    { length: deepest },
+    (_, index): Stage => ({
+      name: `level ${index + 1}`,
+      implicit: false,
+      range: null,
+      file,
+    }),
+  );
+
+  return { document, pipeline, diagnostics, hash, included: {} };
 }

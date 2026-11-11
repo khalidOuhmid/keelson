@@ -24,7 +24,7 @@ export function proposeIntegrations(
   toolchain: Toolchain,
   tools: readonly Tool[],
 ): ProposedIntegration[] {
-  return pipeline.jobs.flatMap((job) =>
+  const proposed = pipeline.jobs.flatMap((job) =>
     detectIntegrations(job.signals, tools).flatMap(({ tool, kind }): ProposedIntegration[] => {
       const services = toolchain.services
         .filter((service) => service.tool === tool)
@@ -40,6 +40,9 @@ export function proposeIntegrations(
       return settled ? [] : [{ job: job.id, tool, kind, services }];
     }),
   );
+  // Deux workflows peuvent porter un job du même nom : la décision à prendre est la même.
+  const keys = proposed.map((entry) => JSON.stringify([entry.job, entry.tool, entry.kind]));
+  return proposed.filter((_, index) => keys.indexOf(keys[index] as string) === index);
 }
 
 function diagnostic(found: Omit<Diagnostic, "range" | "file">): Diagnostic {

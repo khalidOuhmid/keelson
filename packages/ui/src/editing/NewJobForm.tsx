@@ -43,21 +43,24 @@ export function NewJobForm({ pipeline, onSubmit, disabled = false }: NewJobFormP
         />
       </label>
 
-      <label className={GROUP}>
-        <span className={LABEL}>New job stage</span>
-        <select
-          className={FIELD}
-          value={stage}
-          disabled={disabled}
-          onChange={(event) => setStage(event.target.value)}
-        >
-          {pipeline.stages.map((candidate) => (
-            <option key={candidate.name} value={candidate.name}>
-              {candidate.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* Un workflow n'a pas de stages : l'ordre vient de `needs` (ADR 0013). */}
+      {pipeline.provider === "github" ? null : (
+        <label className={GROUP}>
+          <span className={LABEL}>New job stage</span>
+          <select
+            className={FIELD}
+            value={stage}
+            disabled={disabled}
+            onChange={(event) => setStage(event.target.value)}
+          >
+            {pipeline.stages.map((candidate) => (
+              <option key={candidate.name} value={candidate.name}>
+                {candidate.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className={GROUP}>
         <span className={LABEL}>Script</span>

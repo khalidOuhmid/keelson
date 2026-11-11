@@ -14,8 +14,8 @@
   "dependencies": {
     "@keelson/adapter-github": "workspace:*",
     "@keelson/adapter-gitlab": "workspace:*",
-    "@keelson/core": "workspace:*",
     "@keelson/catalog": "workspace:*",
+    "@keelson/core": "workspace:*",
     "@keelson/taxonomy": "workspace:*",
     "@keelson/toolchain": "workspace:*"
   }

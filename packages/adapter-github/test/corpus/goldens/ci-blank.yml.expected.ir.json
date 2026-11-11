@@ -1,0 +1,81 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-blank.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 608,
+              "end": 630
+            },
+            "file": ".github/workflows/ci-blank.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 719,
+              "end": 1167
+            },
+            "file": ".github/workflows/ci-blank.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "echo Hello, world!",
+            "echo Add other actions to build,\necho test, and deploy your project.\n"
+          ],
+          "actions": ["actions/checkout@v4"]
+        },
+        "range": {
+          "start": 547,
+          "end": 1167
+        },
+        "file": ".github/workflows/ci-blank.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 65,
+          "end": 73
+        },
+        "file": ".github/workflows/ci-blank.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 113,
+          "end": 484
+        },
+        "file": ".github/workflows/ci-blank.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-blank.yml",
+    "files": [".github/workflows/ci-blank.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

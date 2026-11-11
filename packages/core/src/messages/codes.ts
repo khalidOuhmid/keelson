@@ -1,5 +1,6 @@
 export const INVALID_YAML = "INVALID_YAML";
 export const INCLUDE_UNRESOLVED = "INCLUDE_UNRESOLVED";
+export const WORKFLOW_UNRESOLVED = "WORKFLOW_UNRESOLVED";
 export const INCLUDE_NOT_FOUND = "INCLUDE_NOT_FOUND";
 export const INCLUDE_CYCLE = "INCLUDE_CYCLE";
 export const INCLUDE_LIMIT_EXCEEDED = "INCLUDE_LIMIT_EXCEEDED";
@@ -28,6 +29,7 @@ export const TOOLCHAIN_DUPLICATE_INTEGRATION = "TOOLCHAIN_DUPLICATE_INTEGRATION"
 export const DIAGNOSTIC_CODES = [
   INVALID_YAML,
   INCLUDE_UNRESOLVED,
+  WORKFLOW_UNRESOLVED,
   INCLUDE_NOT_FOUND,
   INCLUDE_CYCLE,
   INCLUDE_LIMIT_EXCEEDED,
@@ -72,7 +74,6 @@ export const SERVICE_NOT_FOUND = "SERVICE_NOT_FOUND";
 export const SERVICE_REFERENCED = "SERVICE_REFERENCED";
 export const INTEGRATION_EXISTS = "INTEGRATION_EXISTS";
 export const INTEGRATION_NOT_FOUND = "INTEGRATION_NOT_FOUND";
-export const READ_ONLY_ADAPTER = "READ_ONLY_ADAPTER";
 
 export const OPERATION_ERROR_CODES = [
   STALE_DOCUMENT,
@@ -93,7 +94,6 @@ export const OPERATION_ERROR_CODES = [
   SERVICE_REFERENCED,
   INTEGRATION_EXISTS,
   INTEGRATION_NOT_FOUND,
-  READ_ONLY_ADAPTER,
 ] as const;
 
 export const FORBIDDEN_HOST = "FORBIDDEN_HOST";
@@ -139,9 +139,10 @@ type Empty = Record<string, never>;
 export type MessageParams = {
   INVALID_YAML: { detail: string };
   INCLUDE_UNRESOLVED: {
-    form: "local" | "remote" | "project" | "template" | "component";
+    form: "local" | "remote" | "project" | "template" | "component" | "workflow";
     detail: string;
   };
+  WORKFLOW_UNRESOLVED: { job: string; target: string };
   INCLUDE_NOT_FOUND:
     | { reason: "missing"; path: string }
     | { reason: "notYaml"; path: string }
@@ -198,6 +199,8 @@ export type MessageParams = {
     | { reason: "invalidToolchain" }
     | { reason: "invalidLayout" }
     | { reason: "invalidSnippet" }
+    | { reason: "notForProvider"; operation: string }
+    | { reason: "citedInExpression"; job: string }
     | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
     | { reason: "wouldBreakYaml"; operation: string }
@@ -228,7 +231,6 @@ export type MessageParams = {
   SERVICE_REFERENCED: { service: string; jobs: readonly string[] };
   INTEGRATION_EXISTS: { job: string; target: string; kind: string };
   INTEGRATION_NOT_FOUND: { job: string; target: string; kind: string };
-  READ_ONLY_ADAPTER: { adapter: string; file: string };
 
   FORBIDDEN_HOST: Empty;
   FORBIDDEN_TOKEN: Empty;

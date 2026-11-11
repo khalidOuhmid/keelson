@@ -26,13 +26,15 @@ function onScript(tool: Tool, commands: readonly string[]): boolean {
   return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
-/** `owner/repo` et ses sous-chemins (`github/codeql-action/init`), jamais un autre dépôt qui
- *  commencerait par le même nom. */
-function onAction(tool: Tool, actions: readonly string[] = []): boolean {
-  const names = (tool.detect.actions ?? []).map((name) => name.toLowerCase());
+function onAction(tool: Tool, actions: readonly string[]): boolean {
   return actions.some((action) => {
-    const called = action.toLowerCase();
-    return names.some((name) => called === name || called.startsWith(`${name}/`));
+    if (action.startsWith("docker://")) {
+      return onImage(tool, action.slice("docker://".length));
+    }
+    const name = (action.split("@")[0] ?? "").toLowerCase();
+    return tool.detect.actions.some(
+      (known) => name === known.toLowerCase() || name.startsWith(`${known.toLowerCase()}/`),
+    );
   });
 }
 
@@ -41,14 +43,14 @@ const commandsOf = (signals: JobSignals): string[] =>
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };
 
-/** Sur le script et les actions : l'image d'un client ne prouve pas qu'un job parle au service. */
+/** Sur le script seul : l'image d'un client ne prouve pas qu'un job parle au service. */
 export function detectIntegrations(
   signals: JobSignals,
   tools: readonly Tool[],
 ): DetectedIntegration[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): DetectedIntegration[] =>
-    tool.integration !== null && (onScript(tool, commands) || onAction(tool, signals.actions))
+    tool.integration !== null && onScript(tool, commands)
       ? [{ tool: tool.id, kind: tool.integration }]
       : [],
   );
@@ -58,7 +60,9 @@ export function detectIntegrations(
 export function detectTools(signals: JobSignals, tools: readonly Tool[]): Detection[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): Detection[] =>
-    onImage(tool, signals.image) || onScript(tool, commands) || onAction(tool, signals.actions)
+    onImage(tool, signals.image) ||
+    onScript(tool, commands) ||
+    onAction(tool, signals.actions ?? [])
       ? [{ tool: tool.id, layers: tool.layers }]
       : [],
   );

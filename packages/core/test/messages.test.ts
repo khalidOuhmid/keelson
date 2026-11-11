@@ -138,6 +138,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
   ],
 
+  WORKFLOW_UNRESOLVED: [
+    {
+      params: { job: "call", target: "o/r/.github/workflows/x.yml@v1" },
+      text: 'job "call" calls the reusable workflow "o/r/.github/workflows/x.yml@v1", which Keelson does not read, so its jobs are not shown',
+    },
+  ],
   TOOLCHAIN_INVALID: [
     {
       params: { detail: "version: Invalid input" },
@@ -240,6 +246,14 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: "this snippet is not a single job Keelson can copy as it is",
     },
     {
+      params: { reason: "citedInExpression", job: "build" },
+      text: 'job "build" is cited in an expression that Keelson cannot rewrite, so this change would break it',
+    },
+    {
+      params: { reason: "notForProvider", operation: "addStage" },
+      text: "operation addStage has no meaning in a GitHub Actions workflow",
+    },
+    {
       params: { reason: "invalidLayout" },
       text: "layout.json is not usable, fix it before moving nodes",
     },
@@ -317,12 +331,6 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     {
       params: { job: "b", target: "n", kind: "push" },
       text: 'the push integration of "b" with "n" does not exist',
-    },
-  ],
-  READ_ONLY_ADAPTER: [
-    {
-      params: { adapter: "github", file: ".github/workflows/ci.yml" },
-      text: '".github/workflows/ci.yml" is read through the github adapter, which Keelson does not edit yet',
     },
   ],
   FORBIDDEN_HOST: [{ params: {}, text: "the local server refused the Host header" }],

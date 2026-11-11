@@ -1,0 +1,78 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-go.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 287,
+              "end": 309
+            },
+            "file": ".github/workflows/ci-go.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 314,
+              "end": 541
+            },
+            "file": ".github/workflows/ci-go.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["go build -v ./...", "go test -v ./..."],
+          "actions": ["actions/checkout@v4", "actions/setup-go@v4"]
+        },
+        "range": {
+          "start": 276,
+          "end": 541
+        },
+        "file": ".github/workflows/ci-go.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 160,
+          "end": 168
+        },
+        "file": ".github/workflows/ci-go.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 170,
+          "end": 266
+        },
+        "file": ".github/workflows/ci-go.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-go.yml",
+    "files": [".github/workflows/ci-go.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

@@ -43,7 +43,8 @@
         "scripts": [
           "\\bjf\\s+rt\\b",
           "\\bartifactory\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -69,7 +70,8 @@
         ],
         "scripts": [
           "\\bbandit\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "bandit:\n  stage: test\n  image:\n    name: ghcr.io/pycqa/bandit/bandit:latest\n    entrypoint: [\"\"]\n  script:\n    - bandit -r .\n",
@@ -91,7 +93,8 @@
       "logo": null,
       "detect": {
         "images": [],
-        "scripts": []
+        "scripts": [],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -146,7 +149,8 @@
           "\\bcodeql\\s+(database|github)\\b"
         ],
         "actions": [
-          "github/codeql-action"
+          "github/codeql-action/init",
+          "github/codeql-action/analyze"
         ]
       },
       "snippets": {
@@ -174,7 +178,8 @@
         ],
         "scripts": [
           "\\bconftest\\s+test\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "conftest:\n  stage: test\n  image:\n    name: openpolicyagent/conftest:latest\n    entrypoint: [\"\"]\n  script:\n    - conftest test deployment.yaml\n",
@@ -198,7 +203,8 @@
         "images": [],
         "scripts": [
           "\\bcontrast(-agent|\\.jar)\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -253,7 +259,8 @@
         ],
         "scripts": [
           "\\bcyclonedx(-cli)?\\s+validate\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "cyclonedx-cli:\n  stage: build\n  image:\n    name: cyclonedx/cyclonedx-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - cyclonedx validate --input-file sbom.cdx.json --fail-on-errors\n",
@@ -277,7 +284,8 @@
         "images": [],
         "scripts": [
           "/api/v2/(re)?import-scan/"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "defectdojo:\n  stage: deploy\n  script:\n    - |\n      curl -X POST \"$DOJO_URL/api/v2/import-scan/\" -H \"Authorization: Token $DOJO_TOKEN\" -F scan_type=\"Trivy Scan\" -F file=@report.json -F engagement=$DOJO_ENGAGEMENT\n",
@@ -303,7 +311,8 @@
         ],
         "scripts": [
           "\\bdependency-check(\\.sh)?\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "dependency-check:\n  stage: test\n  image:\n    name: owasp/dependency-check:latest\n    entrypoint: [\"\"]\n  script:\n    - dependency-check.sh --out report --scan .\n",
@@ -329,7 +338,8 @@
         "images": [],
         "scripts": [
           "/api/v1/bom\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "dependency-track:\n  stage: deploy\n  script:\n    - |\n      curl -X POST \"$DTRACK_URL/api/v1/bom\" -H \"X-Api-Key: $DTRACK_KEY\" -F project=$DTRACK_PROJECT -F bom=@sbom.cdx.json\n",
@@ -353,7 +363,8 @@
         "images": [],
         "scripts": [
           "\\bdetect-secrets(-hook)?\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "detect-secrets:\n  stage: test\n  script:\n    - detect-secrets scan --baseline .secrets.baseline\n",
@@ -377,7 +388,8 @@
         "images": [],
         "scripts": [
           "\\bdongtai\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -404,7 +416,8 @@
         ],
         "scripts": [
           "\\bfalco(ctl)?\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -428,7 +441,8 @@
         "images": [],
         "scripts": [
           "\\bgarak\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "garak:\n  stage: test\n  script:\n    - python -m garak --target_type openai --target_name $MODEL\n",
@@ -479,7 +493,8 @@
       "logo": "gitea",
       "detect": {
         "images": [],
-        "scripts": []
+        "scripts": [],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -501,7 +516,8 @@
       "logo": "github",
       "detect": {
         "images": [],
-        "scripts": []
+        "scripts": [],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -523,7 +539,8 @@
       "logo": "gitlab",
       "detect": {
         "images": [],
-        "scripts": []
+        "scripts": [],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -578,7 +595,8 @@
         ],
         "scripts": [
           "\\bgosec\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "gosec:\n  stage: test\n  image:\n    name: ghcr.io/securego/gosec:latest\n    entrypoint: [\"\"]\n  script:\n    - gosec ./...\n",
@@ -605,7 +623,8 @@
         "scripts": [
           "\\bgrafana-cli\\b",
           "\\bgrafanactl\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -659,7 +678,8 @@
         "images": [],
         "scripts": [
           "\\bharbor[.\\-/]"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -685,7 +705,8 @@
         ],
         "scripts": [
           "\\binspec\\s+exec\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "inspec:\n  stage: deploy\n  image:\n    name: chef/inspec:latest\n    entrypoint: [\"\"]\n  script:\n    - inspec exec test.rb\n",
@@ -741,7 +762,8 @@
         ],
         "scripts": [
           "\\bkube-bench\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "kube-bench:\n  stage: test\n  image:\n    name: aquasec/kube-bench:latest\n    entrypoint: [\"\"]\n  script:\n    - kube-bench run\n",
@@ -794,7 +816,8 @@
         "images": [],
         "scripts": [
           "\\bkyverno\\s+apply\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -819,7 +842,8 @@
         "images": [],
         "scripts": [
           "\\blynis\\s+audit\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "lynis:\n  stage: test\n  script:\n    - lynis audit system\n",
@@ -843,7 +867,8 @@
         "images": [],
         "scripts": [
           "\\bmodelscan\\s+-"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "modelscan:\n  stage: test\n  script:\n    - modelscan -p model.pkl\n",
@@ -867,7 +892,8 @@
         "images": [],
         "scripts": [
           "\\bnexus[.\\-/]"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -894,7 +920,8 @@
         ],
         "scripts": [
           "\\bnikto(\\.pl)?\\s+-h\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "nikto:\n  stage: test\n  image:\n    name: ghcr.io/sullo/nikto:latest\n    entrypoint: [\"\"]\n  script:\n    - nikto.pl -h $TARGET_URL\n",
@@ -950,7 +977,8 @@
         ],
         "scripts": [
           "\\bopa\\s+(test|eval)\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "opa:\n  stage: test\n  image:\n    name: openpolicyagent/opa:latest\n    entrypoint: [\"\"]\n  script:\n    - opa test policy/\n",
@@ -976,7 +1004,8 @@
         ],
         "scripts": [
           "\\bbao\\s+(kv|read|login|write)\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -1000,7 +1029,8 @@
         "images": [],
         "scripts": [
           "\\boscap\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "openscap:\n  stage: test\n  script:\n    - oscap oval eval --results oval-results.xml scap-oval.xml\n",
@@ -1027,7 +1057,8 @@
         ],
         "scripts": [
           "\\b(openvas|gvm-cli)\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -1082,7 +1113,8 @@
         ],
         "scripts": [
           "\\bpromtool\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -1137,7 +1169,8 @@
         ],
         "scripts": [
           "\\bprowler\\s+(aws|azure|gcp|kubernetes)\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "prowler:\n  stage: test\n  image:\n    name: prowlercloud/prowler:latest\n    entrypoint: [\"\"]\n  script:\n    - prowler aws\n",
@@ -1163,7 +1196,8 @@
         ],
         "scripts": [
           "\\brenovate\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "renovate:\n  stage: build\n  image:\n    name: renovate/renovate:latest\n    entrypoint: [\"\"]\n  script:\n    - renovate --platform=gitlab\n",
@@ -1189,7 +1223,8 @@
         ],
         "scripts": [
           "\\b(schemathesis|st)\\s+run\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "schemathesis:\n  stage: test\n  image:\n    name: schemathesis/schemathesis:stable\n    entrypoint: [\"\"]\n  script:\n    - schemathesis run $API_URL/openapi.json\n",
@@ -1427,7 +1462,8 @@
         ],
         "scripts": [
           "\\b(tetragon|tetra)\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -1480,7 +1516,8 @@
         "images": [],
         "scripts": [
           "\\btrivy-operator\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,
@@ -1593,7 +1630,8 @@
         "images": [],
         "scripts": [
           "\\bwitness\\s+run\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": "witness:\n  stage: build\n  script:\n    - witness run --step build --attestations environment -- make\n",
@@ -1617,7 +1655,8 @@
         "images": [],
         "scripts": [
           "\\bwizcli\\b"
-        ]
+        ],
+        "actions": []
       },
       "snippets": {
         "gitlab": null,

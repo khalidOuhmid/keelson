@@ -1,112 +1,162 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
-import { createServer, detectWorkspace, type KeelsonServer } from "../src/index.ts";
+import { createServer, type KeelsonServer } from "../src/index.ts";
+import { detectWorkspace } from "../src/workspace.ts";
 
-const WORKFLOW = `name: CI
-on: push
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - run: make
-  scan:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: aquasecurity/trivy-action@0.28.0
-`;
+const CI =
+  "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: trivy fs .\n";
+const REL =
+  "on: push\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: gitleaks/gitleaks-action@v2\n";
 
-function repository(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), "keelson-github-"));
-  for (const [path, text] of Object.entries(files)) {
-    mkdirSync(join(root, path, ".."), { recursive: true });
-    writeFileSync(join(root, path), text);
-  }
-  return root;
-}
+let root: string;
+let server: KeelsonServer;
 
-let server: KeelsonServer | null = null;
+const api = (path: string, init: RequestInit = {}) =>
+  fetch(`http://127.0.0.1:${server.port}${path}`, {
+    ...init,
+    headers: {
+      "x-keelson-token": server.token,
+      ...(init.body === undefined ? {} : { "content-type": "application/json" }),
+    },
+  });
 
-afterEach(async () => {
-  await server?.close();
-  server = null;
+const documentPath = (file: string) => `/api/documents/${encodeURIComponent(file)}`;
+
+beforeEach(async () => {
+  root = mkdtempSync(join(tmpdir(), "keelson-gh-"));
+  mkdirSync(join(root, ".github", "workflows"), { recursive: true });
+  writeFileSync(join(root, ".github/workflows/ci.yml"), CI);
+  writeFileSync(join(root, ".github/workflows/release.yaml"), REL);
+  writeFileSync(join(root, ".github/workflows/notes.txt"), "pas un workflow");
+  server = await createServer({ root, port: 0 });
 });
 
-async function open(root: string) {
-  server = await createServer({ root, port: 0 });
-  const running = server;
-  return (path: string, init: RequestInit = {}) =>
-    fetch(`http://127.0.0.1:${running.port}${path}`, {
-      ...init,
-      headers: {
-        "x-keelson-token": running.token,
-        ...(init.body === undefined ? {} : { "content-type": "application/json" }),
-      },
-    });
-}
+afterEach(async () => {
+  await server.close();
+  rmSync(root, { recursive: true });
+});
 
-const FILE = ".github/workflows/ci.yml";
-const ENCODED = encodeURIComponent(FILE);
-
-describe("détection de l'espace de travail", () => {
-  test("liste les workflows GitHub, triés, après le fichier GitLab", () => {
-    const root = repository({
-      ".gitlab-ci.yml": "a:\n  script: [x]\n",
-      ".github/workflows/release.yaml": WORKFLOW,
-      ".github/workflows/ci.yml": WORKFLOW,
-      ".github/workflows/README.md": "pas un workflow",
-      ".github/dependabot.yml": "version: 2\n",
-    });
+describe("workspace GitHub Actions", () => {
+  test("détecte chaque workflow, trié, et rien d'autre", () => {
     expect(detectWorkspace(root)).toEqual([
-      { path: ".gitlab-ci.yml", adapter: "gitlab" },
       { path: ".github/workflows/ci.yml", adapter: "github" },
       { path: ".github/workflows/release.yaml", adapter: "github" },
     ]);
   });
 
-  test("un dépôt sans dossier de workflows ne liste rien de GitHub", () => {
-    expect(detectWorkspace(repository({}))).toEqual([]);
+  test(".gitlab-ci.yml passe en premier", () => {
+    writeFileSync(join(root, ".gitlab-ci.yml"), "a:\n  script: x\n");
+    expect(detectWorkspace(root).map((file) => file.adapter)).toEqual([
+      "gitlab",
+      "github",
+      "github",
+    ]);
+  });
+
+  test("un dépôt sans dossier .github ne lève pas", () => {
+    const empty = mkdtempSync(join(tmpdir(), "keelson-none-"));
+    expect(detectWorkspace(empty)).toEqual([]);
+    rmSync(empty, { recursive: true });
   });
 });
 
-describe("un workflow GitHub servi par l'API", () => {
-  test("se charge avec son pipeline, ses diagnostics et sa couverture", async () => {
-    const api = await open(repository({ [FILE]: WORKFLOW }));
-    const response = await api(`/api/documents/${ENCODED}`);
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as {
-      text: string;
-      hash: string;
-      pipeline: { jobs: { id: string }[]; main: string };
-      coverage: { jobs: { job: string; tools: string[] }[] };
-      diagnostics: unknown[];
+describe("plusieurs fichiers", () => {
+  test("une intégration vers un job d'un autre workflow n'est pas une erreur à l'écran", async () => {
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(
+      join(root, ".devsecops/toolchain.yaml"),
+      "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: publish\n    service: n\n    kind: push\n",
+    );
+    const body = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      diagnostics: { code: string }[];
     };
-    expect(body.text).toBe(WORKFLOW);
-    expect(body.hash).toBe(hashText(WORKFLOW));
-    expect(body.pipeline.main).toBe(FILE);
-    expect(body.pipeline.jobs.map((job) => job.id)).toEqual(["build", "scan"]);
-    expect(body.coverage.jobs.find((job) => job.job === "scan")?.tools).toContain("trivy");
-    expect(body.diagnostics).toEqual([]);
+    expect(body.diagnostics.map((entry) => entry.code)).not.toContain("TOOLCHAIN_UNKNOWN_JOB");
   });
 
-  test("refuse une opération en 422 READ_ONLY_ADAPTER et n'écrit rien", async () => {
-    const root = repository({ [FILE]: WORKFLOW });
-    const api = await open(root);
-    const op = { v: 1, baseHash: hashText(WORKFLOW), kind: "removeJob", id: "scan" };
-    for (const route of ["operations", "preview"]) {
-      const response = await api(`/api/documents/${ENCODED}/${route}`, {
-        method: "POST",
-        body: JSON.stringify({ op, opId: `op-${route}` }),
-      });
-      expect(response.status).toBe(422);
-      expect(await response.json()).toEqual({
-        code: "READ_ONLY_ADAPTER",
-        params: { adapter: "github", file: FILE },
-      });
+  test("layout.json prévient chaque fichier ouvert", async () => {
+    await api(documentPath(".github/workflows/ci.yml"));
+    await api(documentPath(".github/workflows/release.yaml"));
+    const stream = await fetch(`http://127.0.0.1:${server.port}/api/events?token=${server.token}`);
+    const reader = stream.body?.getReader();
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(join(root, ".devsecops/layout.json"), '{"version":1}');
+    let seen = "";
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline && !(seen.includes("ci.yml") && seen.includes("release.yaml"))) {
+      const chunk = await Promise.race([
+        reader?.read(),
+        new Promise<undefined>((settle) => setTimeout(settle, 100)),
+      ]);
+      seen += chunk?.value === undefined ? "" : new TextDecoder().decode(chunk.value);
     }
-    expect(readFileSync(join(root, FILE), "utf8")).toBe(WORKFLOW);
+    await reader?.cancel();
+    expect(seen).toContain("ci.yml");
+    expect(seen).toContain("release.yaml");
+  });
+});
+
+describe("un fichier voisin que le parseur ne sait pas lire", () => {
+  test("le document sain s'ouvre quand même", async () => {
+    await server.close();
+    writeFileSync(join(root, ".gitlab-ci.yml"), "job:\n  script: &s [x, *s]\n");
+    server = await createServer({ root, port: 0 });
+    expect((await api(documentPath(".github/workflows/ci.yml"))).status).toBe(200);
+  });
+});
+
+describe("documents GitHub", () => {
+  test("GET rend l'IR, le fournisseur et la couverture", async () => {
+    const body = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      pipeline: { provider: string; jobs: { id: string }[] };
+      coverage: { jobs: { job: string; layers: string[] }[] };
+    };
+    expect(body.pipeline.provider).toBe("github");
+    expect(body.coverage.jobs[0]?.layers).toContain("sca");
+  });
+
+  test("une action officielle compte dans la couverture", async () => {
+    const body = (await (await api(documentPath(".github/workflows/release.yaml"))).json()) as {
+      coverage: { jobs: { layers: string[] }[] };
+    };
+    expect(body.coverage.jobs[0]?.layers).toContain("secrets");
+  });
+
+  test("une opération écrit le bon fichier", async () => {
+    await api(documentPath(".github/workflows/ci.yml"));
+    const response = await api(`${documentPath(".github/workflows/ci.yml")}/operations`, {
+      method: "POST",
+      body: JSON.stringify({
+        opId: "a",
+        op: { v: 1, baseHash: hashText(CI), kind: "removeJob", id: "build" },
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(readFileSync(join(root, ".github/workflows/ci.yml"), "utf8")).not.toContain("build:");
+    expect(readFileSync(join(root, ".github/workflows/release.yaml"), "utf8")).toBe(REL);
+  });
+
+  test("une opération sans objet ici rend 422", async () => {
+    await api(documentPath(".github/workflows/ci.yml"));
+    const response = await api(`${documentPath(".github/workflows/ci.yml")}/operations`, {
+      method: "POST",
+      body: JSON.stringify({
+        opId: "b",
+        op: { v: 1, baseHash: hashText(CI), kind: "addStage", name: "x" },
+      }),
+    });
+    expect(response.status).toBe(422);
+  });
+
+  test("la toolchain voit les jobs de tous les workflows", async () => {
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(
+      join(root, ".devsecops/toolchain.yaml"),
+      "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: build\n    service: n\n    kind: push\n  - job: publish\n    service: n\n    kind: push\n",
+    );
+    const body = (await (await api("/api/toolchain")).json()) as { diagnostics: unknown[] };
+    expect(body.diagnostics).toEqual([]);
   });
 });

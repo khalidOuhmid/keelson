@@ -8,11 +8,12 @@ export function NoCiFile({ root }: NoCiFileProps) {
   return (
     <EmptyState heading="No CI file detected">
       <p className="text-sm text-text-secondary">
-        Keelson looked for <code className="font-mono text-text-primary">.gitlab-ci.yml</code> in{" "}
+        Keelson looked for <code className="font-mono text-text-primary">.gitlab-ci.yml</code> and{" "}
+        <code className="font-mono text-text-primary">.github/workflows</code> in{" "}
         <code className="font-mono break-all text-text-primary">{root}</code> and found none.
       </p>
       <p className="text-sm text-text-muted">
-        Create that file in the folder you started Keelson from, and this view will pick it up.
+        Create one in the folder you started Keelson from, then restart Keelson.
       </p>
     </EmptyState>
   );

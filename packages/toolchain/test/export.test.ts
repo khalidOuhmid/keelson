@@ -15,6 +15,7 @@ function job(id: string, stage: string, needs: string[] = [], script: string[] =
             origin: { kind: "local" },
           },
     signals: { image: null, script },
+    file: ".gitlab-ci.yml",
   } as unknown as Job;
 }
 
@@ -76,6 +77,51 @@ describe("Mermaid sur des noms piégés", () => {
     expect(text).toContain("#37;#37;{init");
     expect(text).toContain("y#35;z w");
     expect(text.split("\n").filter((line) => line.includes("j0["))).toHaveLength(1);
+  });
+});
+
+describe("deux workflows, un même nom de job", () => {
+  test("les deux nœuds restent, chaque dépendance dans son fichier", () => {
+    const one = { ...job("scan", "build"), file: "a.yml" } as Job;
+    const two = { ...job("scan", "build", ["x"]), file: "b.yml" } as Job;
+    const needed = { ...job("x", "build"), file: "b.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [one, two, needed] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).toContain('j0["scan"]');
+    expect(text).toContain('j1["scan"]');
+    expect(text).toContain("j2 --> j1");
+  });
+});
+
+describe("needs entre fichiers", () => {
+  test("une dépendance vers un job d'un autre fichier reste dessinée", () => {
+    const main = { ...job("a", "build"), file: ".gitlab-ci.yml" } as Job;
+    const included = { ...job("b", "build", ["a"]), file: "ci/inc.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [main, included] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).toContain("j0 --> j1");
+  });
+
+  test("deux workflows ne se relient pas", () => {
+    const one = { ...job("deploy", "build", ["build"]), file: ".github/workflows/a.yml" } as Job;
+    const two = { ...job("build", "build"), file: ".github/workflows/b.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [one, two] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).not.toContain("-->");
+  });
+
+  test("une intégration part de chaque job de ce nom", () => {
+    const one = { ...job("compile", "build"), file: "a.yml" } as Job;
+    const two = { ...job("compile", "build"), file: "b.yml" } as Job;
+    const text = renderMermaid({ ...PIPELINE, jobs: [one, two] }, TOOLCHAIN);
+    expect(text).toContain("j0 -->|push| v0");
+    expect(text).toContain("j1 -->|push| v0");
   });
 });
 
