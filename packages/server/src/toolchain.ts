@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
@@ -32,6 +32,10 @@ import {
 } from "@keelson/toolchain";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
 import { writeInsideRoot } from "./write.ts";
+
+/** What the UTF-8 decoder puts in place of invalid bytes: a file that decodes to it would be
+ *  rewritten with it, so it counts as unreadable. */
+const REPLACEMENT_CHARACTER = "\uFFFD";
 
 export type ToolchainBody = {
   text: string;
@@ -83,23 +87,16 @@ export class ToolchainStore {
    *  Unreadable means: what escapes the root, what refuses reading, a directory, and anything that
    *  is not UTF-8, which the patch would rewrite with replacement characters. */
   private read(path: string): Disk {
-    const absolute = join(this.root, path);
+    const text = readInsideRoot(this.root, path);
+    if (text !== null) {
+      return text.includes(REPLACEMENT_CHARACTER) ? { kind: "unreadable" } : { kind: "text", text };
+    }
     try {
-      lstatSync(absolute);
+      lstatSync(join(this.root, path));
+      return { kind: "unreadable" };
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       return { kind: code === "ENOENT" || code === "ENOTDIR" ? "absent" : "unreadable" };
-    }
-    const text = readInsideRoot(this.root, path);
-    if (text === null) {
-      return { kind: "unreadable" };
-    }
-    try {
-      return Buffer.from(text).equals(readFileSync(absolute))
-        ? { kind: "text", text }
-        : { kind: "unreadable" };
-    } catch {
-      return { kind: "unreadable" };
     }
   }
 

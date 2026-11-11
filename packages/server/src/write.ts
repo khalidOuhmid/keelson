@@ -1,12 +1,18 @@
 import { randomBytes } from "node:crypto";
-import { chmod, mkdir, open, realpath, rename, stat, unlink } from "node:fs/promises";
+import { constants } from "node:fs";
+import { chmod, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
+/** Read from a descriptor rather than by path: the mode then belongs to the file that was opened. */
 async function modeOf(path: string): Promise<number | undefined> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
   try {
-    return (await stat(path)).mode & 0o777;
+    handle = await open(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
+    return (await handle.stat()).mode & 0o777;
   } catch {
     return undefined;
+  } finally {
+    await handle?.close();
   }
 }
 
