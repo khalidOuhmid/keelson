@@ -34,7 +34,7 @@ export { DocumentStore, OPID_HISTORY } from "./store.ts";
 export { ToolchainStore } from "./toolchain.ts";
 export type { DocumentEvent } from "./watcher.ts";
 export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
-export { writeAtomic } from "./write.ts";
+export { writeAtomic, writeInsideRoot } from "./write.ts";
 
 export async function createServer(options: ServerOptions): Promise<KeelsonServer> {
   const root = resolve(options.root);

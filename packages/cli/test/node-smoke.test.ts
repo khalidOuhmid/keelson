@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,7 +48,7 @@ describe("binaire buildé exécuté par node", () => {
   test("--help liste les commandes prévues", () => {
     const result = keelson(["--help"]);
     expect(result.exitCode).toBe(0);
-    for (const command of ["start", "validate", "coverage", "catalog", "export"]) {
+    for (const command of ["start", "validate", "coverage", "catalog", "export", "apply"]) {
       expect(result.stdout).toContain(command);
     }
   });
@@ -130,6 +130,32 @@ describe("validate sous node", () => {
   test("le bundle node embarque yaml et zod sans dependance externe", () => {
     const result = keelson(["validate", join(workspace, "valide.yml")]);
     expect(result.stderr).not.toContain("Cannot find module");
+  });
+});
+
+describe("apply sous node", () => {
+  let repo = "";
+
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "keelson-apply-smoke-"));
+    writeFileSync(join(repo, ".gitlab-ci.yml"), "stages:\n  - build\n");
+    writeFileSync(
+      join(repo, "ops.json"),
+      JSON.stringify({ v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "deploy" }),
+    );
+  });
+
+  afterAll(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  test("écrit le fichier par une écriture atomique et sort en 0", () => {
+    const result = keelson(["apply", join(repo, "ops.json"), repo, "--rebase"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(`✓ ${repo}  1 operation(s) applied\n`);
+    expect(readFileSync(join(repo, ".gitlab-ci.yml"), "utf8")).toBe(
+      "stages:\n  - build\n  - deploy\n",
+    );
   });
 });
 

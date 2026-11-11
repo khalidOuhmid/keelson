@@ -106,10 +106,11 @@ ancrée sur le hash du nouveau texte. `splice` est l'inverse universel — toute
 structurée soit-elle, s'annule par un remplacement de plage.
 
 Conséquence : une séquence d'éditions est **transportable**. On peut la calculer d'un côté et
-l'appliquer de l'autre, la journaliser, la rejouer, l'annuler. C'est la base du futur **lot L8
+l'appliquer de l'autre, la journaliser, la rejouer, l'annuler. C'est la base du **lot L8
 (flotte)** : produire des opérations pour N dépôts depuis un seul endroit, puis les appliquer en
-masse via `keelson apply ops.json` (hors périmètre de L1, où aucune commande d'application n'est
-exposée). Les codes d'erreur étant des contrats publics documentés dans
+masse via `keelson apply ops.json`. `--rebase` réancre chaque `baseHash` sur le texte de chaque
+dépôt, ce qui rend un même fichier applicable à des dépôts dont les textes diffèrent ; l'écriture
+est en tout ou rien par dépôt ([lots/l8.md](lots/l8.md)). Les codes d'erreur étant des contrats publics documentés dans
 [diagnostics.md](diagnostics.md), un client distant peut interpréter un refus sans lire le code.
 
 ## 7 ter. Serveur local et modèle de sécurité
@@ -191,7 +192,7 @@ navigateur. Il doit donc se défendre contre elles.
 | `keelson coverage [--require <couches>] [--format json]` | 1 si une couche requise manque, 2 si une couche demandée n'existe pas |
 | `keelson export [--format markdown\|mermaid\|json]` | exporte le modèle, formats dans [export.md](export.md) |
 | `keelson catalog lint [dossier]` | 1 sur une erreur, 0 sur un simple signalement de fraîcheur    |
-| `keelson apply ops.json`        | applique une séquence d'opérations (lot L8)                   |
+| `keelson apply <ops.json> [<dépôt>...] [--file <chemin>] [--rebase] [--dry-run] [--json]` | applique une séquence d'opérations à chaque dépôt, tout ou rien par dépôt ; 1 si un dépôt échoue, 2 sur un fichier d'opérations invalide |
 
 ## 9. Logos et licences
 

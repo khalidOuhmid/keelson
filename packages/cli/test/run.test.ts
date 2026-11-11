@@ -18,7 +18,7 @@ describe("--help", () => {
   test("liste les commandes prévues et sort en 0", async () => {
     const result = await run(["--help"]);
     expect(result.exitCode).toBe(0);
-    for (const command of ["start", "validate", "coverage", "catalog", "export"]) {
+    for (const command of ["start", "validate", "coverage", "catalog", "export", "apply"]) {
       expect(result.stdout).toContain(command);
     }
   });
@@ -30,7 +30,7 @@ describe("--help", () => {
 
 describe("commandes", () => {
   test("COMMANDS déclare les commandes prévues", () => {
-    expect(COMMANDS).toEqual(["start", "validate", "coverage", "catalog", "export"]);
+    expect(COMMANDS).toEqual(["start", "validate", "coverage", "catalog", "export", "apply"]);
   });
 });
 
