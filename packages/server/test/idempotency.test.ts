@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, fstatSync, mkdtempSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ErrorBody } from "../src/store.ts";
@@ -40,6 +40,16 @@ async function addStage(name: string, opId: string, baseHash?: string) {
   );
 }
 
+/** Modification time and content read through one descriptor, so both describe the same file. */
+function snapshot(path: string): { mtime: number; text: string } {
+  const descriptor = openSync(path, "r");
+  try {
+    return { mtime: fstatSync(descriptor).mtimeMs, text: readFileSync(descriptor, "utf8") };
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
 describe("idempotency by opId", () => {
   test("the same opId replayed returns exactly the same response", async () => {
     await store.load(".gitlab-ci.yml");
@@ -52,14 +62,12 @@ describe("idempotency by opId", () => {
     await store.load(".gitlab-ci.yml");
     await addStage("verify", "op-1");
     const path = join(root, ".gitlab-ci.yml");
-    const afterFirst = statSync(path).mtimeMs;
-    const content = readFileSync(path, "utf8");
+    const first = snapshot(path);
 
     await new Promise((resolve) => setTimeout(resolve, 15));
     await addStage("verify", "op-1");
 
-    expect(statSync(path).mtimeMs).toBe(afterFirst);
-    expect(readFileSync(path, "utf8")).toBe(content);
+    expect(snapshot(path)).toEqual(first);
   });
 
   test("the replay succeeds even if the original baseHash is now stale", async () => {

@@ -246,7 +246,7 @@ describe("stage controls when the list comes from an include", () => {
 describe("the partial pipeline indicator", () => {
   const remote: UnresolvedInclude = {
     form: "remote",
-    detail: "https://exemple.org/ci.yml",
+    detail: "https://example.org/ci.yml",
     from: MAIN,
     range: { start: 12, end: 44 },
   };
@@ -279,7 +279,7 @@ describe("the partial pipeline indicator", () => {
   test("each entry names its form, its value and the file that declares it", () => {
     renderBar([remote]);
     expect(screen.getByText("remote")).toBeDefined();
-    expect(screen.getByText("https://exemple.org/ci.yml")).toBeDefined();
+    expect(screen.getByText("https://example.org/ci.yml")).toBeDefined();
     expect(screen.getByText("declared in")).toBeDefined();
     expect(screen.getByText(MAIN)).toBeDefined();
   });
@@ -299,7 +299,9 @@ describe("the partial pipeline indicator", () => {
    *  The banner's only control is the `summary`. */
   test("no entry is a control", () => {
     renderBar([remote]);
-    expect(screen.queryByRole("button", { name: /exemple\.org/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: (name) => name.includes("example.org/ci.yml") }),
+    ).toBeNull();
     expect(screen.queryAllByRole("button")).toEqual([]);
   });
 
