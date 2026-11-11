@@ -4,6 +4,7 @@ export { apply } from "./apply.ts";
 export { DEFAULT_STAGE, DEFAULT_STAGES, RESERVED_TOP_LEVEL } from "./defaults.ts";
 export type { GitlabDocument } from "./document.ts";
 export { applySplices, emit, type Splice } from "./emit.ts";
+export { type ReadResult, readRegularFile } from "./files.ts";
 export {
   type IncludeReader,
   MAX_INCLUDED_FILES,

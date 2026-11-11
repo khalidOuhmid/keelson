@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,43 +24,43 @@ beforeAll(() => {
     encoding: "utf8",
   });
   if (build.status !== 0) {
-    throw new Error(`build du binaire échoué : ${build.stderr}`);
+    throw new Error(`binary build failed: ${build.stderr}`);
   }
 });
 
-describe("binaire buildé exécuté par node", () => {
-  test("le binaire existe", () => {
+describe("built binary run by node", () => {
+  test("the binary exists", () => {
     expect(existsSync(binary)).toBe(true);
   });
 
-  test("node est bien le runtime du test", () => {
+  test("node is indeed the test runtime", () => {
     const version = spawnSync("node", ["--version"], { encoding: "utf8" });
     expect(version.status).toBe(0);
     expect(Number.parseInt(version.stdout.trim().slice(1), 10)).toBeGreaterThanOrEqual(20);
   });
 
-  test("--version affiche la version et sort en 0", () => {
+  test("--version prints the version and exits 0", () => {
     const result = keelson(["--version"]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toBe(packageJson.version);
   });
 
-  test("--help liste les commandes prévues", () => {
+  test("--help lists the planned commands", () => {
     const result = keelson(["--help"]);
     expect(result.exitCode).toBe(0);
-    for (const command of ["start", "validate", "coverage", "catalog", "export"]) {
+    for (const command of ["start", "validate", "coverage", "catalog", "export", "apply"]) {
       expect(result.stdout).toContain(command);
     }
   });
 
-  test("export répond sous Node", () => {
+  test("export responds under Node", () => {
     const result = keelson(["export", "/chemin/absent.yml"]);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("file not found");
   });
 });
 
-describe("validate sous node", () => {
+describe("validate under node", () => {
   const VALID = [
     "stages:",
     "  - build",
@@ -105,35 +105,61 @@ describe("validate sous node", () => {
     rmSync(workspace, { recursive: true, force: true });
   });
 
-  test("sort en 0 sur une fixture valide", () => {
+  test("exits 0 on a valid fixture", () => {
     const result = keelson(["validate", join(workspace, "valide.yml")]);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("no diagnostics");
   });
 
-  test("sort en 1 sur une fixture invalide en nommant le code", () => {
+  test("exits 1 on an invalid fixture, naming the code", () => {
     const result = keelson(["validate", join(workspace, "invalide.yml")]);
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("UNKNOWN_NEED");
   });
 
-  test("--format json rend du JSON analysable par node", () => {
+  test("--format json yields JSON node can parse", () => {
     const result = keelson(["validate", join(workspace, "invalide.yml"), "--format", "json"]);
     const parsed = JSON.parse(result.stdout) as { code: string }[];
     expect(parsed.some((entry) => entry.code === "UNKNOWN_NEED")).toBe(true);
   });
 
-  test("sort en 2 quand le fichier est introuvable", () => {
+  test("exits 2 when the file is not found", () => {
     expect(keelson(["validate", join(workspace, "fantome.yml")]).exitCode).toBe(2);
   });
 
-  test("le bundle node embarque yaml et zod sans dependance externe", () => {
+  test("the node bundle embeds yaml and zod with no external dependency", () => {
     const result = keelson(["validate", join(workspace, "valide.yml")]);
     expect(result.stderr).not.toContain("Cannot find module");
   });
 });
 
-describe("start sous node", () => {
+describe("apply under node", () => {
+  let repo = "";
+
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "keelson-apply-smoke-"));
+    writeFileSync(join(repo, ".gitlab-ci.yml"), "stages:\n  - build\n");
+    writeFileSync(
+      join(repo, "ops.json"),
+      JSON.stringify({ v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "deploy" }),
+    );
+  });
+
+  afterAll(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  test("writes the file atomically and exits 0", () => {
+    const result = keelson(["apply", join(repo, "ops.json"), repo, "--rebase"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(`✓ ${repo}  1 operation(s) applied\n`);
+    expect(readFileSync(join(repo, ".gitlab-ci.yml"), "utf8")).toBe(
+      "stages:\n  - build\n  - deploy\n",
+    );
+  });
+});
+
+describe("start under node", () => {
   type Running = {
     child: ReturnType<typeof spawn>;
     url: string;
@@ -149,7 +175,7 @@ describe("start sous node", () => {
     });
 
     const url = await new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`pas d'URL ; stdout=${stdout}`)), 15_000);
+      const timer = setTimeout(() => reject(new Error(`no URL; stdout=${stdout}`)), 15_000);
       child.stdout?.on("data", (chunk: Buffer) => {
         stdout += chunk.toString("utf8");
         const match = /(http:\/\/127\.0\.0\.1:\d+\/\?token=[0-9a-f]{64})/.exec(stdout);
@@ -160,7 +186,7 @@ describe("start sous node", () => {
       });
       child.on("exit", () => {
         clearTimeout(timer);
-        reject(new Error(`le processus est sorti avant d'annoncer son URL ; stdout=${stdout}`));
+        reject(new Error(`the process exited before announcing its URL; stdout=${stdout}`));
       });
     });
 
@@ -190,7 +216,7 @@ describe("start sous node", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  test("annonce son URL, répond à /api/workspace, puis sort en 0 sur SIGINT", async () => {
+  test("announces its URL, answers /api/workspace, then exits 0 on SIGINT", async () => {
     const running = await start(["--no-open", "--port", "0"], root);
 
     const url = new URL(running.url);
@@ -208,7 +234,7 @@ describe("start sous node", () => {
     expect(await running.exit).toBe(0);
   }, 30_000);
 
-  test("sert le bundle d'UI embarqué dans dist/ui", async () => {
+  test("serves the UI bundle embedded in dist/ui", async () => {
     const running = await start(["--no-open", "--port", "0"], root);
     const url = new URL(running.url);
 
@@ -221,7 +247,7 @@ describe("start sous node", () => {
     expect(await running.exit).toBe(0);
   }, 30_000);
 
-  test("refuse une requête d'API sans token", async () => {
+  test("refuses an API request without a token", async () => {
     const running = await start(["--no-open", "--port", "0"], root);
     const url = new URL(running.url);
 

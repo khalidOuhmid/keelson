@@ -20,9 +20,9 @@ dismissed:
     kind: notify
 `;
 
-describe("lecture de toolchain.yaml", () => {
-  test("un fichier absent ou vide est une toolchain vide, sans diagnostic", () => {
-    for (const text of [null, "", "# rien\n"]) {
+describe("reading toolchain.yaml", () => {
+  test("a missing or empty file is an empty toolchain, without diagnostics", () => {
+    for (const text of [null, "", "# nothing\n"]) {
       expect(parseToolchain(text)).toEqual({
         toolchain: { services: [], integrations: [], dismissed: [] },
         diagnostics: [],
@@ -30,7 +30,7 @@ describe("lecture de toolchain.yaml", () => {
     }
   });
 
-  test("les trois sections, dans l'ordre du fichier", () => {
+  test("the three sections, in file order", () => {
     const { toolchain, diagnostics } = parseToolchain(FULL);
     expect(diagnostics).toEqual([]);
     expect(toolchain.services).toEqual([
@@ -46,28 +46,25 @@ describe("lecture de toolchain.yaml", () => {
     expect(toolchain.dismissed).toEqual([{ job: "scan", tool: "sentry", kind: "notify" }]);
   });
 
-  test("une section vide vaut une section absente", () => {
+  test("an empty section equals a missing section", () => {
     expect(parseToolchain("version: 1\nservices:\nintegrations: []\n").diagnostics).toEqual([]);
   });
 
   test.each([
-    ["YAML cassé", "version: 1\nservices: [\n"],
-    ["alias sans ancre", "*x\n"],
-    ["clé dupliquée", "version: 1\nversion: 1\n"],
-    ["version absente", "services: {}\n"],
-    ["version inconnue", "version: 2\n"],
-    ["racine scalaire", "bonjour\n"],
-    ["identifiant illégal", "version: 1\nservices:\n  __proto__:\n    tool: x\n"],
+    ["broken YAML", "version: 1\nservices: [\n"],
+    ["alias without anchor", "*x\n"],
+    ["duplicate key", "version: 1\nversion: 1\n"],
+    ["missing version", "services: {}\n"],
+    ["unknown version", "version: 2\n"],
+    ["scalar root", "hello\n"],
+    ["illegal id", "version: 1\nservices:\n  __proto__:\n    tool: x\n"],
+    ["unknown integration kind", "version: 1\nintegrations:\n  - {job: a, service: b, kind: x}\n"],
+    ["unknown key", "version: 1\nunexpected: 1\n"],
     [
-      "type d'intégration inconnu",
-      "version: 1\nintegrations:\n  - {job: a, service: b, kind: x}\n",
-    ],
-    ["clé inconnue", "version: 1\nvoici: 1\n"],
-    [
-      "deux clés au même texte",
+      "two keys with the same text",
       'version: 1\nservices:\n  8080:\n    tool: a\n  "8080":\n    tool: b\n',
     ],
-  ])("%s rend TOOLCHAIN_INVALID et une toolchain vide", (_label, text) => {
+  ])("%s yields TOOLCHAIN_INVALID and an empty toolchain", (_label, text) => {
     const { toolchain, diagnostics } = parseToolchain(text);
     expect(toolchain.services).toEqual([]);
     expect(diagnostics.map((entry) => entry.code)).toEqual(["TOOLCHAIN_INVALID"]);

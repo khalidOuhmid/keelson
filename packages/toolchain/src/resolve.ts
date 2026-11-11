@@ -10,7 +10,7 @@ import {
 } from "@keelson/core";
 import { parseToolchain } from "./parse.ts";
 
-/** `services` : les services déclarés de cet outil, vers lesquels la proposition peut se confirmer. */
+/** `services`: the declared services of this tool, to which the proposal can be confirmed. */
 export type ProposedIntegration = {
   job: string;
   tool: string;
@@ -18,13 +18,13 @@ export type ProposedIntegration = {
   services: string[];
 };
 
-/** L'inférence propose, le fichier décide (ADR 0010) : rien de ce qui sort d'ici n'est écrit. */
+/** Inference proposes, the file decides (ADR 0010): nothing that comes out of here is written. */
 export function proposeIntegrations(
   pipeline: Pipeline,
   toolchain: Toolchain,
   tools: readonly Tool[],
 ): ProposedIntegration[] {
-  return pipeline.jobs.flatMap((job) =>
+  const proposed = pipeline.jobs.flatMap((job) =>
     detectIntegrations(job.signals, tools).flatMap(({ tool, kind }): ProposedIntegration[] => {
       const services = toolchain.services
         .filter((service) => service.tool === tool)
@@ -40,6 +40,9 @@ export function proposeIntegrations(
       return settled ? [] : [{ job: job.id, tool, kind, services }];
     }),
   );
+  // Two workflows can carry a job with the same name: the decision to make is the same.
+  const keys = proposed.map((entry) => JSON.stringify([entry.job, entry.tool, entry.kind]));
+  return proposed.filter((_, index) => keys.indexOf(keys[index] as string) === index);
 }
 
 function diagnostic(found: Omit<Diagnostic, "range" | "file">): Diagnostic {
@@ -112,7 +115,7 @@ export type ToolchainAnalysis = {
   proposed: ProposedIntegration[];
 };
 
-/** Ce que l'API et `keelson validate` disent de la toolchain : les deux doivent dire la même chose. */
+/** What the API and `keelson validate` say about the toolchain: both must say the same thing. */
 export function analyseToolchain(
   text: string | null,
   pipeline: Pipeline,

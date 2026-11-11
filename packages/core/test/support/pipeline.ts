@@ -1,7 +1,7 @@
 import type { Job, Need, Pipeline, SourceRange, Stage, Valued } from "../../src/ir.ts";
 
-/** Le fichier principal des fixtures. Un `file` par élément est obligatoire depuis la résolution
- *  des `include` : les fixtures mono-fichier nomment donc toutes celui-ci. */
+/** The fixtures' main file. A `file` per element has been mandatory since `include` resolution:
+ *  single-file fixtures therefore all name this one. */
 export const MAIN = ".gitlab-ci.yml";
 
 export function range(start = 0, end = 1): SourceRange {

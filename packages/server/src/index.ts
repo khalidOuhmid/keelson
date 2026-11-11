@@ -27,6 +27,7 @@ export type KeelsonServer = {
   close(): Promise<void>;
 };
 
+export { type Adapter, adapterFor } from "./adapters.ts";
 export { MAX_BODY_BYTES } from "./app.ts";
 export { createToken, isAllowedHost, LOOPBACK, TOKEN_HEADER, tokensMatch } from "./security.ts";
 export { HEARTBEAT_MS } from "./sse.ts";
@@ -34,7 +35,7 @@ export { DocumentStore, OPID_HISTORY } from "./store.ts";
 export { ToolchainStore } from "./toolchain.ts";
 export type { DocumentEvent } from "./watcher.ts";
 export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
-export { writeAtomic } from "./write.ts";
+export { writeAtomic, writeInsideRoot } from "./write.ts";
 
 export async function createServer(options: ServerOptions): Promise<KeelsonServer> {
   const root = resolve(options.root);

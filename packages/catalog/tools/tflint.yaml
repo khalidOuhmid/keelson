@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['terraform-linters/tflint']
   scripts: ['\btflint\b']
+  actions: ['terraform-linters/setup-tflint']
 snippets:
   gitlab: |
     tflint:

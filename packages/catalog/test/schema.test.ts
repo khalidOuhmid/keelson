@@ -25,61 +25,61 @@ function codes(text: string, logos = {}, now = NOW): string[] {
   return lintCatalog([{ file: "outil.yaml", text }], logos, now).map((entry) => entry.code);
 }
 
-describe("schéma d'une fiche", () => {
-  test("une fiche valide passe", () => {
+describe("catalogue entry schema", () => {
+  test("a valid entry passes", () => {
     expect(parseTool(VALID).ok).toBe(true);
     expect(codes(VALID)).toEqual([]);
   });
 
   test.each([
-    ["une couche inconnue", "layers: [sast]", "layers: [inventee]", "layers.0"],
-    ["une licence inconnue", "license: MIT", "license: WTFPL", "license"],
-    ["un identifiant en capitales", "id: outil", "id: Outil", "id"],
+    ["an unknown layer", "layers: [sast]", "layers: [inventee]", "layers.0"],
+    ["an unknown license", "license: MIT", "license: WTFPL", "license"],
+    ["an uppercase id", "id: outil", "id: Outil", "id"],
     [
-      "une intégration inconnue",
+      "an unknown integration",
       "lastVerified: 2026-11-04",
       "integration: deploy\nlastVerified: 2026-11-04",
       "integration",
     ],
     [
-      "une intégration sur un outil job",
+      "an integration on a job tool",
       "lastVerified: 2026-11-04",
       "integration: push\nlastVerified: 2026-11-04",
       "integration",
     ],
-    ["une date invalide", "lastVerified: 2026-11-04", "lastVerified: hier", "lastVerified"],
-    ["une URL invalide", "homepage: https://exemple.org", "homepage: exemple", "homepage"],
-    ["une regex invalide", "'\\boutil\\b'", "'('", "detect.scripts.0"],
-    ["un champ inconnu", "kind: job", "kind: job\nextra: 1", ""],
-  ])("refuse %s", (_label, from, to, path) => {
+    ["an invalid date", "lastVerified: 2026-11-04", "lastVerified: hier", "lastVerified"],
+    ["an invalid URL", "homepage: https://exemple.org", "homepage: exemple", "homepage"],
+    ["an invalid regex", "'\\boutil\\b'", "'('", "detect.scripts.0"],
+    ["an unknown field", "kind: job", "kind: job\nextra: 1", ""],
+  ])("rejects %s", (_label, from, to, path) => {
     const parsed = parseTool(VALID.replace(from, to));
     expect(parsed.ok).toBe(false);
     expect(parsed.ok ? "" : parsed.detail).toContain(path);
   });
 
-  test("un YAML illisible rend un détail et ne lève pas", () => {
+  test("unreadable YAML returns a detail and does not throw", () => {
     expect(parseTool("a: [").ok).toBe(false);
   });
 });
 
-describe("lint du catalogue", () => {
-  test("une fiche invalide est une erreur nommée", () => {
+describe("catalogue lint", () => {
+  test("an invalid entry is a named error", () => {
     expect(codes("id: X")).toEqual(["CATALOG_INVALID_TOOL"]);
   });
 
-  test("un logo absent du catalogue est une erreur", () => {
+  test("a logo missing from the catalogue is an error", () => {
     const text = VALID.replace("logo: null", "logo: inconnu");
     expect(codes(text)).toEqual(["CATALOG_UNKNOWN_LOGO"]);
     expect(codes(text, { inconnu: { path: "M0 0" } })).toEqual([]);
   });
 
-  test("un outil job sans aucun snippet est une erreur, pas un service", () => {
+  test("a job tool without any snippet is an error, a service is not", () => {
     const empty = VALID.replace("github: |\n    - run: outil", "github: null");
     expect(codes(empty)).toEqual(["CATALOG_MISSING_SNIPPET"]);
     expect(codes(empty.replace("kind: job", "kind: service"))).toEqual([]);
   });
 
-  test("un doublon d'identifiant est une erreur", () => {
+  test("a duplicate id is an error", () => {
     const found = lintCatalog(
       [
         { file: "a.yaml", text: VALID },
@@ -93,7 +93,7 @@ describe("lint du catalogue", () => {
     ]);
   });
 
-  test("la fraîcheur bascule à six mois exactement, en avertissement", () => {
+  test("freshness flips at exactly six months, as a warning", () => {
     const aged = VALID.replace("lastVerified: 2026-11-04", "lastVerified: 2026-05-04");
     expect(codes(aged)).toEqual([]);
     const older = VALID.replace("lastVerified: 2026-11-04", "lastVerified: 2026-05-03");
@@ -104,8 +104,8 @@ describe("lint du catalogue", () => {
   });
 });
 
-describe("licences", () => {
-  test("seules les licences open source comptent comme telles", () => {
+describe("licenses", () => {
+  test("only open source licenses count as such", () => {
     const of = (license: Tool["license"]) => isOpenSource({ license });
     expect(of("MIT")).toBe(true);
     expect(of("AGPL-3.0-only")).toBe(true);
@@ -115,17 +115,17 @@ describe("licences", () => {
   });
 });
 
-describe("les snippets sont vérifiés au parse", () => {
+describe("snippets are checked at parse time", () => {
   test.each([
-    ["un GitLab illisible", "gitlab: null", 'gitlab: "a: ["', "snippets.gitlab"],
-    ["un GitLab qui n'est pas une map", "gitlab: null", 'gitlab: "- a"', "snippets.gitlab"],
+    ["an unreadable GitLab snippet", "gitlab: null", 'gitlab: "a: ["', "snippets.gitlab"],
+    ["a GitLab snippet that is not a map", "gitlab: null", 'gitlab: "- a"', "snippets.gitlab"],
     [
-      "un GitHub qui n'est pas une liste",
+      "a GitHub snippet that is not a list",
       "github: |\n    - run: outil",
       'github: "a: b"',
       "snippets.github",
     ],
-  ])("refuse %s", (_label, from, to, path) => {
+  ])("rejects %s", (_label, from, to, path) => {
     const parsed = parseTool(VALID.replace(from, to));
     expect(parsed.ok ? "" : parsed.detail).toContain(path);
     expect(parsed.ok).toBe(false);

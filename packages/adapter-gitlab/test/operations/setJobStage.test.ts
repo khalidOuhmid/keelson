@@ -3,7 +3,7 @@ import { INVALID_OPERATION } from "@keelson/core";
 import { BASE, expectOk, expectUnchanged, jobOf, roundTrip } from "../support/apply.ts";
 
 describe("setJobStage", () => {
-  test("remplace la valeur du stage déclaré localement", () => {
+  test("replaces the value of the locally declared stage", () => {
     const applied = expectOk(BASE, { kind: "setJobStage", id: "compile", stage: "test" });
     expect(jobOf(applied.text, "compile").stage).toEqual({
       value: "test",
@@ -11,20 +11,20 @@ describe("setJobStage", () => {
     });
   });
 
-  test("ne touche qu'une seule plage", () => {
+  test("touches only a single range", () => {
     const applied = expectOk(BASE, { kind: "setJobStage", id: "compile", stage: "test" });
     expect(applied.touched).toHaveLength(1);
     expect(applied.text.slice(applied.touched[0]?.start, applied.touched[0]?.end)).toBe("test");
   });
 
-  test("préserve un commentaire en ligne sur la clé stage", () => {
-    const commente = BASE.replace("  stage: build\n", "  stage: build # le stage\n");
-    const applied = expectOk(commente, { kind: "setJobStage", id: "compile", stage: "test" });
-    expect(applied.text).toContain("stage: test # le stage");
+  test("preserves an inline comment on the stage key", () => {
+    const commented = BASE.replace("  stage: build\n", "  stage: build # the stage\n");
+    const applied = expectOk(commented, { kind: "setJobStage", id: "compile", stage: "test" });
+    expect(applied.text).toContain("stage: test # the stage");
   });
 
-  test("écrit une surcharge locale quand le stage vient du défaut", () => {
-    const texte = [
+  test("writes a local override when the stage comes from the default", () => {
+    const source = [
       "stages:",
       "  - build",
       "  - test",
@@ -34,7 +34,7 @@ describe("setJobStage", () => {
       "    - x",
       "",
     ].join("\n");
-    const applied = expectOk(texte, { kind: "setJobStage", id: "solo", stage: "build" });
+    const applied = expectOk(source, { kind: "setJobStage", id: "solo", stage: "build" });
     expect(jobOf(applied.text, "solo").stage).toEqual({
       value: "build",
       origin: { kind: "local" },
@@ -42,8 +42,8 @@ describe("setJobStage", () => {
     expect(applied.text).toContain("solo:\n  stage: build\n  script:");
   });
 
-  test("écrit une surcharge locale sans toucher au template hérité", () => {
-    const texte = [
+  test("writes a local override without touching the inherited template", () => {
+    const source = [
       ".base:",
       "  stage: build",
       "",
@@ -51,22 +51,22 @@ describe("setJobStage", () => {
       "  - build",
       "  - test",
       "",
-      "herite:",
+      "inherited:",
       "  extends: .base",
       "  script:",
       "    - x",
       "",
     ].join("\n");
-    const applied = expectOk(texte, { kind: "setJobStage", id: "herite", stage: "test" });
+    const applied = expectOk(source, { kind: "setJobStage", id: "inherited", stage: "test" });
     expect(applied.text).toContain(".base:\n  stage: build");
-    expect(jobOf(applied.text, "herite").stage).toEqual({
+    expect(jobOf(applied.text, "inherited").stage).toEqual({
       value: "test",
       origin: { kind: "local" },
     });
   });
 
-  test("écrit une surcharge locale sans toucher à l'anchor hérité", () => {
-    const texte = [
+  test("writes a local override without touching the inherited anchor", () => {
+    const source = [
       ".base: &base",
       "  stage: build",
       "",
@@ -74,51 +74,51 @@ describe("setJobStage", () => {
       "  - build",
       "  - test",
       "",
-      "boulot:",
+      "worker:",
       "  <<: *base",
       "  script:",
       "    - x",
       "",
     ].join("\n");
-    const applied = expectOk(texte, { kind: "setJobStage", id: "boulot", stage: "test" });
+    const applied = expectOk(source, { kind: "setJobStage", id: "worker", stage: "test" });
     expect(applied.text).toContain(".base: &base\n  stage: build");
-    expect(jobOf(applied.text, "boulot").stage.origin).toEqual({ kind: "local" });
+    expect(jobOf(applied.text, "worker").stage.origin).toEqual({ kind: "local" });
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(BASE, { kind: "setJobStage", id: "compile", stage: "deploy" });
-    const texte = ["stages:", "  - build", "", "solo:", "  script:", "    - x", ""].join("\n");
-    roundTrip(texte, { kind: "setJobStage", id: "solo", stage: "build" });
+    const source = ["stages:", "  - build", "", "solo:", "  script:", "    - x", ""].join("\n");
+    roundTrip(source, { kind: "setJobStage", id: "solo", stage: "build" });
   });
 
-  test("JOB_NOT_FOUND si le job n'existe pas", () => {
+  test("JOB_NOT_FOUND if the job does not exist", () => {
     expectUnchanged(BASE, { kind: "setJobStage", id: "absent", stage: "test" }, "JOB_NOT_FOUND");
   });
 
-  test("STAGE_NOT_FOUND si le stage n'est pas déclaré", () => {
+  test("STAGE_NOT_FOUND if the stage is not declared", () => {
     expectUnchanged(
       BASE,
-      { kind: "setJobStage", id: "compile", stage: "inconnu" },
+      { kind: "setJobStage", id: "compile", stage: "unknown" },
       "STAGE_NOT_FOUND",
     );
   });
 
-  test("accepte un stage implicite quand stages est absent", () => {
-    const texte = "solo:\n  script:\n    - x\n";
-    const applied = expectOk(texte, { kind: "setJobStage", id: "solo", stage: "deploy" });
+  test("accepts an implicit stage when stages is absent", () => {
+    const source = "solo:\n  script:\n    - x\n";
+    const applied = expectOk(source, { kind: "setJobStage", id: "solo", stage: "deploy" });
     expect(jobOf(applied.text, "solo").stage.value).toBe("deploy");
   });
 });
 
-describe("setJobStage refuse ce qu'une réécriture de clé perdrait", () => {
+describe("setJobStage refuses what a key rewrite would lose", () => {
   const HEAD = "stages:\n  - build\n  - test\n\n.base:\n  stage: build\n\ncompile:\n";
   const draft = { kind: "setJobStage", id: "compile", stage: "test" } as const;
 
   for (const [label, stage] of [
-    ["une ancre sur la valeur", "  stage: &s !reference [.base, stage]\n"],
-    ["un commentaire sur le tag", "  stage: !reference # garde\n    - .base\n    - stage\n"],
-    ["un commentaire entre les items", "  stage: !reference\n    - .base # garde\n    - stage\n"],
-    ["une clé explicite", "  ? stage\n  : !reference [.base, stage]\n"],
+    ["an anchor on the value", "  stage: &s !reference [.base, stage]\n"],
+    ["a comment on the tag", "  stage: !reference # keep\n    - .base\n    - stage\n"],
+    ["a comment between the items", "  stage: !reference\n    - .base # keep\n    - stage\n"],
+    ["an explicit key", "  ? stage\n  : !reference [.base, stage]\n"],
   ] as const) {
     test(`${label}`, () => {
       const error = expectUnchanged(`${HEAD}${stage}  script: x\n`, draft, INVALID_OPERATION);

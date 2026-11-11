@@ -1,6 +1,6 @@
-/** Ce qui se lance dans une ligne de script, sans exécuter de shell : assez pour ne pas prendre un
- *  argument pour une commande, pas un parseur. Les formes qu'il ne comprend pas restent entières, et
- *  la détection reste une borne (`specs/ecarts.md`). */
+/** What runs in a script line, without executing a shell: enough not to mistake an argument for
+ *  a command, not a parser. Forms it does not understand stay whole, and detection remains a bound
+ *  (`specs/gaps.md`). */
 
 type Split = { commands: string[]; nested: string[] };
 
@@ -92,7 +92,7 @@ function split(text: string): Split {
   return { commands, nested };
 }
 
-/** Nomment un fichier ou un mot sans lancer l'outil : `cp renovate.json /tmp` ne prouve rien. */
+/** Name a file or a word without running the tool: `cp renovate.json /tmp` proves nothing. */
 const INERT = new Set([
   "[",
   "awk",
@@ -144,8 +144,8 @@ const WRAPPERS = new Set([
 const INSTALLING =
   /^(apt-get|apt|apk|yum|dnf|brew|pip3?|npm|gem|go|cargo)\s+(-\S+\s+)*(install|add|i)\b/;
 
-/** Au-delà, une ligne ou une imbrication n'est plus un script mais une entrée hostile : elle reste
- *  entière, et la détection n'y voit qu'une commande. */
+/** Beyond this, a line or a nesting is no longer a script but hostile input: it stays whole, and
+ *  detection sees only one command in it. */
 const MAX_DEPTH = 8;
 const MAX_LINE = 64 * 1024;
 
@@ -153,20 +153,20 @@ function unquoted(word: string): string {
   return word.replace(/^(["'])(.*)\1$/s, "$2");
 }
 
-/** Le script passé à `sh -c`, ou `null`. */
+/** The script passed to `sh -c`, or `null`. */
 const isShell = (word: string): boolean =>
   /^(?:ba|z|da)?sh$/.test(word.slice(word.lastIndexOf("/") + 1));
 
-/** Les commandes qui lancent le shell qu'on leur passe en argument. */
+/** The commands that run the shell passed to them as an argument. */
 const CARRIERS = new Set(["docker", "podman", "xargs", "find"]);
 
-/** Les options de `ssh` qui prennent une valeur. */
+/** The `ssh` options that take a value. */
 const SSH_VALUES = /^-[bcDEeFIiJLlmOopQRSWw]$/;
 
 const isQuoted = (word: string): boolean => /^["']/.test(word);
 
-/** Le script passé à `sh -c`, `su -c`, `eval` ou `ssh`, ou `null`. Mot à mot, guillemets compris : un
- *  `sh -c` cité n'est pas une exécution, et une regex à options répétées peut exploser. */
+/** The script passed to `sh -c`, `su -c`, `eval` or `ssh`, or `null`. Word by word, quotes included:
+ *  a quoted `sh -c` is not an execution, and a regex over repeated options can blow up. */
 function shellArgument(command: string): string | null {
   const words = [...command.matchAll(/"[^"]*"|'[^']*'|\S+/g)];
   const text = (index: number): string => words[index]?.[0] ?? "";
@@ -175,7 +175,7 @@ function shellArgument(command: string): string | null {
     const start = words[index]?.index;
     return start === undefined ? null : unquoted(command.slice(start).trim());
   };
-  /** Le script est un seul mot s'il est cité ; ce qui le suit sont ses arguments. */
+  /** The script is a single word if quoted; what follows it are its arguments. */
   const script = (index: number): string | null =>
     isQuoted(text(index)) ? unquoted(text(index)) : rest(index);
 
@@ -203,7 +203,7 @@ function shellArgument(command: string): string | null {
       return null;
     }
     if (/^-\w*c$/.test(word)) {
-      // Après un porteur, seul un script cité compte : `xargs grep sh -c x` cherche, il ne lance pas.
+      // After a carrier, only a quoted script counts: `xargs grep sh -c x` searches, it does not run.
       return carried && !isQuoted(text(index + 1)) ? null : script(index + 1);
     }
     if (word === "-o") {
@@ -248,7 +248,7 @@ function resolved(raw: string, depth: number): string[] {
   }
 
   const first = command.split(/\s+/, 1)[0] ?? "";
-  // Une chaîne citée qui porte une espace est une phrase, pas un chemin ni une URL à détecter.
+  // A quoted string containing a space is a sentence, not a path or a URL to detect.
   const words = command.replace(/"[^"]*\s[^"]*"|'[^']*\s[^']*'/g, '""');
   return INERT.has(first) || first.startsWith("#") || INSTALLING.test(command) ? [] : [words];
 }

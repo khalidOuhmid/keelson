@@ -9,6 +9,7 @@ logo: checkmarx
 detect:
   images: ['checkmarx/kics']
   scripts: ['\bkics\s+scan\b']
+  actions: ['checkmarx/kics-github-action']
 snippets:
   gitlab: |
     kics:

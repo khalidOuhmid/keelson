@@ -25,10 +25,10 @@ const REQUIRED = [
   "falco",
 ];
 
-describe("le catalogue embarqué", () => {
-  /** Le JSON est commité : sans ce test, une fiche modifiée sans `catalog:build` laisserait le
-   *  binaire servir l'ancienne version. */
-  test("est exactement ce que disent les fiches YAML", () => {
+describe("the bundled catalogue", () => {
+  /** The JSON is committed: without this test, an entry changed without `catalog:build` would
+   *  leave the binary serving the old version. */
+  test("is exactly what the YAML entries say", () => {
     const parsed = files.map((name) => {
       const result = parseTool(readFileSync(join(TOOLS_DIR, name), "utf8"));
       if (!result.ok) {
@@ -39,7 +39,7 @@ describe("le catalogue embarqué", () => {
     expect(tools).toEqual(parsed);
   });
 
-  test("porte les tracés exacts de simple-icons", () => {
+  test("carries the exact simple-icons paths", () => {
     const bySlug = new Map(
       Object.values(icons as unknown as Record<string, { slug: string; path: string }>).map(
         (icon) => [icon.slug, icon.path],
@@ -50,18 +50,18 @@ describe("le catalogue embarqué", () => {
     }
   });
 
-  test("contient entre 50 et 100 outils, chacun dans le fichier de son identifiant", () => {
+  test("contains between 50 and 100 tools, each in the file named after its id", () => {
     expect(tools.length).toBeGreaterThanOrEqual(50);
     expect(tools.length).toBeLessThanOrEqual(100);
     expect(tools.map((tool) => `${tool.id}.yaml`).sort()).toEqual(files);
   });
 
-  test("contient les neuf outils obligatoires", () => {
+  test("contains the nine mandatory tools", () => {
     const ids = tools.map((tool) => tool.id);
     expect(REQUIRED.filter((id) => !ids.includes(id))).toEqual([]);
   });
 
-  test("offre deux outils par couche OWASP, dont un open source", () => {
+  test("offers two tools per OWASP layer, one of them open source", () => {
     for (const layer of LAYERS.filter((entry) => entry.source === "owasp")) {
       const offering = tools.filter((tool) => tool.layers.includes(layer.id));
       expect({ layer: layer.id, enough: offering.length >= 2 }).toEqual({
@@ -75,7 +75,7 @@ describe("le catalogue embarqué", () => {
     }
   });
 
-  test("offre un outil par catégorie plateforme", () => {
+  test("offers one tool per platform category", () => {
     for (const layer of LAYERS.filter((entry) => entry.source === "platform")) {
       expect({
         layer: layer.id,
@@ -84,7 +84,7 @@ describe("le catalogue embarqué", () => {
     }
   });
 
-  test("passe le lint sans erreur aujourd'hui", () => {
+  test("passes the lint without errors today", () => {
     const entries = files.map((name) => ({
       file: name,
       text: readFileSync(join(TOOLS_DIR, name), "utf8"),
@@ -93,8 +93,8 @@ describe("le catalogue embarqué", () => {
   });
 });
 
-describe("les snippets", () => {
-  test("chaque snippet GitHub est une liste d'étapes en YAML", () => {
+describe("snippets", () => {
+  test("every GitHub snippet is a YAML list of steps", () => {
     for (const tool of tools.filter((entry) => entry.snippets.github !== null)) {
       const steps = parseYaml(tool.snippets.github ?? "") as { name?: unknown }[];
       expect({ tool: tool.id, list: Array.isArray(steps) && steps.length > 0 }).toEqual({
@@ -104,9 +104,10 @@ describe("les snippets", () => {
     }
   });
 
-  /** L'invariant qui relie les deux moitiés d'une fiche : le snippet qu'on propose doit être reconnu
-   *  par la détection du même outil. Sinon insérer un outil laisserait sa couche non couverte. */
-  test("chaque snippet GitLab se parse et se détecte comme son propre outil", () => {
+  /** The invariant that ties both halves of an entry together: the proposed snippet must be
+   *  recognised by the same tool's detection. Otherwise inserting a tool would leave its layer
+   *  uncovered. */
+  test("every GitLab snippet parses and is detected as its own tool", () => {
     for (const tool of tools.filter((entry) => entry.snippets.gitlab !== null)) {
       const parsed = parseGitlab(tool.snippets.gitlab ?? "");
       expect({ tool: tool.id, codes: parsed.diagnostics.map((entry) => entry.code) }).toEqual({

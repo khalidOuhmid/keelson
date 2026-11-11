@@ -2,9 +2,9 @@ import type { Toolchain, ToolchainOperation } from "@keelson/core";
 
 const nothingAt = -1;
 
-/** Ce qu'une opération doit produire, calculé sans passer par le texte. Le patch en place ne connaît
- *  pas toutes les formes de YAML écrites à la main : relire le résultat et le comparer à ceci refuse
- *  une écriture fausse là où elle aurait touché autre chose que sa cible. */
+/** What an operation must produce, computed without going through the text. The in-place patch
+ *  does not know every hand-written YAML form: reading the result back and comparing it with this
+ *  rejects a wrong write wherever it would have touched something other than its target. */
 export function expectedToolchain(
   model: Toolchain,
   operation: Exclude<ToolchainOperation, { kind: "splice" }>,

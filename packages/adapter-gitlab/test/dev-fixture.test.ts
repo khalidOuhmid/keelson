@@ -5,8 +5,8 @@ import { isPartial } from "@keelson/core";
 import { parse } from "../src/parse.ts";
 import { createFileReader } from "../src/reader.ts";
 
-describe("la fixture de dev multi-fichiers", () => {
-  test("se résout avec ses includes, et reste partielle", () => {
+describe("the multi-file dev fixture", () => {
+  test("resolves with its includes, and stays partial", () => {
     const root = join(import.meta.dir, "..", "..", "ui", "dev-fixture-includes");
     const parsed = parse(readFileSync(join(root, ".gitlab-ci.yml"), "utf8"), {
       read: createFileReader(root),

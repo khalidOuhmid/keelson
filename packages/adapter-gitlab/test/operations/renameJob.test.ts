@@ -2,46 +2,49 @@ import { describe, expect, test } from "bun:test";
 import { BASE, expectOk, expectUnchanged, jobOf, roundTrip } from "../support/apply.ts";
 
 describe("renameJob", () => {
-  test("renomme la clé du job", () => {
+  test("renames the job's key", () => {
     const applied = expectOk(BASE, { kind: "renameJob", from: "compile", to: "build-app" });
     expect(applied.pipeline.jobs.map((job) => job.id)).toEqual(["build-app", "unit"]);
   });
 
-  test("met à jour les références en forme chaîne dans les needs", () => {
+  test("updates string-form references in needs", () => {
     const applied = expectOk(BASE, { kind: "renameJob", from: "compile", to: "build-app" });
     expect(jobOf(applied.text, "unit").needs?.value).toEqual([
       { job: "build-app", optional: false, artifacts: true },
     ]);
   });
 
-  test("met à jour les références en forme objet dans les needs", () => {
-    const objet = BASE.replace("    - compile\n", "    - job: compile\n      artifacts: false\n");
-    const applied = expectOk(objet, { kind: "renameJob", from: "compile", to: "build-app" });
+  test("updates object-form references in needs", () => {
+    const objectForm = BASE.replace(
+      "    - compile\n",
+      "    - job: compile\n      artifacts: false\n",
+    );
+    const applied = expectOk(objectForm, { kind: "renameJob", from: "compile", to: "build-app" });
     expect(jobOf(applied.text, "unit").needs?.value).toEqual([
       { job: "build-app", optional: false, artifacts: false },
     ]);
   });
 
-  test("met à jour les références en flow style", () => {
+  test("updates references in flow style", () => {
     const flow = BASE.replace("  needs:\n    - compile\n", "  needs: [compile]\n");
     const applied = expectOk(flow, { kind: "renameJob", from: "compile", to: "build-app" });
     expect(applied.text).toContain("needs: [build-app]");
   });
 
-  test("met à jour les références portées par un template", () => {
-    const avecTemplate = [".commun:", "  needs:", "    - compile", "", BASE].join("\n");
-    const applied = expectOk(avecTemplate, { kind: "renameJob", from: "compile", to: "build-app" });
-    expect(applied.text).toContain(".commun:\n  needs:\n    - build-app");
+  test("updates references carried by a template", () => {
+    const withTemplate = [".shared:", "  needs:", "    - compile", "", BASE].join("\n");
+    const applied = expectOk(withTemplate, { kind: "renameJob", from: "compile", to: "build-app" });
+    expect(applied.text).toContain(".shared:\n  needs:\n    - build-app");
   });
 
-  test("ne touche pas une chaîne homonyme ailleurs dans le fichier", () => {
-    const piege = BASE.replace("    - make\n", "    - make compile\n");
-    const applied = expectOk(piege, { kind: "renameJob", from: "compile", to: "build-app" });
+  test("does not touch a homonymous string elsewhere in the file", () => {
+    const trap = BASE.replace("    - make\n", "    - make compile\n");
+    const applied = expectOk(trap, { kind: "renameJob", from: "compile", to: "build-app" });
     expect(applied.text).toContain("- make compile");
   });
 
-  test("ne touche pas un stage homonyme", () => {
-    const texte = [
+  test("does not touch a homonymous stage", () => {
+    const source = [
       "stages:",
       "  - compile",
       "",
@@ -51,44 +54,44 @@ describe("renameJob", () => {
       "    - make",
       "",
     ].join("\n");
-    const applied = expectOk(texte, { kind: "renameJob", from: "compile", to: "autre" });
+    const applied = expectOk(source, { kind: "renameJob", from: "compile", to: "other" });
     expect(applied.pipeline.stages.map((s) => s.name)).toEqual(["compile"]);
-    expect(jobOf(applied.text, "autre").stage.value).toBe("compile");
+    expect(jobOf(applied.text, "other").stage.value).toBe("compile");
   });
 
-  test("préserve les commentaires du job renommé", () => {
-    const commente = BASE.replace("compile:\n", "compile: # un commentaire\n");
-    const applied = expectOk(commente, { kind: "renameJob", from: "compile", to: "build-app" });
-    expect(applied.text).toContain("build-app: # un commentaire");
+  test("preserves the comments of the renamed job", () => {
+    const commented = BASE.replace("compile:\n", "compile: # a comment\n");
+    const applied = expectOk(commented, { kind: "renameJob", from: "compile", to: "build-app" });
+    expect(applied.text).toContain("build-app: # a comment");
   });
 
-  test("l'inverse restaure les octets d'origine", () => {
+  test("the inverse restores the original bytes", () => {
     roundTrip(BASE, { kind: "renameJob", from: "compile", to: "build-app" });
   });
 
-  test("JOB_NOT_FOUND si la source n'existe pas", () => {
+  test("JOB_NOT_FOUND if the source does not exist", () => {
     expectUnchanged(BASE, { kind: "renameJob", from: "absent", to: "x" }, "JOB_NOT_FOUND");
   });
 
-  test("NAME_CONFLICT si la cible existe déjà", () => {
+  test("NAME_CONFLICT if the target already exists", () => {
     expectUnchanged(BASE, { kind: "renameJob", from: "compile", to: "unit" }, "NAME_CONFLICT");
   });
 
-  test("INVALID_NAME si la cible est vide, cachée ou réservée", () => {
+  test("INVALID_NAME if the target is empty, hidden or reserved", () => {
     for (const to of ["", ".cache", "stages", "variables"]) {
       expectUnchanged(BASE, { kind: "renameJob", from: "compile", to }, "INVALID_NAME");
     }
   });
 
-  test("CYCLE si le renommage crée un cycle de needs", () => {
-    const texte = [
+  test("CYCLE if the rename creates a needs cycle", () => {
+    const source = [
       "stages:",
       "  - test",
       "",
       "a:",
       "  stage: test",
       "  needs:",
-      "    - futur",
+      "    - future",
       "  script:",
       "    - x",
       "",
@@ -100,6 +103,6 @@ describe("renameJob", () => {
       "    - y",
       "",
     ].join("\n");
-    expectUnchanged(texte, { kind: "renameJob", from: "b", to: "futur" }, "CYCLE");
+    expectUnchanged(source, { kind: "renameJob", from: "b", to: "future" }, "CYCLE");
   });
 });

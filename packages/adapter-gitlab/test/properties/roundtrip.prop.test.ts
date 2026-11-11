@@ -4,8 +4,8 @@ import { emit } from "../../src/emit.ts";
 import { parse } from "../../src/parse.ts";
 import { assertOptions, corpusTexts } from "./support/arbitraries.ts";
 
-describe("propriété : parse puis emit est l'identité", () => {
-  test("sur tout le corpus", () => {
+describe("property: parse then emit is the identity", () => {
+  test("across the whole corpus", () => {
     fc.assert(
       fc.property(fc.constantFrom(...corpusTexts()), (text) => {
         expect(emit(parse(text).document)).toBe(text);
@@ -14,7 +14,7 @@ describe("propriété : parse puis emit est l'identité", () => {
     );
   });
 
-  test("sur du texte quelconque", () => {
+  test("on arbitrary text", () => {
     fc.assert(
       fc.property(fc.string(), (text) => {
         expect(emit(parse(text).document)).toBe(text);
@@ -23,17 +23,17 @@ describe("propriété : parse puis emit est l'identité", () => {
     );
   });
 
-  test("sur du YAML quelconque construit par morceaux", () => {
+  test("on arbitrary YAML built piece by piece", () => {
     const fragment = fc.constantFrom(
       "stages:\n  - build\n",
-      "# un commentaire\n",
+      "# a comment\n",
       "\n",
-      "boulot:\n  script:\n    - echo\n",
-      "  - item mal indenté\n",
+      "worker:\n  script:\n    - echo\n",
+      "  - misindented café item\n",
       "\r\n",
-      "cle: valeur # en ligne\n",
-      "\t tabulation\n",
-      ".tpl: &ancre\n  image: node\n",
+      "key: value # inline\n",
+      "\t tab\n",
+      ".tpl: &anchor\n  image: node\n",
     );
 
     fc.assert(
@@ -45,7 +45,7 @@ describe("propriété : parse puis emit est l'identité", () => {
     );
   });
 
-  test("le hash est stable pour un même texte", () => {
+  test("the hash is stable for the same text", () => {
     fc.assert(
       fc.property(fc.string(), (text) => {
         expect(parse(text).hash).toBe(parse(text).hash);

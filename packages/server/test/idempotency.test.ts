@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, fstatSync, mkdtempSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ErrorBody } from "../src/store.ts";
@@ -40,29 +40,37 @@ async function addStage(name: string, opId: string, baseHash?: string) {
   );
 }
 
-describe("idempotence par opId", () => {
-  test("le même opId rejoué rend exactement la même réponse", async () => {
+/** Modification time and content read through one descriptor, so both describe the same file. */
+function snapshot(path: string): { mtime: number; text: string } {
+  const descriptor = openSync(path, "r");
+  try {
+    return { mtime: fstatSync(descriptor).mtimeMs, text: readFileSync(descriptor, "utf8") };
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+describe("idempotency by opId", () => {
+  test("the same opId replayed returns exactly the same response", async () => {
     await store.load(".gitlab-ci.yml");
     const first = await addStage("verify", "op-1");
     const replay = await addStage("verify", "op-1");
     expect(replay).toEqual(first);
   });
 
-  test("le rejeu ne réécrit pas le fichier", async () => {
+  test("the replay does not rewrite the file", async () => {
     await store.load(".gitlab-ci.yml");
     await addStage("verify", "op-1");
     const path = join(root, ".gitlab-ci.yml");
-    const afterFirst = statSync(path).mtimeMs;
-    const content = readFileSync(path, "utf8");
+    const first = snapshot(path);
 
     await new Promise((resolve) => setTimeout(resolve, 15));
     await addStage("verify", "op-1");
 
-    expect(statSync(path).mtimeMs).toBe(afterFirst);
-    expect(readFileSync(path, "utf8")).toBe(content);
+    expect(snapshot(path)).toEqual(first);
   });
 
-  test("le rejeu réussit même si le baseHash d'origine est désormais périmé", async () => {
+  test("the replay succeeds even if the original baseHash is now stale", async () => {
     await store.load(".gitlab-ci.yml");
     const original = store.currentHash(".gitlab-ci.yml") ?? "";
     const first = await addStage("verify", "op-1", original);
@@ -73,7 +81,7 @@ describe("idempotence par opId", () => {
     expect(replay).toEqual(first);
   });
 
-  test("le rejeu d'une opération refusée rend la même erreur", async () => {
+  test("replaying a refused operation returns the same error", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const first = await store.applyOperation(
       ".gitlab-ci.yml",
@@ -89,7 +97,7 @@ describe("idempotence par opId", () => {
     expect(replay.status).toBe(422);
   });
 
-  test("deux opId différents produisent deux écritures", async () => {
+  test("two different opIds produce two writes", async () => {
     await store.load(".gitlab-ci.yml");
     await addStage("verify", "op-1");
     await addStage("publish", "op-2");
@@ -98,7 +106,7 @@ describe("idempotence par opId", () => {
     expect(text).toContain("publish");
   });
 
-  test("l'historique est borné et oublie les plus anciens opId", async () => {
+  test("the history is bounded and forgets the oldest opIds", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const original = loaded?.hash ?? "";
     expect(OPID_HISTORY).toBe(100);
@@ -118,7 +126,7 @@ describe("idempotence par opId", () => {
     expect((rejoue.body as ErrorBody).code).toBe("STALE_DOCUMENT");
   });
 
-  test("un opId encore en mémoire est bien rejoué, pas réexécuté", async () => {
+  test("an opId still in memory is replayed, not re-executed", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     const original = loaded?.hash ?? "";
     const first = await addStage("verify", "op-garde", original);
@@ -131,7 +139,7 @@ describe("idempotence par opId", () => {
     expect(await addStage("verify", "op-garde", original)).toEqual(first);
   });
 
-  test("l'historique est tenu par document", async () => {
+  test("the history is kept per document", async () => {
     writeFileSync(join(root, "autre.yml"), BASE);
     await store.load(".gitlab-ci.yml");
     const first = await addStage("verify", "partage");

@@ -22,8 +22,8 @@ const TREE: Tree = {
 
 const TOOLCHAIN = ".devsecops/toolchain.yaml";
 
-test.describe("toolchain sur le binaire réel", () => {
-  test("confirmer une inférence écrit le fichier, annuler le rend", async ({ page }) => {
+test.describe("toolchain on the real binary", () => {
+  test("confirming an inference writes the file, undo restores it", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -54,7 +54,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("écarter une proposition la retire, et le fichier le garde", async ({ page }) => {
+  test("dismissing a proposal removes it, and the file keeps that", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -67,7 +67,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("une position déplacée survit au rechargement", async ({ page }) => {
+  test("a moved position survives a reload", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
@@ -79,7 +79,7 @@ test.describe("toolchain sur le binaire réel", () => {
       const node = page.locator("[data-service-id=vault]");
       const before = await node.boundingBox();
       if (before === null) {
-        throw new Error("nœud absent");
+        throw new Error("node missing");
       }
       await page.mouse.move(before.x + 20, before.y + 20);
       await page.mouse.down();
@@ -110,7 +110,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("une écriture externe se voit sans recharger", async ({ page }) => {
+  test("an external write shows without reloading", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -126,7 +126,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("un fichier invalide coupe l'édition et le dit", async ({ page }) => {
+  test("an invalid file disables editing and says so", async ({ page }) => {
     const keelson = await startKeelson({ ...TREE, [TOOLCHAIN]: "version: 2\n" });
     try {
       await page.goto(keelson.url);
@@ -139,7 +139,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("Retour arrière ne retire aucun nœud de l'écran", async ({ page }) => {
+  test("Backspace removes no node from the screen", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
@@ -155,7 +155,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("Échap ferme le panneau de service et rend le focus au graphe", async ({ page }) => {
+  test("Escape closes the service panel and returns focus to the graph", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
@@ -173,7 +173,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("à 375 px, le bouton Panel compte les décisions en attente", async ({ page }) => {
+  test("at 375 px, the Panel button counts pending decisions", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson(TREE);
     try {
@@ -185,7 +185,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("une saisie en cours survit à une écriture sans rapport", async ({ page }) => {
+  test("an input in progress survives an unrelated write", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
@@ -204,7 +204,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("un service retiré de l'extérieur ne vole pas le focus d'une saisie", async ({ page }) => {
+  test("a service removed externally does not steal focus from an input", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
@@ -223,7 +223,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("retirer le service sélectionné rend le focus au graphe", async ({ page }) => {
+  test("removing the selected service returns focus to the graph", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
       [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
@@ -239,7 +239,7 @@ test.describe("toolchain sur le binaire réel", () => {
     }
   });
 
-  test("à 375 px, le panneau de service tient dans la fenêtre", async ({ page }) => {
+  test("at 375 px, the service panel fits in the viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson({
       ...TREE,

@@ -27,11 +27,10 @@ for (const group of groups) {
   }
 }
 
-/** Les arbres du corpus d'includes. Cette énumération est volontairement la jumelle de
- *  `corpusTrees()` dans `test/support/corpus.ts` : `scripts/` et `test/` sont deux projets
- *  TypeScript distincts et l'un ne peut pas importer l'autre. La divergence est **détectée** et non
- *  silencieuse — un arbre que ce script oublierait n'aurait pas de golden, et
- *  `includes.golden.test.ts` échoue sur le golden manquant. */
+/** The trees of the includes corpus. This enumeration is deliberately the twin of `corpusTrees()`
+ *  in `test/support/corpus.ts`: `scripts/` and `test/` are two separate TypeScript projects and
+ *  neither can import the other. The divergence is **detected**, not silent — a tree this script
+ *  forgot would have no golden, and `includes.golden.test.ts` fails on the missing golden. */
 const MAIN = ".gitlab-ci.yml";
 const treeSource = join(corpus, "includes");
 const treeTarget = join(corpus, "goldens", "includes");
@@ -53,4 +52,4 @@ for (const entry of readdirSync(treeSource, { withFileTypes: true })) {
   written += 1;
 }
 
-process.stdout.write(`${written} goldens écrits\n`);
+process.stdout.write(`${written} goldens written\n`);

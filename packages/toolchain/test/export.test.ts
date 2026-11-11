@@ -15,6 +15,7 @@ function job(id: string, stage: string, needs: string[] = [], script: string[] =
             origin: { kind: "local" },
           },
     signals: { image: null, script },
+    file: ".gitlab-ci.yml",
   } as unknown as Job;
 }
 
@@ -33,41 +34,41 @@ const TOOLCHAIN: Toolchain = {
   dismissed: [],
 };
 
-describe("export Mermaid", () => {
+describe("Mermaid export", () => {
   const text = renderMermaid(PIPELINE, TOOLCHAIN);
 
-  test("un graphe par stage, dans l'ordre", () => {
+  test("one subgraph per stage, in order", () => {
     expect(text.startsWith("flowchart LR\n")).toBe(true);
     expect(text.indexOf('subgraph s0["build"]')).toBeLessThan(text.indexOf('subgraph s1["test"]'));
   });
 
-  test("les dépendances et les intégrations sont des arêtes nommées", () => {
+  test("dependencies and integrations are labelled edges", () => {
     expect(text).toContain("j0 --> j1");
     expect(text).toContain("j0 -->|push| v0");
   });
 
-  test("un guillemet ne casse pas un libellé", () => {
+  test("a quote does not break a label", () => {
     expect(text).toContain('j1["sc#quot;an|x"]');
   });
 
-  test("déterministe", () => {
+  test("deterministic", () => {
     expect(renderMermaid(PIPELINE, TOOLCHAIN)).toBe(text);
   });
 });
 
-describe("Mermaid sur des noms piégés", () => {
-  test("un job d'un stage non déclaré reste dessiné", () => {
+describe("Mermaid on booby-trapped names", () => {
+  test("a job of an undeclared stage is still drawn", () => {
     const text = renderMermaid({ ...PIPELINE, jobs: [job("a", "security")] }, TOOLCHAIN);
     expect(text).toContain('["security"]');
     expect(text).toContain('j0["a"]');
   });
 
-  test("une dépendance vers un job absent n'est pas dessinée", () => {
+  test("a dependency on a missing job is not drawn", () => {
     const text = renderMermaid({ ...PIPELINE, jobs: [job("a", "build", ["absent"])] }, TOOLCHAIN);
     expect(text).not.toContain("-->");
   });
 
-  test("une directive ne survit pas dans un libellé", () => {
+  test("a directive does not survive in a label", () => {
     const text = renderMermaid(
       { ...PIPELINE, jobs: [job("x%%{init: {'theme':'forest'}}%%y#z\nw", "build")] },
       TOOLCHAIN,
@@ -79,25 +80,70 @@ describe("Mermaid sur des noms piégés", () => {
   });
 });
 
-describe("rapport de couverture", () => {
+describe("two workflows, one job name", () => {
+  test("both nodes stay, each dependency in its own file", () => {
+    const one = { ...job("scan", "build"), file: "a.yml" } as Job;
+    const two = { ...job("scan", "build", ["x"]), file: "b.yml" } as Job;
+    const needed = { ...job("x", "build"), file: "b.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [one, two, needed] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).toContain('j0["scan"]');
+    expect(text).toContain('j1["scan"]');
+    expect(text).toContain("j2 --> j1");
+  });
+});
+
+describe("needs across files", () => {
+  test("a dependency on a job in another file is still drawn", () => {
+    const main = { ...job("a", "build"), file: ".gitlab-ci.yml" } as Job;
+    const included = { ...job("b", "build", ["a"]), file: "ci/inc.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [main, included] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).toContain("j0 --> j1");
+  });
+
+  test("two workflows are not linked", () => {
+    const one = { ...job("deploy", "build", ["build"]), file: ".github/workflows/a.yml" } as Job;
+    const two = { ...job("build", "build"), file: ".github/workflows/b.yml" } as Job;
+    const text = renderMermaid(
+      { ...PIPELINE, jobs: [one, two] },
+      { ...TOOLCHAIN, integrations: [] },
+    );
+    expect(text).not.toContain("-->");
+  });
+
+  test("an integration starts from every job with that name", () => {
+    const one = { ...job("compile", "build"), file: "a.yml" } as Job;
+    const two = { ...job("compile", "build"), file: "b.yml" } as Job;
+    const text = renderMermaid({ ...PIPELINE, jobs: [one, two] }, TOOLCHAIN);
+    expect(text).toContain("j0 -->|push| v0");
+    expect(text).toContain("j1 -->|push| v0");
+  });
+});
+
+describe("coverage report", () => {
   const { tools } = loadCatalog();
   const result = coverage(PIPELINE, tools, {}, [], TOOLCHAIN.services);
   const text = renderCoverageMarkdown(result);
 
-  test("dit le compte OWASP et plateforme", () => {
+  test("states the OWASP and platform counts", () => {
     expect(text).toContain("3 of 13 OWASP layers covered, 1 of 8 platform categories seen.");
   });
 
-  test("une ligne par couche, un pipe de job échappé", () => {
+  test("one row per layer, a job pipe escaped", () => {
     expect(text.split("\n").filter((line) => line.startsWith("| "))).toHaveLength(23);
     expect(text).toContain('sc"an\\|x');
   });
 
-  test("les services sont nommés", () => {
+  test("services are named", () => {
     expect(text).toMatch(/Artifact repositories and registries \| yes \| {2}\| nexus \|/);
   });
 
-  test("un pipeline partiel dit la borne basse", () => {
+  test("a partial pipeline states the lower bound", () => {
     expect(renderCoverageMarkdown({ ...result, partial: true })).toContain("lower bound");
   });
 });

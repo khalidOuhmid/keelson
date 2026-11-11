@@ -1,55 +1,54 @@
 # Keelson — vision
 
-## Le problème
+## The problem
 
-Concevoir une chaîne DevSecOps se fait aujourd'hui soit dans un outil de diagramme déconnecté du
-code, soit directement dans le YAML CI où l'on perd la vue d'ensemble. Dans les deux cas, personne ne
-sait dire quelles couches de sécurité sont réellement couvertes, ni ce qu'il manque.
+Today, a DevSecOps chain is designed either in a diagramming tool disconnected from the code, or
+directly in the CI YAML, where the big picture gets lost. Either way, nobody can say which security
+layers are actually covered, or what is missing.
 
-## La proposition
+## The proposal
 
-Keelson est un outil open source (Apache-2.0, auteur : Khalid Ouhmid) qui permet de concevoir
-visuellement une chaîne DevSecOps avant de l'implémenter, en restant branché sur les fichiers réels
-du dépôt :
+Keelson is an open source tool (Apache-2.0, author: Khalid Ouhmid) for visually designing a
+DevSecOps chain before implementing it, while staying wired to the repository's real files:
 
-- **Le pipeline CI en aller-retour avec le YAML natif.** GitLab CI d'abord, GitHub Actions ensuite.
-  Le YAML du dépôt est la source de vérité : on le lit, on l'affiche, on l'édite par patch en place.
-  Un parse puis emit sans modification doit produire des octets identiques — commentaires, ordre des
-  clés et anchors préservés.
-- **Les services de la plateforme autour du pipeline.** Nexus, Harbor, DefectDojo, Vault, Sentry… en
-  instances nommées, avec leurs intégrations avec les jobs du pipeline (push d'artefact, upload de
-  rapport, récupération de secret, notification).
-- **Un overlay de couverture.** Les 13 couches de l'OWASP DevSecOps Guideline, plus des catégories
-  plateforme hors OWASP, projetées sur le pipeline et la toolchain : ce qui est couvert, par quoi, et
-  ce qui ne l'est pas.
-- **Un catalogue de 50 à 100 outils.** Logos, licences, motifs de détection et snippets prêts à
-  insérer, qui proposent des implémentations concrètes pour les couches non couvertes.
+- **The CI pipeline, round-tripped with native YAML.** GitLab CI first, GitHub Actions next. The
+  repository's YAML is the source of truth: Keelson reads it, displays it, and edits it with in-place
+  patches. A parse followed by an emit with no change must produce identical bytes — comments, key
+  order and anchors preserved.
+- **The platform services around the pipeline.** Nexus, Harbor, DefectDojo, Vault, Sentry… as named
+  instances, with their integrations with the pipeline's jobs (artifact push, report upload, secret
+  fetch, notification).
+- **A coverage overlay.** The 13 layers of the OWASP DevSecOps Guideline, plus platform categories
+  outside OWASP, projected onto the pipeline and the toolchain: what is covered, by what, and what
+  is not.
+- **A catalogue of 50 to 100 tools.** Logos, licences, detection patterns and ready-to-insert
+  snippets, offering concrete implementations for the uncovered layers.
 
-## Usage final
+## End usage
 
 ```sh
-npx keelson start          # ouvre une UI web locale dans le dépôt courant
-keelson validate           # valide pipeline et toolchain
-keelson coverage           # rapporte la couverture, code ≠ 0 si une couche requise manque
-keelson export             # exporte le modèle
+npx keelson start          # opens a local web UI in the current repository
+keelson validate           # validates the pipeline and the toolchain
+keelson coverage           # reports coverage, non-zero exit if a required layer is missing
+keelson export             # exports the model
 ```
 
-## Principes
+## Principles
 
-- **Le dépôt est la source de vérité, pas Keelson.** Keelson n'introduit aucun format propriétaire
-  qui remplacerait le YAML CI. Les deux seuls fichiers qu'il possède sont
-  `.devsecops/toolchain.yaml` (les services et intégrations, non déductibles du CI) et
-  `.devsecops/layout.json` (positions des nœuds, surcharges de couche).
-- **Local d'abord.** Pas de service distant, pas de compte. `npx keelson start` et c'est tout.
-- **L'aller-retour est non négociable.** Un outil qui réécrit le YAML en perdant les commentaires est
-  un outil qu'on n'utilise pas deux fois.
-- **Ce que l'IR ne modélise pas est conservé tel quel** dans des blocs opaques, jamais reconstruit.
-- **Ne rien prescrire sans justifier.** Chaque proposition d'outil renvoie à la couche OWASP qu'elle
-  couvre, avec sa licence et un snippet vérifiable.
+- **The repository is the source of truth, not Keelson.** Keelson introduces no proprietary format
+  that would replace the CI YAML. The only two files it owns are `.devsecops/toolchain.yaml` (the
+  services and integrations, which cannot be derived from the CI) and `.devsecops/layout.json` (node
+  positions, layer overrides).
+- **Local first.** No remote service, no account. `npx keelson start`, and that's it.
+- **The round-trip is non-negotiable.** A tool that rewrites the YAML and loses the comments is a
+  tool nobody uses twice.
+- **What the IR does not model is kept as is** in opaque blocks, never rebuilt.
+- **Prescribe nothing without a reason.** Every tool proposal points to the OWASP layer it covers,
+  with its licence and a verifiable snippet.
 
-## Hors périmètre
+## Out of scope
 
-Keelson ne déploie rien, n'exécute aucun pipeline, ne scanne aucun code. Il conçoit, documente et
-écrit de la configuration.
+Keelson deploys nothing, runs no pipeline, and scans no code. It designs, documents and writes
+configuration.
 
-Découpage en lots et détail technique : [01-plan.md](01-plan.md).
+Milestone breakdown and technical detail: [01-plan.md](01-plan.md).

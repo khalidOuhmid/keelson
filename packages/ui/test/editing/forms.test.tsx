@@ -50,8 +50,8 @@ function collector() {
   return { drafts, submit: (draft: Draft) => drafts.push(draft) };
 }
 
-describe("JobEditor — renommer", () => {
-  test("renomme le job avec la valeur saisie", async () => {
+describe("JobEditor — rename", () => {
+  test("renames the job with the typed value", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -63,7 +63,7 @@ describe("JobEditor — renommer", () => {
     expect(drafts).toEqual([{ kind: "renameJob", from: "unit", to: "tests-unitaires" }]);
   });
 
-  test("le renommage est soumis au clavier par Entrée", async () => {
+  test("the rename is submitted from the keyboard with Enter", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -74,7 +74,7 @@ describe("JobEditor — renommer", () => {
     expect(drafts).toEqual([{ kind: "renameJob", from: "unit", to: "autre" }]);
   });
 
-  test("ne soumet rien si le nom n'a pas changé", async () => {
+  test("submits nothing if the name did not change", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: /rename/i }));
@@ -83,7 +83,7 @@ describe("JobEditor — renommer", () => {
 });
 
 describe("JobEditor — stage", () => {
-  test("change le stage par le sélecteur puis le bouton dédié", async () => {
+  test("changes the stage with the select then the dedicated button", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Stage" }), "deploy");
@@ -91,7 +91,7 @@ describe("JobEditor — stage", () => {
     expect(drafts).toEqual([{ kind: "setJobStage", id: "unit", stage: "deploy" }]);
   });
 
-  test("le sélecteur propose tous les stages du pipeline", () => {
+  test("the select offers every stage of the pipeline", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => {}} />);
     const options = screen
       .getAllByRole("option")
@@ -101,7 +101,7 @@ describe("JobEditor — stage", () => {
     }
   });
 
-  test("choisir le stage courant ne soumet rien", async () => {
+  test("choosing the current stage submits nothing", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: /stage/i }), "test");
@@ -110,7 +110,7 @@ describe("JobEditor — stage", () => {
 });
 
 describe("JobEditor — needs", () => {
-  test("ajoute un need vers un autre job", async () => {
+  test("adds a need on another job", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: /add a need/i }), "compile");
@@ -118,7 +118,7 @@ describe("JobEditor — needs", () => {
     expect(drafts).toEqual([{ kind: "addNeed", id: "unit", need: { job: "compile" } }]);
   });
 
-  test("le sélecteur de need exclut le job lui-même", () => {
+  test("the need select excludes the job itself", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => {}} />);
     const select = screen.getByRole("combobox", { name: /add a need/i });
     const values = [...select.querySelectorAll("option")].map((option) => option.value);
@@ -126,7 +126,7 @@ describe("JobEditor — needs", () => {
     expect(values).toContain("compile");
   });
 
-  test("le sélecteur exclut les jobs déjà requis", () => {
+  test("the select excludes jobs already needed", () => {
     render(
       <JobEditor
         job={job({
@@ -144,7 +144,7 @@ describe("JobEditor — needs", () => {
     expect(values).not.toContain("compile");
   });
 
-  test("ajoute un need optionnel sans artefacts", async () => {
+  test("adds an optional need without artifacts", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.selectOptions(screen.getByRole("combobox", { name: /add a need/i }), "compile");
@@ -156,7 +156,7 @@ describe("JobEditor — needs", () => {
     ]);
   });
 
-  test("retire un need existant", async () => {
+  test("removes an existing need", async () => {
     const { drafts, submit } = collector();
     render(
       <JobEditor
@@ -175,8 +175,8 @@ describe("JobEditor — needs", () => {
   });
 });
 
-describe("JobEditor — environnement", () => {
-  test("définit l'environnement", async () => {
+describe("JobEditor — environment", () => {
+  test("sets the environment", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /environment name/i }), "production");
@@ -186,7 +186,7 @@ describe("JobEditor — environnement", () => {
     ]);
   });
 
-  test("porte l'URL quand elle est renseignée", async () => {
+  test("carries the URL when filled in", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /environment name/i }), "staging");
@@ -204,14 +204,14 @@ describe("JobEditor — environnement", () => {
     ]);
   });
 
-  test("ne soumet rien sans nom d'environnement", async () => {
+  test("submits nothing without an environment name", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: /set environment/i }));
     expect(drafts).toEqual([]);
   });
 
-  test("retire l'environnement existant", async () => {
+  test("removes the existing environment", async () => {
     const { drafts, submit } = collector();
     render(
       <JobEditor
@@ -224,14 +224,14 @@ describe("JobEditor — environnement", () => {
     expect(drafts).toEqual([{ kind: "setEnvironment", id: "unit", environment: null }]);
   });
 
-  test("le bouton de retrait est absent quand il n'y a pas d'environnement", () => {
+  test("the remove button is absent when there is no environment", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => {}} />);
     expect(screen.queryByRole("button", { name: /remove environment/i })).toBeNull();
   });
 });
 
-describe("JobEditor — suppression", () => {
-  test("supprime le job, une fois la suppression confirmée", async () => {
+describe("JobEditor — deletion", () => {
+  test("deletes the job, once the deletion is confirmed", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
@@ -240,8 +240,8 @@ describe("JobEditor — suppression", () => {
   });
 });
 
-describe("JobEditor — édition désactivée", () => {
-  test("tous les contrôles sont désactivés", () => {
+describe("JobEditor — editing disabled", () => {
+  test("all controls are disabled", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => {}} disabled />);
     for (const control of [
       ...screen.getAllByRole("button"),
@@ -252,7 +252,7 @@ describe("JobEditor — édition désactivée", () => {
     }
   });
 
-  test("aucune opération ne part quand c'est désactivé", async () => {
+  test("no operation is sent when disabled", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} disabled />);
     await userEvent.click(screen.getByRole("button", { name: /delete job/i }));
@@ -261,7 +261,7 @@ describe("JobEditor — édition désactivée", () => {
 });
 
 describe("NewJobForm", () => {
-  test("crée un job avec son identifiant, son stage et son script", async () => {
+  test("creates a job with its id, its stage and its script", async () => {
     const { drafts, submit } = collector();
     render(<NewJobForm pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -278,7 +278,7 @@ describe("NewJobForm", () => {
     ]);
   });
 
-  test("découpe un script multi-lignes", async () => {
+  test("splits a multi-line script", async () => {
     const { drafts, submit } = collector();
     render(<NewJobForm pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /new job id/i }), "paquet");
@@ -287,7 +287,7 @@ describe("NewJobForm", () => {
     expect((drafts[0] as { job: { script: string[] } }).job.script).toEqual(["npm ci", "npm test"]);
   });
 
-  test("ne soumet rien sans identifiant", async () => {
+  test("submits nothing without an id", async () => {
     const { drafts, submit } = collector();
     render(<NewJobForm pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /script/i }), "x");
@@ -295,7 +295,7 @@ describe("NewJobForm", () => {
     expect(drafts).toEqual([]);
   });
 
-  test("ne soumet rien sans script", async () => {
+  test("submits nothing without a script", async () => {
     const { drafts, submit } = collector();
     render(<NewJobForm pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /new job id/i }), "paquet");
@@ -303,7 +303,7 @@ describe("NewJobForm", () => {
     expect(drafts).toEqual([]);
   });
 
-  test("le premier stage du pipeline est proposé par défaut", () => {
+  test("the pipeline's first stage is offered by default", () => {
     render(<NewJobForm pipeline={PIPELINE} onSubmit={() => {}} />);
     expect(
       (screen.getByRole("combobox", { name: /new job stage/i }) as HTMLSelectElement).value,
@@ -312,7 +312,7 @@ describe("NewJobForm", () => {
 });
 
 describe("StageControls", () => {
-  test("ajoute un stage en fin de liste", async () => {
+  test("adds a stage at the end of the list", async () => {
     const { drafts, submit } = collector();
     render(<StageControls pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
@@ -320,7 +320,7 @@ describe("StageControls", () => {
     expect(drafts).toEqual([{ kind: "addStage", name: "verify" }]);
   });
 
-  test("ajoute un stage à la position choisie", async () => {
+  test("adds a stage at the chosen position", async () => {
     const { drafts, submit } = collector();
     render(<StageControls pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
@@ -329,42 +329,42 @@ describe("StageControls", () => {
     expect(drafts).toEqual([{ kind: "addStage", name: "verify", index: 0 }]);
   });
 
-  test("ne soumet rien sans nom de stage", async () => {
+  test("submits nothing without a stage name", async () => {
     const { drafts, submit } = collector();
     render(<StageControls pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
     expect(drafts).toEqual([]);
   });
 
-  test("déplace un stage vers la gauche au clavier", async () => {
+  test("moves a stage left from the keyboard", async () => {
     const { drafts, submit } = collector();
     render(<StageControls pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: /move deploy earlier/i }));
     expect(drafts).toEqual([{ kind: "moveStage", name: "deploy", toIndex: 1 }]);
   });
 
-  test("déplace un stage vers la droite au clavier", async () => {
+  test("moves a stage right from the keyboard", async () => {
     const { drafts, submit } = collector();
     render(<StageControls pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: /move build later/i }));
     expect(drafts).toEqual([{ kind: "moveStage", name: "build", toIndex: 1 }]);
   });
 
-  test("le premier stage ne peut pas reculer", () => {
+  test("the first stage cannot move back", () => {
     render(<StageControls pipeline={PIPELINE} onSubmit={() => {}} />);
     expect(
       screen.getByRole("button", { name: /move build earlier/i }).hasAttribute("disabled"),
     ).toBe(true);
   });
 
-  test("le dernier stage ne peut pas avancer", () => {
+  test("the last stage cannot move forward", () => {
     render(<StageControls pipeline={PIPELINE} onSubmit={() => {}} />);
     expect(
       screen.getByRole("button", { name: /move deploy later/i }).hasAttribute("disabled"),
     ).toBe(true);
   });
 
-  test("tous les contrôles sont désactivés quand l'édition l'est", () => {
+  test("all controls are disabled when editing is", () => {
     render(<StageControls pipeline={PIPELINE} onSubmit={() => {}} disabled />);
     for (const control of [...screen.getAllByRole("button"), ...screen.getAllByRole("textbox")]) {
       expect(control.hasAttribute("disabled")).toBe(true);
@@ -372,9 +372,9 @@ describe("StageControls", () => {
   });
 });
 
-describe("JobEditor — l'environnement affiché est celui du job", () => {
-  /** Trouvé par /impeccable critique le 2026-10-22 : le panneau de détail affichait
-   *  `name: production` pendant que l'éditeur en dessous montrait deux champs vides. */
+describe("JobEditor — the displayed environment is the job's", () => {
+  /** Found by /impeccable critique on 2026-10-22: the detail panel showed `name: production`
+   *  while the editor below showed two empty fields. */
   const withEnvironment = job({
     environment: {
       value: { name: "production", url: "https://app.example.org" },
@@ -382,7 +382,7 @@ describe("JobEditor — l'environnement affiché est celui du job", () => {
     },
   });
 
-  test("les champs sont pré-remplis depuis le job", () => {
+  test("the fields are prefilled from the job", () => {
     render(<JobEditor job={withEnvironment} pipeline={PIPELINE} onSubmit={() => undefined} />);
 
     expect(
@@ -393,7 +393,7 @@ describe("JobEditor — l'environnement affiché est celui du job", () => {
     ).toBe("https://app.example.org");
   });
 
-  test("les champs restent vides quand le job n'a pas d'environnement", () => {
+  test("the fields stay empty when the job has no environment", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
 
     expect(
@@ -402,12 +402,12 @@ describe("JobEditor — l'environnement affiché est celui du job", () => {
   });
 });
 
-describe("JobEditor — aucune écriture sans geste explicite", () => {
-  /** ADR 0004. Trouvé par /impeccable critique le 2026-10-22 : le select de stage soumettait sur
-   *  `onChange`, or sous Windows et Linux les flèches dans un select fermé émettent `change` à
-   *  chaque appui — un utilisateur au clavier qui parcourt les options réécrivait son YAML une fois
-   *  par touche. La suppression, elle, réécrivait le fichier sur un seul clic. */
-  test("choisir un stage ne soumet rien", async () => {
+describe("JobEditor — no write without an explicit gesture", () => {
+  /** ADR 0004. Found by /impeccable critique on 2026-10-22: the stage select submitted on
+   *  `onChange`, yet on Windows and Linux the arrow keys in a closed select emit `change` on every
+   *  press — a keyboard user browsing the options rewrote their YAML once per key. Deletion, for
+   *  its part, rewrote the file on a single click. */
+  test("choosing a stage submits nothing", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -416,7 +416,7 @@ describe("JobEditor — aucune écriture sans geste explicite", () => {
     expect(drafts).toEqual([]);
   });
 
-  test("le stage n'est soumis que par le bouton dédié", async () => {
+  test("the stage is only submitted by the dedicated button", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -426,7 +426,7 @@ describe("JobEditor — aucune écriture sans geste explicite", () => {
     expect(drafts).toEqual([{ kind: "setJobStage", id: "unit", stage: "deploy" }]);
   });
 
-  test("le bouton de stage est inerte quand le stage affiché est déjà celui du job", async () => {
+  test("the stage button is inert when the displayed stage is already the job's", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -435,7 +435,7 @@ describe("JobEditor — aucune écriture sans geste explicite", () => {
     expect(drafts).toEqual([]);
   });
 
-  test("supprimer un job demande confirmation avant d'écrire", async () => {
+  test("deleting a job asks for confirmation before writing", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -445,7 +445,7 @@ describe("JobEditor — aucune écriture sans geste explicite", () => {
     expect(screen.getByRole("alertdialog", { name: /delete/i }).textContent).toContain("unit");
   });
 
-  test("la confirmation écrit, l'annulation ne fait rien", async () => {
+  test("confirming writes, cancelling does nothing", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
 
@@ -460,26 +460,25 @@ describe("JobEditor — aucune écriture sans geste explicite", () => {
   });
 });
 
-describe("JobEditor — la confirmation est utilisable au clavier", () => {
-  /** Revue indépendante du 2026-10-22 : à l'ouverture le focus restait sur le déclencheur et
-   *  n'entrait jamais dans le dialogue ; `aria-modal` était absent ; Échap refermait tout le
-   *  panneau de détail au lieu d'annuler le dialogue ; et le focus retombait sur `<body>` au
-   *  moment le plus destructeur du produit. */
-  test("le focus entre dans le dialogue à l'ouverture", async () => {
+describe("JobEditor — the confirmation is usable from the keyboard", () => {
+  /** 2026-10-22 independent review: on open, focus stayed on the trigger and never entered the
+   *  dialog; `aria-modal` was missing; Escape closed the whole detail panel instead of cancelling
+   *  the dialog; and focus fell back onto `<body>` at the product's most destructive moment. */
+  test("focus moves into the dialog on open", async () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
 
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete unit" }));
   });
 
-  test("le dialogue est annoncé comme modal", async () => {
+  test("the dialog is announced as modal", async () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
 
     expect(screen.getByRole("alertdialog").getAttribute("aria-modal")).toBe("true");
   });
 
-  test("Échap annule le dialogue et rend le focus au déclencheur", async () => {
+  test("Escape cancels the dialog and returns focus to the trigger", async () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
@@ -491,7 +490,7 @@ describe("JobEditor — la confirmation est utilisable au clavier", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete job" }));
   });
 
-  test("Annuler rend aussi le focus au déclencheur", async () => {
+  test("Cancel also returns focus to the trigger", async () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -500,12 +499,12 @@ describe("JobEditor — la confirmation est utilisable au clavier", () => {
   });
 });
 
-describe("JobEditor — le sélecteur de need et le bouton désignent le même job", () => {
-  /** Seconde revue indépendante du 2026-10-22 : `needTarget` ne s'initialisait qu'au premier
-   *  montage, et `JobEditor` n'est reclé que sur `job.id`. Après un ajout, la cible disparaissait
-   *  de la liste d'options ; le navigateur affichait l'option 0 pendant que React gardait
-   *  l'ancienne valeur, et `Add need` soumettait celle-là. Même classe que le montage sans `key` :
-   *  l'édition écrit une valeur que l'utilisateur n'a pas saisie. */
+describe("JobEditor — the need select and the button point to the same job", () => {
+  /** Second independent review of 2026-10-22: `needTarget` was only initialised on first mount,
+   *  and `JobEditor` is only re-keyed on `job.id`. After an addition, the target vanished from the
+   *  option list; the browser showed option 0 while React kept the old value, and `Add need`
+   *  submitted that one. Same class as the mount without `key`: editing writes a value the user
+   *  did not enter. */
   function withNeeds(needs: string[]) {
     return job({
       id: "unit",
@@ -519,11 +518,11 @@ describe("JobEditor — le sélecteur de need et le bouton désignent le même j
     });
   }
 
-  test("la cible soumise est celle que le sélecteur affiche", async () => {
+  test("the submitted target is the one the select shows", async () => {
     const { drafts, submit } = collector();
     const view = render(<JobEditor job={withNeeds([])} pipeline={PIPELINE} onSubmit={submit} />);
 
-    // `compile` devient requis : il quitte la liste des candidats sans remonter le composant.
+    // `compile` becomes needed: it leaves the candidate list without remounting the component.
     view.rerender(<JobEditor job={withNeeds(["compile"])} pipeline={PIPELINE} onSubmit={submit} />);
 
     const select = screen.getByRole("combobox", { name: /add a need/i }) as HTMLSelectElement;
@@ -532,7 +531,7 @@ describe("JobEditor — le sélecteur de need et le bouton désignent le même j
     expect(drafts).toEqual([{ kind: "addNeed", id: "unit", need: { job: select.value } }]);
   });
 
-  test("le bouton est inerte quand il ne reste aucun candidat", () => {
+  test("the button is inert when no candidate is left", () => {
     render(
       <JobEditor
         job={withNeeds(["compile", "lint"])}

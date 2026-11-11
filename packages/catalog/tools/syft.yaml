@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['anchore/syft']
   scripts: ['\bsyft\b']
+  actions: ['anchore/sbom-action']
 snippets:
   gitlab: null
   github: |

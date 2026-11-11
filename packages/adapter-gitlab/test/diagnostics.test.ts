@@ -19,12 +19,12 @@ function codes(text: string): string[] {
 }
 
 describe("INVALID_YAML", () => {
-  test("signale une erreur de syntaxe", () => {
+  test("reports a syntax error", () => {
     const found = diagnostic("a:\n  - x\n bad: [1,\n", INVALID_YAML);
     expect(found?.severity).toBe("error");
   });
 
-  test("porte une position dans le texte", () => {
+  test("carries a position in the text", () => {
     const text = "a:\n  - x\n bad: [1,\n";
     const found = diagnostic(text, INVALID_YAML);
     expect(found?.range).not.toBeNull();
@@ -34,44 +34,44 @@ describe("INVALID_YAML", () => {
     }
   });
 
-  test("un YAML valide ne déclenche rien", () => {
+  test("valid YAML triggers nothing", () => {
     expect(codes("a:\n  script: x\n")).not.toContain(INVALID_YAML);
   });
 
-  test("le parsing ne lève jamais d'exception sur un YAML cassé", () => {
+  test("parsing never throws on broken YAML", () => {
     expect(() => parse("{{{\n:::\n- - -\n")).not.toThrow();
-    expect(() => parse("\t\tindentation par tabulation\n")).not.toThrow();
+    expect(() => parse("\t\ttab indentation\n")).not.toThrow();
   });
 });
 
 describe("INCLUDE_UNRESOLVED", () => {
-  test("signale la présence d'include en info", () => {
+  test("reports the presence of include as info", () => {
     const found = diagnostic(readEdgeCase("with-include"), INCLUDE_UNRESOLVED);
     expect(found?.severity).toBe("info");
   });
 
-  /** La plage pointe l'**entrée** et non la clé `include` : un fichier peut mêler des includes
-   *  résolus et non résolus, et souligner la clé commune dirait que tout le bloc est en cause.
-   *  Pas de `if (range != null)` ici — c'était un garde qui laissait le test passer précisément
-   *  dans le cas où il n'avait rien mesuré. */
-  test("porte la plage de l'entrée non résolue, pas celle de la clé include", () => {
+  /** The range points at the **entry**, not at the `include` key: a file can mix resolved and
+   *  unresolved includes, and underlining the shared key would say the whole block is at fault.
+   *  No `if (range != null)` here — that was a guard that let the test pass precisely in the
+   *  case where it had measured nothing. */
+  test("carries the range of the unresolved entry, not that of the include key", () => {
     const text = readEdgeCase("with-include");
     const found = diagnostic(text, INCLUDE_UNRESOLVED);
     const range = found?.range;
     if (range === null || range === undefined) {
-      throw new Error("INCLUDE_UNRESOLVED sans plage");
+      throw new Error("INCLUDE_UNRESOLVED without a range");
     }
-    // `trimEnd` : la plage d'un nœud `yaml` va jusqu'au début du nœud suivant, donc elle emporte
-    // le retour à la ligne. C'est la convention de `contentRange` dans tout l'adaptateur.
+    // `trimEnd`: a `yaml` node's range runs up to the start of the next node, so it takes the
+    // line break with it. That is the convention of `contentRange` throughout the adapter.
     expect(text.slice(range.start, range.end).trimEnd()).toBe("template: Jobs/SAST.gitlab-ci.yml");
   });
 
-  test("un diagnostic par entrée non résolue, et aucun pour un include local", () => {
+  test("one diagnostic per unresolved entry, and none for a local include", () => {
     const found = parse(readEdgeCase("with-include")).diagnostics.filter(
       (candidate) => candidate.code === INCLUDE_UNRESOLVED,
     );
-    // Trois entrées, dont un `local:` — sans lecteur il compte aussi comme non résolu, mais avec
-    // sa forme à lui, pour ne pas prétendre qu'un fichier du dépôt est hors de portée.
+    // Three entries, including a `local:` — without a reader it also counts as unresolved, but
+    // with its own form, so as not to claim that a repository file is out of reach.
     expect(found.map((candidate) => candidate.params.form)).toEqual([
       "template",
       "local",
@@ -79,40 +79,40 @@ describe("INCLUDE_UNRESOLVED", () => {
     ]);
   });
 
-  test("un fichier sans include ne déclenche rien", () => {
+  test("a file without include triggers nothing", () => {
     expect(codes(readEdgeCase("flow-needs"))).not.toContain(INCLUDE_UNRESOLVED);
   });
 });
 
 describe("EXTENDS_TARGET_NOT_FOUND", () => {
-  test("erreur quand le fichier n'a pas d'include", () => {
+  test("error when the file has no include", () => {
     expect(diagnostic(readEdgeCase("extends-missing"), EXTENDS_TARGET_NOT_FOUND)?.severity).toBe(
       "error",
     );
   });
 
-  test("avertissement quand le fichier a des include", () => {
+  test("warning when the file has includes", () => {
     expect(diagnostic(readEdgeCase("with-include"), EXTENDS_TARGET_NOT_FOUND)?.severity).toBe(
       "warning",
     );
   });
 
-  test("nomme la cible manquante", () => {
+  test("names the missing target", () => {
     const found = diagnostic(readEdgeCase("extends-missing"), EXTENDS_TARGET_NOT_FOUND);
     expect(found?.params).toEqual({ template: ".absent" });
     expect(found === undefined ? "" : renderMessage(found)).toContain(".absent");
   });
 
-  test("n'est pas signalé deux fois pour la même cible", () => {
+  test("is not reported twice for the same target", () => {
     const text = [
       "stages:",
       "  - test",
       "",
-      "un:",
+      "one:",
       "  extends: .absent",
       "  script: a",
       "",
-      "deux:",
+      "two:",
       "  extends: .absent",
       "  script: b",
       "",
@@ -122,16 +122,16 @@ describe("EXTENDS_TARGET_NOT_FOUND", () => {
 });
 
 describe("EXTENDS_CYCLE", () => {
-  test("signale un cycle en erreur", () => {
+  test("reports a cycle as an error", () => {
     expect(diagnostic(readEdgeCase("extends-cycle"), EXTENDS_CYCLE)?.severity).toBe("error");
   });
 
-  test("un extends vers soi-même est un cycle", () => {
-    const text = "stages:\n  - test\n\nmoi:\n  extends: moi\n  script: x\n";
+  test("an extends to itself is a cycle", () => {
+    const text = "stages:\n  - test\n\nself:\n  extends: self\n  script: x\n";
     expect(codes(text)).toContain(EXTENDS_CYCLE);
   });
 
-  test("une chaîne saine ne déclenche rien", () => {
+  test("a sound chain triggers nothing", () => {
     expect(codes(readEdgeCase("extends-chain"))).not.toContain(EXTENDS_CYCLE);
   });
 });
@@ -139,50 +139,50 @@ describe("EXTENDS_CYCLE", () => {
 describe("JOB_WITHOUT_SCRIPT", () => {
   const text = readEdgeCase("sans-script");
 
-  test("signale en avertissement un job sans script", () => {
+  test("reports a job without script as a warning", () => {
     const found = diagnostic(text, JOB_WITHOUT_SCRIPT);
     expect(found?.severity).toBe("warning");
     expect(found?.params).toEqual({ job: "muet" });
   });
 
-  test("un job avec trigger n'est pas signalé", () => {
+  test("a job with trigger is not reported", () => {
     const jobs = parse(text)
       .diagnostics.filter((candidate) => candidate.code === JOB_WITHOUT_SCRIPT)
       .map((candidate) => renderMessage(candidate));
     expect(jobs.some((message) => message.includes("declencheur"))).toBe(false);
   });
 
-  test("un job avec run n'est pas signalé", () => {
+  test("a job with run is not reported", () => {
     const jobs = parse(text)
       .diagnostics.filter((candidate) => candidate.code === JOB_WITHOUT_SCRIPT)
       .map((candidate) => renderMessage(candidate));
     expect(jobs.some((message) => message.includes("avec-run"))).toBe(false);
   });
 
-  test("est évalué après résolution des extends", () => {
+  test("is evaluated after extends resolution", () => {
     const inherited = [
-      ".avec-script:",
+      ".with-script:",
       "  script:",
-      "    - echo herite",
+      "    - echo inherited",
       "",
       "stages:",
       "  - test",
       "",
-      "herite:",
-      "  extends: .avec-script",
+      "inherited:",
+      "  extends: .with-script",
       "  stage: test",
       "",
     ].join("\n");
     expect(codes(inherited)).not.toContain(JOB_WITHOUT_SCRIPT);
   });
 
-  test("est évalué après résolution des anchors", () => {
+  test("is evaluated after anchor resolution", () => {
     const anchored = [
       ".base: &base",
       "  script:",
       "    - echo anchor",
       "",
-      "boulot:",
+      "worker:",
       "  <<: *base",
       "",
     ].join("\n");
@@ -190,21 +190,21 @@ describe("JOB_WITHOUT_SCRIPT", () => {
   });
 });
 
-describe("dédoublonnage par code et params", () => {
-  /** Le dédoublonnage portait sur le `message`, qui n'existe plus. S'il s'était contenté du `code`,
-   *  deux cibles d'`extends` absentes **différentes** auraient fusionné en un seul diagnostic, et
-   *  l'une des deux serait devenue invisible. */
-  test("deux cibles d'extends absentes différentes donnent deux diagnostics", () => {
+describe("deduplication by code and params", () => {
+  /** Deduplication used to rely on the `message`, which no longer exists. Had it settled for the
+   *  `code`, two **different** missing `extends` targets would have merged into a single
+   *  diagnostic, and one of them would have become invisible. */
+  test("two different missing extends targets yield two diagnostics", () => {
     const text = [
       "stages:",
       "  - test",
       "",
-      "un:",
-      "  extends: .absent-un",
+      "one:",
+      "  extends: .absent-one",
       "  script: a",
       "",
-      "deux:",
-      "  extends: .absent-deux",
+      "two:",
+      "  extends: .absent-two",
       "  script: b",
       "",
     ].join("\n");
@@ -213,14 +213,14 @@ describe("dédoublonnage par code et params", () => {
       (candidate) => candidate.code === EXTENDS_TARGET_NOT_FOUND,
     );
     expect(found.map((candidate) => candidate.params)).toEqual([
-      { template: ".absent-un" },
-      { template: ".absent-deux" },
+      { template: ".absent-one" },
+      { template: ".absent-two" },
     ]);
   });
 });
 
-describe("forme des diagnostics", () => {
-  test("aucun diagnostic ne porte de message ni de details", () => {
+describe("shape of diagnostics", () => {
+  test("no diagnostic carries a message or details", () => {
     const text = [
       "include:",
       "  - template: Jobs/SAST.gitlab-ci.yml",
@@ -228,10 +228,10 @@ describe("forme des diagnostics", () => {
       "stages:",
       "  - test",
       "",
-      "muet:",
+      "silent:",
       "  stage: test",
       "",
-      "orphelin:",
+      "orphan:",
       "  extends: .absent",
       "  script: a",
       "",
@@ -251,8 +251,8 @@ describe("forme des diagnostics", () => {
   });
 });
 
-describe("corpus officiel", () => {
-  test("aucun template officiel ne produit d'erreur de YAML", () => {
+describe("official corpus", () => {
+  test("no official template produces a YAML error", () => {
     expect(codes(readEdgeCase("comments"))).not.toContain(INVALID_YAML);
   });
 });

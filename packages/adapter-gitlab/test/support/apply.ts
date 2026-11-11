@@ -40,7 +40,7 @@ export function run(text: string, draft: Draft) {
 export function expectOk(text: string, draft: Draft): ApplyOk {
   const result = run(text, draft);
   if (!result.ok) {
-    throw new Error(`opération refusée : ${result.error.code} — ${renderMessage(result.error)}`);
+    throw new Error(`operation refused: ${result.error.code} — ${renderMessage(result.error)}`);
   }
   return result.value;
 }
@@ -48,7 +48,7 @@ export function expectOk(text: string, draft: Draft): ApplyOk {
 export function expectError(text: string, draft: Draft, code: OperationErrorCode): ApplyError {
   const result = run(text, draft);
   if (result.ok) {
-    throw new Error(`opération acceptée alors qu'on attendait ${code}`);
+    throw new Error(`operation accepted while ${code} was expected`);
   }
   expect(result.error.code).toBe(code);
   return result.error;
@@ -64,7 +64,7 @@ export function roundTrip(text: string, draft: Draft): void {
   const applied = expectOk(text, draft);
   const back = apply(applied.document, applied.inverse);
   if (!back.ok) {
-    throw new Error(`inverse refusé : ${back.error.code} — ${renderMessage(back.error)}`);
+    throw new Error(`inverse refused: ${back.error.code} — ${renderMessage(back.error)}`);
   }
   expect(back.value.text).toBe(text);
 }
@@ -72,7 +72,7 @@ export function roundTrip(text: string, draft: Draft): void {
 export function jobOf(text: string, id: string) {
   const found = parse(text).pipeline.jobs.find((candidate) => candidate.id === id);
   if (found === undefined) {
-    throw new Error(`job « ${id} » absent`);
+    throw new Error(`job "${id}" missing`);
   }
   return found;
 }

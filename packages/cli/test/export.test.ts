@@ -18,31 +18,31 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true }));
 
 describe("keelson export", () => {
-  test("Mermaid sur la sortie standard", async () => {
+  test("Mermaid on standard output", async () => {
     const result = await run(["export", "--format", "mermaid"], { cwd: root });
     expect(result.exitCode).toBe(0);
     expect(result.stdout.startsWith("flowchart LR\n")).toBe(true);
   });
 
-  test("le rapport Markdown par défaut", async () => {
+  test("the Markdown report by default", async () => {
     const result = await run(["export"], { cwd: root });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("# Coverage report");
   });
 
-  test("JSON : le modèle complet", async () => {
+  test("JSON: the full model", async () => {
     const result = await run(["export", "--format", "json"], { cwd: root });
     const body = JSON.parse(result.stdout) as Record<string, unknown>;
     expect(Object.keys(body)).toEqual(["pipeline", "coverage", "toolchain", "diagnostics"]);
   });
 
-  test("un format inconnu rend 2", async () => {
+  test("an unknown format returns 2", async () => {
     const result = await run(["export", "--format", "pdf"], { cwd: root });
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("pdf");
   });
 
-  test("un fichier absent rend 2", async () => {
+  test("a missing file returns 2", async () => {
     expect((await run(["export", "absent.yml"], { cwd: root })).exitCode).toBe(2);
   });
 });

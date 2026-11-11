@@ -6,6 +6,9 @@
   "include": ["src", "package.json"],
   "references": [
     {
+      "path": "../adapter-github"
+    },
+    {
       "path": "../adapter-gitlab"
     },
     {

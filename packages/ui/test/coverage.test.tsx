@@ -37,7 +37,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
     homepage: "https://exemple.org/",
     verifiedAt: "https://exemple.org/verif",
     logo: null,
-    detect: { images: [], scripts: [] },
+    detect: { images: [], scripts: [], actions: [] },
     snippets: { gitlab: "a:\n  script: x\n", github: null },
     lastVerified: "2026-11-04",
     integration: null,
@@ -45,7 +45,7 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
   };
 }
 
-describe("panneau de couverture", () => {
+describe("coverage panel", () => {
   function renderPanel(value: Coverage, selected: LayerId | null = null) {
     const onSelect = mock((_layer: LayerId) => undefined);
     const onShowTools = mock((_layer: LayerId) => undefined);
@@ -60,14 +60,14 @@ describe("panneau de couverture", () => {
     return { onSelect, onShowTools };
   }
 
-  test("compte les couches couvertes sur les vingt et une", () => {
+  test("counts the covered layers out of twenty-one", () => {
     renderPanel(coverage({ sast: ["a"], sca: ["b"] }));
     expect(screen.getByTestId("coverage-count").textContent).toBe(
       "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
     );
   });
 
-  test("une couche couverte par un service le nomme", () => {
+  test("a layer covered by a service names it", () => {
     const covered = coverage({});
     renderPanel({
       ...covered,
@@ -79,7 +79,22 @@ describe("panneau de couverture", () => {
     expect(group.textContent).toContain("service git");
   });
 
-  test("une couche non couverte donne son résumé, et son chemin vers les outils", async () => {
+  test("several files: the panel says which", () => {
+    render(
+      <CoveragePanel
+        coverage={coverage({})}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3 }}
+      />,
+    );
+    expect(screen.getByTestId("coverage-scope").textContent).toBe(
+      "In ci.yml, 1 of 3 pipeline files.",
+    );
+  });
+
+  test("an uncovered layer gives its summary, and its path to the tools", async () => {
     const { onShowTools } = renderPanel(coverage({ sast: ["a"] }));
     const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });
 
@@ -94,7 +109,7 @@ describe("panneau de couverture", () => {
     expect(onShowTools).toHaveBeenCalledWith("dast");
   });
 
-  test("une couche OWASP cite la Guideline, une catégorie plateforme non", () => {
+  test("an OWASP layer cites the Guideline, a platform category does not", () => {
     renderPanel(coverage({}));
     const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });
     const rowOf = (name: string) => within(uncovered).getByText(name).closest("li") as HTMLElement;
@@ -108,7 +123,7 @@ describe("panneau de couverture", () => {
     expect(within(row).queryByRole("link")).toBeNull();
   });
 
-  test("choisir une couche couverte la met en avant, et le bouton le dit", async () => {
+  test("choosing a covered layer highlights it, and the button says so", async () => {
     const { onSelect } = renderPanel(coverage({ sast: ["a", "b"] }), "sast");
     const button = screen.getByRole("button", { name: /Static analysis/ });
     expect(button.getAttribute("aria-pressed")).toBe("true");
@@ -117,9 +132,9 @@ describe("panneau de couverture", () => {
     expect(onSelect).toHaveBeenCalledWith("sast");
   });
 
-  /** Une catégorie plateforme vit autour du pipeline : sur un dépôt GitLab, « Source control » n'est
-   *  pas une lacune de sécurité, et le compte unique mêlait les deux référentiels. */
-  test("une catégorie plateforme non vue n'est pas une couche OWASP non couverte", () => {
+  /** A platform category lives around the pipeline: on a GitLab repository, "Source control" is
+   *  not a security gap, and the single count mixed the two frameworks. */
+  test("an unseen platform category is not an uncovered OWASP layer", () => {
     renderPanel(coverage({}));
     const owasp = screen.getByRole("group", { name: "Uncovered OWASP layers" });
     const platform = screen.getByRole("group", { name: "Platform categories not seen" });
@@ -127,18 +142,18 @@ describe("panneau de couverture", () => {
     expect(within(platform).getByText("Source control")).toBeDefined();
   });
 
-  test("un pipeline partiel fait de la couverture une borne basse, à l'écran", () => {
+  test("a partial pipeline makes coverage a lower bound, on screen", () => {
     renderPanel(coverage({}, true));
     expect(screen.getByTestId("coverage-lower-bound").textContent).toBe(LOWER_BOUND_NOTE);
   });
 
-  test("un pipeline complet ne le dit pas", () => {
+  test("a complete pipeline does not say so", () => {
     renderPanel(coverage({}));
     expect(screen.queryByTestId("coverage-lower-bound")).toBeNull();
   });
 });
 
-describe("étiquettes de couche sur un nœud", () => {
+describe("layer labels on a node", () => {
   const JOB = {
     id: "scan",
     stage: { value: "test", origin: { kind: "local" } },
@@ -184,17 +199,17 @@ describe("étiquettes de couche sur un nœud", () => {
     return screen.getByRole("button", { name: /scan/ });
   }
 
-  test("hors de l'overlay, aucune étiquette", () => {
+  test("outside the overlay, no labels", () => {
     expect(node(null).textContent).not.toContain("SAST");
   });
 
-  test("sur l'overlay, le mot de chaque couche, jamais la couleur seule", () => {
+  test("on the overlay, each layer's word, never colour alone", () => {
     const button = node({ jobs: new Map([["scan", ["sast"]]]), selected: null });
     expect(button.textContent).toContain("SAST");
     expect(within(button).getByText("SAST").getAttribute("data-family")).toBe("build");
   });
 
-  test("le lecteur d'écran entend les noms complets des couches", () => {
+  test("the screen reader hears the full layer names", () => {
     const button = node({ jobs: new Map([["scan", ["sast", "sca"]]]), selected: null });
     const description = document.getElementById(button.getAttribute("aria-describedby") ?? "");
     expect(description?.textContent).toContain(
@@ -202,24 +217,24 @@ describe("étiquettes de couche sur un nœud", () => {
     );
   });
 
-  test("au-delà de deux, le reste se compte", () => {
+  test("beyond two, the rest is counted", () => {
     const button = node({ jobs: new Map([["scan", ["sast", "sca", "iac"]]]), selected: null });
     expect(button.textContent).toContain("+1");
     expect(button.textContent).not.toContain("IaC");
   });
 
-  test("sur l'overlay, le stage laisse sa place : la colonne le dit déjà", () => {
+  test("on the overlay, the stage gives way: the column already says it", () => {
     expect(node({ jobs: new Map([["scan", ["sast"]]]), selected: null }).textContent).not.toContain(
       "test",
     );
   });
 
-  test("la couche choisie passe devant, sinon elle resterait derrière le compteur", () => {
+  test("the chosen layer comes first, otherwise it would stay behind the counter", () => {
     const button = node({ jobs: new Map([["scan", ["sast", "sca", "dast"]]]), selected: "dast" });
     expect(button.textContent).toContain("DAST");
   });
 
-  test("la couche choisie met le job en avant", () => {
+  test("the chosen layer highlights the job", () => {
     expect(
       node({ jobs: new Map([["scan", ["sast"]]]), selected: "sast" }).getAttribute(
         "data-emphasised",
@@ -257,7 +272,7 @@ describe("catalogue", () => {
   const ids = (filter: Parameters<typeof filterTools>[1]) =>
     filterTools(TOOLS, filter).map((entry) => entry.id);
 
-  test("les trois filtres, séparément et ensemble", () => {
+  test("the three filters, separately and together", () => {
     const all = { layer: "any", license: "any", adapter: "any" } as const;
     expect(ids(all)).toEqual(["a", "b", "c"]);
     expect(ids({ ...all, layer: "sast" })).toEqual(["a", "c"]);
@@ -267,7 +282,7 @@ describe("catalogue", () => {
     expect(ids({ ...all, layer: "sast", adapter: "gitlab", license: "open" })).toEqual(["a"]);
   });
 
-  test("le filtre de couche s'applique à l'écran, et le compte suit", async () => {
+  test("the layer filter applies on screen, and the count follows", async () => {
     renderCatalog();
     expect(screen.getByTestId("catalog-count").textContent).toBe("3 of 3 tools");
     await userEvent.selectOptions(screen.getByLabelText("Layer"), "dast");
@@ -276,7 +291,7 @@ describe("catalogue", () => {
     expect(screen.getByRole("button", { name: /^B/ })).toBeDefined();
   });
 
-  test("les filtres de licence et d'adaptateur s'appliquent à l'écran", async () => {
+  test("the licence and adapter filters apply on screen", async () => {
     renderCatalog();
     await userEvent.selectOptions(screen.getByLabelText("License"), "open");
     expect(screen.getByTestId("catalog-count").textContent).toBe("1 of 3 tools");
@@ -285,24 +300,24 @@ describe("catalogue", () => {
     expect(screen.getByTestId("catalog-count").textContent).toBe("1 of 3 tools");
   });
 
-  test("« See tools » ouvre le catalogue filtré sur sa couche", () => {
+  test('"See tools" opens the catalogue filtered on its layer', () => {
     renderCatalog("dast");
     expect((screen.getByLabelText("Layer") as HTMLSelectElement).value).toBe("dast");
     expect(screen.getByTestId("catalog-count").textContent).toBe("1 of 3 tools");
   });
 
-  test("aucun résultat le dit", async () => {
+  test("no results says so", async () => {
     renderCatalog();
     await userEvent.selectOptions(screen.getByLabelText("Layer"), "iast");
     expect(screen.getByText("No tool matches these filters.")).toBeDefined();
   });
 
-  test("le résultat d'un filtre est annoncé aux lecteurs d'écran", () => {
+  test("a filter's result is announced to screen readers", () => {
     renderCatalog();
     expect(screen.getByTestId("catalog-count").getAttribute("role")).toBe("status");
   });
 
-  test("les outils sont triés par nom, sans tenir compte de la casse", () => {
+  test("tools are sorted by name, case-insensitively", () => {
     render(
       <CatalogView
         catalog={{
@@ -318,7 +333,7 @@ describe("catalogue", () => {
     ).toEqual(["alpha", "Zeta"]);
   });
 
-  test("la fiche dit la licence, sa nature, la vérification et le snippet", async () => {
+  test("the entry states the licence, its kind, the verification and the snippet", async () => {
     renderCatalog();
     await userEvent.click(screen.getByRole("button", { name: /^C/ }));
 
@@ -334,7 +349,7 @@ describe("catalogue", () => {
     expect(card.querySelector('svg path[d="M0 0h24v24H0z"]')).not.toBeNull();
   });
 
-  test("la fiche dit si l'outil tourne comme job ou comme service", async () => {
+  test("the entry says whether the tool runs as a job or as a service", async () => {
     render(
       <CatalogView
         catalog={{
@@ -351,7 +366,7 @@ describe("catalogue", () => {
     );
   });
 
-  test("un outil sans logo porte la marque générique", async () => {
+  test("a tool without a logo carries the generic mark", async () => {
     renderCatalog();
     await userEvent.click(screen.getByRole("button", { name: /^A/ }));
     const heading = within(screen.getByRole("region", { name: "Tool detail" })).getByRole(
@@ -363,7 +378,7 @@ describe("catalogue", () => {
     expect(heading.querySelector("svg")?.getAttribute("fill")).toBe("none");
   });
 
-  test("la fiche se referme", async () => {
+  test("the entry closes", async () => {
     renderCatalog();
     await userEvent.click(screen.getByRole("button", { name: /^A/ }));
     await userEvent.click(screen.getByRole("button", { name: "Close tool detail" }));
@@ -371,7 +386,7 @@ describe("catalogue", () => {
   });
 });
 
-describe("panneau de diagnostics et bande partielle", () => {
+describe("diagnostics panel and partial banner", () => {
   const DIAGNOSTICS = [
     {
       code: "INCLUDE_UNRESOLVED",
@@ -389,9 +404,9 @@ describe("panneau de diagnostics et bande partielle", () => {
     },
   ] as const;
 
-  /** La même absence était annoncée deux fois sur un écran. Le filtre porte sur la sévérité : l'UI
-   *  ne traite pas les codes un par un. */
-  test("les informations s'effacent quand la bande les dit, et le compte suit", () => {
+  /** The same absence was announced twice on one screen. The filter is on severity: the UI does
+   *  not handle codes one by one. */
+  test("info diagnostics step aside when the banner states them, and the count follows", () => {
     render(
       <DiagnosticsPanel
         diagnostics={[...DIAGNOSTICS]}
@@ -405,7 +420,7 @@ describe("panneau de diagnostics et bande partielle", () => {
     expect(screen.getByRole("region", { name: "Diagnostics" }).textContent).toContain("1");
   });
 
-  test("sans bande, elles restent", () => {
+  test("without the banner, they stay", () => {
     render(
       <DiagnosticsPanel diagnostics={[...DIAGNOSTICS]} onSelectRange={() => undefined} main="a" />,
     );

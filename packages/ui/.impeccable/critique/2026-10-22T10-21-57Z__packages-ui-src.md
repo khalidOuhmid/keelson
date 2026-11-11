@@ -15,7 +15,7 @@ Method: dual-agent (A: design review, isolated · B: detector + browser evidence
 | # | Heuristic | Score | Key Issue |
 |---|-----------|-------|-----------|
 | 1 | Visibility of System Status | 1 | `KeelsonState.pending` is set on every submit in `state/store.ts:116-118` and read by **zero** components. No spinner, no disabled control, no feedback until the response lands. The surface brief names "pending operation in flight" load-bearing; it is unimplemented. |
-| 2 | Match System / Real World | 3 | GitLab vocabulary preserved exactly. Lost a point for "Opaque blocks" (internal code name surfaced to users) and French `core` diagnostics in an English panel (closed by ADR 0002, lot L2c). |
+| 2 | Match System / Real World | 3 | GitLab vocabulary preserved exactly. Lost a point for "Opaque blocks" (internal code name surfaced to users) and French `core` diagnostics in an English panel (closed by ADR 0002, milestone L2c). |
 | 3 | User Control and Freedom | 2 | Undo/redo is real. But the detail panel **cannot be closed without a mouse**: `onSelectJob(null)` fires only from a click on empty canvas, no Escape handler, no close button. No cancel for an in-flight operation. |
 | 4 | Consistency and Standards | 3 | Strong token discipline inside components, broken at the screen level by React Flow's default edge and background colours, by `✕ ! i ↳ ← →` as icons, and by uppercasing user-authored identifiers. |
 | 5 | Error Prevention | 1 | The Stage `<select>` in `editing/JobEditor.tsx` submits `setJobStage` on `onChange`, so a keyboard user arrowing through the options rewrites the YAML once per keypress. Delete job rewrites the file on one unconfirmed click. |
@@ -242,9 +242,9 @@ clipped at the viewport edge with no horizontal scroll to recover it. That is a 
 failure, and it is a desktop failure, not a mobile footnote. Every control boundary is 1.3–1.6:1.
 Selection is announced to no one. The origin badge's safety sentence never reaches her.
 
-**Claire (security architect / RSSI, PRODUCT.md secondary audience).** Over half the chrome she sees
+**Claire (security architect / CISO, PRODUCT.md secondary audience).** Over half the chrome she sees
 is editing controls she will never touch; nothing offers a read-only posture, so principle 5
-("densité d'expert, lisibilité d'audit") is satisfied on the density half only. The view cannot tell
+("expert density, audit legibility") is satisfied on the density half only. The view cannot tell
 her what is *missing*, which is her job — honestly L3/L5 scope, but the current shape leaves no
 surface where a coverage verdict could land. **And `include` is unresolved while the UI never says
 so**: PRODUCT.md is explicit that a displayed pipeline may be partial and the UI must say so rather
@@ -288,7 +288,7 @@ silently wrong rather than visibly broken.
    annotational — at the cost of one node type.
 3. Why does the editing rail exist before the user has decided to edit? Two of three audiences barely
    edit. A read-first posture would fix four cognitive-load failures at once, return 352px to the
-   graph, and give the RSSI a product.
+   graph, and give the CISO a product.
 4. The screenshot shows `lint` drawn inside the `build` column, with `layout.test.ts` and
    `graph.test.ts` both green. What else is the suite confirming is *computed* rather than confirming
    is *true*?

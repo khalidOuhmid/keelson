@@ -119,15 +119,15 @@ function topLevelMap(document: GitlabDocument): YAMLMap | null {
   return isMap(root) ? root : null;
 }
 
-/** Le fichier d'un élément, quand ce n'est **pas** le fichier principal. Keelson n'écrit jamais
- *  ailleurs que dans le fichier principal : c'est la garantie sur laquelle repose tout le reste —
- *  les plages, l'écriture atomique, la liste blanche du serveur. */
+/** The file of an element, when it is **not** the main file. Keelson never writes anywhere but
+ *  the main file: that is the guarantee everything else rests on — the ranges, the atomic write,
+ *  the server's allowlist. */
 function foreignFile(pipeline: Pipeline, file: string): string | null {
   return file === pipeline.main ? null : file;
 }
 
-/** La liste `stages` vient d'un seul fichier : une liste écrase et ne fusionne pas. Un stage
- *  implicite porte le fichier principal, donc une liste absente reste matérialisable. */
+/** The `stages` list comes from a single file: a list overrides and does not merge. An implicit
+ *  stage carries the main file, so a missing list can still be materialised. */
 function foreignStagesFile(pipeline: Pipeline): string | null {
   for (const stage of pipeline.stages) {
     const foreign = foreignFile(pipeline, stage.file);
@@ -138,9 +138,9 @@ function foreignStagesFile(pipeline: Pipeline): string | null {
   return null;
 }
 
-/** Le nom est-il déjà pris dans un fichier inclus ? `addJob` et `renameJob` ne regardaient que le
- *  fichier principal, où le nom est libre : l'écriture aurait produit une **surcharge partielle**,
- *  un job qui hérite silencieusement des clés de l'include. */
+/** Is the name already taken in an included file? `addJob` and `renameJob` only looked at the
+ *  main file, where the name is free: the write would have produced a **partial override**, a job
+ *  that silently inherits the include's keys. */
 function takenByInclude(pipeline: Pipeline, name: string): string | null {
   const owner =
     pipeline.jobs.find((job) => job.id === name) ??
@@ -166,8 +166,8 @@ function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target
   }
 
   if (map.flow === true) {
-    // DETTE(2026-10-20): les jobs écrits en flow style ({ … }) ne sont pas éditables
-    // — le patch en place supposerait un rendu par ligne. À traiter avec l'éditeur de blocs du lot L2.
+    // DEBT(2026-10-20): jobs written in flow style ({ … }) are not editable
+    // — patching in place would assume a line-based rendering. See specs/gaps.md (2026-10-20), milestone to be defined.
     return fail(INVALID_OPERATION, { reason: "flowStyleJob", job: id });
   }
 
@@ -364,9 +364,9 @@ function planRenameJob(operation: RenameJobOperation, root: YAMLMap, pipeline: P
     return fail(FROM_INCLUDED_FILE, { reason: "nameTaken", name: operation.to, file: takenRename });
   }
 
-  // `needReferenceSplices` ne réécrit que le fichier principal. Un job d'un fichier inclus qui a
-  // besoin de l'ancien nom garderait donc un `needs` cassé, et le renommage produirait un
-  // UNKNOWN_NEED que l'utilisateur ne pourrait pas corriger depuis Keelson.
+  // `needReferenceSplices` only rewrites the main file. A job in an included file that needs the
+  // old name would therefore keep a broken `needs`, and the rename would produce an UNKNOWN_NEED
+  // that the user could not fix from Keelson.
   const referencedByInclude = pipeline.jobs
     .filter(
       (job) =>
@@ -414,10 +414,10 @@ function planSetJobStage(
     if (range === null) {
       return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageKey" });
     }
-    // La plage d'un `!reference` commence après son tag : remplacer la valeur seule écrirait
-    // `stage: !reference test`. La clé est donc réécrite avec, et la surcharge est explicite.
-    // La fin d'une séquence en bloc emporte son saut de ligne et les commentaires qui suivent :
-    // on s'arrête donc à la fin de son dernier item.
+    // The range of a `!reference` starts after its tag: replacing the value alone would write
+    // `stage: !reference test`. The key is therefore rewritten with it, and the override is explicit.
+    // The end of a block sequence takes its line break and the comments that follow with it:
+    // so we stop at the end of its last item.
     const value = local.value as AnyNode;
     const tagged = (value as { tag?: string }).tag === REFERENCE_TAG;
     const keyStart = nodeRange(local.key as AnyNode)?.[0];
@@ -427,8 +427,8 @@ function planSetJobStage(
       return ok([{ ...range, text: operation.stage }]);
     }
 
-    // Une ancre, un commentaire ou une clé explicite vivent dans la plage réécrite : les perdre
-    // sans le dire écrirait un fichier faux, donc on refuse.
+    // An anchor, a comment or an explicit key live in the rewritten range: losing them silently
+    // would write a wrong file, so we refuse.
     const lines = geometry.text.slice(keyStart, end).split(/\r?\n/);
     const anchored = (value as { anchor?: string }).anchor !== undefined;
     const commented = lines.slice(0, -1).some((line) => /\s#/.test(line));
@@ -445,14 +445,14 @@ function planSetJobStage(
   ]);
 }
 
-/** Le début de ligne d'un item, sans son ancre ni son tag : les recopier sur un nouvel item
- *  déplacerait l'ancre, et tout alias changerait de valeur sans un mot. */
+/** The start of an item's line, without its anchor or tag: copying them onto a new item would
+ *  move the anchor, and every alias would silently change value. */
 function itemPrefix(text: string, offset: number): string {
   const here = linePrefix(text, offset).replace(/[&!][^\s]*[ \t]+/g, "");
   if (here.includes("-")) {
     return here;
   }
-  // Un item peut commencer sur la ligne d'avant : `- # note` puis sa valeur.
+  // An item can start on the previous line: `- # note` then its value.
   const lines = text.slice(0, lineStart(text, offset)).split("\n");
   const dash = lines.toReversed().find((line) => /^\s*-(\s|$)/.test(line));
   return dash === undefined ? here : `${/^\s*/.exec(dash)?.[0] ?? ""}- `;
@@ -462,7 +462,7 @@ function rewritesUnmodelled(pipeline: Pipeline, id: string): boolean {
   return pipeline.jobs.find((job) => job.id === id)?.unmodelledNeeds === true;
 }
 
-/** L'IR ne porte pas ces items : réécrire la liste les perdrait sans un mot. */
+/** The IR does not carry these items: rewriting the list would silently lose them. */
 function unmodelledRefusal(job: string): Planned {
   return fail(INVALID_OPERATION, { reason: "sharedValue", job, key: "needs" });
 }
@@ -507,8 +507,8 @@ function planAddNeed(
   }
 
   const seq = local.value as AnyNode;
-  // Une liste partagée ne s'étend pas en place : le remplacement perdrait ses items, et un item
-  // ajouté à un `!reference` serait un chemin faux. Keelson ne réécrit pas ce qu'elle partage.
+  // A shared list is not extended in place: the replacement would lose its items, and an item
+  // added to a `!reference` would be a wrong path. Keelson does not rewrite what it shares.
   if (isAlias(seq) || (seq as { tag?: string }).tag === REFERENCE_TAG) {
     return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
   }
@@ -659,8 +659,8 @@ function planSetEnvironment(
         : ok([{ ...range, text: "" }]);
     }
     if (inherited !== null) {
-      // DETTE(2026-10-20): pas de mécanisme pour annuler un environnement hérité
-      // — GitLab n'a pas de clé d'annulation ; à trancher avec la vue Toolchain du lot L4.
+      // DEBT(2026-10-20): no mechanism to cancel an inherited environment
+      // — GitLab has no cancellation key. See specs/gaps.md (2026-10-20, 2026-11-04), milestone to be defined.
       return fail(INVALID_OPERATION, {
         reason: "inheritedEnvironment",
         job: operation.id,
@@ -715,9 +715,9 @@ function planAddStage(
     return fail(STAGE_EXISTS, { stage: operation.name });
   }
 
-  // Sans ce refus, `stagesSeq(root)` ne trouve rien dans le fichier principal et la suite
-  // **matérialise** une liste de stages par défaut : la liste de l'include serait écrasée par
-  // `.pre, build, test, deploy, .post` sans que rien ne le dise.
+  // Without this refusal, `stagesSeq(root)` finds nothing in the main file and the rest
+  // **materialises** a default stage list: the include's list would be overwritten by
+  // `.pre, build, test, deploy, .post` without anything saying so.
   const foreignStagesAdd = foreignStagesFile(pipeline);
   if (foreignStagesAdd !== null) {
     return fail(FROM_INCLUDED_FILE, { reason: "stages", file: foreignStagesAdd });
@@ -867,8 +867,8 @@ function jobKeyText(value: string): string {
   return plain.includes("\n") ? JSON.stringify(value) : plain;
 }
 
-/** Un job en bloc, sans ancre ni alias : recopié dans un autre fichier, un alias n'aurait plus de
- *  cible, et une ancre pourrait entrer en collision avec celles de l'utilisateur. */
+/** A block job, with no anchor or alias: copied into another file, an alias would no longer have a
+ *  target, and an anchor could collide with the user's own. */
 function snippetJob(snippet: string): { key: AnyNode; map: YAMLMap } | null {
   const document = parseDocument(snippet);
   const root = document.contents as AnyNode;
@@ -937,7 +937,7 @@ function planAddSnippet(
       ? nodeRange(stageValue)
       : null;
   const preamble = keyRange === undefined ? "" : snippet.slice(0, keyRange[0]);
-  // Une clé ou un commentaire indentés s'accrocheraient au dernier job du fichier.
+  // An indented key or comment would attach itself to the last job of the file.
   const indented = /^[ \t]+\S/m.test(preamble) || !/(^|\n)$/.test(preamble);
   if (keyRange === undefined || indented || (stagePair !== undefined && !stageRange)) {
     return fail(INVALID_OPERATION, { reason: "invalidSnippet" });
@@ -1000,8 +1000,8 @@ function planFor(
   }
 }
 
-/** Les étapes s'appliquent en mémoire : rien n'existe avant que toutes aient passé. L'inverse se
- *  calcule sur le texte final, du premier au dernier octet différent (ADR 0012). */
+/** Steps are applied in memory: nothing exists until all of them have passed. The inverse is
+ *  computed on the final text, from the first to the last differing byte (ADR 0012). */
 function applyComposite(
   document: GitlabDocument,
   operation: CompositeOperation,
@@ -1069,8 +1069,8 @@ function danglingAliases(text: string): number {
   return count;
 }
 
-/** La liste relue doit être celle demandée : l'hérité qui ressort, ou une liste partagée mal lue,
- *  se voient ici quelle que soit la forme écrite à la main. */
+/** The list read back must be the one requested: an inherited one resurfacing, or a misread
+ *  shared list, shows up here whatever the hand-written form. */
 function needsAsExpected(
   operation: AddNeedOperation | RemoveNeedOperation,
   before: { pipeline: Pipeline },
@@ -1099,8 +1099,8 @@ function needsAsExpected(
   return sorted(listed(after.pipeline)) === sorted(expected);
 }
 
-/** Toute relecture dans `apply` passe par ici : un `parse(texte)` nu perdrait le nom du fichier et
- *  le lecteur d'includes, donc l'IR relue n'aurait plus les jobs des fichiers inclus. */
+/** Every re-read in `apply` goes through here: a bare `parse(text)` would lose the file name and
+ *  the include reader, so the re-read IR would no longer have the jobs of included files. */
 function reparse(document: GitlabDocument, text: string) {
   return parse(text, { file: document.file, read: document.read ?? undefined });
 }
@@ -1156,7 +1156,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
   }
 
-  // Une ancre retirée laisse un alias pendant, que `parse` ne signale pas.
+  // A removed anchor leaves a dangling alias, which `parse` does not report.
   if (op.kind !== "splice" && danglingAliases(spliced.text) > danglingAliases(document.text)) {
     return fail(INVALID_OPERATION, { reason: "wouldBreakYaml", operation: op.kind });
   }

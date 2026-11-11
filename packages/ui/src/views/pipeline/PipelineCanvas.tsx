@@ -27,9 +27,9 @@ export type PipelineCanvasProps = {
   overlay?: LayerOverlay | null;
 };
 
-/** `fitView` de xyflow ne s'applique qu'au montage. Ouvrir le panneau de détail retire au canevas
- *  la largeur du panneau sans le recadrer, donc les colonnes de droite passent sous le panneau et sont
- *  tronquées. On réajuste quand la largeur disponible change. */
+/** xyflow's `fitView` only applies on mount. Opening the detail panel takes the panel's width away
+ *  from the canvas without refitting it, so the right-hand columns slide under the panel and get
+ *  clipped. We refit when the available width changes. */
 export function RefitOnResize({ container }: { container: React.RefObject<HTMLElement | null> }) {
   const flow = useReactFlow();
   const lastWidth = useRef<number | null>(null);
@@ -98,7 +98,7 @@ export function PipelineCanvas({
     <section
       ref={container}
       aria-label="Pipeline graph"
-      // Cible de repli du focus quand le panneau de detail se ferme.
+      // Fallback focus target when the detail panel closes.
       tabIndex={-1}
       className="relative h-full w-full bg-surface-0"
       onClickCapture={(event) => {

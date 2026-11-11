@@ -18,12 +18,12 @@ function run(files: Tree, draft: Draft) {
   return { parsed, result: apply(parsed.document, operation) };
 }
 
-/** Refus attendu, et **rien d'écrit** : `apply` ne touche pas au disque, donc le seul témoin est
- *  que le texte rendu reste celui d'entrée — vérifié ici par l'absence de `value`. */
+/** Expected refusal, and **nothing written**: `apply` does not touch the disk, so the only witness
+ *  is that the returned text stays the input one — checked here by the absence of `value`. */
 function expectRefusal(files: Tree, draft: Draft) {
   const { result } = run(files, draft);
   if (result.ok) {
-    throw new Error(`opération acceptée alors qu'on attendait un refus : ${JSON.stringify(draft)}`);
+    throw new Error(`operation accepted while a refusal was expected: ${JSON.stringify(draft)}`);
   }
   expect(result.error.code).toBe("FROM_INCLUDED_FILE");
   return result.error;
@@ -55,7 +55,7 @@ const TREE: Tree = {
   ].join("\n"),
 };
 
-describe("toute opération visant un job inclus est refusée", () => {
+describe("every operation targeting an included job is refused", () => {
   const cases: { label: string; draft: Draft }[] = [
     { label: "removeJob", draft: { kind: "removeJob", id: "compile" } },
     { label: "renameJob", draft: { kind: "renameJob", from: "compile", to: "autre" } },
@@ -69,7 +69,7 @@ describe("toute opération visant un job inclus est refusée", () => {
   ];
 
   for (const entry of cases) {
-    test(`${entry.label} rend FROM_INCLUDED_FILE et nomme le fichier`, () => {
+    test(`${entry.label} returns FROM_INCLUDED_FILE and names the file`, () => {
       expect(expectRefusal(TREE, entry.draft).params).toEqual({
         reason: "job",
         job: "compile",
@@ -78,10 +78,10 @@ describe("toute opération visant un job inclus est refusée", () => {
     });
   }
 
-  /** La distinction qui compte : un job inclus **surchargé** dans le fichier principal appartient
-   *  au fichier principal, donc il reste éditable. C'est l'ordre de fusion de GitLab, et c'est
-   *  aussi ce qu'un utilisateur attend du fichier qu'il a sous les yeux. */
-  test("un job inclus puis surchargé dans le fichier principal reste éditable", () => {
+  /** The distinction that matters: an included job **overridden** in the main file belongs to the
+   *  main file, so it stays editable. That is GitLab's merge order, and it is also what a user
+   *  expects of the file in front of them. */
+  test("a job included then overridden in the main file stays editable", () => {
     const overridden: Tree = {
       ...TREE,
       [GITLAB_CI_FILE]: `${TREE[GITLAB_CI_FILE]}\ncompile:\n  stage: test\n`,
@@ -90,10 +90,10 @@ describe("toute opération visant un job inclus est refusée", () => {
     expect(result.ok).toBe(true);
   });
 
-  /** La promesse que le badge d'origine fait à l'écran : sur un job du fichier principal, changer
-   *  une valeur venue d'un include écrit une surcharge **dans ce job**. Sans ce test, le texte
-   *  d'aide affirmerait un comportement qu'aucun test ne tient. */
-  test("changer une valeur venue d'un include écrit la surcharge dans le fichier principal", () => {
+  /** The promise the origin badge makes on screen: on a job of the main file, changing a value
+   *  coming from an include writes an override **in that job**. Without this test, the help text
+   *  would assert a behaviour no test upholds. */
+  test("changing a value coming from an include writes the override in the main file", () => {
     const overridden: Tree = {
       ...TREE,
       [GITLAB_CI_FILE]: `${TREE[GITLAB_CI_FILE]}\ncompile:\n  script:\n    - make autre\n`,
@@ -109,7 +109,7 @@ describe("toute opération visant un job inclus est refusée", () => {
 
     const { result } = run(overridden, { kind: "setJobStage", id: "compile", stage: "test" });
     if (!result.ok) {
-      throw new Error(`opération refusée : ${result.error.code}`);
+      throw new Error(`operation refused: ${result.error.code}`);
     }
 
     expect(result.value.text).toContain("compile:\n  stage: test\n");
@@ -120,14 +120,14 @@ describe("toute opération visant un job inclus est refusée", () => {
     });
   });
 
-  test("un job qui n'existe nulle part reste JOB_NOT_FOUND, pas FROM_INCLUDED_FILE", () => {
+  test("a job that exists nowhere stays JOB_NOT_FOUND, not FROM_INCLUDED_FILE", () => {
     const { result } = run(TREE, { kind: "removeJob", id: "fantome" });
     expect(result.ok ? null : result.error.code).toBe("JOB_NOT_FOUND");
   });
 });
 
-describe("noms déjà pris dans un fichier inclus", () => {
-  test("addJob sur un nom venu d'un include est refusé plutôt que surchargé", () => {
+describe("names already taken in an included file", () => {
+  test("addJob on a name coming from an include is refused rather than overridden", () => {
     expect(
       expectRefusal(TREE, {
         kind: "addJob",
@@ -136,10 +136,10 @@ describe("noms déjà pris dans un fichier inclus", () => {
     ).toEqual({ reason: "nameTaken", name: "compile", file: "ci/jobs.yml" });
   });
 
-  /** Un nom de template est refusé **avant** d'arriver au contrôle d'include : `.base` n'est pas
-   *  un nom de job légal chez GitLab, où que la clé vive. Le test est ici pour fixer l'ordre des
-   *  refus, pas pour couvrir les includes. */
-  test("un nom de template reste INVALID_NAME, pas un conflit d'include", () => {
+  /** A template name is refused **before** reaching the include check: `.base` is not a legal job
+   *  name in GitLab, wherever the key lives. The test is here to pin the order of refusals, not
+   *  to cover includes. */
+  test("a template name stays INVALID_NAME, not an include conflict", () => {
     const { result } = run(TREE, {
       kind: "addJob",
       job: { id: ".base", stage: "test", script: ["make"] },
@@ -147,13 +147,13 @@ describe("noms déjà pris dans un fichier inclus", () => {
     expect(result.ok ? null : result.error.code).toBe("INVALID_NAME");
   });
 
-  test("renameJob vers un nom venu d'un include est refusé", () => {
+  test("renameJob to a name coming from an include is refused", () => {
     expect(
       expectRefusal(TREE, { kind: "renameJob", from: "local-job", to: "compile" }).params,
     ).toEqual({ reason: "nameTaken", name: "compile", file: "ci/jobs.yml" });
   });
 
-  test("addJob sur un nom libre partout passe", () => {
+  test("addJob on a name free everywhere passes", () => {
     const { result } = run(TREE, {
       kind: "addJob",
       job: { id: "neuf", stage: "test", script: ["make"] },
@@ -162,7 +162,7 @@ describe("noms déjà pris dans un fichier inclus", () => {
   });
 });
 
-describe("renameJob et les référents d'un fichier inclus", () => {
+describe("renameJob and the referrers of an included file", () => {
   const referencing: Tree = {
     [GITLAB_CI_FILE]: [
       "include: ci/jobs.yml",
@@ -188,7 +188,7 @@ describe("renameJob et les référents d'un fichier inclus", () => {
     ].join("\n"),
   };
 
-  test("le renommage est refusé et nomme chaque référent avec son fichier", () => {
+  test("the rename is refused and names each referrer with its file", () => {
     expect(
       expectRefusal(referencing, { kind: "renameJob", from: "compile", to: "build" }).params,
     ).toEqual({
@@ -198,7 +198,7 @@ describe("renameJob et les référents d'un fichier inclus", () => {
     });
   });
 
-  test("sans référent inclus, le renommage passe", () => {
+  test("without an included referrer, the rename passes", () => {
     const alone: Tree = {
       ...referencing,
       "ci/jobs.yml": "autre:\n  stage: test\n  script:\n    - x\n",
@@ -208,7 +208,7 @@ describe("renameJob et les référents d'un fichier inclus", () => {
   });
 });
 
-describe("liste de stages venue d'un fichier inclus", () => {
+describe("stage list coming from an included file", () => {
   const stagesTree: Tree = {
     [GITLAB_CI_FILE]: [
       "include: ci/stages.yml",
@@ -222,23 +222,23 @@ describe("liste de stages venue d'un fichier inclus", () => {
     "ci/stages.yml": ["stages:", "  - preparer", "  - livrer", ""].join("\n"),
   };
 
-  /** Le défaut que ce refus empêche est silencieux : `stagesSeq` ne trouve pas de liste dans le
-   *  fichier principal, donc `planAddStage` en **matérialisait** une depuis les stages par défaut
-   *  de GitLab. La liste de l'include disparaissait de l'écran sans qu'aucune erreur ne le dise. */
-  test("addStage est refusé et nomme le fichier de la liste", () => {
+  /** The defect this refusal prevents is silent: `stagesSeq` finds no list in the main file, so
+   *  `planAddStage` **materialised** one from GitLab's default stages. The include's list vanished
+   *  from the screen without any error saying so. */
+  test("addStage is refused and names the file of the list", () => {
     expect(expectRefusal(stagesTree, { kind: "addStage", name: "verifier" }).params).toEqual({
       reason: "stages",
       file: "ci/stages.yml",
     });
   });
 
-  test("moveStage est refusé aussi", () => {
+  test("moveStage is refused too", () => {
     expect(
       expectRefusal(stagesTree, { kind: "moveStage", name: "livrer", toIndex: 0 }).params,
     ).toEqual({ reason: "stages", file: "ci/stages.yml" });
   });
 
-  test("ajouter un job dans un stage venu d'un include reste permis", () => {
+  test("adding a job to a stage coming from an include is still allowed", () => {
     const { result } = run(stagesTree, {
       kind: "addJob",
       job: { id: "neuf", stage: "preparer", script: ["make"] },
@@ -246,7 +246,7 @@ describe("liste de stages venue d'un fichier inclus", () => {
     expect(result.ok).toBe(true);
   });
 
-  test("avec une liste dans le fichier principal, addStage passe", () => {
+  test("with a list in the main file, addStage passes", () => {
     const local: Tree = {
       ...stagesTree,
       [GITLAB_CI_FILE]: `stages:\n  - livrer\n\n${stagesTree[GITLAB_CI_FILE]}`,
@@ -256,36 +256,36 @@ describe("liste de stages venue d'un fichier inclus", () => {
   });
 });
 
-describe("apply ne fait rien sortir du fichier principal", () => {
-  /** Ce que ce bloc mesure, exactement : `apply` est une fonction **pure** — elle ne touche pas au
-   *  disque — donc relire un fichier inclus après l'appel serait une tautologie. C'était la
-   *  première version de ces tests, et la revue indépendante du 2026-10-23 l'a prouvée inerte en
-   *  neutralisant tous les refus `FROM_INCLUDED_FILE` : les deux tests restaient verts.
+describe("apply lets nothing out of the main file", () => {
+  /** What this block measures, exactly: `apply` is a **pure** function — it does not touch the
+   *  disk — so re-reading an included file after the call would be a tautology. That was the
+   *  first version of these tests, and the independent review of 2026-10-23 proved it inert by
+   *  neutralising every `FROM_INCLUDED_FILE` refusal: both tests stayed green.
    *
-   *  Ce qui est mesurable ici est que le résultat ne prétend pas avoir changé un fichier inclus :
-   *  `included` doit revenir identique, et chaque plage touchée doit tomber dans le texte du
-   *  fichier principal. La garantie sur les **octets du disque** se mesure là où une écriture a
-   *  lieu, c'est-à-dire dans `packages/server/test/includes.test.ts`. */
-  test("les textes inclus reviennent identiques après une opération acceptée", () => {
+   *  What is measurable here is that the result does not claim to have changed an included file:
+   *  `included` must come back identical, and every touched range must fall within the main
+   *  file's text. The guarantee on the **bytes on disk** is measured where a write takes place,
+   *  that is in `packages/server/test/includes.test.ts`. */
+  test("included texts come back identical after an accepted operation", () => {
     const { parsed, result } = run(TREE, {
       kind: "addJob",
       job: { id: "neuf", stage: "test", script: ["make"] },
     });
     if (!result.ok) {
-      throw new Error(`opération refusée : ${result.error.code}`);
+      throw new Error(`operation refused: ${result.error.code}`);
     }
 
     expect(result.value.included).toEqual(parsed.included);
     expect(result.value.included["ci/jobs.yml"]).toBe(TREE["ci/jobs.yml"]);
   });
 
-  test("chaque plage touchée tombe dans le texte du fichier principal", () => {
+  test("every touched range falls within the main file's text", () => {
     const { result } = run(TREE, {
       kind: "addJob",
       job: { id: "neuf", stage: "test", script: ["make"] },
     });
     if (!result.ok) {
-      throw new Error("opération refusée");
+      throw new Error("operation refused");
     }
 
     for (const range of result.value.touched) {
@@ -294,16 +294,16 @@ describe("apply ne fait rien sortir du fichier principal", () => {
     }
   });
 
-  test("le pipeline rendu après l'opération garde les jobs des fichiers inclus", () => {
+  test("the pipeline returned after the operation keeps the jobs of included files", () => {
     const { result } = run(TREE, {
       kind: "addJob",
       job: { id: "neuf", stage: "test", script: ["make"] },
     });
     if (!result.ok) {
-      throw new Error("opération refusée");
+      throw new Error("operation refused");
     }
-    // Sans le lecteur porté par le document, `apply` relirait le texte sans ses includes et
-    // `compile` disparaîtrait de la réponse.
+    // Without the reader carried by the document, `apply` would re-read the text without its
+    // includes and `compile` would disappear from the response.
     expect(result.value.pipeline.jobs.map((job) => job.id).sort()).toEqual([
       "compile",
       "local-job",
@@ -312,9 +312,9 @@ describe("apply ne fait rien sortir du fichier principal", () => {
   });
 });
 
-describe("setJobStage sur une valeur !reference", () => {
-  /** Le badge promet une surcharge explicite. L'opération écrivait `stage: !reference test` : le
-   *  tag restait sur un scalaire, une forme que personne n'a saisie et que GitLab refuse. */
+describe("setJobStage on a !reference value", () => {
+  /** The badge promises an explicit override. The operation wrote `stage: !reference test`: the
+   *  tag stayed on a scalar, a form nobody typed and that GitLab rejects. */
   const REFERENCED = [
     "stages:",
     "  - build",
@@ -330,13 +330,13 @@ describe("setJobStage sur une valeur !reference", () => {
     "",
   ].join("\n");
 
-  test("la référence est remplacée en entier, et l'inverse la restaure", () => {
+  test("the reference is replaced entirely, and the inverse restores it", () => {
     const { result } = run(
       { [GITLAB_CI_FILE]: REFERENCED },
       { kind: "setJobStage", id: "compile", stage: "test" },
     );
     if (!result.ok) {
-      throw new Error(`opération refusée : ${result.error.code}`);
+      throw new Error(`operation refused: ${result.error.code}`);
     }
 
     expect(result.value.text).toBe(
@@ -355,34 +355,34 @@ describe("setJobStage sur une valeur !reference", () => {
       { kind: "setJobStage", id: "compile", stage: "test" },
     );
     if (!result.ok) {
-      throw new Error(`opération refusée : ${result.error.code}`);
+      throw new Error(`operation refused: ${result.error.code}`);
     }
     const back = apply(result.value.document, result.value.inverse);
     expect(back.ok ? back.value.text : null).toBe(text);
     return result.value.text;
   }
 
-  /** La fin d'une séquence en bloc emporte son saut de ligne et ce qui suit : remplacer jusque-là
-   *  collait la ligne suivante, et le geste était refusé ou mangeait la fin du fichier. */
-  test("une référence en bloc est remplacée, la ligne suivante reste à sa place", () => {
+  /** The end of a block sequence takes its line break and what follows with it: replacing up to
+   *  there glued the next line on, and the gesture was refused or ate the end of the file. */
+  test("a block reference is replaced, the next line stays in place", () => {
     expect(retarget(`${HEAD}${BLOCK}  script:\n    - make\n`)).toBe(
       `${HEAD}  stage: test\n  script:\n    - make\n`,
     );
   });
 
-  test("en fin de fichier, le saut de ligne final reste", () => {
+  test("at the end of the file, the final line break stays", () => {
     expect(retarget(`${HEAD}  script:\n    - make\n${BLOCK}`)).toBe(
       `${HEAD}  script:\n    - make\n  stage: test\n`,
     );
   });
 
-  test("le commentaire et la ligne vide qui suivent restent", () => {
+  test("the comment and the empty line that follow stay", () => {
     expect(retarget(`${HEAD}${BLOCK}  # garde\n\n  script:\n    - make\n`)).toBe(
       `${HEAD}  stage: test\n  # garde\n\n  script:\n    - make\n`,
     );
   });
 
-  test("le commentaire du dernier item reste, en CRLF aussi", () => {
+  test("the last item's comment stays, in CRLF too", () => {
     const crlf = (text: string) => text.replaceAll("\n", "\r\n");
     const block = "  stage: !reference\n    - .base\n    - stage # note\n";
     expect(retarget(crlf(`${HEAD}${block}  script:\n    - make\n`))).toBe(

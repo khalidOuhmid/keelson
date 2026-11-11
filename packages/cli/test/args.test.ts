@@ -11,8 +11,8 @@ const flagSpec = {
   allowPositionals: true,
 } as const;
 
-describe("options avec valeur", () => {
-  test("lit une option et sa valeur", () => {
+describe("options with a value", () => {
+  test("reads an option and its value", () => {
     const result = parseCommandArgs(["--format", "json"], formatSpec);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -21,12 +21,12 @@ describe("options avec valeur", () => {
     }
   });
 
-  test("accepte la forme --option=valeur", () => {
+  test("accepts the --option=value form", () => {
     const result = parseCommandArgs(["--format=json"], formatSpec);
     expect(result.ok && result.values.format).toBe("json");
   });
 
-  test("refuse une option à valeur sans valeur", () => {
+  test("refuses a value option without a value", () => {
     const result = parseCommandArgs(["--format"], formatSpec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -34,29 +34,29 @@ describe("options avec valeur", () => {
     }
   });
 
-  test("laisse l'option absente à undefined", () => {
+  test("leaves an absent option undefined", () => {
     const result = parseCommandArgs([], formatSpec);
     expect(result.ok && result.values.format).toBeUndefined();
   });
 });
 
-describe("positionnels", () => {
-  test("collecte les positionnels dans l'ordre", () => {
-    const result = parseCommandArgs(["un", "deux"], formatSpec);
-    expect(result.ok && result.positionals).toEqual(["un", "deux"]);
+describe("positionals", () => {
+  test("collects positionals in order", () => {
+    const result = parseCommandArgs(["one", "two"], formatSpec);
+    expect(result.ok && result.positionals).toEqual(["one", "two"]);
   });
 
-  test("sépare positionnels et options", () => {
-    const result = parseCommandArgs(["fichier.yml", "--format", "json"], formatSpec);
+  test("separates positionals and options", () => {
+    const result = parseCommandArgs(["file.yml", "--format", "json"], formatSpec);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.positionals).toEqual(["fichier.yml"]);
+      expect(result.positionals).toEqual(["file.yml"]);
       expect(result.values.format).toBe("json");
     }
   });
 
-  test("refuse un positionnel quand ils ne sont pas autorisés", () => {
-    const result = parseCommandArgs(["trop"], {
+  test("refuses a positional when they are not allowed", () => {
+    const result = parseCommandArgs(["extra"], {
       options: {},
       allowPositionals: false,
     });
@@ -64,20 +64,20 @@ describe("positionnels", () => {
   });
 });
 
-describe("options booléennes", () => {
-  test("une option booléenne présente vaut true", () => {
+describe("boolean options", () => {
+  test("a present boolean option is true", () => {
     const result = parseCommandArgs(["--no-open"], flagSpec);
     expect(result.ok && result.values["no-open"]).toBe(true);
   });
 
-  test("une option booléenne absente vaut undefined", () => {
+  test("an absent boolean option is undefined", () => {
     const result = parseCommandArgs([], flagSpec);
     expect(result.ok && result.values["no-open"]).toBeUndefined();
   });
 });
 
-describe("options inconnues", () => {
-  test("refuse une option inconnue en la nommant", () => {
+describe("unknown options", () => {
+  test("refuses an unknown option, naming it", () => {
     const result = parseCommandArgs(["--strict"], formatSpec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -85,21 +85,21 @@ describe("options inconnues", () => {
     }
   });
 
-  test("refuse une option courte inconnue", () => {
+  test("refuses an unknown short option", () => {
     const result = parseCommandArgs(["-x"], formatSpec);
     expect(result.ok).toBe(false);
   });
 });
 
-describe("robustesse", () => {
-  test("ne lève jamais, même sur une entrée absurde", () => {
+describe("robustness", () => {
+  test("never throws, even on absurd input", () => {
     for (const argv of [["--"], ["---"], ["--format", "--format"], ["-"], [""]]) {
       expect(() => parseCommandArgs(argv, formatSpec)).not.toThrow();
     }
   });
 
-  test("le message d'erreur est toujours une chaîne non vide", () => {
-    const result = parseCommandArgs(["--inconnu"], formatSpec);
+  test("the error message is always a non-empty string", () => {
+    const result = parseCommandArgs(["--unknown"], formatSpec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.message.length).toBeGreaterThan(0);

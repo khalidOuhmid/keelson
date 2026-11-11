@@ -16,10 +16,11 @@ import {
   type OperationPayload,
   type ToolchainOperationPayload,
   type ToolchainPayload,
+  type WorkspaceFile,
 } from "./api/client.ts";
 import { type ServerEvent, subscribe as subscribeToEvents } from "./api/events.ts";
 import { browserLocation, readToken } from "./api/token.ts";
-import { BUTTON, SECTION_HEADING } from "./editing/controls.ts";
+import { BUTTON, FIELD, SECTION_HEADING } from "./editing/controls.ts";
 import { ErrorBanner } from "./editing/ErrorBanner.tsx";
 import { HistoryControls } from "./editing/HistoryControls.tsx";
 import { JobEditor } from "./editing/JobEditor.tsx";
@@ -51,7 +52,7 @@ const VIEWS = [
 ] as const;
 
 type ClientSurface = {
-  workspace: () => Promise<ApiResult<{ files: { path: string; adapter: "gitlab" }[] }>>;
+  workspace: () => Promise<ApiResult<{ files: WorkspaceFile[] }>>;
   document: (file: string) => Promise<ApiResult<DocumentPayload>>;
   submit: (
     file: string,
@@ -75,7 +76,7 @@ export type AppDeps = {
   newOpId?: () => string;
 };
 
-/** La mise en page du graphe est asynchrone : le nœud n'existe pas encore au prochain rendu. */
+/** Graph layout is asynchronous: the node does not exist yet on the next render. */
 function focusWhenDrawn(selector: string, frames = 120): void {
   const found = document.querySelector<HTMLElement>(selector);
   if (found !== null) {
@@ -94,11 +95,11 @@ export type AppProps = {
   deps?: AppDeps;
 };
 
-/** Une section titrée, séparée de la suivante par un filet. `role="group"` plutôt que `<section>` :
- *  la barre latérale ne doit pas ajouter un repère de navigation par bloc de contrôles. */
+/** A titled section, separated from the next one by a rule. `role="group"` rather than `<section>`:
+ *  the sidebar must not add a navigation landmark per block of controls. */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: un groupe de contrôles ne doit pas devenir un landmark ; fieldset est réservé aux formulaires
+    // biome-ignore lint/a11y/useSemanticElements: a group of controls must not become a landmark; fieldset is reserved for forms
     <div
       role="group"
       aria-label={title}
@@ -140,7 +141,7 @@ export function App({ deps }: AppProps = {}) {
     void toolchainStore.getState().load();
   }, [toolchainStore]);
 
-  // Les propositions dépendent du pipeline : un job ajouté ou renommé les change.
+  // Proposals depend on the pipeline: an added or renamed job changes them.
   useEffect(() => {
     if (state.hash !== null) {
       void toolchainStore.getState().refresh();
@@ -148,7 +149,25 @@ export function App({ deps }: AppProps = {}) {
   }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
+
+  const opening = useRef(0);
+  const openFile = async (path: string): Promise<void> => {
+    opening.current += 1;
+    const turn = opening.current;
+    const hadHistory = store.getState().canUndo();
+    const document = await resolved.client.document(path);
+    if (turn !== opening.current) {
+      return;
+    }
+    if (!document.ok) {
+      store.setState({ error: document.error });
+      return;
+    }
+    store.getState().documentLoaded(path, document.value);
+    store.getState().announceOpened(path, hadHistory);
+  };
 
   useEffect(() => {
     if (loaded.current) {
@@ -170,6 +189,7 @@ export function App({ deps }: AppProps = {}) {
       }
 
       setRoot(first.path);
+      setFiles(workspace.value.files);
       const document = await resolved.client.document(first.path);
       if (document.ok) {
         store.getState().documentLoaded(first.path, document.value);
@@ -187,7 +207,7 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
       void store.getState().serverEvent(event);
-      // `layout.json` a pu changer : les positions d'une autre main arrivent par ici.
+      // `layout.json` may have changed: positions written by someone else arrive here.
       if (event.kind === "coverage.changed") {
         void toolchainStore.getState().refresh();
       }
@@ -195,8 +215,8 @@ export function App({ deps }: AppProps = {}) {
     return () => subscription.close();
   }, [resolved, store, toolchainStore]);
 
-  // Quand le panneau de détail disparaît — Échap, bouton de fermeture ou suppression confirmée —
-  // le focus revient au graphe plutôt que de retomber sur <body>.
+  // When the detail panel goes away — Escape, close button or confirmed deletion — focus returns
+  // to the graph rather than falling back to <body>.
   const hadSelection = useRef(false);
   useEffect(() => {
     const open = state.selectedJobId !== null;
@@ -221,8 +241,8 @@ export function App({ deps }: AppProps = {}) {
     hadService.current = serviceOpen;
   }, [serviceOpen]);
 
-  // Échap referme le panneau de détail. L'écouteur est au niveau du document : la sélection se
-  // désigne au canevas mais se referme depuis n'importe où, panneau compris.
+  // Escape closes the detail panel. The listener sits on the document: a selection is made on the
+  // canvas but can be closed from anywhere, the panel included.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
@@ -234,8 +254,8 @@ export function App({ deps }: AppProps = {}) {
     return () => document.removeEventListener("keydown", handle);
   }, [store, toolchainStore]);
 
-  // Une opération en vol désactive l'édition : sans cela chaque contrôle reste actif et une
-  // seconde soumission part sur un hash déjà périmé.
+  // An operation in flight disables editing: otherwise every control stays active and a second
+  // submission goes out on an already stale hash.
   const editable = state.canEdit() && !state.pending;
 
   useHistoryShortcuts({
@@ -314,7 +334,7 @@ export function App({ deps }: AppProps = {}) {
               }
               store.getState().setView("pipeline");
               store.getState().announce(`${job} added to ${file}.`);
-              // Sous `lg`, sélectionner ouvrirait une superposition par-dessus Undo et le nœud.
+              // Below `lg`, selecting would open an overlay on top of Undo and the node.
               if (window.matchMedia("(min-width: 64rem)").matches) {
                 store.getState().selectJob(job);
               }
@@ -357,7 +377,7 @@ export function App({ deps }: AppProps = {}) {
         <Loading />
       ) : (
         <CatalogView
-          key={state.catalogLayer ?? "any"}
+          key={`${state.file}:${state.catalogLayer ?? "any"}`}
           catalog={state.catalog}
           initialLayer={state.catalogLayer}
           insertion={insertion}
@@ -374,9 +394,9 @@ export function App({ deps }: AppProps = {}) {
     );
   })();
 
-  /** Les fichiers résolus autres que le principal. `files` peut contenir deux fois le même —
-   *  GitLab ne dédoublonne pas les includes — mais le compte annoncé à l'écran est un compte de
-   *  **fichiers**, pas d'entrées. */
+  /** Resolved files other than the main one. `files` may contain the same one twice — GitLab
+   *  does not deduplicate includes — but the count shown on screen is a count of **files**, not of
+   *  entries. */
   const resolvedIncludes = [
     ...new Set((state.pipeline?.files ?? []).filter((file) => file !== state.pipeline?.main)),
   ];
@@ -398,15 +418,46 @@ export function App({ deps }: AppProps = {}) {
       />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
-        <span className="flex items-baseline gap-2 overflow-hidden">
+        <span className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
           <span className="text-sm font-semibold text-text-primary">Keelson</span>
-          {state.file === null ? null : (
+          {state.file === null ? null : files.length > 1 ? (
+            <select
+              aria-label="Pipeline file"
+              title={state.file}
+              disabled={state.pending}
+              className={`${FIELD} w-auto min-w-0 max-w-[var(--keelson-panel-width)]`}
+              value={state.file}
+              onChange={(event) => void openFile(event.target.value)}
+            >
+              {files.some((entry) => entry.adapter === "gitlab") ? (
+                <optgroup label="GitLab CI">
+                  {files
+                    .filter((entry) => entry.adapter === "gitlab")
+                    .map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        {entry.path}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
+              {files.some((entry) => entry.adapter === "github") ? (
+                <optgroup label="GitHub Actions">
+                  {files
+                    .filter((entry) => entry.adapter === "github")
+                    .map((entry) => (
+                      <option key={entry.path} value={entry.path}>
+                        {entry.path.slice(entry.path.lastIndexOf("/") + 1)}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
+            </select>
+          ) : (
             <span className="truncate font-mono text-xs text-text-muted">{state.file}</span>
           )}
-          {/* Le seul consommateur de `pipeline.files` à l'écran. Sans lui, le champ était calculé,
-              testé et invisible — ce que `CLAUDE.md` interdit. Il dit à l'utilisateur que ce qu'il
-              lit vient de plusieurs fichiers, ce que ni le graphe ni le chemin de l'en-tête ne
-              disent. */}
+          {/* The only on-screen consumer of `pipeline.files`. Without it, the field was computed,
+              tested and invisible — which `CLAUDE.md` forbids. It tells the user that what they
+              read comes from several files, which neither the graph nor the header path says. */}
           {includedCount === 0 ? null : (
             <span
               data-testid="included-files-tag"
@@ -508,6 +559,7 @@ export function App({ deps }: AppProps = {}) {
             ) : reading && state.coverage !== null ? (
               <CoveragePanel
                 coverage={state.coverage}
+                scope={files.length > 1 ? { file: state.file ?? "", count: files.length } : null}
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}
                 onShowTools={(layer) => {
@@ -517,15 +569,18 @@ export function App({ deps }: AppProps = {}) {
               />
             ) : (
               <>
-                <Section title="Stages">
-                  <StageControls
-                    pipeline={state.pipeline}
-                    onSubmit={(draft) => void store.getState().submit(draft)}
-                    disabled={!editable}
-                  />
-                </Section>
+                {state.pipeline.provider === "github" ? null : (
+                  <Section title="Stages">
+                    <StageControls
+                      pipeline={state.pipeline}
+                      onSubmit={(draft) => void store.getState().submit(draft)}
+                      disabled={!editable}
+                    />
+                  </Section>
+                )}
                 <Section title="New job">
                   <NewJobForm
+                    key={state.file}
                     pipeline={state.pipeline}
                     onSubmit={(draft) => void store.getState().submit(draft)}
                     disabled={!editable}
@@ -565,6 +620,7 @@ export function App({ deps }: AppProps = {}) {
               job={selected}
               textOf={(file) => state.textOf(file)}
               main={state.pipeline.main}
+              derivedStages={state.pipeline.provider === "github"}
               coverage={
                 reading
                   ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)

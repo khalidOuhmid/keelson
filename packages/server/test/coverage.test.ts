@@ -55,17 +55,17 @@ async function waitForEvent(events: DocumentEvent[]): Promise<DocumentEvent> {
     }
     await new Promise((settle) => setTimeout(settle, 25));
   }
-  throw new Error("aucun événement reçu");
+  throw new Error("no event received");
 }
 
-describe("couverture dans la charge", () => {
-  test("au chargement", async () => {
+describe("coverage in the payload", () => {
+  test("on load", async () => {
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded === null ? null : layer(loaded, "secrets")).toBe(true);
     expect(loaded === null ? null : layer(loaded, "dast")).toBe(false);
   });
 
-  test("après une opération, recalculée sur le nouveau pipeline", async () => {
+  test("after an operation, recomputed on the new pipeline", async () => {
     await store.load(".gitlab-ci.yml");
     const response = await store.applyOperation(
       ".gitlab-ci.yml",
@@ -81,16 +81,16 @@ describe("couverture dans la charge", () => {
     expect(layer(response.body as never, "dast")).toBe(true);
   });
 
-  test("une surcharge de layout.json s'applique et ses diagnostics arrivent", async () => {
+  test("a layout.json override applies and its diagnostics arrive", async () => {
     writeLayout('{"version":1,"layers":{"secrets":["iast"],"absent":[]}}');
     const loaded = await store.load(".gitlab-ci.yml");
     expect(loaded === null ? null : layer(loaded, "iast")).toBe(true);
     expect(loaded?.diagnostics.map((entry) => entry.code)).toEqual(["LAYOUT_UNKNOWN_JOB"]);
   });
 
-  /** `JSON.parse` cite le texte lu dans son message : sans la frontière, le contenu d'un fichier
-   *  extérieur sortirait par le `detail` d'un diagnostic. */
-  test("un layout.json lié hors de la racine n'est pas lu", async () => {
+  /** `JSON.parse` quotes the text it read in its message: without the boundary, the content of an
+   *  outside file would leak through a diagnostic's `detail`. */
+  test("a layout.json linked outside the root is not read", async () => {
     const outside = mkdtempSync(join(tmpdir(), "keelson-srv-lay-"));
     try {
       writeFileSync(join(outside, "s.json"), "SECRET-HORS-DEPOT");
@@ -105,8 +105,8 @@ describe("couverture dans la charge", () => {
   });
 });
 
-describe("surveillance de layout.json", () => {
-  test("le créer alors que .devsecops n'existe pas met la couverture à jour", async () => {
+describe("watching layout.json", () => {
+  test("creating it while .devsecops does not exist updates coverage", async () => {
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
@@ -117,7 +117,7 @@ describe("surveillance de layout.json", () => {
     expect(events[0]).toEqual({ kind: "coverage.changed", file: ".gitlab-ci.yml" });
   });
 
-  test("supprimer puis recréer le dossier garde la surveillance", async () => {
+  test("deleting then recreating the directory keeps the watch", async () => {
     writeLayout('{"version":1}');
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
@@ -134,7 +134,7 @@ describe("surveillance de layout.json", () => {
     expect((await waitForEvent(events)).kind).toBe("coverage.changed");
   });
 
-  test("le modifier ensuite émet coverage.changed", async () => {
+  test("modifying it afterwards emits coverage.changed", async () => {
     writeLayout('{"version":1}');
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
@@ -145,12 +145,12 @@ describe("surveillance de layout.json", () => {
   });
 });
 
-describe("layout.json et fichier principal changent ensemble", () => {
+describe("layout.json and the main file change together", () => {
   let watcher: Watcher;
 
   afterEach(() => watcher.close());
 
-  test("le pipeline changé est annoncé, pas seulement la couverture", async () => {
+  test("the changed pipeline is announced, not just coverage", async () => {
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
@@ -167,7 +167,7 @@ describe("layout.json et fichier principal changent ensemble", () => {
     });
   });
 
-  test("un fichier principal supprimé est annoncé", async () => {
+  test("a deleted main file is announced", async () => {
     const events: DocumentEvent[] = [];
     await store.load(".gitlab-ci.yml");
     watcher = watchDocuments(root, store, (event) => events.push(event));
@@ -182,8 +182,8 @@ describe("layout.json et fichier principal changent ensemble", () => {
   });
 });
 
-describe("un fichier que le parseur ne sait pas lire", () => {
-  test("ne laisse aucun rejet non géré au watcher", async () => {
+describe("a file the parser cannot read", () => {
+  test("leaves no unhandled rejection in the watcher", async () => {
     const rejections: unknown[] = [];
     const record = (reason: unknown) => rejections.push(reason);
     process.on("unhandledRejection", record);
@@ -200,8 +200,8 @@ describe("un fichier que le parseur ne sait pas lire", () => {
   });
 });
 
-describe("relecture du disque avant écriture", () => {
-  test("une écriture externe que le watcher n'a pas vue rend 409 et reste intacte", async () => {
+describe("re-reading the disk before writing", () => {
+  test("an external write the watcher has not seen returns 409 and stays intact", async () => {
     await store.load(".gitlab-ci.yml");
     const external = `${MAIN}# externe\n`;
     writeFileSync(join(root, ".gitlab-ci.yml"), external);
@@ -217,7 +217,7 @@ describe("relecture du disque avant écriture", () => {
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(external);
   });
 
-  test("un fichier supprimé rend 404 sans le recréer", async () => {
+  test("a deleted file returns 404 without recreating it", async () => {
     await store.load(".gitlab-ci.yml");
     rmSync(join(root, ".gitlab-ci.yml"));
 
@@ -232,7 +232,7 @@ describe("relecture du disque avant écriture", () => {
   });
 });
 
-describe("après un fichier que le parseur ne sait pas lire", () => {
+describe("after a file the parser cannot read", () => {
   const BROKEN = "job:\n  script: &s [a, *s]\n";
   let watcher: Watcher;
 
@@ -245,7 +245,7 @@ describe("après un fichier que le parseur ne sait pas lire", () => {
     await new Promise((settle) => setTimeout(settle, 200));
   }
 
-  test("une opération ne remplace pas le fichier par l'ancien texte", async () => {
+  test("an operation does not replace the file with the old text", async () => {
     await broken([]);
     const attempt = store.applyOperation(
       ".gitlab-ci.yml",
@@ -256,7 +256,7 @@ describe("après un fichier que le parseur ne sait pas lire", () => {
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(BROKEN);
   });
 
-  test("restaurer le même texte est annoncé", async () => {
+  test("restoring the same text is announced", async () => {
     const events: DocumentEvent[] = [];
     await broken(events);
     writeFileSync(join(root, ".gitlab-ci.yml"), MAIN);
@@ -279,7 +279,7 @@ describe("GET /api/catalog", () => {
     await harness.close();
   });
 
-  test("rend les couches, les outils et les logos", async () => {
+  test("returns the layers, the tools and the logos", async () => {
     const response = await harness.api("/api/catalog");
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
@@ -292,7 +292,7 @@ describe("GET /api/catalog", () => {
     expect(Object.keys(body.logos)).toContain("trivy");
   });
 
-  test("exige le token, et GET seulement", async () => {
+  test("requires the token, and GET only", async () => {
     expect((await harness.raw("/api/catalog")).status).toBe(403);
     expect((await harness.api("/api/catalog", { method: "POST" })).status).toBe(405);
   });

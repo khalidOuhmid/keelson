@@ -1,34 +1,34 @@
-# Formats d'export
+# Export formats
 
-`keelson export [fichier] [--format markdown|mermaid|json]` écrit sur la sortie standard. Le format
-par défaut est `markdown`. Mêmes entrées, mêmes octets. Code 2 sur un usage invalide, 0 sinon : un
-pipeline qui porte des erreurs s'exporte quand même, et `--format json` les donne.
+`keelson export [file] [--format markdown|mermaid|json]` writes to standard output. The default
+format is `markdown`. Same inputs, same bytes. Exit code 2 on invalid usage, 0 otherwise: a pipeline
+that carries errors is still exported, and `--format json` reports them.
 
 ## `markdown`
 
-Un rapport de couverture : titre `# Coverage report`, compte des couches OWASP et des catégories
-plateforme, phrase de borne basse si le pipeline est partiel, puis une table à quatre colonnes
-(`Layer`, `Covered`, `Jobs`, `Services`), une ligne par couche, dans l'ordre de la taxonomie. Un `|`
-ou un `\` d'un nom est échappé.
+A coverage report: a `# Coverage report` title, the count of OWASP layers and platform categories,
+a lower-bound sentence if the pipeline is partial, then a four-column table (`Layer`, `Covered`,
+`Jobs`, `Services`), one row per layer, in taxonomy order. A `|` or a `\` in a name is escaped.
 
 ## `mermaid`
 
-Un `flowchart LR` :
+A `flowchart LR`:
 
-| Élément | Forme |
+| Element | Shape |
 | --- | --- |
-| stage non vide | `subgraph sN["nom"]` |
-| job | `jN["nom"]` |
-| service | `vN[("nom")]` |
-| dépendance | `jA --> jB`, en `-.->` si elle est optionnelle |
-| intégration | `jA -->\|type\| vB` |
+| non-empty stage | `subgraph sN["name"]` |
+| job | `jN["name"]` |
+| service | `vN[("name")]` |
+| dependency | `jA --> jB`, as `-.->` if it is optional |
+| integration | `jA -->\|type\| vB` |
 
-Les identifiants sont des positions, les noms ne passent que par des libellés entre guillemets, où
-`#`, `"` et `%` s'écrivent `#35;`, `#quot;` et `#37;`, et où un saut de ligne devient une espace. Un
-job dont le stage n'est pas déclaré a quand même son `subgraph`. Une dépendance ou une intégration vers un élément absent n'est pas dessinée.
+Identifiers are positions; names only go through quoted labels, where `#`, `"` and `%` are written
+`#35;`, `#quot;` and `#37;`, and where a line break becomes a space. A job whose stage is not
+declared still gets its `subgraph`. A dependency or an integration pointing to a missing element is
+not drawn.
 
 ## `json`
 
-`{ pipeline, coverage, toolchain, diagnostics }` : l'IR, la couverture, la toolchain, et les
-diagnostics que rend `keelson validate`. `pipeline` suit `packages/core/src/ir.ts`, sans garantie de
-compatibilité avant la première version publiée.
+`{ pipeline, coverage, toolchain, diagnostics }`: the IR, the coverage, the toolchain, and the
+diagnostics returned by `keelson validate`. `pipeline` follows `packages/core/src/ir.ts`, with no
+compatibility guarantee before the first published version.

@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['semgrep/semgrep', 'returntocorp/semgrep']
   scripts: ['(^|[\s/])semgrep\s']
+  actions: ['semgrep/semgrep-action', 'returntocorp/semgrep-action']
 snippets:
   gitlab: |
     semgrep:

@@ -17,37 +17,37 @@ function portOf(source: string, name: string): string | null {
   return match?.[1] ?? null;
 }
 
-describe("cohérence du proxy de développement", () => {
-  test("Vite proxifie /api", () => {
+describe("dev proxy consistency", () => {
+  test("Vite proxies /api", () => {
     expect(viteConfig).toContain('"/api"');
   });
 
-  test("le proxy ajoute l'en-tête du token", () => {
+  test("the proxy adds the token header", () => {
     expect(viteConfig).toContain("x-keelson-token");
   });
 
-  test("le token du proxy est celui du serveur de dev", () => {
+  test("the proxy token is the dev server's", () => {
     const fromScript = constantOf(devScript, "DEV_TOKEN");
     const fromVite = constantOf(viteConfig, "DEV_TOKEN");
     expect(fromScript).not.toBeNull();
     expect(fromVite).toBe(fromScript);
   });
 
-  test("le port cible du proxy est celui du serveur de dev", () => {
+  test("the proxy target port is the dev server's", () => {
     const port = portOf(devScript, "DEV_API_PORT");
     expect(port).not.toBeNull();
     expect(viteConfig).toContain(`127.0.0.1:${port}`);
   });
 
-  test("changeOrigin est actif, sans quoi le contrôle de Host du serveur refuserait la requête", () => {
+  test("changeOrigin is on, otherwise the server's Host check would reject the request", () => {
     expect(viteConfig).toContain("changeOrigin");
   });
 
-  test("Vite écoute sur le port de dev documenté", () => {
+  test("Vite listens on the documented dev port", () => {
     expect(viteConfig).toContain("port: 5283");
   });
 
-  test("le serveur de dev tourne sur la fixture de dev", () => {
+  test("the dev server runs on the dev fixture", () => {
     expect(devScript).toContain("dev-fixture");
   });
 });

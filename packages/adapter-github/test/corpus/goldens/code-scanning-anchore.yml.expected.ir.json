@@ -1,0 +1,98 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/code-scanning-anchore.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "Anchore-Build-Scan",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "permissions",
+            "range": {
+              "start": 953,
+              "end": 1244
+            },
+            "file": ".github/workflows/code-scanning-anchore.yml"
+          },
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 1248,
+              "end": 1270
+            },
+            "file": ".github/workflows/code-scanning-anchore.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 1275,
+              "end": 1861
+            },
+            "file": ".github/workflows/code-scanning-anchore.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["docker build . --file Dockerfile --tag localbuild/testimage:latest"],
+          "actions": [
+            "actions/checkout@v4",
+            "anchore/scan-action@d5aa5b6cb9414b0c7771438046ff5bcfa2854ed7",
+            "github/codeql-action/upload-sarif@v3"
+          ]
+        },
+        "range": {
+          "start": 929,
+          "end": 1861
+        },
+        "file": ".github/workflows/code-scanning-anchore.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 631,
+          "end": 669
+        },
+        "file": ".github/workflows/code-scanning-anchore.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 671,
+          "end": 889
+        },
+        "file": ".github/workflows/code-scanning-anchore.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 890,
+          "end": 920
+        },
+        "file": ".github/workflows/code-scanning-anchore.yml"
+      }
+    ],
+    "main": ".github/workflows/code-scanning-anchore.yml",
+    "files": [".github/workflows/code-scanning-anchore.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

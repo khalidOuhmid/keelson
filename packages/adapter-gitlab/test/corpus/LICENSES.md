@@ -1,32 +1,32 @@
-# Provenance et licences du corpus
+# Corpus provenance and licences
 
 ## `gitlab-templates/`
 
-Templates CI/CD officiels copiés **sans modification** depuis le dépôt
-[`gitlab-org/gitlab`](https://gitlab.com/gitlab-org/gitlab).
+Official CI/CD templates copied **unmodified** from the
+[`gitlab-org/gitlab`](https://gitlab.com/gitlab-org/gitlab) repository.
 
 | | |
 | --- | --- |
-| Dépôt source | `https://gitlab.com/gitlab-org/gitlab` |
-| Commit épinglé | `12bfbf8ea1eaa681436f08f4ca059bb1cd7074ba` |
-| Date du commit | 2026-10-20 |
+| Source repository | `https://gitlab.com/gitlab-org/gitlab` |
+| Pinned commit | `12bfbf8ea1eaa681436f08f4ca059bb1cd7074ba` |
+| Commit date | 2026-10-20 |
 | Licence | **MIT (Expat)**, Copyright GitLab Inc. 2011-present |
-| Fichier de licence | <https://gitlab.com/gitlab-org/gitlab/-/raw/12bfbf8ea1eaa681436f08f4ca059bb1cd7074ba/LICENSE> |
+| Licence file | <https://gitlab.com/gitlab-org/gitlab/-/raw/12bfbf8ea1eaa681436f08f4ca059bb1cd7074ba/LICENSE> |
 
-Le `LICENSE` à la racine du dépôt source place l'ensemble du dépôt sous MIT Expat, à trois
-exclusions près, explicitement énumérées : le contenu de `doc/` (CC BY-SA 4.0), celui de `ee/`
-(licence définie dans `ee/LICENSE`) et celui de `jh/` (licence définie dans `jh/LICENSE`). Tous les
-fichiers ci-dessous proviennent de `lib/gitlab/ci/templates/`, qui n'est dans aucune de ces
-exclusions : ils sont donc sous MIT. **Aucun fichier n'a été copié depuis `ee/`, `jh/` ou `doc/`.**
+The `LICENSE` at the root of the source repository places the whole repository under MIT Expat,
+with three explicitly enumerated exclusions: the content of `doc/` (CC BY-SA 4.0), that of `ee/`
+(licence defined in `ee/LICENSE`) and that of `jh/` (licence defined in `jh/LICENSE`). Every file
+below comes from `lib/gitlab/ci/templates/`, which falls under none of these exclusions: they are
+therefore under MIT. **No file was copied from `ee/`, `jh/` or `doc/`.**
 
-Les noms de fichiers ont été aplatis (`/` remplacé par `-`) pour tenir dans un seul dossier ; le
-contenu est octet pour octet celui du dépôt source, ce que vérifie la colonne SHA-256.
+File names have been flattened (`/` replaced with `-`) to fit in a single folder; the content is
+byte for byte that of the source repository, which the SHA-256 column verifies.
 
-### Texte intégral de la licence du dépôt source
+### Full text of the source repository's licence
 
-La licence MIT exige que la notice de copyright et la notice de permission soient reproduites dans
-toute copie ou portion substantielle du logiciel. Le `LICENSE` du commit épinglé est donc reproduit
-ici **verbatim**, notice de copyright comprise.
+The MIT licence requires the copyright notice and the permission notice to be included in all
+copies or substantial portions of the software. The `LICENSE` of the pinned commit is therefore
+reproduced here **verbatim**, copyright notice included.
 
 ```
 Copyright (c) 2011-present GitLab Inc.
@@ -59,7 +59,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-| Fichier local | Chemin d'origine | Licence | Octets | SHA-256 du contenu |
+| Local file | Original path | Licence | Bytes | Content SHA-256 |
 | --- | --- | --- | --- | --- |
 | `Go.gitlab-ci.yml` | `lib/gitlab/ci/templates/Go.gitlab-ci.yml` | MIT | 943 | `f5f05171c06598f1f0a3aa3202c87388d15f8321e0b632a7d51cfe24cb54e1bd` |
 | `Python.gitlab-ci.yml` | `lib/gitlab/ci/templates/Python.gitlab-ci.yml` | MIT | 1361 | `1af6a8704fa5bc0be67464d9a406a2e3d0214d8b5927feaa2f372a0c4f5b7f01` |
@@ -82,9 +82,9 @@ SOFTWARE.
 | `Security-Container-Scanning.gitlab-ci.yml` | `lib/gitlab/ci/templates/Security/Container-Scanning.gitlab-ci.yml` | MIT | 202 | `a891b6a8ccaf14a57ce5be2c101c05bddbb788ae01f80ee76e872f3d54125155` |
 | `Security-DAST.gitlab-ci.yml` | `lib/gitlab/ci/templates/Security/DAST.gitlab-ci.yml` | MIT | 3920 | `9073ddd6d4b4dd3b97da893c6e324285cf6273319b3ac58de625fee7769fdf54` |
 
-Total : 20 fichiers.
+Total: 20 files.
 
-### Vérifier cette table
+### Verifying this table
 
 ```sh
 cd packages/adapter-gitlab/test/corpus/gitlab-templates && sha256sum -c ../CHECKSUMS.txt
@@ -92,9 +92,9 @@ cd packages/adapter-gitlab/test/corpus/gitlab-templates && sha256sum -c ../CHECK
 
 ## `edge-cases/`
 
-Fixtures écrites à la main pour ce dépôt, sous la licence du projet (**Apache-2.0**, Copyright 2026
-Khalid Ouhmid). Elles ne proviennent d'aucun tiers.
+Fixtures written by hand for this repository, under the project's licence (**Apache-2.0**,
+Copyright 2026 Khalid Ouhmid). None of them comes from a third party.
 
-## Interdit dans ce corpus
+## Forbidden in this corpus
 
-Aucun fichier de CI provenant d'un employeur ou d'un client, présent ou passé.
+No CI file from an employer or a client, current or past.

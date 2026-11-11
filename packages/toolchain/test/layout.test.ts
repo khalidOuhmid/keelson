@@ -12,7 +12,7 @@ const parsed = (value: unknown, ids = ["unit"]) =>
   parseLayout(JSON.stringify(value), pipeline(ids));
 
 describe("layout.json", () => {
-  test("un fichier absent est le cas normal : rien à dire", () => {
+  test("a missing file is the normal case: nothing to report", () => {
     expect(parseLayout(null, pipeline([]))).toEqual({
       overrides: {},
       positions: {},
@@ -20,17 +20,17 @@ describe("layout.json", () => {
     });
   });
 
-  test("une surcharge est lue, et une liste vide reste une surcharge", () => {
+  test("an override is read, and an empty list is still an override", () => {
     const result = parsed({ version: 1, layers: { unit: ["sast"], lint: [] } }, ["unit", "lint"]);
     expect(result.overrides).toEqual({ unit: ["sast"], lint: [] });
     expect(result.diagnostics).toEqual([]);
   });
 
-  test("les positions du lot L4 ne gênent pas", () => {
+  test("milestone L4 positions do not get in the way", () => {
     expect(parsed({ version: 1, positions: {} }).diagnostics).toEqual([]);
   });
 
-  test("un JSON illisible est signalé et ignoré, avec le chemin du fichier", () => {
+  test("unreadable JSON is reported and ignored, with the file path", () => {
     const result = parseLayout("{", pipeline([]));
     expect(result.overrides).toEqual({});
     expect(result.diagnostics[0]).toMatchObject({
@@ -41,12 +41,12 @@ describe("layout.json", () => {
     });
   });
 
-  test("une version inconnue est refusée en entier", () => {
+  test("an unknown version is rejected as a whole", () => {
     expect(parsed({ version: 2, layers: { unit: ["sast"] } }).overrides).toEqual({});
     expect(parsed({ version: 2 }).diagnostics[0]?.code).toBe("LAYOUT_INVALID");
   });
 
-  test("une couche inconnue est signalée, les autres s'appliquent", () => {
+  test("an unknown layer is reported, the others apply", () => {
     const result = parsed({ version: 1, layers: { unit: ["sast", "inventee"] } });
     expect(result.overrides).toEqual({ unit: ["sast"] });
     expect(result.diagnostics.map((entry) => entry.params)).toEqual([
@@ -54,7 +54,7 @@ describe("layout.json", () => {
     ]);
   });
 
-  test("un job inconnu est signalé et ne produit pas de surcharge", () => {
+  test("an unknown job is reported and produces no override", () => {
     const result = parsed({ version: 1, layers: { absent: ["sast"] } });
     expect(result.overrides).toEqual({});
     expect(result.diagnostics[0]?.code).toBe("LAYOUT_UNKNOWN_JOB");
@@ -62,7 +62,7 @@ describe("layout.json", () => {
 });
 
 describe("positions", () => {
-  test("lues depuis layout.json", () => {
+  test("read from layout.json", () => {
     const { positions } = parseLayout(
       '{"version":1,"positions":{"service:nexus":{"x":10,"y":-4.5}}}',
       PIPELINE,
@@ -70,12 +70,12 @@ describe("positions", () => {
     expect(positions).toEqual({ "service:nexus": { x: 10, y: -4.5 } });
   });
 
-  test("absentes, ou le fichier invalide, rendent une table vide", () => {
+  test("missing, or with an invalid file, yield an empty table", () => {
     expect(parseLayout(null, PIPELINE).positions).toEqual({});
     expect(parseLayout("{", PIPELINE).positions).toEqual({});
   });
 
-  test("écrire garde les clés voisines et trie les nœuds", () => {
+  test("writing keeps sibling keys and sorts the nodes", () => {
     const written = writePositions('{"version":1,"layers":{"a":["sast"]},"autre":true}', {
       b: { x: 1, y: 2 },
       a: { x: 0, y: 0 },
@@ -94,7 +94,7 @@ describe("positions", () => {
     );
   });
 
-  test("écrire fusionne avec les positions déjà là", () => {
+  test("writing merges with the positions already there", () => {
     const written = writePositions('{"version":1,"positions":{"a":{"x":1,"y":1}}}', {
       b: { x: 2, y: 2 },
     });
@@ -104,11 +104,11 @@ describe("positions", () => {
     });
   });
 
-  test("écrire crée le fichier absent", () => {
+  test("writing creates the missing file", () => {
     expect(JSON.parse(writePositions(null, {}) ?? "")).toEqual({ version: 1, positions: {} });
   });
 
-  test("un fichier illisible n'est pas écrasé", () => {
+  test("an unreadable file is not overwritten", () => {
     expect(writePositions("{", {})).toBeNull();
     expect(writePositions("[]", {})).toBeNull();
     expect(writePositions('{"version":2}', {})).toBeNull();

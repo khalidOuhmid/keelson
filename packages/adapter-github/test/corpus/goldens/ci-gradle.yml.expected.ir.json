@@ -1,0 +1,142 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-gradle.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 596,
+              "end": 618
+            },
+            "file": ".github/workflows/ci-gradle.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 623,
+              "end": 657
+            },
+            "file": ".github/workflows/ci-gradle.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 662,
+              "end": 1196
+            },
+            "file": ".github/workflows/ci-gradle.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": ["./gradlew build"],
+          "actions": [
+            "actions/checkout@v4",
+            "actions/setup-java@v4",
+            "gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582"
+          ]
+        },
+        "range": {
+          "start": 584,
+          "end": 1731
+        },
+        "file": ".github/workflows/ci-gradle.yml"
+      },
+      {
+        "id": "dependency-submission",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 1759,
+              "end": 1781
+            },
+            "file": ".github/workflows/ci-gradle.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 1786,
+              "end": 1821
+            },
+            "file": ".github/workflows/ci-gradle.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 1826,
+              "end": 2337
+            },
+            "file": ".github/workflows/ci-gradle.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [],
+          "actions": [
+            "actions/checkout@v4",
+            "actions/setup-java@v4",
+            "gradle/actions/dependency-submission@af1da67850ed9a4cedd57bfd976089dd991e2582"
+          ]
+        },
+        "range": {
+          "start": 1731,
+          "end": 2337
+        },
+        "file": ".github/workflows/ci-gradle.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 452,
+          "end": 477
+        },
+        "file": ".github/workflows/ci-gradle.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 479,
+          "end": 575
+        },
+        "file": ".github/workflows/ci-gradle.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-gradle.yml",
+    "files": [".github/workflows/ci-gradle.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

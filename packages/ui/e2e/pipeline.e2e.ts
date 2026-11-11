@@ -16,7 +16,7 @@ async function open(page: Page): Promise<void> {
   await expect(page.getByRole("region", { name: "Pipeline graph" })).toBeVisible();
 }
 
-test("affiche les stages, les jobs et les badges d'origine de la fixture", async ({ page }) => {
+test("shows the fixture's stages, jobs and origin badges", async ({ page }) => {
   await open(page);
 
   for (const stage of ["build", "test", "scan", "deploy"]) {
@@ -30,12 +30,12 @@ test("affiche les stages, les jobs et les badges d'origine de la fixture", async
   await expect(page.getByText("inherited from .deploy-base").first()).toBeVisible();
 });
 
-test("le token est retiré de l'URL après chargement", async ({ page }) => {
+test("the token is removed from the URL after loading", async ({ page }) => {
   await open(page);
   expect(page.url()).not.toContain("token=");
 });
 
-test("renommer un job écrit le fichier sur disque", async ({ page }) => {
+test("renaming a job writes the file to disk", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /^lint/ }).click();
@@ -53,7 +53,7 @@ test("renommer un job écrit le fichier sur disque", async ({ page }) => {
   expect(onDisk).toContain("# Keelson dev fixture");
 });
 
-test("ajouter un need écrit le fichier et apparaît dans le panneau", async ({ page }) => {
+test("adding a need writes the file and appears in the panel", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /^lint/ }).click();
@@ -64,7 +64,7 @@ test("ajouter un need écrit le fichier et apparaît dans le panneau", async ({ 
   expect(keelson.read()).toMatch(/lint:[\s\S]*needs:[\s\S]*build-image/);
 });
 
-test("undo restaure les octets d'origine", async ({ page }) => {
+test("undo restores the original bytes", async ({ page }) => {
   await open(page);
   const original = keelson.read();
 
@@ -80,7 +80,7 @@ test("undo restaure les octets d'origine", async ({ page }) => {
   expect(keelson.read()).toBe(original);
 });
 
-test("une modification externe du fichier recharge l'UI", async ({ page }) => {
+test("an external change to the file reloads the UI", async ({ page }) => {
   await open(page);
 
   keelson.write(`${keelson.read()}\nvenu-du-dehors:\n  stage: build\n  script:\n    - echo\n`);
@@ -91,7 +91,7 @@ test("une modification externe du fichier recharge l'UI", async ({ page }) => {
   await expect(page.getByTestId("notice-kind")).toContainText("Reloaded");
 });
 
-test("la suppression du fichier affiche l'état supprimé", async ({ page }) => {
+test("deleting the file shows the deleted state", async ({ page }) => {
   await open(page);
 
   const { rmSync } = await import("node:fs");
@@ -100,7 +100,7 @@ test("la suppression du fichier affiche l'état supprimé", async ({ page }) => 
   await expect(page.getByRole("heading", { name: /deleted/i })).toBeVisible({ timeout: 10_000 });
 });
 
-test("un 409 dit en anglais que rien n'a été appliqué, recharge et vide l'historique", async ({
+test("a 409 says in English that nothing was applied, reloads and clears history", async ({
   page,
 }) => {
   await page.route("**/api/events*", (route) => route.abort());
@@ -116,34 +116,32 @@ test("un 409 dit en anglais que rien n'a été appliqué, recharge et vide l'his
   await page.getByRole("button", { name: "Add stage" }).click();
 
   await expect(page.getByTestId("notice-kind")).toContainText("Not applied");
-  // Le titre de ce test promettait « le message » sans jamais l'asserter — relevé par la revue du
-  // 2026-10-22. Depuis que le serveur n'envoie plus de phrase, c'est ici le seul endroit où le
-  // rendu du 409 sur le binaire réel est vérifié.
-  // Deux `role="alert"` coexistent sur ce chemin : la bannière de notice, qui porte son texte en
-  // dur côté UI, et la bannière d'erreur, qui rend celui du serveur. C'est la seconde qu'on veut,
-  // désignée par le code qu'elle affiche — `.first()` prendrait la notice et le test passerait
-  // sans que rien ne soit rendu depuis `code` + `params`.
+  // This test's title promised "the message" without ever asserting it — caught by the
+  // 2026-10-22 review. Since the server no longer sends a sentence, this is the only place where
+  // the 409 rendering on the real binary is checked.
+  // Two `role="alert"` coexist on this path: the notice banner, whose text is hard-coded in the
+  // UI, and the error banner, which renders the server's. We want the second, targeted by the
+  // code it shows — `.first()` would pick the notice and the test would pass without anything
+  // being rendered from `code` + `params`.
   const banner = page.getByRole("alert").filter({ hasText: "STALE_DOCUMENT" });
   await expect(banner).toContainText("the document changed since the operation was computed");
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
   expect(keelson.read()).not.toContain("publish");
 });
 
-test("une erreur métier affiche le texte anglais rendu depuis le code du serveur", async ({
-  page,
-}) => {
+test("a domain error shows the English text rendered from the server's code", async ({ page }) => {
   await open(page);
 
   await page.getByRole("textbox", { name: "New stage name" }).fill("build");
   await page.getByRole("button", { name: "Add stage" }).click();
 
   await expect(page.getByText("STAGE_EXISTS")).toBeVisible();
-  // Le serveur n'envoie plus de phrase : s'il n'y avait pas de rendu côté client, la bannière
-  // n'afficherait que le code. Le texte exact est donc ce qui prouve que `render()` a tourné.
+  // The server no longer sends a sentence: without client-side rendering, the banner would only
+  // show the code. The exact text is therefore what proves `render()` ran.
   await expect(page.getByRole("alert")).toContainText('stage "build" already exists');
 });
 
-test("supprimer un job référencé affiche la phrase anglaise et les référents", async ({ page }) => {
+test("deleting a referenced job shows the English sentence and the referrers", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /build-image/ }).click();
@@ -154,13 +152,13 @@ test("supprimer un job référencé affiche la phrase anglaise et les référent
   const banner = page.getByRole("alert");
   const referents = ["unit-tests", "secret-detection", "container-scan"];
   await expect(banner).toContainText(`job "build-image" is needed by ${referents.join(", ")}`);
-  // Les pastilles sont un chemin distinct de la phrase : elles viennent de `params.referencedBy`,
-  // pas du rendu. La liste est exacte, pas un sous-ensemble — un référent manquant à l'écran est
-  // un job que l'utilisateur croira pouvoir garder.
+  // The chips are a path separate from the sentence: they come from `params.referencedBy`, not
+  // from rendering. The list is exact, not a subset — a referrer missing on screen is a job the
+  // user will think they can keep.
   await expect(banner.getByRole("listitem")).toHaveText(referents);
 });
 
-test("cliquer un diagnostic sélectionne le job concerné", async ({ page }) => {
+test("clicking a diagnostic selects the job concerned", async ({ page }) => {
   keelson.write(
     [
       "stages:",
@@ -189,9 +187,7 @@ test("cliquer un diagnostic sélectionne le job concerné", async ({ page }) => 
   await expect(page.getByRole("region", { name: "Job detail" })).toContainText("unit");
 });
 
-test("invariants de mise en page : chaque job est dans la colonne du stage qu'il annonce", async ({
-  page,
-}) => {
+test("layout invariants: every job is in the column of the stage it declares", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
 
@@ -235,8 +231,8 @@ test("invariants de mise en page : chaque job est dans la colonne du stage qu'il
 
   expect(boxes.jobs.length).toBeGreaterThan(0);
 
-  // La fixture de dev porte `lint`, un job sans arête dans un stage tardif : c'est la forme qui
-  // faisait atterrir un job dans la colonne du stage précédent.
+  // The dev fixture has `lint`, a job with no edge in a late stage: that is the shape that used
+  // to land a job in the previous stage's column.
   expect(boxes.jobs.map((job) => job.id)).toContain("lint");
 
   for (const job of boxes.jobs) {
@@ -262,7 +258,7 @@ test("invariants de mise en page : chaque job est dans la colonne du stage qu'il
   }
 });
 
-test("aucune arête n'est un arrêt de tabulation", async ({ page }) => {
+test("no edge is a tab stop", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
 
@@ -278,7 +274,7 @@ test("aucune arête n'est un arrêt de tabulation", async ({ page }) => {
   expect(focusable).toBe(0);
 });
 
-test("le panneau de détail se referme au clavier", async ({ page }) => {
+test("the detail panel closes from the keyboard", async ({ page }) => {
   await open(page);
 
   await page.getByRole("button", { name: /^lint/ }).click();
@@ -292,7 +288,7 @@ test("le panneau de détail se referme au clavier", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Job detail" })).toBeHidden();
 });
 
-test("supprimer un job demande confirmation avant d'écrire sur disque", async ({ page }) => {
+test("deleting a job asks for confirmation before writing to disk", async ({ page }) => {
   await open(page);
   const original = keelson.read();
 
@@ -312,9 +308,9 @@ test("supprimer un job demande confirmation avant d'écrire sur disque", async (
   expect(keelson.read()).not.toContain("\nlint:");
 });
 
-test("à 320 px le graphe reste rendu et mesurable", async ({ page }) => {
-  // WCAG 1.4.10 : 320 px, c'est un zoom 400 % sur un portable de 1280 px. Avant correctif, les
-  // deux colonnes `shrink-0` écrasaient `<main>` à zéro et le canevas n'était pas rendu du tout.
+test("at 320 px the graph stays rendered and measurable", async ({ page }) => {
+  // WCAG 1.4.10: 320 px is a 400% zoom on a 1280 px laptop. Before the fix, the two `shrink-0`
+  // columns squashed `<main>` to zero and the canvas was not rendered at all.
   await page.setViewportSize({ width: 320, height: 800 });
   await open(page);
   await expect(page.getByRole("button", { name: /^lint/ })).toBeVisible();
@@ -326,7 +322,7 @@ test("à 320 px le graphe reste rendu et mesurable", async ({ page }) => {
   expect(width).toBeGreaterThan(0);
 });
 
-test("sélectionner un job détache visuellement ses arêtes", async ({ page }) => {
+test("selecting a job visually sets its edges apart", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: /unit-tests/ }).click();
   await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
@@ -341,15 +337,15 @@ test("sélectionner un job détache visuellement ses arêtes", async ({ page }) 
   expect(new Set(widths).size).toBeGreaterThan(1);
 });
 
-test("le badge d'origine n'altère pas la casse de l'identifiant du fichier", async ({ page }) => {
-  // `.deploy-base` est une clé de template GitLab, sensible à la casse et écrite par
-  // l'utilisateur. L'afficher `.DEPLOY-BASE` est une donnée réécrite à l'écran. Seule la voix de
-  // Keelson — « inherited from » — se met en petites capitales.
+test("the origin badge does not alter the case of the file's identifier", async ({ page }) => {
+  // `.deploy-base` is a GitLab template key, case-sensitive and written by the user. Showing it
+  // as `.DEPLOY-BASE` is data rewritten on screen. Only Keelson's voice — "inherited from" — is
+  // set in small caps.
   await open(page);
   await page.getByRole("button", { name: /deploy-production/ }).click();
 
-  // Le badge du panneau, pas celui du canevas : c'est lui qui est imbriqué dans un titre en
-  // petites capitales, donc le seul qui puisse hériter d'un `text-transform`.
+  // The panel's badge, not the canvas one: it is the one nested in a small-caps heading, hence
+  // the only one that can inherit a `text-transform`.
   const badge = page
     .getByRole("region", { name: "Job detail" })
     .getByTestId("origin-badge")
@@ -370,7 +366,7 @@ test("le badge d'origine n'altère pas la casse de l'identifiant du fichier", as
   expect(rendered.transform).toBe("none");
 });
 
-test("le graphe se recadre quand le panneau de détail s'ouvre", async ({ page }) => {
+test("the graph refits when the detail panel opens", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: /^lint/ })).toBeVisible();
 
@@ -392,16 +388,16 @@ test("le graphe se recadre quand le panneau de détail s'ouvre", async ({ page }
     .getByRole("region", { name: "Job detail" })
     .evaluate((element) => element.getBoundingClientRect().left);
 
-  // Avant correctif, `fitView` ne tournait qu'au montage : l'ouverture du panneau retirait 352px
-  // au canevas sans le recadrer, et la dernière colonne passait sous le panneau.
+  // Before the fix, `fitView` only ran on mount: opening the panel took 352px from the canvas
+  // without refitting it, and the last column slid under the panel.
   await expect.poll(rightmostColumn).toBeLessThanOrEqual(panelLeft + 1);
 });
 
-test("un bloc opaque montre encore ses propres octets après une édition", async ({ page }) => {
-  // Trouvé par la revue indépendante : `applyPayload` ne rafraîchissait pas `text`, alors que les
-  // plages des blocs opaques viennent du nouveau pipeline. Après une opération décalant des
-  // offsets, le bloc affichait un fragment chevauchant la clé d'un autre job — sur la seule
-  // surface dont la garantie écrite est « ceci est intact ».
+test("an opaque block still shows its own bytes after an edit", async ({ page }) => {
+  // Found by the independent review: `applyPayload` did not refresh `text`, while opaque block
+  // ranges come from the new pipeline. After an operation shifting offsets, the block showed a
+  // fragment overlapping another job's key — on the only surface whose written guarantee is
+  // "this is intact".
   await open(page);
 
   const blockText = async () => {
@@ -413,7 +409,7 @@ test("un bloc opaque montre encore ses propres octets après une édition", asyn
   const before = await blockText();
   expect(before).toContain("trivy");
 
-  // Un renommage nettement plus long décale tous les offsets situés après lui.
+  // A markedly longer rename shifts every offset after it.
   await page.getByRole("button", { name: /^lint/ }).click();
   await page
     .getByRole("textbox", { name: "Job id", exact: true })
@@ -427,10 +423,10 @@ test("un bloc opaque montre encore ses propres octets après une édition", asyn
   expect(after).toBe(before);
 });
 
-test("chaque arête expose sa dépendance en texte accessible", async ({ page }) => {
-  // Seconde revue : `ariaLabel` n'était testé que comme valeur d'objet, alors que c'est la seule
-  // description accessible du graphe. Une montée de version de xyflow qui cesserait de poser
-  // `role` et `aria-label` sur les arêtes non focalisables passerait inaperçue.
+test("every edge exposes its dependency as accessible text", async ({ page }) => {
+  // Second review: `ariaLabel` was only tested as an object value, while it is the graph's only
+  // accessible description. An xyflow upgrade that stopped setting `role` and `aria-label` on
+  // non-focusable edges would go unnoticed.
   await open(page);
   await expect(page.getByRole("button", { name: /lint/ })).toBeVisible();
 

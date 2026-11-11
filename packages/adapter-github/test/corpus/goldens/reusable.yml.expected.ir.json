@@ -1,0 +1,157 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/reusable.yml"
+      },
+      {
+        "name": "level 2",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/reusable.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "call",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "uses",
+            "range": {
+              "start": 40,
+              "end": 83
+            },
+            "file": ".github/workflows/reusable.yml"
+          },
+          {
+            "key": "with",
+            "range": {
+              "start": 88,
+              "end": 112
+            },
+            "file": ".github/workflows/reusable.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": []
+        },
+        "range": {
+          "start": 30,
+          "end": 112
+        },
+        "file": ".github/workflows/reusable.yml"
+      },
+      {
+        "id": "after",
+        "stage": {
+          "value": "level 2",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": {
+          "value": [
+            {
+              "job": "call",
+              "optional": false,
+              "artifacts": true
+            }
+          ],
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "environment": {
+          "value": {
+            "name": "staging"
+          },
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 166,
+              "end": 188
+            },
+            "file": ".github/workflows/reusable.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 193,
+              "end": 234
+            },
+            "file": ".github/workflows/reusable.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [],
+          "actions": ["actions/checkout@v4"]
+        },
+        "range": {
+          "start": 114,
+          "end": 234
+        },
+        "file": ".github/workflows/reusable.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "on",
+        "range": {
+          "start": 0,
+          "end": 21
+        },
+        "file": ".github/workflows/reusable.yml"
+      }
+    ],
+    "main": ".github/workflows/reusable.yml",
+    "files": [".github/workflows/reusable.yml"],
+    "unresolved": [
+      {
+        "form": "workflow",
+        "detail": "acme/ci/.github/workflows/scan.yml@v1",
+        "from": ".github/workflows/reusable.yml",
+        "range": {
+          "start": 30,
+          "end": 112
+        }
+      }
+    ],
+    "provider": "github"
+  },
+  "diagnostics": [
+    {
+      "code": "WORKFLOW_UNRESOLVED",
+      "severity": "info",
+      "params": {
+        "job": "call",
+        "target": "acme/ci/.github/workflows/scan.yml@v1"
+      },
+      "range": {
+        "start": 30,
+        "end": 112
+      },
+      "file": ".github/workflows/reusable.yml"
+    }
+  ]
+}

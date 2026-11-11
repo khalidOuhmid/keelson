@@ -35,9 +35,9 @@ export function readEdgeCase(name: string): string {
 
 export const INCLUDES_DIR = join(CORPUS_ROOT, "includes");
 
-/** Un arbre du corpus d'includes : un dossier, son `.gitlab-ci.yml` à la racine, et ses fichiers
- *  inclus. L'arbre est la fixture, parce que la forme du défaut qu'on veut couvrir est
- *  « plusieurs fichiers » — un seul fichier ne la reproduirait pas. */
+/** A tree of the includes corpus: a folder, its `.gitlab-ci.yml` at the root, and its included
+ *  files. The tree is the fixture, because the shape of the defect we want to cover is "several
+ *  files" — a single file would not reproduce it. */
 export type CorpusTree = {
   name: string;
   root: string;

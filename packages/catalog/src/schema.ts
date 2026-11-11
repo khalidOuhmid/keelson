@@ -4,7 +4,7 @@ import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { OPEN_SOURCE_LICENSES, OTHER_LICENSES } from "./licenses.ts";
 
-/** Compile à la validation : une regex invalide doit échouer ici, pas au moment de détecter. */
+/** Compiles at validation: an invalid regex must fail here, not at detection time. */
 const pattern = z.string().refine((source) => {
   try {
     new RegExp(source, "i");
@@ -42,13 +42,18 @@ export const toolSchema = z
     homepage: z.url(),
     verifiedAt: z.url(),
     logo: z.string().min(1).nullable(),
-    detect: z.strictObject({ images: z.array(z.string().min(1)), scripts: z.array(pattern) }),
+    detect: z.strictObject({
+      images: z.array(z.string().min(1)),
+      scripts: z.array(pattern),
+      /** The tool's official GitHub actions, without their `@ref`. */
+      actions: z.array(z.string().min(1)).default([]),
+    }),
     snippets: z.strictObject({
       gitlab: z.string().refine(isJobMap, "not a map of jobs").nullable(),
       github: z.string().refine(isStepList, "not a list of steps").nullable(),
     }),
     lastVerified: z.iso.date(),
-    /** Le type d'intégration qu'un job a avec ce service. Absent sur les outils de type `job`. */
+    /** The kind of integration a job has with this service. Absent on `job` tools. */
     integration: z.enum(INTEGRATION_KINDS).nullable().default(null),
   })
   .refine((tool) => tool.kind === "service" || tool.integration === null, {
@@ -60,7 +65,7 @@ export type Tool = z.infer<typeof toolSchema>;
 
 export type ParsedTool = { ok: true; tool: Tool } | { ok: false; detail: string };
 
-/** `yaml` lit `2026-11-04` comme une chaîne, en mode `core` : aucune date ne se transforme. */
+/** `yaml` reads `2026-11-04` as a string in `core` mode: no date gets converted. */
 export function parseTool(text: string): ParsedTool {
   let raw: unknown;
   try {

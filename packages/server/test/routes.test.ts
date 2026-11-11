@@ -29,7 +29,7 @@ async function post(body: unknown, init: RequestInit = {}): Promise<Response> {
 }
 
 describe("GET /api/workspace", () => {
-  test("liste le fichier détecté avec son adaptateur", async () => {
+  test("lists the detected file with its adapter", async () => {
     const response = await harness.api("/api/workspace");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -37,15 +37,15 @@ describe("GET /api/workspace", () => {
     });
   });
 
-  test("rend une liste vide quand aucun fichier CI n'est détecté", async () => {
-    const vide = await startHarness({ text: null });
-    const response = await vide.api("/api/workspace");
+  test("returns an empty list when no CI file is detected", async () => {
+    const empty = await startHarness({ text: null });
+    const response = await empty.api("/api/workspace");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ files: [] });
-    await vide.close();
+    await empty.close();
   });
 
-  test("refuse une autre méthode", async () => {
+  test("refuses another method", async () => {
     const response = await harness.api("/api/workspace", { method: "DELETE" });
     expect(response.status).toBe(405);
     expect(await codeOf(response)).toBe("METHOD_NOT_ALLOWED");
@@ -53,7 +53,7 @@ describe("GET /api/workspace", () => {
 });
 
 describe("GET /api/documents/:file", () => {
-  test("rend text, pipeline, diagnostics et hash", async () => {
+  test("returns text, pipeline, diagnostics and hash", async () => {
     const response = await harness.api("/api/documents/.gitlab-ci.yml");
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
@@ -63,20 +63,20 @@ describe("GET /api/documents/:file", () => {
     expect((body.pipeline as { jobs: unknown[] }).jobs).toHaveLength(2);
   });
 
-  test("rend 404 pour un fichier hors du workspace", async () => {
-    const response = await harness.api("/api/documents/autre.yml");
+  test("returns 404 for a file outside the workspace", async () => {
+    const response = await harness.api("/api/documents/other.yml");
     expect(response.status).toBe(404);
     expect(await codeOf(response)).toBe("NOT_FOUND");
   });
 
-  test("accepte un nom de fichier encodé dans l'URL", async () => {
+  test("accepts a URL-encoded file name", async () => {
     const response = await harness.api(`/api/documents/${encodeURIComponent(".gitlab-ci.yml")}`);
     expect(response.status).toBe(200);
   });
 });
 
 describe("POST /api/documents/:file/operations", () => {
-  test("applique l'opération et écrit le fichier", async () => {
+  test("applies the operation and writes the file", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: await currentHash(), kind: "addStage", name: "verify" },
@@ -90,7 +90,7 @@ describe("POST /api/documents/:file/operations", () => {
     expect(readFileSync(harness.file, "utf8")).toContain("verify");
   });
 
-  test("rend 400 INVALID_OPERATION sur un schéma invalide", async () => {
+  test("returns 400 INVALID_OPERATION on an invalid schema", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: await currentHash(), kind: "dropDatabase" },
@@ -99,20 +99,20 @@ describe("POST /api/documents/:file/operations", () => {
     expect(await codeOf(response)).toBe("INVALID_OPERATION");
   });
 
-  test("rend 400 quand le corps n'est pas du JSON", async () => {
-    const response = await post("pas du json{");
+  test("returns 400 when the body is not JSON", async () => {
+    const response = await post("not json{");
     expect(response.status).toBe(400);
     expect(await codeOf(response)).toBe("INVALID_OPERATION");
   });
 
-  test("rend 400 quand opId manque", async () => {
+  test("returns 400 when opId is missing", async () => {
     const response = await post({
       op: { v: 1, baseHash: await currentHash(), kind: "addStage", name: "verify" },
     });
     expect(response.status).toBe(400);
   });
 
-  test("rend 409 STALE_DOCUMENT avec le hash courant", async () => {
+  test("returns 409 STALE_DOCUMENT with the current hash", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "verify" },
@@ -123,7 +123,7 @@ describe("POST /api/documents/:file/operations", () => {
     expect(body.hash).toBe(hashText(SAMPLE));
   });
 
-  test("rend 422 sur une erreur métier avec code et params", async () => {
+  test("returns 422 on a domain error with code and params", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: await currentHash(), kind: "removeJob", id: "compile" },
@@ -135,8 +135,8 @@ describe("POST /api/documents/:file/operations", () => {
     });
   });
 
-  test("rend 404 pour un fichier hors du workspace", async () => {
-    const response = await harness.api("/api/documents/autre.yml/operations", {
+  test("returns 404 for a file outside the workspace", async () => {
+    const response = await harness.api("/api/documents/other.yml/operations", {
       method: "POST",
       body: JSON.stringify({
         opId: "op-1",
@@ -146,12 +146,12 @@ describe("POST /api/documents/:file/operations", () => {
     expect(response.status).toBe(404);
   });
 
-  test("refuse GET sur la route des opérations", async () => {
+  test("refuses GET on the operations route", async () => {
     const response = await harness.api("/api/documents/.gitlab-ci.yml/operations");
     expect(response.status).toBe(405);
   });
 
-  test("le même opId rejoué rend la même réponse sans réécrire", async () => {
+  test("the same opId replayed returns the same response without rewriting", async () => {
     const op = { v: 1, baseHash: await currentHash(), kind: "addStage", name: "verify" };
     const first = await (await post({ opId: "stable", op })).json();
     const content = readFileSync(harness.file, "utf8");
@@ -161,8 +161,8 @@ describe("POST /api/documents/:file/operations", () => {
   });
 });
 
-describe("limite de taille du corps", () => {
-  test("rend 413 au-delà de 1 Mo", async () => {
+describe("body size limit", () => {
+  test("returns 413 beyond 1 MB", async () => {
     const response = await post({
       opId: "op-1",
       op: {
@@ -178,7 +178,7 @@ describe("limite de taille du corps", () => {
     expect(await codeOf(response)).toBe("PAYLOAD_TOO_LARGE");
   });
 
-  test("accepte un corps un peu en dessous de la limite", async () => {
+  test("accepts a body slightly under the limit", async () => {
     const response = await post({
       opId: "op-1",
       op: {
@@ -194,17 +194,16 @@ describe("limite de taille du corps", () => {
   });
 });
 
-describe("forme des erreurs", () => {
-  /** Un chemin d'erreur par entrée, et pour chacun la forme **exacte** du corps. `toEqual` plutôt
-   *  qu'une suite de `toBe` : c'est la seule façon de faire échouer le test si une clé `message`
-   *  réapparaît, et c'est précisément ce que ce lot interdit.
+describe("error shape", () => {
+  /** One error path per entry, and for each the **exact** shape of the body. `toEqual` rather than a
+   *  series of `toBe`: it is the only way to make the test fail if a `message` key reappears, and
+   *  that is precisely what this milestone forbids.
    *
-   *  La table couvre tous les chemins sauf `INTERNAL_ERROR`, qui demande de faire lever le
-   *  gestionnaire et vit donc dans son propre describe. La revue du 2026-10-22 a relevé que la
-   *  version précédente de ce commentaire renvoyait le 413 vers « son describe », où seul le
-   *  **code** était vérifié : or le 413 est le seul corps que le serveur sérialise à la main, hors
-   *  du `fail()` qui garantit la forme. C'était donc le chemin le moins gardé, décrit comme
-   *  couvert. Il est dans la table maintenant. */
+   *  The table covers every path except `INTERNAL_ERROR`, which requires making the handler throw
+   *  and so lives in its own describe. The review of 2026-10-22 found that the previous version of
+   *  this comment sent the 413 off to "its describe", where only the **code** was checked: yet the
+   *  413 is the only body the server serialises by hand, outside the `fail()` that guarantees the
+   *  shape. It was therefore the least guarded path, described as covered. It is in the table now. */
   const paths: {
     label: string;
     call: () => Promise<Response>;
@@ -212,15 +211,15 @@ describe("forme des erreurs", () => {
     body: Record<string, unknown>;
   }[] = [
     {
-      label: "405 sur une méthode refusée",
+      label: "405 on a refused method",
       call: () => harness.api("/api/workspace", { method: "PUT" }),
       status: 405,
       body: { code: "METHOD_NOT_ALLOWED", params: { method: "PUT" } },
     },
     {
-      // Le flux lit son token dans la requête, pas dans un en-tête : `raw` plus `?token=`, sinon
-      // le 403 du token arrive avant le 405 et le chemin de la méthode n'est jamais atteint.
-      label: "405 sur le flux d'événements",
+      // The stream reads its token from the query, not from a header: `raw` plus `?token=`, otherwise
+      // the token's 403 arrives before the 405 and the method path is never reached.
+      label: "405 on the event stream",
       call: () =>
         harness.raw(`/api/events?token=${encodeURIComponent(harness.server.token)}`, {
           method: "DELETE",
@@ -229,38 +228,38 @@ describe("forme des erreurs", () => {
       body: { code: "METHOD_NOT_ALLOWED", params: { method: "DELETE" } },
     },
     {
-      label: "403 sans token sur une route API",
+      label: "403 without a token on an API route",
       call: () => harness.raw("/api/workspace"),
       status: 403,
       body: { code: "FORBIDDEN_TOKEN", params: {} },
     },
     {
-      label: "403 sur un en-tête Host étranger",
+      label: "403 on a foreign Host header",
       call: () => harness.api("/api/workspace", { headers: { host: "evil.example.com" } }),
       status: 403,
       body: { code: "FORBIDDEN_HOST", params: {} },
     },
     {
-      label: "405 sur la route des opérations",
+      label: "405 on the operations route",
       call: () => harness.api("/api/documents/.gitlab-ci.yml/operations"),
       status: 405,
       body: { code: "METHOD_NOT_ALLOWED", params: { method: "GET" } },
     },
     {
-      label: "404 sur un document hors du workspace",
+      label: "404 on a document outside the workspace",
       call: () => harness.api("/api/documents/absent.yml"),
       status: 404,
       body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "absent.yml" } },
     },
     {
-      // `%` seul est un échappement invalide : `decodeURIComponent` lève.
-      label: "404 sur un nom de fichier indécodable, route du document",
+      // A lone `%` is an invalid escape: `decodeURIComponent` throws.
+      label: "404 on an undecodable file name, document route",
       call: () => harness.api("/api/documents/%"),
       status: 404,
       body: { code: "NOT_FOUND", params: { reason: "unreadableFileName" } },
     },
     {
-      label: "404 sur un nom de fichier indécodable, route des opérations",
+      label: "404 on an undecodable file name, operations route",
       call: () =>
         harness.api("/api/documents/%/operations", {
           method: "POST",
@@ -270,9 +269,9 @@ describe("forme des erreurs", () => {
       body: { code: "NOT_FOUND", params: { reason: "unreadableFileName" } },
     },
     {
-      // Le seul corps que le serveur sérialise à la main, donc le seul qui puisse dériver de la
-      // forme sans que `fail()` l'en empêche.
-      label: "413 au-delà de la limite de corps",
+      // The only body the server serialises by hand, hence the only one that could drift from the
+      // shape without `fail()` preventing it.
+      label: "413 beyond the body limit",
       call: () =>
         post({
           opId: "op-1",
@@ -289,15 +288,15 @@ describe("forme des erreurs", () => {
       body: { code: "PAYLOAD_TOO_LARGE", params: { limitBytes: 1_048_576 } },
     },
     {
-      label: "404 sur une route API inconnue",
-      call: () => harness.api("/api/inconnu"),
+      label: "404 on an unknown API route",
+      call: () => harness.api("/api/unknown"),
       status: 404,
-      body: { code: "NOT_FOUND", params: { reason: "unknownRoute", route: "/api/inconnu" } },
+      body: { code: "NOT_FOUND", params: { reason: "unknownRoute", route: "/api/unknown" } },
     },
     {
-      label: "404 sur une opération visant un fichier hors du workspace",
+      label: "404 on an operation targeting a file outside the workspace",
       call: () =>
-        harness.api("/api/documents/autre.yml/operations", {
+        harness.api("/api/documents/other.yml/operations", {
           method: "POST",
           body: JSON.stringify({
             opId: "op-1",
@@ -305,28 +304,28 @@ describe("forme des erreurs", () => {
           }),
         }),
       status: 404,
-      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "autre.yml" } },
+      body: { code: "NOT_FOUND", params: { reason: "unknownFile", file: "other.yml" } },
     },
     {
-      label: "400 sur un corps illisible",
-      call: () => post("pas du json{"),
+      label: "400 on an unreadable body",
+      call: () => post("not json{"),
       status: 400,
       body: { code: "INVALID_OPERATION", params: { reason: "unreadableBody" } },
     },
     {
-      label: "400 sans opId",
+      label: "400 without opId",
       call: () => post({ op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "x" } }),
       status: 400,
       body: { code: "INVALID_OPERATION", params: { reason: "missingOpId" } },
     },
     {
-      label: "400 sans op",
+      label: "400 without op",
       call: () => post({ opId: "op-1" }),
       status: 400,
       body: { code: "INVALID_OPERATION", params: { reason: "missingOp" } },
     },
     {
-      label: "400 sur une version d'opération non supportée",
+      label: "400 on an unsupported operation version",
       call: () => post({ opId: "op-1", op: { v: 2, baseHash: "0".repeat(64), kind: "addStage" } }),
       status: 400,
       body: { code: "UNSUPPORTED_VERSION", params: { received: 2, supported: 1 } },
@@ -342,7 +341,7 @@ describe("forme des erreurs", () => {
     });
   }
 
-  test("400 sur un schéma invalide : le détail de zod passe en params, sans message", async () => {
+  test("400 on an invalid schema: the zod detail goes into params, without a message", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: await currentHash(), kind: "dropDatabase" },
@@ -355,7 +354,7 @@ describe("forme des erreurs", () => {
     expect(typeof parsed.params.detail).toBe("string");
   });
 
-  test("409 porte le hash courant en plus de code et params, et rien d'autre", async () => {
+  test("409 carries the current hash on top of code and params, and nothing else", async () => {
     const response = await post({
       opId: "op-1",
       op: { v: 1, baseHash: "0".repeat(64), kind: "addStage", name: "verify" },
@@ -370,11 +369,11 @@ describe("forme des erreurs", () => {
 });
 
 describe("INTERNAL_ERROR", () => {
-  /** Le sixième code de transport, et le seul que la table de formes ne peut pas atteindre : il
-   *  faut faire **lever** le gestionnaire. L'écriture atomique passe par un fichier temporaire dans
-   *  le dossier du document ; un dossier sans droit d'écriture la fait donc échouer, et l'exception
-   *  remonte jusqu'au filet de `createServer`. Relevé absent par la revue du 2026-10-22. */
-  test("un gestionnaire qui lève rend 500 avec code et params, et aucun détail", async () => {
+  /** The sixth transport code, and the only one the shape table cannot reach: the handler has to
+   *  **throw**. The atomic write goes through a temporary file in the document's directory; a
+   *  directory without write permission therefore makes it fail, and the exception bubbles up to
+   *  `createServer`'s safety net. Found missing by the review of 2026-10-22. */
+  test("a throwing handler returns 500 with code and params, and no detail", async () => {
     const hash = await currentHash();
     chmodSync(harness.root, 0o500);
     try {
@@ -384,7 +383,7 @@ describe("INTERNAL_ERROR", () => {
       });
       expect(response.status).toBe(500);
       expect(response.headers.get("content-type")).toContain("application/json");
-      // Aucun détail exposé : ni chemin, ni message d'exception.
+      // No detail exposed: neither path nor exception message.
       expect(await response.json()).toEqual({ code: "INTERNAL_ERROR", params: {} });
     } finally {
       chmodSync(harness.root, 0o700);
@@ -392,8 +391,8 @@ describe("INTERNAL_ERROR", () => {
   });
 });
 
-describe("sans bundle d'UI", () => {
-  test("une route hors API rend 404 avec la forme attendue", async () => {
+describe("without a UI bundle", () => {
+  test("a non-API route returns 404 with the expected shape", async () => {
     const response = await harness.raw("/");
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({

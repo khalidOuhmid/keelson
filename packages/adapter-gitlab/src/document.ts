@@ -1,9 +1,9 @@
 import type { Document, LineCounter } from "yaml";
 import type { IncludeReader } from "./includes.ts";
 
-/** `file` et `read` sont ce qu'il faut pour **reparser le même pipeline** : `apply` relit le texte
- *  pour obtenir l'IR d'avant et d'après, et sans eux il le relirait sans ses `include`. Le garde de
- *  cycle et le refus d'éditer un fichier inclus porteraient alors sur un pipeline amputé. */
+/** `file` and `read` are what it takes to **reparse the same pipeline**: `apply` re-reads the text
+ *  to get the IR before and after, and without them it would re-read it without its `include`s.
+ *  The cycle guard and the refusal to edit an included file would then apply to a truncated pipeline. */
 export type GitlabDocument = {
   text: string;
   hash: string;

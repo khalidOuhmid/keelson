@@ -7,8 +7,8 @@ import { CORPUS_ROOT, type CorpusTree, corpusTrees, readTreeMain } from "./suppo
 
 const trees = corpusTrees();
 
-/** Les arbres passent par le **vrai** lecteur sur disque, pas par un objet littéral : c'est le
- *  seul test qui couvre `createFileReader`, et c'est lui que la CLI et le serveur utilisent. */
+/** The trees go through the **real** on-disk reader, not through an object literal: it is the
+ *  only test that covers `createFileReader`, and it is the one the CLI and the server use. */
 function parseTree(tree: CorpusTree) {
   return parse(readTreeMain(tree), { file: tree.main, read: createFileReader(tree.root) });
 }
@@ -18,8 +18,8 @@ function goldenFor(tree: CorpusTree): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-describe("IR golden du corpus d'includes", () => {
-  test("le corpus n'est pas vide", () => {
+describe("golden IR of the includes corpus", () => {
+  test("the corpus is not empty", () => {
     expect(trees.length).toBeGreaterThan(5);
   });
 
@@ -30,13 +30,13 @@ describe("IR golden du corpus d'includes", () => {
   }
 });
 
-describe("invariants de l'IR sur les arbres", () => {
-  /** L'invariant qui compte quand l'IR devient multi-fichiers : une plage se lit dans le texte de
-   *  **son** fichier. La lire dans celui du fichier principal donnerait des octets pris ailleurs —
-   *  c'est le défaut que la revue du lot L2 avait trouvé sur le visualiseur de blocs opaques, en
-   *  version aggravée, puisque les deux textes n'ont alors aucun rapport. */
+describe("IR invariants on the trees", () => {
+  /** The invariant that matters once the IR becomes multi-file: a range is read in the text of
+   *  **its** file. Reading it in the main file's text would yield bytes taken from elsewhere —
+   *  the defect the milestone L2 review had found in the opaque block viewer, in a worse form,
+   *  since the two texts are then unrelated. */
   for (const tree of trees) {
-    test(`${tree.name} : chaque plage est vraie dans le texte de son fichier`, () => {
+    test(`${tree.name}: every range is true in the text of its file`, () => {
       const pipeline = parseTree(tree).pipeline;
       const texts = new Map(
         [...new Set(pipeline.files)].map((file) => [
@@ -48,7 +48,7 @@ describe("invariants de l'IR sur les arbres", () => {
       const textOf = (file: string): string => {
         const text = texts.get(file);
         if (text === undefined) {
-          throw new Error(`${tree.name} : ${file} n'est pas dans pipeline.files`);
+          throw new Error(`${tree.name}: ${file} is not in pipeline.files`);
         }
         return text;
       };
@@ -80,7 +80,7 @@ describe("invariants de l'IR sur les arbres", () => {
     });
   }
 
-  test("chaque diagnostic nomme un fichier de l'arbre", () => {
+  test("every diagnostic names a file of the tree", () => {
     for (const tree of trees) {
       const parsed = parseTree(tree);
       for (const diagnostic of parsed.diagnostics) {
@@ -93,7 +93,7 @@ describe("invariants de l'IR sur les arbres", () => {
     }
   });
 
-  test("le fichier principal est toujours le dernier de l'ordre de fusion", () => {
+  test("the main file is always last in the merge order", () => {
     for (const tree of trees) {
       const pipeline = parseTree(tree).pipeline;
       expect({ tree: tree.name, last: pipeline.files.at(-1) }).toEqual({
@@ -103,7 +103,7 @@ describe("invariants de l'IR sur les arbres", () => {
     }
   });
 
-  test("aucun élément ne nomme un fichier absent de l'ordre de fusion", () => {
+  test("no element names a file missing from the merge order", () => {
     for (const tree of trees) {
       const pipeline = parseTree(tree).pipeline;
       const known = new Set(pipeline.files);
@@ -125,25 +125,25 @@ describe("invariants de l'IR sur les arbres", () => {
 describe("createFileReader", () => {
   const simple = join(CORPUS_ROOT, "includes", "simple");
 
-  test("lit un fichier de la racine", () => {
+  test("reads a file at the root", () => {
     expect(createFileReader(simple).read("ci/jobs.yml")).toContain("compile:");
   });
 
-  /** La seconde barrière, après `normaliseIncludePath`. Elle est redondante par choix : c'est la
-   *  dernière ligne avant un `readFileSync` déclenché par le fichier d'un dépôt quelconque, lu par
-   *  un serveur qui répond à une page web. Le chemin testé ici est **déjà normalisé**, donc il ne
-   *  passe pas par le premier contrôle — c'est bien celle-ci qu'il mesure. */
-  test("refuse un chemin qui sort de la racine, même déjà normalisé", () => {
+  /** The second barrier, after `normaliseIncludePath`. It is redundant by choice: it is the last
+   *  line before a `readFileSync` triggered by the file of an arbitrary repository, read by a
+   *  server that answers a web page. The path tested here is **already normalised**, so it does
+   *  not go through the first check — it is indeed this one that it measures. */
+  test("refuses a path that leaves the root, even when already normalised", () => {
     const reader = createFileReader(simple);
     expect(reader.read("../override/ci/jobs.yml")).toBeNull();
     expect(reader.read("/etc/passwd")).toBeNull();
   });
 
-  test("un fichier absent rend null plutôt que de lever", () => {
+  test("a missing file returns null rather than throwing", () => {
     expect(createFileReader(simple).read("ci/absent.yml")).toBeNull();
   });
 
-  test("candidates ne rend que des fichiers YAML, chemins relatifs à la racine", () => {
+  test("candidates returns only YAML files, paths relative to the root", () => {
     const found = createFileReader(join(CORPUS_ROOT, "includes", "wildcard")).candidates();
     expect([...found].sort()).toEqual([
       ".gitlab-ci.yml",

@@ -1,9 +1,9 @@
 import type { Origin } from "@keelson/core";
 
-/** `label` est la voix de Keelson, `source` une chaîne venue du fichier de l'utilisateur. Les deux
- *  sont séparées parce qu'elles ne se composent pas de la même façon : le label se met en petites
- *  capitales, la source jamais — une clé de template GitLab est sensible à la casse, et
- *  `.deploy-base` affiché `.DEPLOY-BASE` est une donnée réécrite à l'écran. */
+/** `label` is Keelson's voice, `source` a string taken from the user's file. The two are kept apart
+ *  because they are not typeset the same way: the label is set in small caps, the source never — a
+ *  GitLab template key is case-sensitive, and `.deploy-base` shown as `.DEPLOY-BASE` is data
+ *  rewritten on screen. */
 export type OriginLabel = {
   label: string;
   source: string | null;
@@ -29,18 +29,18 @@ export function describeOrigin(origin: Origin): OriginLabel | null {
 export const ORIGIN_HINT =
   "This value is inherited. Changing it writes an explicit override in this job and never touches the template.";
 
-/** Une valeur venue d'un fichier inclus, sur un job du fichier principal : `setJobStage` y écrit
- *  bien une surcharge, et le fichier inclus n'est pas touché. */
+/** A value coming from an included file, on a job of the main file: `setJobStage` does write an
+ *  override there, and the included file is not touched. */
 export const INCLUDE_ORIGIN_HINT =
   "This value comes from an included file. Changing it writes an explicit override in this job and never touches that file.";
 
-/** Sur un job inclus, aucune valeur ne se surcharge, quelle que soit son origine : Keelson n'écrit
- *  pas ce fichier. */
+/** On an included job, no value can be overridden, whatever its origin: Keelson does not write
+ *  that file. */
 export const READ_ONLY_ORIGIN_HINT =
   "This job is defined in an included file. Keelson never writes to included files, so this value cannot be overridden here.";
 
-/** Le texte dépend du job **et** de l'origine : regarder l'origine seule promettait une surcharge
- *  impossible sur un job inclus, ou la refusait sur un job surchargé dans le fichier principal. */
+/** The text depends on the job **and** the origin: looking at the origin alone promised an
+ *  impossible override on an included job, or refused it on a job overridden in the main file. */
 export function hintFor(origin: Origin, readOnly: boolean): string {
   if (readOnly) {
     return READ_ONLY_ORIGIN_HINT;

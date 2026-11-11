@@ -62,14 +62,14 @@ beforeEach(async () => {
 
 const draft = { kind: "removeService", id: "x" } as const;
 
-describe("store de toolchain", () => {
-  test("une opération part avec le hash courant", async () => {
+describe("toolchain store", () => {
+  test("an operation is sent with the current hash", async () => {
     await state().submit(draft);
     expect(sent[0]).toEqual({ v: 1, baseHash: "a", ...draft });
     expect(state().payload?.hash).toBe("b");
   });
 
-  test("annuler envoie l'inverse, rétablir l'inverse de l'annulation", async () => {
+  test("undo sends the inverse, redo the inverse of the undo", async () => {
     await state().submit(draft);
     answers.push(applied("c"));
     await state().undo();
@@ -82,14 +82,14 @@ describe("store de toolchain", () => {
     expect(state().canUndo()).toBe(true);
   });
 
-  test("une nouvelle opération vide la pile de rétablissement", async () => {
+  test("a new operation clears the redo stack", async () => {
     await state().submit(draft);
     await state().undo();
     await state().submit(draft);
     expect(state().canRedo()).toBe(false);
   });
 
-  test("un 409 recharge, vide l'historique et garde l'erreur", async () => {
+  test("a 409 reloads, clears history and keeps the error", async () => {
     await state().submit(draft);
     answers.push(failure(409));
     loaded = payload("z");
@@ -99,26 +99,26 @@ describe("store de toolchain", () => {
     expect(state().error?.status).toBe(409);
   });
 
-  test("submit dit si l'écriture a eu lieu", async () => {
+  test("submit says whether the write happened", async () => {
     expect(await state().submit(draft)).toBe(true);
     answers.push(failure(422));
     expect(await state().submit(draft)).toBe(false);
   });
 
-  test("un autre échec garde l'état et dit l'erreur", async () => {
+  test("another failure keeps the state and reports the error", async () => {
     answers.push(failure(422));
     await state().submit(draft);
     expect(state().payload?.hash).toBe("a");
     expect(state().error?.status).toBe(422);
   });
 
-  test("toolchain.changed au hash connu ne fait rien : c'est notre écriture", async () => {
+  test("toolchain.changed at the known hash does nothing: it is our own write", async () => {
     await state().submit(draft);
     await state().changed("b");
     expect(state().canUndo()).toBe(true);
   });
 
-  test("toolchain.changed à un autre hash recharge et vide l'historique", async () => {
+  test("toolchain.changed at another hash reloads and clears history", async () => {
     await state().submit(draft);
     loaded = payload("z");
     await state().changed("z");
@@ -126,7 +126,7 @@ describe("store de toolchain", () => {
     expect(state().canUndo()).toBe(false);
   });
 
-  test("deux annulations rapides n'envoient pas deux fois le même inverse", async () => {
+  test("two quick undos do not send the same inverse twice", async () => {
     await state().submit(draft);
     await state().submit(draft);
     sent.length = 0;
@@ -134,7 +134,7 @@ describe("store de toolchain", () => {
     expect(sent).toHaveLength(1);
   });
 
-  test("un changement externe pendant une opération recharge ensuite", async () => {
+  test("an external change during an operation reloads afterwards", async () => {
     let settle: (value: ApiResult<ToolchainOperationPayload>) => void = () => {};
     const held = createToolchainStore({
       load: async () => ({ ok: true, value: loaded }),
@@ -156,7 +156,7 @@ describe("store de toolchain", () => {
     expect(held.getState().payload?.hash).toBe("z");
   });
 
-  test("l'écho de notre écriture pendant l'opération suivante ne recharge pas", async () => {
+  test("the echo of our write during the next operation does not reload", async () => {
     await state().submit(draft);
     let settle: (value: ApiResult<ToolchainOperationPayload>) => void = () => {};
     const echo = createToolchainStore({
@@ -180,7 +180,7 @@ describe("store de toolchain", () => {
     expect(echo.getState().canUndo()).toBe(true);
   });
 
-  test("l'écho tardif d'une écriture déjà dépassée ne recharge pas", async () => {
+  test("the late echo of an already superseded write does not reload", async () => {
     await state().submit(draft);
     answers.push(applied("c"));
     await state().submit(draft);
@@ -189,7 +189,7 @@ describe("store de toolchain", () => {
     expect(state().canUndo()).toBe(true);
   });
 
-  test("un retour externe à un texte déjà écrit se voit, une fois l'écho passé", async () => {
+  test("an external revert to an already written text shows, once the echo is past", async () => {
     await state().submit(draft);
     answers.push(applied("c"));
     await state().submit(draft);
@@ -201,7 +201,7 @@ describe("store de toolchain", () => {
     expect(state().notice?.kind).toBe("reloaded");
   });
 
-  test("des échos regroupés par le debounce ne laissent pas de trace", async () => {
+  test("echoes grouped by the debounce leave no trace", async () => {
     await state().submit(draft);
     answers.push(applied("c"));
     await state().submit(draft);
@@ -211,7 +211,7 @@ describe("store de toolchain", () => {
     expect(state().payload?.hash).toBe("b");
   });
 
-  test("un hash écrit deux fois : l'écho consomme jusqu'à la dernière occurrence", async () => {
+  test("a hash written twice: the echo consumes up to the last occurrence", async () => {
     await state().submit(draft);
     answers.push(applied("a"));
     await state().submit(draft);
@@ -223,13 +223,13 @@ describe("store de toolchain", () => {
     expect(state().payload?.hash).toBe("a");
   });
 
-  test("une écriture externe rechargée le dit", async () => {
+  test("a reloaded external write says so", async () => {
     loaded = payload("z");
     await state().changed("z");
     expect(state().notice?.kind).toBe("reloaded");
   });
 
-  test("déplacer un nœud n'envoie que ce nœud : le reste est au serveur", async () => {
+  test("moving a node sends only that node: the rest is the server's job", async () => {
     await state().move("job:a", { x: 1, y: 2 });
     await state().move("job:b", { x: 3, y: 4 });
     expect(saved.at(-1)).toEqual({ "job:b": { x: 3, y: 4 } });

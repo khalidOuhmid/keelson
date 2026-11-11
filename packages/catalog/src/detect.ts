@@ -8,8 +8,8 @@ export type Detection = {
   layers: readonly LayerId[];
 };
 
-/** Le nom d'une image sans registre, chemin, tag ni empreinte : un miroir privé reste la même image,
- *  mais `mycorp/trivy-report-uploader` n'est pas Trivy. */
+/** An image name without registry, path, tag or digest: a private mirror is still the same image,
+ *  but `mycorp/trivy-report-uploader` is not Trivy. */
 function imageName(image: string): string {
   const withoutDigest = image.toLowerCase().split("@")[0] ?? "";
   const last = withoutDigest.split("/").at(-1) ?? "";
@@ -26,12 +26,24 @@ function onScript(tool: Tool, commands: readonly string[]): boolean {
   return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
+function onAction(tool: Tool, actions: readonly string[]): boolean {
+  return actions.some((action) => {
+    if (action.startsWith("docker://")) {
+      return onImage(tool, action.slice("docker://".length));
+    }
+    const name = (action.split("@")[0] ?? "").toLowerCase();
+    return tool.detect.actions.some(
+      (known) => name === known.toLowerCase() || name.startsWith(`${known.toLowerCase()}/`),
+    );
+  });
+}
+
 const commandsOf = (signals: JobSignals): string[] =>
   signals.script.flatMap((line) => executedCommands(line));
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };
 
-/** Sur le script seul : l'image d'un client ne prouve pas qu'un job parle au service. */
+/** On the script only: a client image does not prove that a job talks to the service. */
 export function detectIntegrations(
   signals: JobSignals,
   tools: readonly Tool[],
@@ -44,11 +56,13 @@ export function detectIntegrations(
   );
 }
 
-/** Un job peut correspondre à plusieurs outils. */
+/** A job can match several tools. */
 export function detectTools(signals: JobSignals, tools: readonly Tool[]): Detection[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): Detection[] =>
-    onImage(tool, signals.image) || onScript(tool, commands)
+    onImage(tool, signals.image) ||
+    onScript(tool, commands) ||
+    onAction(tool, signals.actions ?? [])
       ? [{ tool: tool.id, layers: tool.layers }]
       : [],
   );

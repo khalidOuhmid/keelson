@@ -23,17 +23,17 @@ afterEach(() => {
   rmSync(outside, { recursive: true, force: true });
 });
 
-describe("la frontière de la racine", () => {
-  test("un fichier de la racine est lu", () => {
+describe("the root boundary", () => {
+  test("a file at the root is read", () => {
     expect(createFileReader(root).read("ci/jobs.yml")).toContain("compile:");
   });
 
-  /** Le défaut trouvé par la revue indépendante du 2026-10-23, et le pire du lot : les deux
-   *  contrôles de frontière étaient **lexicaux**, donc aveugles aux liens symboliques. Un dépôt
-   *  cloné depuis un tiers suffisait à faire sortir n'importe quel fichier lisible par
-   *  l'utilisateur vers la charge envoyée au navigateur, sans le moindre diagnostic. L'extension
-   *  `.yml` était par ailleurs contrôlée sur le nom du lien, jamais sur sa cible. */
-  test("un lien symbolique qui sort de la racine est refusé", () => {
+  /** The defect found by the independent review of 2026-10-23, and the worst of the milestone:
+   *  both boundary checks were **lexical**, hence blind to symbolic links. A repository cloned
+   *  from a third party was enough to leak any file readable by the user into the payload sent
+   *  to the browser, without the slightest diagnostic. The `.yml` extension was moreover checked
+   *  on the link's name, never on its target. */
+  test("a symbolic link that leaves the root is refused", () => {
     symlinkSync(join(outside, "secret.txt"), join(root, "ci", "fuite.yml"));
 
     const read = createFileReader(root).read("ci/fuite.yml");
@@ -41,29 +41,29 @@ describe("la frontière de la racine", () => {
     expect(read).not.toBe(SECRET);
   });
 
-  test("un lien symbolique vers un dossier hors racine est refusé aussi", () => {
+  test("a symbolic link to a directory outside the root is refused too", () => {
     symlinkSync(outside, join(root, "ailleurs"));
     expect(createFileReader(root).read("ailleurs/secret.txt")).toBeNull();
   });
 
-  /** Un lien reste permis s'il reste sous la racine : un dépôt peut légitimement en contenir, et
-   *  l'assertion négative seule laisserait passer un lecteur qui refuse tous les liens — ce qui
-   *  serait un autre défaut, plus discret. */
-  test("un lien symbolique interne à la racine est lu", () => {
+  /** A link is still allowed if it stays under the root: a repository may legitimately contain
+   *  some, and the negative assertion alone would let through a reader that refuses every link —
+   *  which would be another, quieter defect. */
+  test("a symbolic link inside the root is read", () => {
     symlinkSync(join(root, "ci", "jobs.yml"), join(root, "ci", "alias.yml"));
     expect(createFileReader(root).read("ci/alias.yml")).toContain("compile:");
   });
 
-  /** Le lien reste dans la racine, mais sa cible n'est pas un YAML : `.git/config` ou `.env`
-   *  partiraient vers le navigateur. L'extension se contrôle sur la cible, pas sur le nom du lien. */
-  test("un lien interne vers un fichier qui n'est pas du YAML est refusé", () => {
+  /** The link stays inside the root, but its target is not YAML: `.git/config` or `.env` would
+   *  leak to the browser. The extension is checked on the target, not on the link's name. */
+  test("an internal link to a non-YAML file is refused", () => {
     writeFileSync(join(root, ".env"), "API_KEY=x\n");
     symlinkSync(join(root, ".env"), join(root, "ci", "env.yml"));
     expect(createFileReader(root).read("ci/env.yml")).toBeNull();
   });
 
-  /** Sans `realPrefix`, comparer un chemin réel à la racine écrite refuserait tout. */
-  test("une racine atteinte par un lien lit encore ses fichiers", () => {
+  /** Without `realPrefix`, comparing a real path with the written root would refuse everything. */
+  test("a root reached through a link still reads its files", () => {
     const alias = `${root}-alias`;
     symlinkSync(root, alias);
     try {
@@ -73,18 +73,18 @@ describe("la frontière de la racine", () => {
     }
   });
 
-  test("un chemin lexicalement sorti de la racine est refusé", () => {
+  test("a path that lexically leaves the root is refused", () => {
     expect(createFileReader(root).read("../dehors.yml")).toBeNull();
     expect(createFileReader(root).read("/etc/passwd")).toBeNull();
   });
 
-  /** Lire une FIFO bloque sans fin, et `detectWorkspace` figeait le démarrage du serveur. */
-  test("seul un fichier ordinaire est lu", () => {
+  /** Reading a FIFO blocks forever, and `detectWorkspace` froze the server's startup. */
+  test("only a regular file is read", () => {
     spawnSync("mkfifo", [join(root, "ci", "tube.yml")]);
     expect(createFileReader(root).read("ci/tube.yml")).toBeNull();
   });
 
-  test("un fichier absent rend null plutôt que de lever", () => {
+  test("a missing file returns null rather than throwing", () => {
     expect(createFileReader(root).read("ci/absent.yml")).toBeNull();
   });
 });

@@ -3,18 +3,18 @@ import type { DiagnosticCode, ParamsOf } from "./messages/codes.ts";
 
 export type Severity = "error" | "warning" | "info";
 
-/** Union discriminée sur `code` : la forme des `params` dépend du code, et le compilateur refuse
- *  d'apparier les deux au hasard. Pas de `message` — le texte est rendu par
- *  `@keelson/core/messages`, jamais produit ici. */
+/** Discriminated union on `code`: the shape of `params` depends on the code, and the compiler
+ *  refuses to pair the two at random. No `message` — the text is rendered by
+ *  `@keelson/core/messages`, never produced here. */
 export type Diagnostic = {
   [C in DiagnosticCode]: {
     code: C;
     severity: Severity;
     params: ParamsOf<C>;
-    /** Offset dans le texte de `file`, pas dans celui du fichier principal. */
+    /** Offset into the text of `file`, not into that of the main file. */
     range: SourceRange | null;
-    /** Toujours présent. Un `undefined` qui voudrait dire « le fichier principal » serait
-     *  exactement la valeur absente que le lot L2c a passé sa journée à retirer des rendus. */
+    /** Always present. An `undefined` meaning "the main file" would be exactly the missing value
+     *  that milestone L2c spent its day removing from the renderings. */
     file: string;
   };
 }[DiagnosticCode];
@@ -48,6 +48,7 @@ export {
   TOOLCHAIN_UNKNOWN_TOOL,
   UNKNOWN_NEED,
   UNKNOWN_STAGE,
+  WORKFLOW_UNRESOLVED,
 } from "./messages/codes.ts";
 
 export function hasErrors(diagnostics: readonly Diagnostic[]): boolean {

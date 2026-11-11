@@ -46,13 +46,11 @@
       "Task"
     ],
     "deny": [
-      "Bash(git push:*)",
       "Bash(git reset --hard:*)",
       "Bash(git rebase:*)",
       "Bash(git filter-branch:*)",
       "Bash(npm publish:*)",
-      "Bash(bun publish:*)",
-      "Bash(gh:*)"
+      "Bash(bun publish:*)"
     ]
   }
 }

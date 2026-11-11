@@ -55,13 +55,13 @@ function urlFrom(written: readonly string[]): string {
   const line = written.join("").trim();
   const match = /(http:\/\/127\.0\.0\.1:\d+\/\?token=[0-9a-f]{64})/.exec(line);
   if (match?.[1] === undefined) {
-    throw new Error(`URL introuvable dans la sortie : ${line}`);
+    throw new Error(`URL not found in output: ${line}`);
   }
   return match[1];
 }
 
-describe("démarrage", () => {
-  test("annonce l'URL avec le port et le token puis sort en 0", async () => {
+describe("startup", () => {
+  test("announces the URL with the port and token, then exits 0", async () => {
     const h = harness();
     const run = startCommand([workspace()], process.cwd(), h.deps);
 
@@ -75,7 +75,7 @@ describe("démarrage", () => {
     expect(url).toContain("?token=");
   });
 
-  test("le serveur répond sur /api/workspace avec le token", async () => {
+  test("the server answers /api/workspace with the token", async () => {
     const h = harness();
     const run = startCommand([workspace()], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -93,7 +93,7 @@ describe("démarrage", () => {
     await run;
   });
 
-  test("sans token la requête est refusée", async () => {
+  test("without a token the request is refused", async () => {
     const h = harness();
     const run = startCommand([workspace()], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -105,7 +105,7 @@ describe("démarrage", () => {
     await run;
   });
 
-  test("démarre même sans fichier CI détecté", async () => {
+  test("starts even with no CI file detected", async () => {
     const h = harness();
     const run = startCommand([workspace(false)], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -120,7 +120,7 @@ describe("démarrage", () => {
     expect((await run).exitCode).toBe(0);
   });
 
-  test("utilise le dossier courant quand aucun n'est passé", async () => {
+  test("uses the current directory when none is passed", async () => {
     const root = workspace();
     const h = harness();
     const run = startCommand([], root, h.deps);
@@ -137,8 +137,8 @@ describe("démarrage", () => {
   });
 });
 
-describe("ouverture du navigateur", () => {
-  test("ouvre l'URL par défaut", async () => {
+describe("opening the browser", () => {
+  test("opens the URL by default", async () => {
     const h = harness();
     const run = startCommand([workspace()], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -150,7 +150,7 @@ describe("ouverture du navigateur", () => {
     await run;
   });
 
-  test("--no-open n'appelle pas l'ouvreur", async () => {
+  test("--no-open does not call the opener", async () => {
     const h = harness();
     const run = startCommand([workspace(), "--no-open"], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -163,7 +163,7 @@ describe("ouverture du navigateur", () => {
 });
 
 describe("port", () => {
-  test("--port impose le port demandé", async () => {
+  test("--port forces the requested port", async () => {
     const h = harness();
     const run = startCommand([workspace(), "--port", "5391"], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -174,7 +174,7 @@ describe("port", () => {
     await run;
   });
 
-  test("un port occupé rend 2 avec un message clair", async () => {
+  test("a busy port returns 2 with a clear message", async () => {
     const squatter = createRawServer();
     await new Promise<void>((resolve) => squatter.listen(0, "127.0.0.1", () => resolve()));
     const address = squatter.address();
@@ -190,14 +190,14 @@ describe("port", () => {
     await new Promise<void>((resolve) => squatter.close(() => resolve()));
   });
 
-  test("un port non numérique rend 2", async () => {
+  test("a non-numeric port returns 2", async () => {
     const h = harness();
     const result = await startCommand([workspace(), "--port", "abc"], process.cwd(), h.deps);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("--port");
   });
 
-  test("un port hors bornes rend 2", async () => {
+  test("an out-of-range port returns 2", async () => {
     const h = harness();
     for (const port of ["-1", "70000"]) {
       const result = await startCommand([workspace(), "--port", port], process.cwd(), h.deps);
@@ -206,21 +206,21 @@ describe("port", () => {
   });
 });
 
-describe("usage invalide", () => {
-  test("une option inconnue rend 2", async () => {
+describe("invalid usage", () => {
+  test("an unknown option returns 2", async () => {
     const h = harness();
     const result = await startCommand([workspace(), "--turbo"], process.cwd(), h.deps);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain("--turbo");
   });
 
-  test("deux dossiers rendent 2", async () => {
+  test("two directories return 2", async () => {
     const h = harness();
     const result = await startCommand([workspace(), workspace()], process.cwd(), h.deps);
     expect(result.exitCode).toBe(2);
   });
 
-  test("un dossier inexistant rend 2", async () => {
+  test("a nonexistent directory returns 2", async () => {
     const h = harness();
     const result = await startCommand(
       [join(tmpdir(), "keelson-absent-xyz")],
@@ -231,8 +231,8 @@ describe("usage invalide", () => {
   });
 });
 
-describe("arrêt", () => {
-  test("l'arrêt ferme le serveur", async () => {
+describe("shutdown", () => {
+  test("shutting down closes the server", async () => {
     const h = harness();
     const run = startCommand([workspace()], process.cwd(), h.deps);
     await new Promise((resolve) => setTimeout(resolve, 150));

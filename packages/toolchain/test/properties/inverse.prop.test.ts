@@ -8,8 +8,8 @@ const scenario = fc
   .constantFrom(...corpusTexts())
   .chain((text) => operationArb(text).map((draft) => ({ text, draft })));
 
-describe("propriété : l'inverse restaure les octets", () => {
-  test("appliquer puis annuler, annuler l'annulation", () => {
+describe("property: the inverse restores the bytes", () => {
+  test("apply then undo, undo the undo", () => {
     fc.assert(
       fc.property(scenario, ({ text, draft }) => {
         const operation = { v: 1, baseHash: hashText(text), ...draft } as ToolchainOperation;

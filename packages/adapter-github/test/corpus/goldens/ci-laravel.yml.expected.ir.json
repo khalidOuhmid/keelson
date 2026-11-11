@@ -1,0 +1,88 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-laravel.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "laravel-tests",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 140,
+              "end": 162
+            },
+            "file": ".github/workflows/ci-laravel.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 168,
+              "end": 981
+            },
+            "file": ".github/workflows/ci-laravel.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+            "composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist",
+            "php artisan key:generate",
+            "chmod -R 777 storage bootstrap/cache",
+            "mkdir -p database\ntouch database/database.sqlite\n",
+            "php artisan test"
+          ],
+          "actions": [
+            "shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e",
+            "actions/checkout@v4"
+          ]
+        },
+        "range": {
+          "start": 120,
+          "end": 981
+        },
+        "file": ".github/workflows/ci-laravel.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 13
+        },
+        "file": ".github/workflows/ci-laravel.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 15,
+          "end": 111
+        },
+        "file": ".github/workflows/ci-laravel.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-laravel.yml",
+    "files": [".github/workflows/ci-laravel.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

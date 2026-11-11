@@ -9,6 +9,7 @@ import type {
   CatalogPayload,
   DocumentPayload,
   OperationPayload,
+  WorkspaceFile,
 } from "../api/client.ts";
 import type { ServerEvent } from "../api/events.ts";
 
@@ -22,12 +23,13 @@ export type Notice =
   | { kind: "stale"; message: string }
   | { kind: "reloaded"; message: string }
   | { kind: "written"; message: string }
+  | { kind: "opened"; message: string }
   | { kind: "removed"; message: string };
 
 export type Status = "loading" | "ready" | "removed" | "empty";
 
-/** Seul un document que l'IR ne peut pas modéliser interdit l'édition : une erreur de validation
- *  comme UNKNOWN_NEED se corrige justement en éditant. */
+/** Only a document the IR cannot model forbids editing: a validation error such as UNKNOWN_NEED is
+ *  precisely what editing fixes. */
 export function blocksEditing(diagnostic: Diagnostic): boolean {
   return diagnostic.code === INVALID_YAML;
 }
@@ -49,17 +51,16 @@ export type View = "pipeline" | "toolchain" | "coverage" | "catalog";
 export type KeelsonState = {
   file: string | null;
   text: string;
-  /** Le texte de chaque fichier inclus, par chemin. `textOf` lit ici ou dans `text` : une plage
-   *  venue d'un fichier inclus découpée dans le texte du fichier principal rendrait des octets
-   *  pris ailleurs. */
+  /** The text of each included file, by path. `textOf` reads here or in `text`: a range from an
+   *  included file sliced out of the main file's text would render bytes taken from elsewhere. */
   included: Record<string, string>;
   pipeline: Pipeline | null;
   coverage: Coverage | null;
   catalog: CatalogPayload | null;
   view: View;
-  /** La couche mise en avant sur l'overlay. */
+  /** The layer emphasised on the overlay. */
   selectedLayer: LayerId | null;
-  /** Le filtre de couche à l'ouverture du catalogue, posé par « See tools ». */
+  /** The layer filter applied when the catalogue opens, set by "See tools". */
   catalogLayer: LayerId | null;
   diagnostics: Diagnostic[];
   hash: string | null;
@@ -68,7 +69,14 @@ export type KeelsonState = {
   error: ApiFailure | null;
   notice: Notice | null;
   pending: boolean;
+  /** The repository's CI files, as listed by `/api/workspace`. */
+  files: WorkspaceFile[];
 
+  workspaceLoaded(files: WorkspaceFile[]): void;
+  /** Opens another file of the repository: undo history belongs to a single file. */
+  openFile(file: string): Promise<void>;
+  /** The current file is read by an adapter that Keelson does not edit yet. */
+  readOnly(): boolean;
   documentLoaded(file: string, payload: DocumentPayload): void;
   workspaceEmpty(): void;
   selectJob(id: string | null): void;
@@ -81,14 +89,15 @@ export type KeelsonState = {
   canEdit(): boolean;
   canUndo(): boolean;
   canRedo(): boolean;
-  /** `true` si l'écriture a eu lieu. */
+  /** `true` if the write happened. */
   submit(draft: Draft): Promise<boolean>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   serverEvent(event: Exclude<ServerEvent, { kind: "toolchain.changed" }>): Promise<void>;
   dismissNotice(): void;
-  /** Dit ce qui vient d'être écrit à la demande de l'utilisateur. */
+  /** Announces what was just written at the user's request. */
   announce(message: string): void;
+  announceOpened(file: string, historyLost: boolean): void;
   dismissError(): void;
 };
 
@@ -110,13 +119,13 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
     };
 
     const applyPayload = (payload: OperationPayload): void => {
-      // La selection doit tomber si le job vient d'etre supprime — `reload` le fait deja. Sans
-      // cela l'id reste pendant, le panneau se rouvrirait sur un job recree du meme nom, et
-      // l'effet de refocalisation d'app.tsx ne tire pas quand le panneau disparait.
+      // The selection must drop if the job was just deleted — `reload` already does so. Otherwise
+      // the id dangles, the panel would reopen on a job recreated under the same name, and the
+      // refocus effect in app.tsx does not fire when the panel disappears.
       const stillThere = payload.pipeline.jobs.some((job) => job.id === get().selectedJobId);
       set({
-        // `text` doit suivre : les plages des blocs opaques viennent du nouveau pipeline, et le
-        // watcher tait les ecritures propres du serveur, donc aucun rechargement ne le reparerait.
+        // `text` must follow: opaque-block ranges come from the new pipeline, and the watcher
+        // silences the server's own writes, so no reload would repair it.
         text: payload.text,
         included: payload.included,
         coverage: payload.coverage,
@@ -128,12 +137,15 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       });
     };
 
-    /** Un `coverage.changed` a vu un autre hash pendant une opération : c'est la réponse de celle-ci
-     *  qui tranche, et seul un échec sans 409 laisse le rechargement à faire. */
+    /** A `coverage.changed` saw another hash during an operation: the operation's response decides,
+     *  and only a failure without a 409 leaves the reload still to do. */
     let reloadOwed = false;
 
     const reload = async (file: string, notice: Notice): Promise<void> => {
       const result = await dependencies.document(file);
+      if (get().file !== file) {
+        return;
+      }
       clearHistory();
 
       if (!result.ok) {
@@ -166,12 +178,18 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         return false;
       }
 
-      // « Ajouté » serait faux dès l'opération suivante, un Undo par exemple.
+      // "Added" would be false as soon as the next operation runs, an Undo for instance.
       set({ pending: true, ...(get().notice?.kind === "written" ? { notice: null } : {}) });
       const result = await dependencies.submit(file, op, dependencies.newOpId());
       set({ pending: false });
       const owed = reloadOwed;
       reloadOwed = false;
+
+      // The write happened on the file that was left: its response says nothing about the one
+      // on screen.
+      if (get().file !== file) {
+        return false;
+      }
 
       if (result.ok) {
         applyPayload(result.value);
@@ -183,8 +201,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       }
 
       if (result.error.status === 409) {
-        // `reload` remet `error` à null : poser l'erreur après lui, sinon le message du serveur est
-        // perdu et seul l'avis générique survit.
+        // `reload` resets `error` to null: set the error after it, or the server's message is lost
+        // and only the generic notice survives.
         await reload(file, {
           kind: "stale",
           message:
@@ -218,6 +236,30 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       error: null,
       notice: null,
       pending: false,
+      files: [],
+
+      workspaceLoaded(files) {
+        set({ files });
+      },
+
+      async openFile(file) {
+        if (file === get().file) {
+          return;
+        }
+        clearHistory();
+        set({ status: "loading", selectedJobId: null, error: null, notice: null });
+        const result = await dependencies.document(file);
+        if (result.ok) {
+          get().documentLoaded(file, result.value);
+          return;
+        }
+        set({ file, status: "removed", error: result.error });
+      },
+
+      readOnly() {
+        const { file, files } = get();
+        return files.find((entry) => entry.path === file)?.adapter === "github";
+      },
 
       documentLoaded(file, payload) {
         clearHistory();
@@ -273,9 +315,9 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         }
       },
 
-      /** Le fichier fait partie de la clé : deux fichiers ont chacun leurs offsets à partir de
-       *  zéro, donc une plage venue d'un fichier inclus tomberait dans la plage d'un job du
-       *  fichier principal et sélectionnerait le mauvais job. */
+      /** The file is part of the key: two files each have offsets starting at zero, so a range
+       *  from an included file would fall inside the range of a main-file job and select the
+       *  wrong job. */
       selectByRange(file, range) {
         if (range === null) {
           set({ selectedJobId: null });
@@ -297,7 +339,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       canEdit() {
         const { status, diagnostics } = get();
-        return status === "ready" && !diagnostics.some(blocksEditing);
+        return status === "ready" && !diagnostics.some(blocksEditing) && !get().readOnly();
       },
 
       canUndo() {
@@ -378,8 +420,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
             set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
             return;
           }
-          // Autre hash sans opération de ce client : le serveur ne diffuse pas ses écritures, aucun
-          // `document.changed` ne suivra. Avec une opération, c'est sa réponse qui fait foi.
+          // Another hash with no operation from this client: the server does not broadcast its
+          // own writes, so no `document.changed` will follow. With an operation, its response wins.
           if (get().hash !== known) {
             return;
           }
@@ -392,6 +434,11 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         }
 
         await reload(event.file, RELOADED);
+      },
+
+      announceOpened(file, historyLost) {
+        const suffix = historyLost ? " Undo history of the previous file was cleared." : "";
+        set({ notice: { kind: "opened", message: `${file} opened.${suffix}` } });
       },
 
       announce(message) {

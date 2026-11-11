@@ -2,8 +2,8 @@ import type { Coverage } from "@keelson/catalog";
 import type { Pipeline, Toolchain } from "@keelson/core";
 import { findLayer, LAYERS } from "@keelson/taxonomy";
 
-/** `#` d'abord : les entités qui suivent en contiennent un. `%` neutralise les directives `%%`, et
- *  un saut de ligne ouvrirait une ligne que Mermaid lirait comme un commentaire ou une directive. */
+/** `#` first: the entities that follow contain one. `%` defuses `%%` directives, and a line break
+ *  would open a line that Mermaid would read as a comment or a directive. */
 const label = (text: string): string =>
   `"${text
     .replaceAll("#", "#35;")
@@ -11,12 +11,14 @@ const label = (text: string): string =>
     .replaceAll("%", "#37;")
     .replace(/\s*\n\s*/g, " ")}"`;
 
-/** Identifiants par position : les noms de jobs n'ont aucune forme garantie, Mermaid si. */
+/** Positional ids: job names have no guaranteed shape, Mermaid ids do. */
 export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string {
-  const jobId = new Map(pipeline.jobs.map((job, index) => [job.id, `j${index}`]));
+  // Per file: two workflows can carry a job with the same name.
+  const keyOf = (job: { id: string; file: string }): string => JSON.stringify([job.file, job.id]);
+  const jobId = new Map(pipeline.jobs.map((job, index) => [keyOf(job), `j${index}`]));
   const serviceId = new Map(toolchain.services.map((service, index) => [service.id, `v${index}`]));
 
-  // Un job peut viser un stage que ce fichier ne déclare pas, un include distant par exemple.
+  // A job can target a stage this file does not declare, a remote include for instance.
   const names = [
     ...new Set([
       ...pipeline.stages.map((stage) => stage.name),
@@ -29,7 +31,7 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
       ? []
       : [
           `  subgraph s${index}[${label(name)}]`,
-          ...jobs.map((job) => `    ${jobId.get(job.id)}[${label(job.id)}]`),
+          ...jobs.map((job) => `    ${jobId.get(keyOf(job))}[${label(job.id)}]`),
           "  end",
         ];
   });
@@ -40,8 +42,14 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
 
   const needs = pipeline.jobs.flatMap((job) =>
     (job.needs?.value ?? []).flatMap((need) => {
-      const source = jobId.get(need.job);
-      const target = jobId.get(job.id);
+      // GitLab allows a `needs` on an included file; two workflows, however, cannot see each other.
+      const elsewhere = job.file.includes(".github/workflows/")
+        ? undefined
+        : pipeline.jobs.find((other) => other.id === need.job);
+      const source =
+        jobId.get(keyOf({ id: need.job, file: job.file })) ??
+        (elsewhere === undefined ? undefined : jobId.get(keyOf(elsewhere)));
+      const target = jobId.get(keyOf(job));
       if (source === undefined || target === undefined) {
         return [];
       }
@@ -50,11 +58,12 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
   );
 
   const integrations = toolchain.integrations.flatMap((entry) => {
-    const source = jobId.get(entry.job);
     const target = serviceId.get(entry.service);
-    return source === undefined || target === undefined
+    return target === undefined
       ? []
-      : [`  ${source} -->|${entry.kind}| ${target}`];
+      : pipeline.jobs
+          .filter((job) => job.id === entry.job)
+          .map((job) => `  ${jobId.get(keyOf(job))} -->|${entry.kind}| ${target}`);
   });
 
   return `${["flowchart LR", ...stages, ...services, ...needs, ...integrations].join("\n")}\n`;

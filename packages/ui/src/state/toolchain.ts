@@ -29,15 +29,15 @@ export type ToolchainState = {
   pending: boolean;
   selectedService: string | null;
   load(): Promise<void>;
-  /** Le pipeline a bougé : les propositions changent, l'historique du fichier non. */
+  /** The pipeline moved: proposals change, the file's history does not. */
   refresh(): Promise<void>;
-  /** `true` si l'écriture a eu lieu : un formulaire ne se vide qu'à cette condition. */
+  /** `true` if the write happened: a form is cleared only on that condition. */
   submit(draft: ToolchainDraft): Promise<boolean>;
   undo(): Promise<void>;
   redo(): Promise<void>;
   canUndo(): boolean;
   canRedo(): boolean;
-  /** `toolchain.changed` : le hash connu veut dire que c'est notre propre écriture. */
+  /** `toolchain.changed`: a known hash means it is our own write. */
   changed(hash: string): Promise<void>;
   move(node: string, position: Position): Promise<void>;
   selectService(id: string | null): void;
@@ -55,12 +55,12 @@ export type ToolchainStore = StoreApi<ToolchainState>;
 export function createToolchainStore(dependencies: ToolchainDependencies): ToolchainStore {
   let undoStack: SpliceOperation[] = [];
   let redoStack: SpliceOperation[] = [];
-  /** Le hash annoncé pendant une opération : celle-ci finie, seul ce hash dit si le disque a bougé
-   *  ailleurs. Aucun autre événement ne suivra. */
+  /** The hash announced during an operation: once it is done, only this hash tells whether the
+   *  disk changed elsewhere. No other event will follow. */
   let announced: string | null = null;
-  /** Les hash que ce client a écrits et dont l'écho n'est pas encore arrivé, du plus ancien au plus
-   *  récent. Un écho consomme son entrée et les précédentes, que le debounce du serveur a pu
-   *  regrouper : passé l'écho, ce même hash vient de quelqu'un d'autre. */
+  /** The hashes this client wrote whose echo has not arrived yet, oldest first. An echo consumes
+   *  its entry and the earlier ones, which the server's debounce may have merged: past the echo,
+   *  that same hash comes from someone else. */
   let awaitingEcho: string[] = [];
 
   return createStore<ToolchainState>((set, get) => {

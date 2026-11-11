@@ -7,8 +7,8 @@ import { assertOptions, corpusTexts, operationArb } from "./support/arbitraries.
 
 const texts = corpusTexts();
 
-describe("propriété : les octets hors de touched sont inchangés", () => {
-  test("le préfixe avant la première plage touchée est intact", () => {
+describe("property: bytes outside touched are unchanged", () => {
+  test("the prefix before the first touched range is intact", () => {
     fc.assert(
       fc.property(
         fc
@@ -34,7 +34,7 @@ describe("propriété : les octets hors de touched sont inchangés", () => {
     );
   });
 
-  test("le suffixe après la dernière plage touchée est intact", () => {
+  test("the suffix after the last touched range is intact", () => {
     fc.assert(
       fc.property(
         fc
@@ -60,7 +60,7 @@ describe("propriété : les octets hors de touched sont inchangés", () => {
     );
   });
 
-  test("touched décrit exactement du texte présent dans le résultat", () => {
+  test("touched describes exactly text present in the result", () => {
     fc.assert(
       fc.property(
         fc

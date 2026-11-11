@@ -9,6 +9,7 @@ logo: null
 detect:
   images: []
   scripts: ['\bcodeql\s+(database|github)\b']
+  actions: ['github/codeql-action/init', 'github/codeql-action/analyze']
 snippets:
   gitlab: null
   github: |

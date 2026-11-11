@@ -13,13 +13,15 @@ const INCLUDED_NOTE_ID = "job-included-reason";
 
 export type JobDetailPanelProps = {
   job: Job;
-  /** Le texte du fichier d'un bloc opaque. Un seul `text` ne suffit plus : les plages d'un job
-   *  inclus sont des offsets dans **son** fichier, et les découper dans le fichier principal
-   *  rendrait des octets pris ailleurs. */
+  /** The text of an opaque block's file. A single `text` is no longer enough: the ranges of an
+   *  included job are offsets into **its** file, and slicing them out of the main file would render
+   *  bytes taken from elsewhere. */
   textOf: (file: string) => string;
-  /** Le fichier principal, pour savoir si ce job est éditable. */
+  /** The main file, to know whether this job is editable. */
   main: string;
-  /** Sur la vue Coverage : ce qui a décidé des couches de ce job. */
+  /** GitHub Actions: the stage is only a computed level, it has nothing to say here (ADR 0013). */
+  derivedStages?: boolean;
+  /** On the Coverage view: what decided this job's layers. */
   coverage?: JobCoverage | null;
   onClose: () => void;
 };
@@ -64,6 +66,7 @@ export function JobDetailPanel({
   job,
   textOf,
   main,
+  derivedStages = false,
   coverage = null,
   onClose,
 }: JobDetailPanelProps) {
@@ -98,11 +101,10 @@ export function JobDetailPanel({
         </p>
       ) : null}
 
-      {/* Seulement quand ce n'est pas le fichier principal, exactement la règle que
-          `DiagnosticsPanel` applique déjà : l'en-tête de l'application affiche le fichier
-          principal en permanence, donc le répéter en première position du panneau dépense la
-          place la plus coûteuse de l'écran pour une tautologie. Les deux composants du lot avaient
-          tranché la même question dans les deux sens. */}
+      {/* Only when it is not the main file, exactly the rule `DiagnosticsPanel` already applies:
+          the application header shows the main file at all times, so repeating it at the top of
+          the panel spends the most expensive space on screen on a tautology. The milestone's two
+          components had settled the same question in opposite ways. */}
       {included ? (
         <Field label="Source file" testId="job-source-file">
           <span className="font-mono break-all">{job.file}</span>
@@ -128,9 +130,11 @@ export function JobDetailPanel({
         </Field>
       )}
 
-      <Field label="Stage" testId="job-stage" origin={job.stage.origin} readOnly={included}>
-        <span className="font-mono">{job.stage.value}</span>
-      </Field>
+      {derivedStages ? null : (
+        <Field label="Stage" testId="job-stage" origin={job.stage.origin} readOnly={included}>
+          <span className="font-mono">{job.stage.value}</span>
+        </Field>
+      )}
 
       <Field
         label="Needs"
@@ -192,7 +196,7 @@ export function JobDetailPanel({
           <p className="text-sm text-text-muted">No opaque blocks.</p>
         ) : (
           job.opaque.map((block) => (
-            // biome-ignore lint/a11y/useSemanticElements: fieldset est réservé aux contrôles de formulaire ; un bloc opaque est un groupe nommé, pas un landmark
+            // biome-ignore lint/a11y/useSemanticElements: fieldset is reserved for form controls; an opaque block is a named group, not a landmark
             <div
               key={block.key}
               role="group"

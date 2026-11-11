@@ -14,7 +14,7 @@ import { MESSAGE_CODES, NETWORK_ERROR, UNEXPECTED_RESPONSE } from "@keelson/core
 import type { Layer } from "@keelson/taxonomy";
 import type { Positions, ProposedIntegration } from "@keelson/toolchain";
 
-export type AdapterName = "gitlab";
+export type AdapterName = "gitlab" | "github";
 
 export type WorkspaceFile = {
   path: string;
@@ -26,9 +26,9 @@ export type DocumentPayload = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
-  /** Le texte de chaque fichier inclus. Les plages des blocs opaques d'un job inclus sont des
-   *  offsets dedans : les découper dans le texte du fichier principal afficherait des octets pris
-   *  ailleurs, sous la seule promesse du produit qui dit « ceci est verbatim ». */
+  /** The text of each included file. The opaque-block ranges of an included job are offsets into
+   *  it: slicing them out of the main file's text would display bytes taken from elsewhere, under
+   *  the one promise of the product that says "this is verbatim". */
   included: Record<string, string>;
   coverage: Coverage;
 };
@@ -57,8 +57,8 @@ export type ToolchainPayload = {
 
 export type ToolchainOperationPayload = ToolchainPayload & { inverse: SpliceOperation };
 
-/** Pas de `message` : il n'est plus sur le fil. Le texte se rend par `renderMessage(failure)`,
- *  que cette forme rend directement possible. */
+/** No `message`: it is no longer on the wire. The text is rendered by `renderMessage(failure)`,
+ *  which this shape makes directly possible. */
 export type ApiFailure = {
   [C in MessageCode]: { status: number; code: C; params: ParamsOf<C>; hash?: string };
 }[MessageCode];
@@ -75,10 +75,10 @@ const TOKEN_HEADER = "X-Keelson-Token";
 
 const KNOWN_CODES = new Set<string>(MESSAGE_CODES);
 
-/** La seule frontière du produit où un `code` arrive sans type : il vient du réseau. Un code
- *  inconnu du registre devient `UNEXPECTED_RESPONSE` plutôt que de traverser l'UI pour finir en
- *  message vide — un `render()` sur un code absent lèverait, et le ferait au moment de l'affichage
- *  d'une erreur, c'est-à-dire au pire moment. */
+/** The only boundary of the product where a `code` arrives untyped: it comes from the network. A
+ *  code unknown to the registry becomes `UNEXPECTED_RESPONSE` rather than crossing the UI to end up
+ *  as an empty message — a `render()` on a missing code would throw, and would do so while an error
+ *  is being displayed, that is, at the worst possible moment. */
 function failure(status: number, body: unknown): ApiFailure {
   const shape = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
   const code = typeof shape.code === "string" && KNOWN_CODES.has(shape.code) ? shape.code : null;

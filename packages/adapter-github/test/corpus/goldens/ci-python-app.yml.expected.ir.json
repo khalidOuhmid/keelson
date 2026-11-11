@@ -1,0 +1,90 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-python-app.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 395,
+              "end": 417
+            },
+            "file": ".github/workflows/ci-python-app.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 423,
+              "end": 1204
+            },
+            "file": ".github/workflows/ci-python-app.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "python -m pip install --upgrade pip\npip install flake8 pytest\nif [ -f requirements.txt ]; then pip install -r requirements.txt; fi\n",
+            "# stop the build if there are Python syntax errors or undefined names\nflake8 . --count --select=E9,F63,F7,F82 --show-source --statistics\n# exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide\nflake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics\n",
+            "pytest\n"
+          ],
+          "actions": ["actions/checkout@v4", "actions/setup-python@v3"]
+        },
+        "range": {
+          "start": 383,
+          "end": 1204
+        },
+        "file": ".github/workflows/ci-python-app.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 221,
+          "end": 245
+        },
+        "file": ".github/workflows/ci-python-app.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 247,
+          "end": 343
+        },
+        "file": ".github/workflows/ci-python-app.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 344,
+          "end": 374
+        },
+        "file": ".github/workflows/ci-python-app.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-python-app.yml",
+    "files": [".github/workflows/ci-python-app.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

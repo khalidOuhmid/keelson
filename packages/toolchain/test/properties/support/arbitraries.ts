@@ -37,7 +37,7 @@ const value = fc.constantFrom("https://a.example", "prod", "a: b", "# c", "é", 
 const optional = fc.option(value, { nil: null });
 const kind = fc.constantFrom(...INTEGRATION_KINDS);
 
-/** Mêle des cibles qui existent et d'autres non : les refus sont aussi une partie du contrat. */
+/** Mixes targets that exist and others that do not: refusals are part of the contract too. */
 export function operationArb(text: string): fc.Arbitrary<Draft> {
   const { toolchain } = parseToolchain(text);
   const ids = [...toolchain.services.map((service) => service.id), "new-one"];
@@ -95,7 +95,7 @@ export function operationArb(text: string): fc.Arbitrary<Draft> {
   ) as fc.Arbitrary<Draft>;
 }
 
-/** Les refus qui sont une réponse, pas une panne : sur le corpus, tout autre refus est un défaut. */
+/** Refusals that are an answer, not a failure: on the corpus, any other refusal is a defect. */
 const EXPECTED_REFUSALS: readonly string[] = [
   "NAME_CONFLICT",
   "INVALID_NAME",
@@ -118,7 +118,7 @@ export function isExpectedRefusal(error: OperationError): boolean {
   );
 }
 
-/** Ce que l'opération doit produire sur le modèle, écrit sans passer par le texte. */
+/** What the operation must produce on the model, written without going through the text. */
 export function expected(model: Toolchain, draft: Draft): Toolchain {
   switch (draft.kind) {
     case "addService":

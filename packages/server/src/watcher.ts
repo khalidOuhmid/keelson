@@ -11,8 +11,8 @@ export const DEBOUNCE_MS = 40;
 export type DocumentEvent =
   | { kind: "document.changed"; file: string; hash: string }
   | { kind: "document.removed"; file: string }
-  /** `layout.json` a changé, pas le pipeline : l'écran repose la couverture sans toucher à
-   *  l'historique d'annulation ni annoncer un fichier modifié. */
+  /** `layout.json` changed, not the pipeline: the screen redraws coverage without touching the
+   *  undo history or announcing a modified file. */
   | { kind: "coverage.changed"; file: string }
   | { kind: "toolchain.changed"; hash: string };
 
@@ -20,13 +20,13 @@ export type Watcher = {
   close(): void;
 };
 
-/** Un fichier suivi : son chemin relatif à la racine, et le document principal qu'il faut relire
- *  quand il change. Pour le fichier principal lui-même, `file === main`. */
+/** A tracked file: its path relative to the root, and the main document to re-read when it
+ *  changes. For the main file itself, `file === main`. */
 type Tracked = {
   file: string;
   main: string;
-  /** `.devsecops`, `layout.json` ou `toolchain.yaml` : ils décident de la couverture et de la
-   *  toolchain, pas du pipeline. */
+  /** `.devsecops`, `layout.json` or `toolchain.yaml`: they decide coverage and the toolchain, not
+   *  the pipeline. */
   companion: boolean;
 };
 
@@ -59,8 +59,8 @@ export function watchDocuments(
       return;
     }
 
-    // Le fichier existe mais le lecteur le refuse, par exemple un lien hors de la racine. `load` le
-    // purge du store : l'écran doit l'apprendre, sinon il reste sur un pipeline qui n'existe plus.
+    // The file exists but the reader refuses it, for example a link outside the root. `load` purges
+    // it from the store: the screen must learn this, or it stays on a pipeline that no longer exists.
     const known = store.currentHash(file) !== undefined;
     const loaded = await store.load(file);
     if (closed) {
@@ -73,10 +73,9 @@ export function watchDocuments(
     }
   };
 
-  /** Un fichier inclus n'a pas de hash dans le store, et Keelson ne l'écrit **jamais** : il n'y a
-   *  donc aucune écriture propre à taire, et toute modification doit faire relire le document
-   *  principal. Le garde de hash d'`inspectMain` protège contre les écritures du serveur lui-même
-   *  et ne s'applique pas ici. */
+  /** An included file has no hash in the store, and Keelson **never** writes it: there is thus no
+   *  own write to silence, and any change must re-read the main document. `inspectMain`'s hash guard
+   *  protects against the server's own writes and does not apply here. */
   const reloadMain = async (main: string): Promise<void> => {
     const loaded = await store.load(main);
     if (loaded !== null && !closed) {
@@ -85,27 +84,38 @@ export function watchDocuments(
   };
 
   const reloadCoverage = async (entry: Tracked, absolute: string): Promise<void> => {
-    // Un dossier supprimé garde son watcher, désormais mort : on le retire pour que le chargement
-    // en repose un si le dossier existe de nouveau.
+    // A deleted directory keeps its watcher, now dead: remove it so that loading sets a new one
+    // if the directory exists again.
     if (entry.file === dirname(LAYOUT_FILE)) {
       watchers.get(absolute)?.close();
       watchers.delete(absolute);
     }
-    const known = store.currentHash(entry.main);
-    const loaded = await store.load(entry.main);
-    if (closed) {
-      return;
-    }
-    // Le chargement avance le hash du store : `inspectMain` ne verrait plus rien, et cet événement
-    // doit dire aussi ce qui est arrivé au fichier principal.
-    if (loaded === null) {
-      if (known !== undefined) {
-        emit({ kind: "document.removed", file: entry.main });
+    // These files are repository-wide: every loaded document must learn about them.
+    const mains = store
+      .workspaceFiles()
+      .map((file) => file.path)
+      .filter((path) => path === entry.main || store.currentHash(path) !== undefined);
+    for (const main of mains) {
+      const known = store.currentHash(main);
+      // An unreadable file must not deprive the next ones or the toolchain of their event.
+      const loaded = await store.load(main).catch(() => {
+        store.forget(main);
+        return null;
+      });
+      if (closed) {
+        return;
       }
-    } else if (loaded.hash === known) {
-      emit({ kind: "coverage.changed", file: entry.main });
-    } else {
-      emit({ kind: "document.changed", file: entry.main, hash: loaded.hash });
+      // Loading advances the store's hash: `inspectMain` would see nothing more, and this event
+      // must also say what happened to the main file.
+      if (loaded === null) {
+        if (known !== undefined) {
+          emit({ kind: "document.removed", file: main });
+        }
+      } else if (loaded.hash === known) {
+        emit({ kind: "coverage.changed", file: main });
+      } else {
+        emit({ kind: "document.changed", file: main, hash: loaded.hash });
+      }
     }
 
     const toolchain = toolchainHash();
@@ -132,16 +142,16 @@ export function watchDocuments(
           : entry.file === entry.main
             ? inspectMain(entry.main)
             : reloadMain(entry.main);
-        // Un fichier que le parseur ne sait pas lire ne doit pas tuer le serveur : sous Node, un
-        // rejet non géré met fin au processus. Le store l'oublie : son ancien texte n'est plus celui
-        // du disque, et une opération fondée dessus l'écraserait.
+        // A file the parser cannot read must not kill the server: under Node, an unhandled
+        // rejection ends the process. The store forgets it: its old text is no longer the one
+        // on disk, and an operation based on it would overwrite it.
         inspected.catch(() => store.forget(entry.main));
       }, DEBOUNCE_MS),
     );
   };
 
-  /** Le dossier est surveillé, pas le fichier : un éditeur remplace souvent le fichier par un
-   *  `rename`, et surveiller le fichier seul manquerait l'événement. */
+  /** The directory is watched, not the file: an editor often replaces the file with a `rename`,
+   *  and watching the file alone would miss the event. */
   const watchDirectory = (directory: string): void => {
     if (watchers.has(directory)) {
       return;
@@ -161,10 +171,9 @@ export function watchDocuments(
     } catch {}
   };
 
-  /** Recalculé à chaque chargement : l'ensemble des fichiers inclus change dès que le fichier
-   *  principal change sa clé `include`. Les surveillances posées ne sont pas retirées — un dossier
-   *  devenu inutile ne coûte qu'un descripteur, alors que le retirer ferait rater le retour d'un
-   *  include qu'on vient tout juste d'enlever. */
+  /** Recomputed on each load: the set of included files changes as soon as the main file changes
+   *  its `include` key. Watches already set are not removed — a directory no longer needed costs
+   *  only a descriptor, whereas removing it would miss the return of an include just removed. */
   const sync = (): void => {
     if (closed) {
       return;
@@ -172,8 +181,8 @@ export function watchDocuments(
 
     for (const entry of store.workspaceFiles()) {
       const main = entry.path;
-      // `.devsecops` figure aussi pour lui-même : tant qu'il n'existe pas, seul le dossier parent
-      // peut voir sa création, et donc faire poser la surveillance de `layout.json`.
+      // `.devsecops` is listed for itself too: while it does not exist, only the parent directory
+      // can see it being created, and so set the watch on `layout.json`.
       const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE, TOOLCHAIN_FILE];
       for (const file of [main, ...store.includedFiles(main), ...companions]) {
         const absolute = resolve(root, file);

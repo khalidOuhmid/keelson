@@ -5,10 +5,10 @@ export type EmptyStateProps = {
 };
 
 export function EmptyState({ heading, tone = "neutral", children }: EmptyStateProps) {
-  /** `border-default` et non `border-subtle` : ce cadre ferme une forme, et `DESIGN.md` réserve
-   *  `border-subtle` aux filets structurels. Trouvé par le garde ajouté au lot L2b, qui l'a vu
-   *  parce que la variable sort la classe de son `className` — le cadre est mesuré à 3,81:1 contre
-   *  `surface-1`, là où `border-subtle` était à 1,26:1. */
+  /** `border-default`, not `border-subtle`: this frame closes a shape, and `DESIGN.md` reserves
+   *  `border-subtle` for structural rules. Found by the guard added in milestone L2b, which caught
+   *  it because the variable pulls the class out of its `className` — the frame measures 3.81:1
+   *  against `surface-1`, where `border-subtle` was at 1.26:1. */
   const border = tone === "alert" ? "border-warning-muted" : "border-border-default";
 
   return (

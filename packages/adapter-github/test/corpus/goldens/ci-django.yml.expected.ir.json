@@ -1,0 +1,89 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/ci-django.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 134,
+              "end": 156
+            },
+            "file": ".github/workflows/ci-django.yml"
+          },
+          {
+            "key": "strategy",
+            "range": {
+              "start": 161,
+              "end": 247
+            },
+            "file": ".github/workflows/ci-django.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 252,
+              "end": 642
+            },
+            "file": ".github/workflows/ci-django.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "python -m pip install --upgrade pip\npip install -r requirements.txt\n",
+            "python manage.py test\n"
+          ],
+          "actions": ["actions/checkout@v4", "actions/setup-python@v3"]
+        },
+        "range": {
+          "start": 122,
+          "end": 642
+        },
+        "file": ".github/workflows/ci-django.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 0,
+          "end": 15
+        },
+        "file": ".github/workflows/ci-django.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 17,
+          "end": 113
+        },
+        "file": ".github/workflows/ci-django.yml"
+      }
+    ],
+    "main": ".github/workflows/ci-django.yml",
+    "files": [".github/workflows/ci-django.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

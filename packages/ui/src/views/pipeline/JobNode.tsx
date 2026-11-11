@@ -35,15 +35,15 @@ export function JobNode({ data }: JobNodeProps) {
     .filter((part) => part !== "")
     .join(" ");
 
-  /** Un nœud inclus descend d'un plan et perd sa réaction au survol : un objet que Keelson
-   *  n'écrira jamais n'a pas le droit d'avoir l'air réactif. La marque ne repose pas sur ce ton —
-   *  le mot `read-only` est là, et la description lue par un lecteur d'écran le dit aussi.
+  /** An included node drops one elevation level and loses its hover reaction: an object Keelson
+   *  will never write must not look interactive. The mark does not rely on this tone — the word
+   *  `read-only` is there, and the description read by a screen reader says it too.
    *
-   *  La **bordure** reste `border-default`. La première version la descendait à `border-subtle`,
-   *  ce que `DESIGN.md` interdit nommément pour une limite de composant : mesurée à 1,26:1 contre
-   *  la colonne, elle ne se lisait pas « non éditable » mais « pas un objet », et le job perdait
-   *  son statut de chose sur la capture d'audit. La lisibilité de l'objet n'est pas ce qu'on
-   *  retire à un job non éditable. */
+   *  The **border** stays `border-default`. The first version lowered it to `border-subtle`, which
+   *  `DESIGN.md` explicitly forbids for a component boundary: measured at 1.26:1 against the
+   *  column, it read not as "not editable" but as "not an object", and the job lost its status as
+   *  a thing on the audit screenshot. Legibility of the object is not what a non-editable job
+   *  gives up. */
   const surface = data.included
     ? "bg-surface-1 data-[selected=false]:border-border-default"
     : "bg-surface-2 hover:bg-surface-3 data-[selected=false]:border-border-default";
@@ -65,7 +65,7 @@ export function JobNode({ data }: JobNodeProps) {
           <span className="truncate text-base font-semibold text-text-primary">{data.id}</span>
           {data.included ? <ReadOnlyTag /> : null}
         </span>
-        {/* Sur l'overlay, le stage redit la colonne : il laisse sa place aux étiquettes. */}
+        {/* On the overlay, the stage repeats the column: it gives up its place to the tags. */}
         <span className="flex items-center gap-1 overflow-hidden">
           {data.layers !== null ? (
             <LayerTags layers={data.layers} limit={2} />

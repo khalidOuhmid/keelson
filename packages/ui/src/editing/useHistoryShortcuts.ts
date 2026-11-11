@@ -15,8 +15,8 @@ function inTextEntry(target: EventTarget | null): boolean {
   if (tag === "INPUT" || tag === "TEXTAREA" || element.isContentEditable === true) {
     return true;
   }
-  // Le `.cm-content` de CodeMirror en lecture seule est un `div` en `contenteditable="false"` :
-  // `isContentEditable` y vaut `false`, donc le garde au-dessus le laisse passer.
+  // A read-only CodeMirror `.cm-content` is a `div` with `contenteditable="false"`:
+  // `isContentEditable` is `false` there, so the guard above lets it through.
   return element.closest?.(".cm-editor") !== null && element.closest?.(".cm-editor") !== undefined;
 }
 

@@ -26,7 +26,7 @@ export const LAYER_IDS = [
 
 export type LayerId = (typeof LAYER_IDS)[number];
 
-/** Vingt et une teintes seraient illisibles : l'écran colore la famille, et le mot porte la couche. */
+/** Twenty-one hues would be unreadable: the screen colours the family, and the word carries the layer. */
 export type LayerFamily = "build" | "test" | "operate" | "platform";
 
 export type Layer = {
@@ -36,9 +36,9 @@ export type Layer = {
   family: LayerFamily;
   source: LayerSource;
   summary: string;
-  /** Section de la Guideline, relative à <https://github.com/OWASP/DevSecOpsGuideline>. Les treize
-   *  couches sont une projection de Keelson : la Guideline ne les énumère plus sous cette forme,
-   *  et rien de son texte (CC BY-SA 4.0) n'est repris ici. `null` pour une catégorie plateforme. */
+  /** Guideline section, relative to <https://github.com/OWASP/DevSecOpsGuideline>. The thirteen
+   *  layers are a Keelson projection: the Guideline no longer lists them in this form, and none of
+   *  its text (CC BY-SA 4.0) is reproduced here. `null` for a platform category. */
   guideline: string | null;
 };
 

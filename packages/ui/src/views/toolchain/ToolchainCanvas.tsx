@@ -13,7 +13,7 @@ import { RefitOnResize } from "../pipeline/PipelineCanvas.tsx";
 import { SERVICE_NODE, TOOLCHAIN_JOB_NODE, type ToolLabels, toolchainGraph } from "./graph.ts";
 import { ServiceNode, ToolchainJobNode } from "./nodes.tsx";
 
-/** Sous ce zoom, les noms passent sous 11 px : mieux vaut un graphe à parcourir qu'illisible. */
+/** Below this zoom, names drop under 11 px: better a graph to pan around than an unreadable one. */
 const FIT_MIN_ZOOM = 0.6;
 
 const NODE_TYPES = {

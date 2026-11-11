@@ -17,7 +17,7 @@ function readDirectory(directory: string): ToolFile[] {
     .map((name) => ({ file: name, text: readFileSync(join(directory, name), "utf8") }));
 }
 
-/** Sans dossier, c'est le catalogue embarqué qui est relu : du JSON est du YAML valide. */
+/** Without a directory, the bundled catalogue is re-read: JSON is valid YAML. */
 function embedded(): ToolFile[] {
   return loadCatalog().tools.map((tool) => ({
     file: `${tool.id}.yaml`,

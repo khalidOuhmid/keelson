@@ -4,7 +4,7 @@ import { LAYERS, type LayerId } from "@keelson/taxonomy";
 import { detectTools } from "./detect.ts";
 import type { Tool } from "./schema.ts";
 
-/** Une entrée remplace la détection du job, une liste vide la neutralise. */
+/** An entry replaces the job's detection; an empty list disables it. */
 export type LayerOverrides = Readonly<Record<string, readonly LayerId[]>>;
 
 export type JobCoverage = {
@@ -18,12 +18,12 @@ export type LayerCoverage = {
   layer: LayerId;
   covered: boolean;
   jobs: readonly string[];
-  /** Les services déclarés dont l'outil porte cette couche (ADR 0011). */
+  /** The declared services whose tool carries this layer (ADR 0011). */
   services: readonly string[];
 };
 
-/** `partial` : ce qui manque à un pipeline partiel peut couvrir une couche. Une couche absente ici
- *  n'est donc pas une couche absente du dépôt, et la couverture est une borne basse. */
+/** `partial`: what a partial pipeline is missing may cover a layer. A layer absent here is
+ *  therefore not a layer absent from the repository, and coverage is a lower bound. */
 export type Coverage = {
   jobs: readonly JobCoverage[];
   layers: readonly LayerCoverage[];
@@ -58,7 +58,10 @@ export function coverage(
   return {
     jobs,
     layers: LAYERS.map(({ id }) => {
-      const covering = jobs.filter((job) => job.layers.includes(id)).map((job) => job.job);
+      // Two workflows can carry a job with the same name: it is named only once.
+      const covering = [
+        ...new Set(jobs.filter((job) => job.layers.includes(id)).map((job) => job.job)),
+      ];
       const declared = services
         .filter((service) =>
           tools.some((tool) => tool.id === service.tool && tool.layers.includes(id)),
@@ -71,7 +74,7 @@ export function coverage(
         services: declared,
       };
     }),
-    // Un fichier illisible rend un pipeline tronqué : ses couches manquantes ne prouvent rien.
+    // An unreadable file yields a truncated pipeline: its missing layers prove nothing.
     partial: isPartial(pipeline) || parsing.some((entry) => entry.code === INVALID_YAML),
   };
 }

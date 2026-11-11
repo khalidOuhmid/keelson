@@ -9,6 +9,7 @@ logo: sentry
 detect:
   images: ['getsentry/sentry-cli']
   scripts: ['\bsentry-cli\b']
+  actions: ['getsentry/action-release']
 snippets:
   gitlab: |
     sentry-release:

@@ -1,20 +1,17 @@
-import { readFileSync, statSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { Diagnostic } from "@keelson/core";
 import { hasErrors } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { analyse } from "./analysis.ts";
+import { analyse, readTargets } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import type { CliResult } from "./result.ts";
-
-export const DEFAULT_FILE = ".gitlab-ci.yml";
 
 const FORMATS = ["text", "json"] as const;
 
 type Format = (typeof FORMATS)[number];
 
 type Options = {
-  file: string;
+  file: string | undefined;
   format: Format;
 };
 
@@ -22,7 +19,7 @@ function usage(message: string): CliResult {
   return { stdout: "", stderr: `keelson validate: ${message}\n`, exitCode: 2 };
 }
 
-function parseArguments(argv: readonly string[], cwd: string): Options | CliResult {
+function parseArguments(argv: readonly string[]): Options | CliResult {
   const parsed = parseCommandArgs<{ format?: string }>(argv, {
     options: { format: { type: "string" } },
     allowPositionals: true,
@@ -41,11 +38,7 @@ function parseArguments(argv: readonly string[], cwd: string): Options | CliResu
     return usage(`unknown format "${requested}", expected text or json`);
   }
 
-  const target = parsed.positionals[0] ?? DEFAULT_FILE;
-  return {
-    file: isAbsolute(target) ? target : resolve(cwd, target),
-    format: (requested ?? "text") as Format,
-  };
+  return { file: parsed.positionals[0], format: (requested ?? "text") as Format };
 }
 
 function positionOf(text: string, offset: number): { line: number; column: number } {
@@ -55,8 +48,8 @@ function positionOf(text: string, offset: number): { line: number; column: numbe
   return { line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 };
 }
 
-/** `--format json` expose **et** les `params` **et** le `message` rendu : les `params` sont le
- *  contrat, que des scripts lisent ; le message est ce qu'un humain lit dans la sortie d'une CI. */
+/** `--format json` exposes **both** the `params` **and** the rendered `message`: the `params` are
+ *  the contract, which scripts read; the message is what a human reads in CI output. */
 type Reported = {
   file: string;
   code: string;
@@ -67,9 +60,8 @@ type Reported = {
   column: number;
 };
 
-/** Chaque diagnostic est situé dans le texte de **son** fichier. Convertir un offset d'un fichier
- *  inclus avec le texte du fichier principal donnerait une ligne et une colonne qui existent, mais
- *  qui ne désignent rien. */
+/** Each diagnostic is located in the text of **its own** file. Converting an included file's offset
+ *  with the main file's text would give a line and column that exist but point at nothing. */
 function report(
   root: string,
   texts: ReadonlyMap<string, string>,
@@ -81,9 +73,9 @@ function report(
       diagnostic.range?.start ?? 0,
     );
     return {
-      // Chemin absolu, comme avant ce lot : c'est ce qu'un terminal rend cliquable et ce qu'un
-      // script de CI attendait déjà. Le diagnostic, lui, porte le chemin relatif à la racine,
-      // qui est la forme du contrat.
+      // Absolute path, as before this milestone: it is what a terminal makes clickable and what a
+      // CI script already expected. The diagnostic itself carries the root-relative path, which
+      // is the contract's form.
       file: resolve(root, diagnostic.file),
       code: diagnostic.code,
       severity: diagnostic.severity,
@@ -108,23 +100,17 @@ function renderText(reported: readonly Reported[]): string {
 }
 
 export function validateCommand(argv: readonly string[], cwd: string): CliResult {
-  const parsed = parseArguments(argv, cwd);
+  const parsed = parseArguments(argv);
   if ("exitCode" in parsed) {
     return parsed;
   }
 
-  let text: string;
-  try {
-    if (!statSync(parsed.file).isFile()) {
-      return usage(`"${parsed.file}" is not a file`);
-    }
-    text = readFileSync(parsed.file, "utf8");
-  } catch {
-    return usage(`file not found: ${parsed.file}`);
+  const read = readTargets(parsed.file, cwd);
+  if (!read.ok) {
+    return usage(read.message);
   }
 
-  const { root, main, result, diagnostics } = analyse(parsed.file, text);
-  const texts = new Map<string, string>([[main, text], ...Object.entries(result.included)]);
+  const { root, texts, diagnostics } = analyse(read.targets);
   const reported = report(root, texts, diagnostics);
 
   return {

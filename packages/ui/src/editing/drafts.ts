@@ -102,8 +102,8 @@ export function moveStage(name: string, toIndex: number): Draft {
   return { kind: "moveStage", name, toIndex };
 }
 
-/** Les `params` viennent du réseau : le code peut être `JOB_REFERENCED` sans que `referencedBy`
- *  soit une liste de chaînes. Le filtre reste donc, malgré le type. */
+/** `params` come from the network: the code can be `JOB_REFERENCED` without `referencedBy` being a
+ *  list of strings. So the filter stays, despite the type. */
 export function referencedBy(error: ApiFailure): string[] {
   if (error.code !== JOB_REFERENCED) {
     return [];

@@ -19,8 +19,8 @@ function length(styles: CSSStyleDeclaration, token: string): number {
 export const COLUMN_HEADER_TOKEN = "--keelson-column-header-height";
 export const COLUMN_PADDING_TOKEN = "--keelson-column-padding";
 
-/** Lit un token de longueur en rendant 0 s'il est absent : contrairement aux métriques passées à
- *  elkjs, une marge manquante dégrade le rendu sans le rendre faux. */
+/** Reads a length token, returning 0 if it is missing: unlike the metrics passed to elkjs, a
+ *  missing margin degrades the rendering without making it wrong. */
 function optionalLength(token: string, element?: Element): number {
   const raw = getComputedStyle(element ?? document.documentElement)
     .getPropertyValue(token)

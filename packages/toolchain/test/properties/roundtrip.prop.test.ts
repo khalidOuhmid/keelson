@@ -15,8 +15,8 @@ const scenario = fc
   .constantFrom(...texts)
   .chain((text) => operationArb(text).map((draft) => ({ text, draft })));
 
-describe("propriété : le texte écrit se relit comme le modèle attendu", () => {
-  test("toute opération acceptée", () => {
+describe("property: the written text reads back as the expected model", () => {
+  test("every accepted operation", () => {
     fc.assert(
       fc.property(scenario, ({ text, draft }) => {
         const operation = { v: 1, baseHash: hashText(text), ...draft } as ToolchainOperation;
@@ -37,7 +37,7 @@ describe("propriété : le texte écrit se relit comme le modèle attendu", () =
     );
   });
 
-  test("une suite d'opérations reste lisible et fidèle", () => {
+  test("a sequence of operations stays readable and faithful", () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...texts),

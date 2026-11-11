@@ -95,29 +95,29 @@ async function renderCanvas(
 }
 
 describe("describeOrigin", () => {
-  test("une valeur locale n'a pas de badge", () => {
+  test("a local value has no badge", () => {
     expect(describeOrigin({ kind: "local" })).toBeNull();
   });
 
-  test("un extends nomme son template, séparé de la voix de Keelson", () => {
+  test("an extends names its template, separate from Keelson's voice", () => {
     expect(describeOrigin({ kind: "extends", template: ".base" })).toEqual({
       label: "inherited from",
       source: ".base",
     });
   });
 
-  test("un défaut est annoncé comme tel et ne cite aucune source", () => {
+  test("a default is announced as such and cites no source", () => {
     expect(describeOrigin({ kind: "default" })).toEqual({ label: "default", source: null });
   });
 
-  test("un anchor nomme son ancre", () => {
+  test("an anchor names its anchor", () => {
     expect(describeOrigin({ kind: "anchor", name: "defaults" })).toEqual({
       label: "from anchor",
       source: "&defaults",
     });
   });
 
-  test("un !reference nomme son chemin", () => {
+  test("a !reference names its path", () => {
     expect(describeOrigin({ kind: "reference", path: [".needs", "common"] })).toEqual({
       label: "from reference",
       source: "[.needs, common]",
@@ -125,47 +125,47 @@ describe("describeOrigin", () => {
   });
 });
 
-describe("colonnes de stages", () => {
-  test("une colonne par stage, dans l'ordre des stages", async () => {
+describe("stage columns", () => {
+  test("one column per stage, in stage order", async () => {
     await renderCanvas(SAMPLE);
     const headers = await screen.findAllByTestId("stage-column-name");
     expect(headers.map((element) => element.textContent)).toEqual(["build", "test", "deploy"]);
   });
 
-  test("chaque colonne annonce son nombre de jobs", async () => {
+  test("each column announces its job count", async () => {
     await renderCanvas(SAMPLE);
     const column = await screen.findByRole("group", { name: /stage test/i });
     expect(column.textContent).toContain("2");
   });
 
-  test("un stage implicite est signalé", async () => {
+  test("an implicit stage is flagged", async () => {
     await renderCanvas(
       pipeline([{ name: "build", implicit: true }], [{ id: "a", stage: "build" }]),
     );
     expect(await screen.findByText(/implicit/i)).toBeDefined();
   });
 
-  test("un stage déclaré n'est pas signalé comme implicite", async () => {
+  test("a declared stage is not flagged as implicit", async () => {
     await renderCanvas(SAMPLE);
     expect(screen.queryByText(/implicit/i)).toBeNull();
   });
 });
 
-describe("nœuds de jobs", () => {
-  test("un bouton par job, nommé par son identifiant", async () => {
+describe("job nodes", () => {
+  test("one button per job, named by its id", async () => {
     await renderCanvas(SAMPLE);
     for (const id of ["compile", "unit", "lint", "ship"]) {
       expect(await screen.findByRole("button", { name: new RegExp(id) })).toBeDefined();
     }
   });
 
-  test("le nœud affiche son stage", async () => {
+  test("the node shows its stage", async () => {
     await renderCanvas(SAMPLE);
     const node = await screen.findByRole("button", { name: /compile/ });
     expect(node.textContent).toContain("build");
   });
 
-  test("le nœud décrit ses dépendances via aria-describedby", async () => {
+  test("the node describes its dependencies via aria-describedby", async () => {
     await renderCanvas(SAMPLE);
     const description = descriptionOf(await screen.findByRole("button", { name: /ship/ }));
     expect(description).toContain("unit");
@@ -173,14 +173,14 @@ describe("nœuds de jobs", () => {
     expect(description.toLowerCase()).toContain("optional");
   });
 
-  test("aucun nœud n'utilise aria-description, insuffisamment supporté", async () => {
+  test("no node uses aria-description, which is poorly supported", async () => {
     await renderCanvas(SAMPLE);
     const node = await screen.findByRole("button", { name: /ship/ });
     expect(node.getAttribute("aria-description")).toBeNull();
     expect(node.getAttribute("aria-describedby")).not.toBeNull();
   });
 
-  test("l'élément décrivant le nœud est visuellement masqué mais présent dans le DOM", async () => {
+  test("the element describing the node is visually hidden but present in the DOM", async () => {
     await renderCanvas(SAMPLE);
     const node = await screen.findByRole("button", { name: /ship/ });
     const target = document.getElementById(node.getAttribute("aria-describedby") ?? "");
@@ -188,7 +188,7 @@ describe("nœuds de jobs", () => {
     expect(target?.className).toContain("sr-only");
   });
 
-  test("chaque nœud pointe vers son propre élément de description", async () => {
+  test("each node points to its own description element", async () => {
     await renderCanvas(SAMPLE);
     const ship = await screen.findByRole("button", { name: /ship/ });
     const compile = await screen.findByRole("button", { name: /compile/ });
@@ -197,13 +197,13 @@ describe("nœuds de jobs", () => {
     );
   });
 
-  test("un job sans dépendance le dit", async () => {
+  test("a job without dependencies says so", async () => {
     await renderCanvas(SAMPLE);
     const node = await screen.findByRole("button", { name: /compile/ });
     expect(descriptionOf(node).toLowerCase()).toContain("no dependencies");
   });
 
-  test("le job sélectionné est marqué", async () => {
+  test("the selected job is marked", async () => {
     await renderCanvas(SAMPLE, { selectedJobId: "unit" });
     const selected = await screen.findByRole("button", { name: /unit/ });
     expect(selected.getAttribute("aria-pressed")).toBe("true");
@@ -212,8 +212,8 @@ describe("nœuds de jobs", () => {
   });
 });
 
-describe("badges d'origine", () => {
-  test("un stage hérité d'un extends porte son badge", async () => {
+describe("origin badges", () => {
+  test("a stage inherited from an extends carries its badge", async () => {
     await renderCanvas(
       pipeline(
         [{ name: "build" }],
@@ -225,19 +225,19 @@ describe("badges d'origine", () => {
     ).toContain("inherited from .base");
   });
 
-  test("un stage venu du défaut porte le badge default", async () => {
+  test("a stage from the default carries the default badge", async () => {
     await renderCanvas(
       pipeline([{ name: "test" }], [{ id: "a", stage: "test", stageOrigin: { kind: "default" } }]),
     );
     expect(await screen.findByText("default")).toBeDefined();
   });
 
-  test("un stage local ne porte aucun badge", async () => {
+  test("a local stage carries no badge", async () => {
     await renderCanvas(pipeline([{ name: "build" }], [{ id: "a", stage: "build" }]));
     expect(screen.queryByTestId("origin-badge")).toBeNull();
   });
 
-  test("le badge est annoncé comme une information d'origine", async () => {
+  test("the badge is announced as origin information", async () => {
     await renderCanvas(
       pipeline(
         [{ name: "build" }],
@@ -249,15 +249,15 @@ describe("badges d'origine", () => {
   });
 });
 
-describe("sélection", () => {
-  test("un clic sur un nœud sélectionne son job", async () => {
+describe("selection", () => {
+  test("clicking a node selects its job", async () => {
     const selected: (string | null)[] = [];
     await renderCanvas(SAMPLE, { onSelect: (id) => selected.push(id) });
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     expect(selected).toEqual(["unit"]);
   });
 
-  test("Entrée sur un nœud focalisé sélectionne son job", async () => {
+  test("Enter on a focused node selects its job", async () => {
     const selected: (string | null)[] = [];
     await renderCanvas(SAMPLE, { onSelect: (id) => selected.push(id) });
     const node = await screen.findByRole("button", { name: /lint/ });
@@ -266,7 +266,7 @@ describe("sélection", () => {
     expect(selected).toEqual(["lint"]);
   });
 
-  test("tous les nœuds sont atteignables au clavier", async () => {
+  test("every node is reachable from the keyboard", async () => {
     await renderCanvas(SAMPLE);
     for (const id of ["compile", "unit", "lint", "ship"]) {
       const node = await screen.findByRole("button", { name: new RegExp(id) });
@@ -275,13 +275,13 @@ describe("sélection", () => {
   });
 });
 
-describe("pipeline vide", () => {
-  test("un pipeline sans job affiche un état vide explicite", async () => {
+describe("empty pipeline", () => {
+  test("a pipeline without jobs shows an explicit empty state", async () => {
     await renderCanvas(pipeline([{ name: "build" }], []));
     expect(await screen.findByText(/no jobs/i)).toBeDefined();
   });
 
-  test("un pipeline sans stage ni job reste rendu sans erreur", async () => {
+  test("a pipeline with no stages or jobs still renders without error", async () => {
     await renderCanvas(pipeline([], []));
     expect(await screen.findByRole("region", { name: /pipeline/i })).toBeDefined();
   });

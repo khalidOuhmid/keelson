@@ -13,4 +13,4 @@ if (!existsSync(source)) {
 
 rmSync(target, { recursive: true, force: true });
 cpSync(source, target, { recursive: true });
-process.stdout.write(`bundle d'UI copié dans ${target}\n`);
+process.stdout.write(`UI bundle copied to ${target}\n`);

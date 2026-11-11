@@ -9,6 +9,7 @@ logo: snyk
 detect:
   images: ['snyk/snyk']
   scripts: ['\bsnyk\s+(test|code|container|iac|monitor)\b']
+  actions: ['snyk/actions']
 snippets:
   gitlab: |
     snyk:

@@ -1,0 +1,106 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/code-scanning-hadolint.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "hadolint",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "name",
+            "range": {
+              "start": 642,
+              "end": 669
+            },
+            "file": ".github/workflows/code-scanning-hadolint.yml"
+          },
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 674,
+              "end": 696
+            },
+            "file": ".github/workflows/code-scanning-hadolint.yml"
+          },
+          {
+            "key": "permissions",
+            "range": {
+              "start": 701,
+              "end": 992
+            },
+            "file": ".github/workflows/code-scanning-hadolint.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 996,
+              "end": 1510
+            },
+            "file": ".github/workflows/code-scanning-hadolint.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [],
+          "actions": [
+            "actions/checkout@v4",
+            "hadolint/hadolint-action@f988afea3da57ee48710a9795b6bb677cc901183",
+            "github/codeql-action/upload-sarif@v3"
+          ]
+        },
+        "range": {
+          "start": 628,
+          "end": 1510
+        },
+        "file": ".github/workflows/code-scanning-hadolint.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 354,
+          "end": 368
+        },
+        "file": ".github/workflows/code-scanning-hadolint.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 370,
+          "end": 588
+        },
+        "file": ".github/workflows/code-scanning-hadolint.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 589,
+          "end": 619
+        },
+        "file": ".github/workflows/code-scanning-hadolint.yml"
+      }
+    ],
+    "main": ".github/workflows/code-scanning-hadolint.yml",
+    "files": [".github/workflows/code-scanning-hadolint.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

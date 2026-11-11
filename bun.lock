@@ -18,6 +18,11 @@
     "packages/adapter-github": {
       "name": "@keelson/adapter-github",
       "version": "0.0.0",
+      "dependencies": {
+        "@keelson/adapter-gitlab": "workspace:*",
+        "@keelson/core": "workspace:*",
+        "yaml": "^2.9.1",
+      },
     },
     "packages/adapter-gitlab": {
       "name": "@keelson/adapter-gitlab",
@@ -40,11 +45,12 @@
     },
     "packages/cli": {
       "name": "keelson",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "bin": {
         "keelson": "./dist/keelson.js",
       },
-      "dependencies": {
+      "devDependencies": {
+        "@keelson/adapter-github": "workspace:*",
         "@keelson/adapter-gitlab": "workspace:*",
         "@keelson/catalog": "workspace:*",
         "@keelson/core": "workspace:*",
@@ -64,6 +70,7 @@
       "name": "@keelson/server",
       "version": "0.0.0",
       "dependencies": {
+        "@keelson/adapter-github": "workspace:*",
         "@keelson/adapter-gitlab": "workspace:*",
         "@keelson/catalog": "workspace:*",
         "@keelson/core": "workspace:*",

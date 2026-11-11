@@ -1,12 +1,20 @@
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
-import type { Diagnostic, MessageCode, ParamsOf, SpliceOperation, Toolchain } from "@keelson/core";
+import type {
+  Diagnostic,
+  MessageCode,
+  ParamsOf,
+  Pipeline,
+  SpliceOperation,
+  Toolchain,
+} from "@keelson/core";
 import {
   emptyPipeline,
   hashText,
   INVALID_OPERATION,
+  mergePipelines,
   parseToolchainOperation,
   STALE_DOCUMENT,
   TOOLCHAIN_FILE,
@@ -24,6 +32,10 @@ import {
 } from "@keelson/toolchain";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
 import { writeInsideRoot } from "./write.ts";
+
+/** What the UTF-8 decoder puts in place of invalid bytes: a file that decodes to it would be
+ *  rewritten with it, so it counts as unreadable. */
+const REPLACEMENT_CHARACTER = "\uFFFD";
 
 export type ToolchainBody = {
   text: string;
@@ -60,8 +72,8 @@ function unreadable(): Diagnostic {
   };
 }
 
-/** `.devsecops/toolchain.yaml`. Une seule file d'écriture : deux opérations concurrentes ne peuvent
- *  pas se fonder sur le même texte. */
+/** `.devsecops/toolchain.yaml`. A single write queue: two concurrent operations cannot be based on
+ *  the same text. */
 export class ToolchainStore {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly seen = new Map<string, ToolchainResponse>();
@@ -71,39 +83,37 @@ export class ToolchainStore {
     private readonly documents: DocumentStore,
   ) {}
 
-  /** Un fichier qu'on ne peut pas lire n'est pas un fichier absent : le traiter comme vide
-   *  l'écraserait. Sont illisibles ce qui sort de la racine, ce qui refuse la lecture, un dossier,
-   *  et ce qui n'est pas de l'UTF-8, que le patch réécrirait avec des caractères de remplacement. */
+  /** A file that cannot be read is not a missing file: treating it as empty would overwrite it.
+   *  Unreadable means: what escapes the root, what refuses reading, a directory, and anything that
+   *  is not UTF-8, which the patch would rewrite with replacement characters. */
   private read(path: string): Disk {
-    const absolute = join(this.root, path);
+    const text = readInsideRoot(this.root, path);
+    if (text !== null) {
+      return text.includes(REPLACEMENT_CHARACTER) ? { kind: "unreadable" } : { kind: "text", text };
+    }
     try {
-      lstatSync(absolute);
+      lstatSync(join(this.root, path));
+      return { kind: "unreadable" };
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       return { kind: code === "ENOENT" || code === "ENOTDIR" ? "absent" : "unreadable" };
     }
-    const text = readInsideRoot(this.root, path);
-    if (text === null) {
-      return { kind: "unreadable" };
-    }
-    try {
-      return Buffer.from(text).equals(readFileSync(absolute))
-        ? { kind: "text", text }
-        : { kind: "unreadable" };
-    } catch {
-      return { kind: "unreadable" };
-    }
   }
 
-  private async pipeline() {
-    const main = this.documents.workspaceFiles()[0]?.path;
-    if (main === undefined) {
-      return emptyPipeline("");
+  /** A toolchain is repository-wide: its jobs are those of every file in the workspace. */
+  private async pipeline(): Promise<Pipeline> {
+    const files = this.documents.workspaceFiles().map((entry) => entry.path);
+    const pipelines: Pipeline[] = [];
+    for (const file of files) {
+      if (this.documents.currentPipeline(file) === undefined) {
+        await this.documents.load(file);
+      }
+      const pipeline = this.documents.currentPipeline(file);
+      if (pipeline !== undefined) {
+        pipelines.push(pipeline);
+      }
     }
-    if (this.documents.currentPipeline(main) === undefined) {
-      await this.documents.load(main);
-    }
-    return this.documents.currentPipeline(main) ?? emptyPipeline(main);
+    return mergePipelines(pipelines);
   }
 
   private async body(text: string): Promise<ToolchainBody> {
@@ -195,7 +205,7 @@ export class ToolchainStore {
     };
   }
 
-  /** Dans la même file que les opérations : `layout.json` se relit juste avant d'être réécrit. */
+  /** In the same queue as operations: `layout.json` is re-read just before being rewritten. */
   savePositions(raw: unknown): Promise<PositionsResponse> {
     const next = this.queue.then(() => this.writePositions(raw));
     this.queue = next.catch(() => undefined);

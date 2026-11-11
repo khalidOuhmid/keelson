@@ -1,14 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { hashText, type ToolchainOperation } from "@keelson/core";
+import { documentEnd } from "../src/apply.ts";
 import { applyToolchain, parseToolchain } from "../src/index.ts";
 
-const BASE = `# plateforme
+const BASE = `# platform
 version: 1
 
 services:
-  # le dépôt d'images
+  # the image registry
   nexus:
-    tool: nexus # interne
+    tool: nexus # internal
     url: https://nexus.example.org
 
   vault:
@@ -19,7 +20,7 @@ integrations:
     service: nexus
     kind: push
 
-# fin
+# end
 `;
 
 type Draft = ToolchainOperation extends infer O
@@ -48,22 +49,22 @@ function code(text: string, draft: Draft): string | null {
 const add = { kind: "addService", tool: "harbor", url: null, environment: null } as const;
 
 describe("services", () => {
-  test("ajouter crée le fichier depuis rien", () => {
+  test("adding creates the file from scratch", () => {
     expect(edited("", { ...add, id: "harbor" })).toBe(
       "version: 1\nservices:\n  harbor:\n    tool: harbor\n",
     );
   });
 
-  test("ajouter garde tout le reste, en fin de section, à l'indentation trouvée", () => {
+  test("adding keeps everything else, at the end of the section, at the indentation found", () => {
     const text = edited(BASE, { ...add, id: "harbor", url: "https://h", environment: "prod" });
     expect(text).toContain(
       "  vault:\n    tool: vault\n  harbor:\n    tool: harbor\n    url: https://h\n    environment: prod\n",
     );
-    expect(text).toContain("# le dépôt d'images");
-    expect(text).toContain("# fin");
+    expect(text).toContain("# the image registry");
+    expect(text).toContain("# end");
   });
 
-  test("ajouter sous une section vide ou [] / {}", () => {
+  test("adding under an empty section or [] / {}", () => {
     for (const empty of ["services:\n", "services: {}\n"]) {
       expect(edited(`version: 1\n${empty}`, { ...add, id: "h" })).toBe(
         "version: 1\nservices:\n  h:\n    tool: harbor\n",
@@ -71,7 +72,7 @@ describe("services", () => {
     }
   });
 
-  test("ajouter à un fichier sans fin de ligne, et en CRLF", () => {
+  test("adding to a file without a trailing newline, and in CRLF", () => {
     expect(edited("version: 1", { ...add, id: "h" })).toBe(
       "version: 1\nservices:\n  h:\n    tool: harbor\n",
     );
@@ -80,17 +81,17 @@ describe("services", () => {
     );
   });
 
-  test("une URL piégée reste une chaîne", () => {
+  test("a booby-trapped URL stays a string", () => {
     const text = edited("", { ...add, id: "h", url: "a: b #c\nd" });
     expect(parseToolchain(text).toolchain.services[0]?.url).toBe("a: b #c\nd");
   });
 
-  test("un identifiant entier s'ajoute : YAML ne garde pas cet ordre en objet", () => {
+  test("an integer id can be added: YAML does not keep that order in an object", () => {
     const text = edited(BASE, { ...add, id: "8080" });
     expect(parseToolchain(text).toolchain.services.map((service) => service.id)).toContain("8080");
   });
 
-  test("une clé entière écrite à la main s'édite et se retire", () => {
+  test("a hand-written integer key can be edited and removed", () => {
     const text = "version: 1\nservices:\n  8080:\n    tool: x\n";
     expect(
       parseToolchain(edited(text, { kind: "updateService", id: "8080", url: "u" })).toolchain
@@ -101,50 +102,50 @@ describe("services", () => {
     ).toEqual([]);
   });
 
-  test("un identifiant déjà pris ou illégal est refusé", () => {
+  test("an id already taken or illegal is rejected", () => {
     expect(code(BASE, { ...add, id: "nexus" })).toBe("NAME_CONFLICT");
     expect(code(BASE, { ...add, id: "Bad Name" })).toBe("INVALID_NAME");
   });
 
-  test("modifier remplace la valeur et garde le commentaire", () => {
+  test("updating replaces the value and keeps the comment", () => {
     const text = edited(BASE, { kind: "updateService", id: "nexus", tool: "harbor" });
-    expect(text).toContain("    tool: harbor # interne\n");
+    expect(text).toContain("    tool: harbor # internal\n");
   });
 
-  test("modifier ajoute un champ absent, et null le retire", () => {
+  test("updating adds a missing field, and null removes it", () => {
     const text = edited(BASE, {
       kind: "updateService",
       id: "nexus",
       url: null,
       environment: "staging",
     });
-    expect(text).toContain("    tool: nexus # interne\n    environment: staging\n");
+    expect(text).toContain("    tool: nexus # internal\n    environment: staging\n");
     expect(text).not.toContain("url:");
   });
 
-  test("modifier un champ sans valeur", () => {
+  test("updating a field without a value", () => {
     const text = "version: 1\nservices:\n  a:\n    tool: x\n    url:\n";
     expect(edited(text, { kind: "updateService", id: "a", url: "u" })).toBe(
       "version: 1\nservices:\n  a:\n    tool: x\n    url: u\n",
     );
   });
 
-  test("ne rien changer ne touche rien", () => {
+  test("changing nothing touches nothing", () => {
     const result = run(BASE, { kind: "updateService", id: "vault" });
     expect(result.ok && result.value.text).toBe(BASE);
     expect(result.ok && result.value.touched).toEqual([]);
   });
 
-  test("retirer enlève le bloc, pas les commentaires des voisins", () => {
+  test("removing deletes the block, not the neighbours' comments", () => {
     const text = edited(BASE.replace("    service: nexus\n", "    service: vault\n"), {
       kind: "removeService",
       id: "nexus",
     });
-    expect(text).toContain("# le dépôt d'images\n\n  vault:");
+    expect(text).toContain("# the image registry\n\n  vault:");
     expect(text).not.toContain("nexus");
   });
 
-  test("retirer un service relié est refusé, en nommant les jobs", () => {
+  test("removing a linked service is rejected, naming the jobs", () => {
     const result = run(BASE, { kind: "removeService", id: "nexus" });
     expect(result.ok ? null : result.error).toEqual({
       code: "SERVICE_REFERENCED",
@@ -152,13 +153,13 @@ describe("services", () => {
     });
   });
 
-  test("un service inconnu est refusé", () => {
+  test("an unknown service is rejected", () => {
     expect(code(BASE, { kind: "removeService", id: "x" })).toBe("SERVICE_NOT_FOUND");
     expect(code(BASE, { kind: "updateService", id: "x" })).toBe("SERVICE_NOT_FOUND");
   });
 });
 
-describe("intégrations", () => {
+describe("integrations", () => {
   const link = {
     kind: "addIntegration",
     job: "b",
@@ -166,38 +167,38 @@ describe("intégrations", () => {
     integration: "notify",
   } as const;
 
-  test("ajouter en fin de liste", () => {
+  test("adding at the end of the list", () => {
     expect(edited(BASE, link)).toContain(
       "    kind: push\n  - job: b\n    service: vault\n    kind: notify\n",
     );
   });
 
-  test("ajouter crée la section absente", () => {
+  test("adding creates the missing section", () => {
     const text = "version: 1\nservices:\n  vault:\n    tool: vault\n";
     expect(edited(text, link)).toBe(
       `${text}integrations:\n  - job: b\n    service: vault\n    kind: notify\n`,
     );
   });
 
-  test("garde l'indentation d'une liste à la colonne zéro", () => {
+  test("keeps the indentation of a list at column zero", () => {
     const text =
       "version: 1\nservices:\n  vault:\n    tool: vault\nintegrations:\n- job: a\n  service: vault\n  kind: push\n";
     expect(edited(text, link)).toBe(`${text}- job: b\n  service: vault\n  kind: notify\n`);
   });
 
-  test("un job au nom piégé reste lisible", () => {
+  test("a job with a booby-trapped name stays readable", () => {
     const text = edited(BASE, { ...link, job: "deploy: prod" });
     expect(parseToolchain(text).toolchain.integrations.at(-1)?.job).toBe("deploy: prod");
   });
 
-  test("refuse un service inconnu et un doublon", () => {
+  test("rejects an unknown service and a duplicate", () => {
     expect(code(BASE, { ...link, service: "x" })).toBe("SERVICE_NOT_FOUND");
     expect(
       code(BASE, { kind: "addIntegration", job: "build", service: "nexus", integration: "push" }),
     ).toBe("INTEGRATION_EXISTS");
   });
 
-  test("retirer enlève l'élément", () => {
+  test("removing deletes the item", () => {
     const text = edited(BASE, {
       kind: "removeIntegration",
       job: "build",
@@ -205,14 +206,14 @@ describe("intégrations", () => {
       integration: "push",
     });
     expect(parseToolchain(text).toolchain.integrations).toEqual([]);
-    expect(text).toContain("# fin");
+    expect(text).toContain("# end");
   });
 
-  test("retirer un élément absent est refusé", () => {
+  test("removing a missing item is rejected", () => {
     expect(code(BASE, { ...link, kind: "removeIntegration" })).toBe("INTEGRATION_NOT_FOUND");
   });
 
-  test("écarter puis rétablir une inférence", () => {
+  test("dismissing then restoring an inference", () => {
     const dismiss = {
       kind: "dismissIntegration",
       job: "b",
@@ -231,8 +232,8 @@ describe("intégrations", () => {
   });
 });
 
-describe("refus", () => {
-  test("un hash périmé", () => {
+describe("refusals", () => {
+  test("a stale hash", () => {
     const result = applyToolchain(BASE, {
       v: 1,
       baseHash: "a".repeat(64),
@@ -242,7 +243,7 @@ describe("refus", () => {
     expect(result.ok ? null : result.error.code).toBe("STALE_DOCUMENT");
   });
 
-  test("un fichier invalide n'est pas édité", () => {
+  test("an invalid file is not edited", () => {
     const result = run("version: 2\n", { ...add, id: "h" });
     expect(result.ok ? null : result.error).toEqual({
       code: "INVALID_OPERATION",
@@ -250,7 +251,7 @@ describe("refus", () => {
     });
   });
 
-  test("une section en flow non vide n'est pas réécrite", () => {
+  test("a non-empty flow section is not rewritten", () => {
     const result = run("version: 1\nservices: {a: {tool: x}}\n", { ...add, id: "h" });
     expect(result.ok ? null : result.error).toEqual({
       code: "INVALID_OPERATION",
@@ -258,35 +259,35 @@ describe("refus", () => {
     });
   });
 
-  test("un service en flow n'est pas réécrit", () => {
+  test("a flow service is not rewritten", () => {
     const text = "version: 1\nservices:\n  a: {tool: x}\n";
     expect(code(text, { kind: "updateService", id: "a", url: "u" })).toBe("INVALID_OPERATION");
   });
 
-  test("une valeur en alias n'est pas réécrite", () => {
+  test("an alias value is not rewritten", () => {
     const text = "version: 1\nservices:\n  a:\n    tool: &t x\n  b:\n    tool: *t\n";
     expect(code(text, { kind: "updateService", id: "b", tool: "y" })).toBe("INVALID_OPERATION");
   });
 });
 
-describe("fichiers écrits à la main", () => {
+describe("hand-written files", () => {
   const BLOCK =
     "version: 1\nservices:\n  a:\n    tool: nexus\n    url: |\n      https://a\n  b:\n    tool: harbor\nintegrations:\n  - job: x\n    service: b\n    kind: push\n";
 
-  test("retirer un service à valeur en bloc garde son voisin", () => {
+  test("removing a service with a block value keeps its neighbour", () => {
     const text = edited(BLOCK, { kind: "removeService", id: "a" });
     const { services, integrations } = parseToolchain(text).toolchain;
     expect(services.map((service) => service.id)).toEqual(["b"]);
     expect(integrations).toHaveLength(1);
   });
 
-  test("retirer le dernier service à valeur en bloc garde la section suivante", () => {
+  test("removing the last service with a block value keeps the next section", () => {
     const text =
       "version: 1\nservices:\n  a:\n    tool: x\n    url: |\n      u\nintegrations:\n  - job: j\n    service: z\n    kind: push\n";
     expect(edited(text, { kind: "removeService", id: "a" })).toContain("integrations:");
   });
 
-  test("un champ retiré après une valeur en bloc ne touche pas le voisin", () => {
+  test("a field removed after a block value does not touch the neighbour", () => {
     const text = edited(BLOCK, { kind: "updateService", id: "a", url: null });
     expect(parseToolchain(text).toolchain.services.map((service) => service.id)).toEqual([
       "a",
@@ -294,20 +295,20 @@ describe("fichiers écrits à la main", () => {
     ]);
   });
 
-  test("un champ ajouté après une valeur en bloc reste dans son service", () => {
+  test("a field added after a block value stays in its service", () => {
     const text = edited(BLOCK, { kind: "updateService", id: "a", environment: "prod" });
     const [first, second] = parseToolchain(text).toolchain.services;
     expect(first?.environment).toBe("prod");
     expect(second?.environment).toBeNull();
   });
 
-  test("remplacer une valeur en bloc garde le commentaire suivant", () => {
+  test("replacing a block value keeps the following comment", () => {
     const text =
       "version: 1\nservices:\n  a:\n    tool: x\n    url: |\n      u\n    # note\n    environment: e\n";
     expect(edited(text, { kind: "updateService", id: "a", url: "v" })).toContain("    # note\n");
   });
 
-  test("un élément de liste à valeur en bloc garde le suivant", () => {
+  test("a list item with a block value keeps the next one", () => {
     const text = edited(
       BLOCK.replace("  - job: x\n", "  - job: |-\n      x\n").concat(
         "  - job: y\n    service: b\n    kind: push\n",
@@ -322,7 +323,7 @@ describe("fichiers écrits à la main", () => {
     expect(parseToolchain(text).toolchain.integrations.map((entry) => entry.job)).toEqual(["y"]);
   });
 
-  test.each(["~", "null", "!!null", "&s"])("une section valant %s se remplace", (token) => {
+  test.each(["~", "null", "!!null", "&s"])("a section equal to %s is replaced", (token) => {
     const text = edited(`version: 1\nservices: ${token}\n`, { ...add, id: "h" });
     expect(parseToolchain(text).toolchain.services).toEqual([
       { id: "h", tool: "harbor", url: null, environment: null },
@@ -330,18 +331,18 @@ describe("fichiers écrits à la main", () => {
     expect(text).not.toContain(token);
   });
 
-  test("un commentaire sur la ligne de la section y reste", () => {
-    expect(edited("version: 1\nservices: # plateforme\n", { ...add, id: "h" })).toBe(
-      "version: 1\nservices: # plateforme\n  h:\n    tool: harbor\n",
+  test("a comment on the section's line stays there", () => {
+    expect(edited("version: 1\nservices: # platform\n", { ...add, id: "h" })).toBe(
+      "version: 1\nservices: # platform\n  h:\n    tool: harbor\n",
     );
   });
 
-  test("un espace avant les deux-points n'empêche pas d'écrire", () => {
+  test("a space before the colon does not prevent writing", () => {
     const text = edited("version: 1\nservices :\n", { ...add, id: "h" });
     expect(parseToolchain(text).toolchain.services).toHaveLength(1);
   });
 
-  test("toucher une valeur ancrée changerait ses alias : refusé", () => {
+  test("touching an anchored value would change its aliases: rejected", () => {
     const text = "version: 1\nservices:\n  a: &base\n    tool: x\n  b: *base\n";
     const result = run(text, { kind: "updateService", id: "a", environment: "e" });
     expect(result.ok ? null : result.error).toMatchObject({
@@ -355,7 +356,7 @@ describe("fichiers écrits à la main", () => {
     });
   });
 
-  test("ce que le patch changerait sans le vouloir est refusé à la relecture", () => {
+  test("what the patch would change unintentionally is rejected on read-back", () => {
     const text = "version: 1\nservices:\n  a:\n    tool: x\n    url: |+\n      u\n\n";
     const result = run(text, { kind: "updateService", id: "a", environment: "e" });
     expect(result.ok ? null : result.error).toMatchObject({
@@ -363,26 +364,26 @@ describe("fichiers écrits à la main", () => {
     });
   });
 
-  test("retirer une ancre dont un alias dépend est refusé", () => {
+  test("removing an anchor an alias depends on is rejected", () => {
     const text = "version: 1\nservices:\n  a: &base\n    tool: x\n  b: *base\n";
     expect(code(text, { kind: "removeService", id: "a" })).toBe("INVALID_OPERATION");
   });
 
-  test("un service en alias n'est pas présenté comme du flow", () => {
+  test("an alias service is not reported as flow", () => {
     const text = "version: 1\nservices:\n  a: &base\n    tool: x\n  b: *base\n";
     const result = run(text, { kind: "updateService", id: "b", url: "u" });
     expect(result.ok ? null : result.error).toMatchObject({ params: { reason: "sharedValue" } });
   });
 
   test.each(["a\u00a0", "--- x", "...", "x ".repeat(60).trim(), "\ufeffx", "- a", "1", "true"])(
-    "la valeur %j se relit à l'identique",
+    "value %j reads back identically",
     (value) => {
       const text = edited("", { ...add, id: "h", url: value });
       expect(parseToolchain(text).toolchain.services[0]?.url).toBe(value);
     },
   );
 
-  test("deux champs ajoutés sans fin de ligne finale ne laissent pas de ligne vide", () => {
+  test("two fields added without a final newline leave no blank line", () => {
     expect(
       edited("version: 1\nservices:\n  a:\n    tool: x", {
         kind: "updateService",
@@ -394,25 +395,57 @@ describe("fichiers écrits à la main", () => {
   });
 });
 
-describe("splice et inverse", () => {
-  test("une plage hors du texte est refusée", () => {
+describe("splice and inverse", () => {
+  test("a range outside the text is rejected", () => {
     expect(code("abc", { kind: "splice", start: 2, end: 9, text: "" })).toBe("RANGE_OUT_OF_BOUNDS");
   });
 
-  test("l'inverse restaure les octets", () => {
+  test("the inverse restores the bytes", () => {
     const first = run(BASE, { ...add, id: "harbor" });
     if (!first.ok) {
-      throw new Error("refusé");
+      throw new Error("rejected");
     }
     const back = applyToolchain(first.value.text, first.value.inverse);
     expect(back.ok && back.value.text).toBe(BASE);
   });
 
-  test("touched borne le changement", () => {
+  test("touched bounds the change", () => {
     const result = run(BASE, { ...add, id: "harbor" });
     const range = result.ok ? result.value.touched[0] : undefined;
     expect(result.ok && result.value.text.slice(range?.start, range?.end)).toBe(
       "  harbor:\n    tool: harbor\n",
     );
+  });
+});
+
+describe("a document end marker", () => {
+  test("a new section is written before the closing ...", () => {
+    expect(edited("version: 1\n...\n", { ...add, id: "harbor-prod" })).toBe(
+      "version: 1\nservices:\n  harbor-prod:\n    tool: harbor\n...\n",
+    );
+  });
+
+  test("the marker may carry a comment and CRLF line endings", () => {
+    expect(edited("version: 1\r\n... # end\r\n", { ...add, id: "harbor-prod" })).toBe(
+      "version: 1\r\nservices:\r\n  harbor-prod:\r\n    tool: harbor\r\n... # end\r\n",
+    );
+  });
+
+  test.each([
+    ["version: 1\n...\n", 11],
+    ["version: 1\n... # end\r\nrest", 11],
+    ["...", 0],
+    ["a: 1\n ...\n", -1],
+    ["a: 1\n....\n", -1],
+    ["a: '...'\n", -1],
+  ])("documentEnd(%j) is %d", (text, offset) => {
+    expect(documentEnd(text)).toBe(offset);
+  });
+
+  test("a marker line followed by many tabs is scanned in linear time", () => {
+    const text = `...${"\t".repeat(40_000)}x`;
+    const started = performance.now();
+    expect(documentEnd(text)).toBe(-1);
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });

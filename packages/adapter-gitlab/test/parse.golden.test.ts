@@ -11,7 +11,7 @@ function goldenFor(file: CorpusFile): unknown {
 
 const files = corpusFiles();
 
-describe("IR golden du corpus", () => {
+describe("golden IR of the corpus", () => {
   for (const file of files) {
     test(`${file.group}/${file.name}`, () => {
       const pipeline = parse(readCorpus(file)).pipeline;
@@ -20,9 +20,9 @@ describe("IR golden du corpus", () => {
   }
 });
 
-describe("invariants de l'IR sur tout le corpus", () => {
+describe("IR invariants across the whole corpus", () => {
   for (const file of files) {
-    test(`${file.group}/${file.name} : les plages sont cohérentes avec le texte`, () => {
+    test(`${file.group}/${file.name}: ranges are consistent with the text`, () => {
       const text = readCorpus(file);
       const pipeline = parse(text).pipeline;
 
@@ -50,7 +50,7 @@ describe("invariants de l'IR sur tout le corpus", () => {
     });
   }
 
-  test("aucun job ne porte un identifiant de template", () => {
+  test("no job carries a template identifier", () => {
     for (const file of files) {
       for (const job of parse(readCorpus(file)).pipeline.jobs) {
         expect(job.id.startsWith(".")).toBe(false);
@@ -58,7 +58,7 @@ describe("invariants de l'IR sur tout le corpus", () => {
     }
   });
 
-  test("les plages des jobs ne se chevauchent pas", () => {
+  test("job ranges do not overlap", () => {
     for (const file of files) {
       const ranges = parse(readCorpus(file))
         .pipeline.jobs.map((job) => job.range)

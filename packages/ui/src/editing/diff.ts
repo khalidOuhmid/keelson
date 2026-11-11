@@ -2,8 +2,8 @@ export type DiffRow = { kind: "same" | "add" | "remove"; text: string };
 
 export type VisibleRow = DiffRow | { kind: "gap"; text: "" };
 
-/** Au-delà, la table de la plus longue sous-suite coûterait plus qu'elle n'apporte : le milieu est
- *  rendu comme remplacé, ce qui reste vrai. */
+/** Beyond this, the longest-common-subsequence table would cost more than it brings: the middle is
+ *  rendered as replaced, which is still true. */
 const MAX_CELLS = 4_000_000;
 
 function linesOf(text: string): string[] {
@@ -64,8 +64,8 @@ function middle(left: readonly string[], right: readonly string[]): DiffRow[] {
   return found;
 }
 
-/** Par lignes : une composite touche une seule plage, souvent presque tout le fichier, et le
- *  milieu y est pourtant inchangé (ADR 0012). */
+/** By lines: a composite touches a single range, often nearly the whole file, and yet the middle
+ *  of it is unchanged (ADR 0012). */
 export function diffRows(before: string, after: string): DiffRow[] {
   const left = linesOf(before);
   const right = linesOf(after);
@@ -90,7 +90,7 @@ export function diffRows(before: string, after: string): DiffRow[] {
   ];
 }
 
-/** Ne garde que `context` lignes autour de chaque changement, un `gap` tient lieu du reste. */
+/** Keeps only `context` lines around each change; a `gap` stands for the rest. */
 export function visibleRows(rows: readonly DiffRow[], context: number): VisibleRow[] {
   const near = rows.map((_, index) =>
     rows

@@ -1,0 +1,169 @@
+{
+  "pipeline": {
+    "stages": [
+      {
+        "name": "level 1",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/pages-nextjs.yml"
+      },
+      {
+        "name": "level 2",
+        "implicit": false,
+        "range": null,
+        "file": ".github/workflows/pages-nextjs.yml"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "build",
+        "stage": {
+          "value": "level 1",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": null,
+        "environment": null,
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 815,
+              "end": 837
+            },
+            "file": ".github/workflows/pages-nextjs.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 842,
+              "end": 3065
+            },
+            "file": ".github/workflows/pages-nextjs.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [
+            "if [ -f \"${{ github.workspace }}/yarn.lock\" ]; then\n  echo \"manager=yarn\" >> $GITHUB_OUTPUT\n  echo \"command=install\" >> $GITHUB_OUTPUT\n  echo \"runner=yarn\" >> $GITHUB_OUTPUT\n  exit 0\nelif [ -f \"${{ github.workspace }}/package.json\" ]; then\n  echo \"manager=npm\" >> $GITHUB_OUTPUT\n  echo \"command=ci\" >> $GITHUB_OUTPUT\n  echo \"runner=npx --no-install\" >> $GITHUB_OUTPUT\n  exit 0\nelse\n  echo \"Unable to determine package manager\"\n  exit 1\nfi\n",
+            "${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}",
+            "${{ steps.detect-package-manager.outputs.runner }} next build"
+          ],
+          "actions": [
+            "actions/checkout@v4",
+            "actions/setup-node@v4",
+            "actions/configure-pages@v5",
+            "actions/cache@v4",
+            "actions/upload-pages-artifact@v3"
+          ]
+        },
+        "range": {
+          "start": 804,
+          "end": 3065
+        },
+        "file": ".github/workflows/pages-nextjs.yml"
+      },
+      {
+        "id": "deploy",
+        "stage": {
+          "value": "level 2",
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "needs": {
+          "value": [
+            {
+              "job": "build",
+              "optional": false,
+              "artifacts": true
+            }
+          ],
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "environment": {
+          "value": {
+            "name": "github-pages",
+            "url": "${{ steps.deployment.outputs.page_url }}"
+          },
+          "origin": {
+            "kind": "local"
+          }
+        },
+        "extends": [],
+        "opaque": [
+          {
+            "key": "runs-on",
+            "range": {
+              "start": 3193,
+              "end": 3215
+            },
+            "file": ".github/workflows/pages-nextjs.yml"
+          },
+          {
+            "key": "steps",
+            "range": {
+              "start": 3237,
+              "end": 3342
+            },
+            "file": ".github/workflows/pages-nextjs.yml"
+          }
+        ],
+        "signals": {
+          "image": null,
+          "script": [],
+          "actions": ["actions/deploy-pages@v5"]
+        },
+        "range": {
+          "start": 3087,
+          "end": 3342
+        },
+        "file": ".github/workflows/pages-nextjs.yml"
+      }
+    ],
+    "templates": [],
+    "opaque": [
+      {
+        "key": "name",
+        "range": {
+          "start": 155,
+          "end": 189
+        },
+        "file": ".github/workflows/pages-nextjs.yml"
+      },
+      {
+        "key": "on",
+        "range": {
+          "start": 191,
+          "end": 447
+        },
+        "file": ".github/workflows/pages-nextjs.yml"
+      },
+      {
+        "key": "permissions",
+        "range": {
+          "start": 447,
+          "end": 510
+        },
+        "file": ".github/workflows/pages-nextjs.yml"
+      },
+      {
+        "key": "concurrency",
+        "range": {
+          "start": 723,
+          "end": 781
+        },
+        "file": ".github/workflows/pages-nextjs.yml"
+      }
+    ],
+    "main": ".github/workflows/pages-nextjs.yml",
+    "files": [".github/workflows/pages-nextjs.yml"],
+    "unresolved": [],
+    "provider": "github"
+  },
+  "diagnostics": []
+}

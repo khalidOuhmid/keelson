@@ -11,10 +11,9 @@ export function stageLockNote(file: string): string {
   return `The stage list is defined in ${file}, an included file. Keelson never writes to included files, so stages cannot be added or reordered here.`;
 }
 
-/** Le fichier qui déclare la liste `stages`, ou `null` si c'est le fichier principal. Une liste
- *  écrase et ne fusionne pas : elle vient donc d'un seul fichier, et le premier stage suffit à le
- *  nommer. Les stages implicites portent le fichier principal, donc une liste absente reste
- *  matérialisable. */
+/** The file that declares the `stages` list, or `null` if it is the main file. A list overrides
+ *  and does not merge: it therefore comes from a single file, and the first stage is enough to name
+ *  it. Implicit stages carry the main file, so a missing list can still be materialised. */
 export function stagesLockedTo(pipeline: Pipeline): string | null {
   const foreign = pipeline.stages.find((stage) => stage.file !== pipeline.main);
   return foreign?.file ?? null;

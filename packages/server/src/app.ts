@@ -38,7 +38,7 @@ function send(response: ServerResponse, status: number, body: Json): void {
   response.end(payload);
 }
 
-/** Aucune clé `message` sur le fil : le texte est rendu par le client depuis `code` + `params`. */
+/** No `message` key on the wire: the client renders the text from `code` + `params`. */
 function fail<C extends MessageCode>(
   response: ServerResponse,
   status: number,
@@ -48,8 +48,8 @@ function fail<C extends MessageCode>(
   send(response, status, { code, params });
 }
 
-/** `request.method` est `string | undefined` côté Node. Le rendre explicite ici plutôt que de
- *  laisser « undefined » arriver dans la phrase affichée. */
+/** `request.method` is `string | undefined` on Node. Make it explicit here rather than letting
+ *  "undefined" reach the displayed sentence. */
 const methodOf = (request: IncomingMessage): string => request.method ?? "unknown";
 
 async function readBody(request: IncomingMessage): Promise<string | "too-large"> {
@@ -69,11 +69,11 @@ async function readBody(request: IncomingMessage): Promise<string | "too-large">
   return Buffer.concat(chunks).toString("utf8");
 }
 
-/** `null` est un corps JSON valide : la réponse déjà partie se dit par un marqueur à part. */
+/** `null` is a valid JSON body: a response already sent is signalled by a separate marker. */
 const ANSWERED = Symbol("answered");
 
-/** Le corps JSON d'une requête, ou `ANSWERED` si la réponse d'erreur est déjà partie. Le résultat
- *  n'a aucune forme garantie, et une valeur non objet devient un objet vide pour les appelants. */
+/** The JSON body of a request, or `ANSWERED` if the error response has already been sent. The
+ *  result has no guaranteed shape, and a non-object value becomes an empty object for callers. */
 async function readEnvelope(request: IncomingMessage, response: ServerResponse): Promise<unknown> {
   const raw = await readBody(request);
   if (raw === "too-large") {
@@ -278,8 +278,8 @@ export function createRequestHandler(context: AppContext) {
 
       const file = decodeFile(document[1] ?? "");
       if (file === null) {
-        // Même condition que sur la route des opérations, donc même `reason` : un nom indécodable
-        // n'est pas un fichier inconnu, et le dire autrement selon la route n'aiderait personne.
+        // Same condition as on the operations route, hence the same `reason`: an undecodable name
+        // is not an unknown file, and saying it differently per route would help nobody.
         fail(response, 404, NOT_FOUND, { reason: "unreadableFileName" });
         return;
       }

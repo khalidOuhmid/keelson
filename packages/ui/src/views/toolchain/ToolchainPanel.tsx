@@ -11,7 +11,7 @@ export type ToolchainPanelProps = {
   payload: ToolchainPayload;
   tools: readonly Tool[];
   disabled: boolean;
-  /** `toolchain.yaml` illisible : une liste vide y serait une affirmation fausse. */
+  /** `toolchain.yaml` unreadable: an empty list there would be a false statement. */
   invalid?: boolean;
   selectedService: string | null;
   onSubmit: Submit;
@@ -212,7 +212,7 @@ export function ToolchainPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Proposed integrations" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>
           Proposed integrations{" "}
@@ -241,7 +241,7 @@ export function ToolchainPanel({
         )}
       </div>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Services" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Services</h2>
         {toolchain.services.length === 0 ? (
@@ -278,7 +278,7 @@ export function ToolchainPanel({
         )}
       </div>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="New service" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>New service</h2>
         <AddService
@@ -292,7 +292,7 @@ export function ToolchainPanel({
       </div>
 
       {toolchain.dismissed.length === 0 ? null : (
-        // biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires
+        // biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms
         <div role="group" aria-label="Dismissed" className="flex flex-col gap-2">
           <h2 className={SECTION_HEADING}>Dismissed</h2>
           <ul className="flex flex-col gap-1">

@@ -4,7 +4,7 @@ import { describeOrigin, hintFor } from "./origin.ts";
 
 export type OriginBadgeProps = {
   origin: Origin;
-  /** Le job vit dans un fichier inclus : la valeur ne peut pas être surchargée ici. */
+  /** The job lives in an included file: the value cannot be overridden here. */
   readOnly?: boolean;
 };
 

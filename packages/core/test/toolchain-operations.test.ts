@@ -3,8 +3,8 @@ import { parseToolchainOperation } from "../src/index.ts";
 
 const BASE = { v: 1, baseHash: "a".repeat(64) };
 
-describe("opérations de toolchain", () => {
-  test("une opération valide passe", () => {
+describe("toolchain operations", () => {
+  test("a valid operation passes", () => {
     const parsed = parseToolchainOperation({
       ...BASE,
       kind: "addIntegration",
@@ -15,7 +15,7 @@ describe("opérations de toolchain", () => {
     expect(parsed.ok).toBe(true);
   });
 
-  test("un type d'intégration inconnu est refusé par le schéma", () => {
+  test("an unknown integration kind is rejected by the schema", () => {
     const parsed = parseToolchainOperation({
       ...BASE,
       kind: "addIntegration",
@@ -27,12 +27,12 @@ describe("opérations de toolchain", () => {
     expect(parsed.ok ? null : parsed.error.code).toBe("INVALID_OPERATION");
   });
 
-  test("une version inconnue est refusée", () => {
+  test("an unknown version is rejected", () => {
     const parsed = parseToolchainOperation({ ...BASE, v: 2, kind: "removeService", id: "x" });
     expect(parsed.ok ? null : parsed.error.code).toBe("UNSUPPORTED_VERSION");
   });
 
-  test("ce qui n'est pas un objet est refusé", () => {
+  test("anything that is not an object is rejected", () => {
     expect(parseToolchainOperation(null).ok).toBe(false);
   });
 });

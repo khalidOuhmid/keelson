@@ -9,6 +9,7 @@ logo: null
 detect:
   images: []
   scripts: ['\b42crunch\b']
+  actions: ['42Crunch/api-security-audit-action']
 snippets:
   gitlab: null
   github: null

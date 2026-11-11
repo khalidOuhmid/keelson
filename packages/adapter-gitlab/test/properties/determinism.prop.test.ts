@@ -8,8 +8,8 @@ import { assertOptions, corpusTexts, operationArb } from "./support/arbitraries.
 
 const texts = corpusTexts();
 
-describe("propriété : deux applications identiques donnent des sorties identiques", () => {
-  test("même texte, même hash, mêmes plages touchées", () => {
+describe("property: two identical applications yield identical outputs", () => {
+  test("same text, same hash, same touched ranges", () => {
     fc.assert(
       fc.property(
         fc
@@ -37,7 +37,7 @@ describe("propriété : deux applications identiques donnent des sorties identiq
     );
   });
 
-  test("le parsing est déterministe", () => {
+  test("parsing is deterministic", () => {
     fc.assert(
       fc.property(fc.constantFrom(...texts), (text) => {
         const first = parse(text);

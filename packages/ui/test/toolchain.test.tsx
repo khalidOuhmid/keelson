@@ -19,7 +19,7 @@ function tool(id: string, integration: Tool["integration"] = "push"): Tool {
     verifiedAt: "https://exemple.org",
     logo: null,
     integration,
-    detect: { images: [], scripts: [] },
+    detect: { images: [], scripts: [], actions: [] },
     snippets: { gitlab: null, github: null },
     lastVerified: "2026-11-04",
   };
@@ -60,14 +60,14 @@ function panel(value: ToolchainPayload) {
   return { onSubmit, onSelectService };
 }
 
-describe("panneau de toolchain", () => {
-  test("rien à confirmer, aucun service : les deux états le disent", () => {
+describe("toolchain panel", () => {
+  test("nothing to confirm, no service: both states say so", () => {
     panel(payload());
     expect(screen.getByText("Nothing to confirm.")).toBeDefined();
     expect(screen.getAllByText("No services declared yet.")).toHaveLength(1);
   });
 
-  test("confirmer une proposition envoie l'intégration", async () => {
+  test("confirming a proposal sends the integration", async () => {
     const { onSubmit } = panel(
       payload({
         proposed: [{ job: "build", tool: "nexus", kind: "push", services: ["nexus-prod"] }],
@@ -85,7 +85,7 @@ describe("panneau de toolchain", () => {
     });
   });
 
-  test("avec deux services candidats, le choix vaut pour la confirmation", async () => {
+  test("with two candidate services, the choice applies to the confirmation", async () => {
     const { onSubmit } = panel(
       payload({
         proposed: [{ job: "b", tool: "nexus", kind: "push", services: ["a", "z"] }],
@@ -97,7 +97,7 @@ describe("panneau de toolchain", () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ service: "z" }));
   });
 
-  test("écarter une proposition", async () => {
+  test("dismissing a proposal", async () => {
     const { onSubmit } = panel(
       payload({ proposed: [{ job: "b", tool: "nexus", kind: "push", services: [] }] }),
     );
@@ -110,7 +110,7 @@ describe("panneau de toolchain", () => {
     });
   });
 
-  test("sans service, la proposition pré-remplit le formulaire", async () => {
+  test("without a service, the proposal prefills the form", async () => {
     panel(
       payload({
         proposed: [{ job: "b", tool: "vault", kind: "fetch-secret", services: [] }],
@@ -120,7 +120,7 @@ describe("panneau de toolchain", () => {
     expect((screen.getByLabelText("Tool") as HTMLSelectElement).value).toBe("vault");
   });
 
-  test("ajouter un service, le nom retombe sur l'outil", async () => {
+  test("adding a service, the name falls back to the tool", async () => {
     const { onSubmit } = panel(payload());
     await userEvent.type(screen.getByLabelText("URL"), "https://n");
     const form = screen.getByRole("group", { name: "New service" });
@@ -134,7 +134,7 @@ describe("panneau de toolchain", () => {
     });
   });
 
-  test("une proposition écartée se rétablit, et la section n'existe que si elle sert", async () => {
+  test("a dismissed proposal can be restored, and the section only exists when useful", async () => {
     const { onSubmit } = panel(
       payload({
         toolchain: { dismissed: [{ job: "b", tool: "nexus", kind: "push" }] },
@@ -149,7 +149,7 @@ describe("panneau de toolchain", () => {
     });
   });
 
-  test("un fichier invalide le dit, au lieu d'annoncer une toolchain vide", () => {
+  test("an invalid file says so, instead of announcing an empty toolchain", () => {
     render(
       <ToolchainPanel
         payload={payload()}
@@ -165,14 +165,14 @@ describe("panneau de toolchain", () => {
     expect(screen.queryByText("No services declared yet.")).toBeNull();
   });
 
-  test("le titre compte les décisions en attente", () => {
+  test("the heading counts pending decisions", () => {
     panel(payload({ proposed: [{ job: "b", tool: "nexus", kind: "push", services: [] }] }));
     expect(screen.getByRole("heading", { name: /Proposed integrations/ }).textContent).toContain(
       "1",
     );
   });
 
-  test("chaque service liste ses intégrations : les arêtes se lisent ici au clavier", () => {
+  test("each service lists its integrations: edges can be read here from the keyboard", () => {
     panel(
       payload({
         toolchain: {
@@ -184,7 +184,7 @@ describe("panneau de toolchain", () => {
     expect(screen.getByRole("group", { name: "Services" }).textContent).toContain("build push");
   });
 
-  test("une saisie rejetée reste dans le formulaire", async () => {
+  test("a rejected input stays in the form", async () => {
     const onSubmit = mock(async () => false);
     render(
       <ToolchainPanel
@@ -202,20 +202,20 @@ describe("panneau de toolchain", () => {
     expect((screen.getByLabelText("URL") as HTMLInputElement).value).toBe("https://n");
   });
 
-  test("une proposition sans service amène le focus sur le nom", async () => {
+  test("a proposal without a service moves focus to the name", async () => {
     panel(payload({ proposed: [{ job: "b", tool: "vault", kind: "fetch-secret", services: [] }] }));
     await userEvent.click(screen.getByRole("button", { name: "Add a service for b, HashiCorp" }));
     expect(document.activeElement).toBe(screen.getByLabelText("Name"));
   });
 
-  test("un service se sélectionne au clavier depuis la liste", async () => {
+  test("a service can be selected from the list with the keyboard", async () => {
     const { onSelectService } = panel(payload({ toolchain: { services: [NEXUS] } }));
     await userEvent.click(screen.getByRole("button", { name: /nexus-prod/ }));
     expect(onSelectService).toHaveBeenCalledWith("nexus-prod");
   });
 });
 
-describe("panneau de service", () => {
+describe("service panel", () => {
   function service(linked = false) {
     const onSubmit = mock(() => {});
     render(
@@ -236,7 +236,7 @@ describe("panneau de service", () => {
     return onSubmit;
   }
 
-  test("retirer est refusé d'avance, avec la raison, tant qu'un job y est relié", () => {
+  test("removing is refused upfront, with the reason, while a job is linked to it", () => {
     service(true);
     expect(
       (screen.getByRole("button", { name: "Remove service" }) as HTMLButtonElement).disabled,
@@ -244,7 +244,7 @@ describe("panneau de service", () => {
     expect(screen.getByText("Still used by build.")).toBeDefined();
   });
 
-  test("enregistrer vide un champ par null", async () => {
+  test("saving clears a field with null", async () => {
     const onSubmit = service();
     await userEvent.clear(screen.getByLabelText("Environment"));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -256,7 +256,7 @@ describe("panneau de service", () => {
     });
   });
 
-  test("ajouter une intégration à la main, le type de la fiche par défaut", async () => {
+  test("adding an integration by hand, the catalogue entry's type by default", async () => {
     const onSubmit = service();
     await userEvent.selectOptions(screen.getByLabelText("Job"), "deploy");
     await userEvent.click(screen.getByRole("button", { name: "Add integration" }));
@@ -268,7 +268,7 @@ describe("panneau de service", () => {
     });
   });
 
-  test("un job disparu du pipeline n'est jamais écrit", async () => {
+  test("a job gone from the pipeline is never written", async () => {
     const onSubmit = mock(() => {});
     const props = {
       service: NEXUS,
@@ -284,7 +284,7 @@ describe("panneau de service", () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ job: "deploy" }));
   });
 
-  test("retirer une intégration", async () => {
+  test("removing an integration", async () => {
     const onSubmit = service(true);
     await userEvent.click(screen.getByRole("button", { name: "Remove push from build" }));
     expect(onSubmit).toHaveBeenCalledWith({
@@ -296,12 +296,12 @@ describe("panneau de service", () => {
   });
 });
 
-describe("graphe", () => {
+describe("graph", () => {
   const METRICS = { nodeWidth: 200, nodeHeight: 60, columnGap: 50, rowGap: 20 };
   const LINK = { job: "build", service: "nexus-prod", kind: "push" } as const;
   const chain = { services: [NEXUS], integrations: [LINK], dismissed: [] };
 
-  test("deux colonnes sans position enregistrée", () => {
+  test("two columns without a saved position", () => {
     const { nodes } = toolchainGraph(chain, [], {}, new Map(), METRICS, null);
     expect(nodes.map((node) => [node.id, node.position])).toEqual([
       ["job:build", { x: 0, y: 0 }],
@@ -309,7 +309,7 @@ describe("graphe", () => {
     ]);
   });
 
-  test("une position enregistrée gagne", () => {
+  test("a saved position wins", () => {
     const { nodes } = toolchainGraph(
       chain,
       [],
@@ -321,7 +321,7 @@ describe("graphe", () => {
     expect(nodes[1]?.position).toEqual({ x: 5, y: 6 });
   });
 
-  test("une intégration est pleine et nommée, une proposition pointillée", () => {
+  test("an integration is solid and named, a proposal dashed", () => {
     const { edges } = toolchainGraph(
       { ...chain, integrations: [LINK] },
       [{ job: "deploy", tool: "nexus", kind: "notify", services: ["nexus-prod"] }],
@@ -335,7 +335,7 @@ describe("graphe", () => {
     expect(edges[1]?.style?.strokeDasharray).toBeDefined();
   });
 
-  test("deux types sur le même lien font une seule arête", () => {
+  test("two types on the same link make a single edge", () => {
     const { edges } = toolchainGraph(
       {
         ...chain,
@@ -350,7 +350,7 @@ describe("graphe", () => {
     expect(edges.map((edge) => edge.label)).toEqual(["push, notify"]);
   });
 
-  test("un job proposé sans service figure quand même au graphe", () => {
+  test("a proposed job without a service still appears in the graph", () => {
     const { nodes } = toolchainGraph(
       { services: [], integrations: [], dismissed: [] },
       [{ job: "scan", tool: "nexus", kind: "push", services: [] }],
@@ -362,7 +362,7 @@ describe("graphe", () => {
     expect(nodes.map((node) => node.id)).toEqual(["job:scan"]);
   });
 
-  test("les services suivent leurs jobs, pour éviter les croisements", () => {
+  test("services follow their jobs, to avoid crossings", () => {
     const { nodes } = toolchainGraph(
       {
         services: [
@@ -385,7 +385,7 @@ describe("graphe", () => {
     expect(y("service:second")).toBeLessThan(y("service:premier"));
   });
 
-  test("une intégration vers un service inconnu n'a pas d'arête dans le vide", () => {
+  test("an integration to an unknown service has no dangling edge", () => {
     const { edges } = toolchainGraph(
       { services: [], integrations: [LINK], dismissed: [] },
       [],

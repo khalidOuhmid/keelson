@@ -21,16 +21,28 @@ export type JobEditorProps = {
 export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEditorProps) {
   const needs = job.needs?.value ?? [];
   const required = new Set(needs.map((need) => need.job));
+  // A job that depends on this one would create a cycle: offering it would only lead to a refusal.
+  const descendants = new Set<string>();
+  const visit = (id: string): void => {
+    for (const other of pipeline.jobs) {
+      if (other.needs?.value.some((need) => need.job === id) && !descendants.has(other.id)) {
+        descendants.add(other.id);
+        visit(other.id);
+      }
+    }
+  };
+  visit(job.id);
   const candidates = pipeline.jobs
     .map((candidate) => candidate.id)
-    .filter((id) => id !== job.id && !required.has(id));
+    .filter((id) => id !== job.id && !required.has(id) && !descendants.has(id));
 
   const [name, setName] = useState(job.id);
   const [needTarget, setNeedTarget] = useState(candidates[0] ?? "");
-  // `candidates` se recalcule a chaque rendu, mais le composant n'est recle que sur `job.id` :
-  // apres un ajout, la cible choisie quitte la liste et le navigateur affiche l'option 0 pendant
-  // que l'etat garde l'ancienne. On soumet donc ce que le selecteur montre, jamais autre chose.
+  // `candidates` is recomputed on every render, but the component is only remounted on `job.id`:
+  // after an addition, the chosen target leaves the list and the browser shows option 0 while the
+  // state keeps the old one. So we submit what the select shows, never anything else.
   const effectiveNeed = candidates.includes(needTarget) ? needTarget : (candidates[0] ?? "");
+  const github = pipeline.provider === "github";
   const [optional, setOptional] = useState(false);
   const [artifacts, setArtifacts] = useState(true);
   const referencedBy = pipeline.jobs
@@ -42,9 +54,9 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   const deleteTrigger = useRef<HTMLButtonElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
 
-  // Le focus entre dans le dialogue a l'ouverture et revient au declencheur a la fermeture : sans
-  // cela, la question posee n'est jamais atteinte par un lecteur d'ecran, et le focus retombe sur
-  // <body> au moment le plus destructeur du produit.
+  // Focus moves into the dialog when it opens and back to the trigger when it closes: otherwise a
+  // screen reader never reaches the question being asked, and focus falls back to <body> at the
+  // most destructive moment in the product.
   useEffect(() => {
     if (confirmingDelete) {
       confirmButton.current?.focus();
@@ -65,7 +77,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
   };
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: fieldset est réservé aux contrôles d'un seul formulaire ; ce bloc en contient plusieurs
+    // biome-ignore lint/a11y/useSemanticElements: fieldset is reserved for the controls of a single form; this block contains several
     <div
       role="group"
       aria-label="Job editor"
@@ -94,35 +106,37 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         </button>
       </form>
 
-      <div className={GROUP}>
-        <label className={GROUP}>
-          <span className={LABEL}>Stage</span>
-          <select
-            className={FIELD}
-            value={stage}
-            disabled={disabled}
-            onChange={(event) => setStage(event.target.value)}
+      {github ? null : (
+        <div className={GROUP}>
+          <label className={GROUP}>
+            <span className={LABEL}>Stage</span>
+            <select
+              className={FIELD}
+              value={stage}
+              disabled={disabled}
+              onChange={(event) => setStage(event.target.value)}
+            >
+              {pipeline.stages.map((candidate) => (
+                <option key={candidate.name} value={candidate.name}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={BUTTON}
+            disabled={disabled || stage === job.stage.value}
+            onClick={() => {
+              if (stage !== job.stage.value) {
+                guard(setJobStage(job.id, stage));
+              }
+            }}
           >
-            {pipeline.stages.map((candidate) => (
-              <option key={candidate.name} value={candidate.name}>
-                {candidate.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className={BUTTON}
-          disabled={disabled || stage === job.stage.value}
-          onClick={() => {
-            if (stage !== job.stage.value) {
-              guard(setJobStage(job.id, stage));
-            }
-          }}
-        >
-          Move to stage
-        </button>
-      </div>
+            Move to stage
+          </button>
+        </div>
+      )}
 
       <div className={GROUP}>
         <span className={LABEL}>Needs</span>
@@ -161,25 +175,29 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-          <input
-            type="checkbox"
-            checked={optional}
-            disabled={disabled}
-            onChange={(event) => setOptional(event.target.checked)}
-          />
-          Optional
-        </label>
+        {github ? null : (
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+            <input
+              type="checkbox"
+              checked={optional}
+              disabled={disabled}
+              onChange={(event) => setOptional(event.target.checked)}
+            />
+            Optional
+          </label>
+        )}
 
-        <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-          <input
-            type="checkbox"
-            checked={artifacts}
-            disabled={disabled}
-            onChange={(event) => setArtifacts(event.target.checked)}
-          />
-          Artifacts
-        </label>
+        {github ? null : (
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+            <input
+              type="checkbox"
+              checked={artifacts}
+              disabled={disabled}
+              onChange={(event) => setArtifacts(event.target.checked)}
+            />
+            Artifacts
+          </label>
+        )}
 
         <button
           type="button"
@@ -250,8 +268,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           role="alertdialog"
           aria-modal="true"
           aria-label={`Delete ${job.id}`}
-          // Echap annule le dialogue, pas le panneau : sans `stopPropagation`, l'ecouteur de
-          // document d'app.tsx refermerait tout le panneau de detail au lieu de repondre.
+          // Escape cancels the dialog, not the panel: without `stopPropagation`, the document
+          // listener in app.tsx would close the whole detail panel instead of answering.
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.stopPropagation();

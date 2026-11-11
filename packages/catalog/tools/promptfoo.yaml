@@ -9,6 +9,7 @@ logo: null
 detect:
   images: []
   scripts: ['\bpromptfoo\s+(eval|redteam)\b']
+  actions: ['promptfoo/promptfoo-action']
 snippets:
   gitlab: |
     promptfoo:

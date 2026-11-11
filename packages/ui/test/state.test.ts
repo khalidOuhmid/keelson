@@ -126,22 +126,22 @@ beforeEach(() => {
   state().documentLoaded(".gitlab-ci.yml", documentPayload());
 });
 
-describe("chargement", () => {
-  test("le document chargé devient l'état courant", () => {
+describe("loading", () => {
+  test("the loaded document becomes the current state", () => {
     expect(state().file).toBe(".gitlab-ci.yml");
     expect(state().hash).toBe(HASH_A);
     expect(state().pipeline?.jobs).toHaveLength(1);
     expect(state().status).toBe("ready");
   });
 
-  test("les piles sont vides au chargement", () => {
+  test("the stacks are empty on load", () => {
     expect(state().canUndo()).toBe(false);
     expect(state().canRedo()).toBe(false);
   });
 });
 
-describe("envoi d'opérations", () => {
-  test("l'opération est envoyée avec le hash courant et un opId", async () => {
+describe("sending operations", () => {
+  test("the operation is sent with the current hash and an opId", async () => {
     await addStage("verify");
     expect(api.calls).toHaveLength(1);
     expect(api.calls[0]?.op.baseHash).toBe(HASH_A);
@@ -149,42 +149,42 @@ describe("envoi d'opérations", () => {
     expect(api.calls[0]?.opId).toBe("op-1");
   });
 
-  test("chaque opération porte un opId distinct", async () => {
+  test("each operation carries a distinct opId", async () => {
     await addStage("verify");
     await addStage("publish");
     expect(api.calls[0]?.opId).not.toBe(api.calls[1]?.opId);
   });
 
-  test("le succès met à jour pipeline et hash", async () => {
+  test("success updates pipeline and hash", async () => {
     await addStage("verify");
     expect(state().hash).toBe(HASH_B);
     expect(state().pipeline?.jobs).toHaveLength(2);
     expect(state().error).toBeNull();
   });
 
-  test("le succès empile un inverse annulable", async () => {
+  test("success pushes an undoable inverse", async () => {
     await addStage("verify");
     expect(state().canUndo()).toBe(true);
     expect(state().canRedo()).toBe(false);
   });
 });
 
-describe("undo et redo", () => {
-  test("undo renvoie l'inverse au serveur", async () => {
+describe("undo and redo", () => {
+  test("undo sends the inverse to the server", async () => {
     await addStage("verify");
     await state().undo();
     expect(api.calls).toHaveLength(2);
     expect(api.calls[1]?.op.kind).toBe("splice");
   });
 
-  test("après undo, redo devient possible", async () => {
+  test("after undo, redo becomes possible", async () => {
     await addStage("verify");
     await state().undo();
     expect(state().canUndo()).toBe(false);
     expect(state().canRedo()).toBe(true);
   });
 
-  test("redo rejoue l'opération d'origine", async () => {
+  test("redo replays the original operation", async () => {
     await addStage("verify");
     await state().undo();
     await state().redo();
@@ -192,17 +192,17 @@ describe("undo et redo", () => {
     expect(api.calls[2]?.op.kind).toBe("addStage");
   });
 
-  test("undo sans rien à annuler ne fait aucun appel", async () => {
+  test("undo with nothing to undo makes no call", async () => {
     await state().undo();
     expect(api.calls).toEqual([]);
   });
 
-  test("redo sans rien à rétablir ne fait aucun appel", async () => {
+  test("redo with nothing to redo makes no call", async () => {
     await state().redo();
     expect(api.calls).toEqual([]);
   });
 
-  test("une nouvelle opération vide la pile de redo", async () => {
+  test("a new operation clears the redo stack", async () => {
     await addStage("verify");
     await state().undo();
     expect(state().canRedo()).toBe(true);
@@ -210,15 +210,15 @@ describe("undo et redo", () => {
     expect(state().canRedo()).toBe(false);
   });
 
-  test("l'inverse envoyé porte le hash courant au moment de l'annulation", async () => {
+  test("the inverse sent carries the current hash at undo time", async () => {
     await addStage("verify");
     await state().undo();
     expect(api.calls[1]?.op.baseHash).toBe(HASH_B);
   });
 
-  test("deux opérations s'annulent dans l'ordre inverse", async () => {
-    await addStage("un");
-    await addStage("deux");
+  test("two operations are undone in reverse order", async () => {
+    await addStage("one");
+    await addStage("two");
     await state().undo();
     await state().undo();
     expect(state().canUndo()).toBe(false);
@@ -231,8 +231,8 @@ describe("undo et redo", () => {
   });
 });
 
-describe("erreurs", () => {
-  test("une erreur métier est exposée telle quelle sans vider les piles", async () => {
+describe("errors", () => {
+  test("a domain error is exposed as is without clearing the stacks", async () => {
     await addStage("verify");
     api.queue({
       ok: false,
@@ -249,7 +249,7 @@ describe("erreurs", () => {
     expect(state().canUndo()).toBe(true);
   });
 
-  test("une erreur n'avance pas le hash", async () => {
+  test("an error does not advance the hash", async () => {
     api.queue({
       ok: false,
       error: { status: 422, code: "STAGE_EXISTS", params: { stage: "verify" } },
@@ -258,7 +258,7 @@ describe("erreurs", () => {
     expect(state().hash).toBe(HASH_A);
   });
 
-  test("une erreur n'empile pas d'inverse", async () => {
+  test("an error pushes no inverse", async () => {
     api.queue({
       ok: false,
       error: { status: 400, code: "INVALID_OPERATION", params: { reason: "missingOp" } },
@@ -267,7 +267,7 @@ describe("erreurs", () => {
     expect(state().canUndo()).toBe(false);
   });
 
-  test("l'erreur est effacée par l'opération suivante réussie", async () => {
+  test("the error is cleared by the next successful operation", async () => {
     api.queue({
       ok: false,
       error: { status: 422, code: "STAGE_EXISTS", params: { stage: "verify" } },
@@ -279,8 +279,8 @@ describe("erreurs", () => {
   });
 });
 
-describe("409 : le fichier a changé sur disque", () => {
-  test("recharge le document et vide les deux piles", async () => {
+describe("409: the file changed on disk", () => {
+  test("reloads the document and clears both stacks", async () => {
     await addStage("verify");
     await state().undo();
     expect(state().canRedo()).toBe(true);
@@ -301,7 +301,7 @@ describe("409 : le fichier a changé sur disque", () => {
     expect(state().hash).toBe(HASH_C);
   });
 
-  test("informe que le fichier a changé et que l'opération n'a pas été appliquée", async () => {
+  test("reports that the file changed and the operation was not applied", async () => {
     api.queue({
       ok: false,
       error: {
@@ -316,8 +316,8 @@ describe("409 : le fichier a changé sur disque", () => {
   });
 });
 
-describe("événements du serveur", () => {
-  test("document.changed recharge et vide les piles", async () => {
+describe("server events", () => {
+  test("document.changed reloads and clears the stacks", async () => {
     await addStage("verify");
     expect(state().canUndo()).toBe(true);
 
@@ -329,7 +329,7 @@ describe("événements du serveur", () => {
     expect(state().notice?.kind).toBe("reloaded");
   });
 
-  test("document.removed vide les piles et marque le document absent", async () => {
+  test("document.removed clears the stacks and marks the document missing", async () => {
     await addStage("verify");
     await state().serverEvent({ kind: "document.removed", file: ".gitlab-ci.yml" });
 
@@ -338,7 +338,7 @@ describe("événements du serveur", () => {
     expect(state().canRedo()).toBe(false);
   });
 
-  test("un événement sur un autre fichier est ignoré", async () => {
+  test("an event on another file is ignored", async () => {
     await addStage("verify");
     await state().serverEvent({ kind: "document.removed", file: "autre.yml" });
     expect(state().status).toBe("ready");
@@ -347,7 +347,7 @@ describe("événements du serveur", () => {
 });
 
 describe("coverage.changed", () => {
-  test("une réponse rendue périmée par une opération ne remplace pas la couverture", async () => {
+  test("a response made stale by an operation does not replace coverage", async () => {
     let answer: (result: { ok: true; value: DocumentPayload }) => void = () => {};
     const pending = new Promise<{ ok: true; value: DocumentPayload }>((settle) => {
       answer = settle;
@@ -372,8 +372,8 @@ describe("coverage.changed", () => {
   });
 });
 
-describe("coverage.changed sur un client en retard", () => {
-  test("le document est rechargé : aucun événement ne suivra", async () => {
+describe("coverage.changed on a lagging client", () => {
+  test("the document is reloaded: no event will follow", async () => {
     api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
     api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
     await state().serverEvent({ kind: "coverage.changed", file: MAIN });
@@ -381,7 +381,7 @@ describe("coverage.changed sur un client en retard", () => {
   });
 });
 
-describe("coverage.changed pendant une opération", () => {
+describe("coverage.changed during an operation", () => {
   function held() {
     let settle: (result: ApiResult<OperationPayload>) => void = () => {};
     const promise = new Promise<ApiResult<OperationPayload>>((resolve) => {
@@ -397,7 +397,7 @@ describe("coverage.changed pendant une opération", () => {
     return settle;
   }
 
-  test("le fichier déjà écrit par cette opération ne passe pas pour une modification", async () => {
+  test("the file already written by this operation does not pass for a change", async () => {
     const settle = held();
     const submitted = addStage("verify");
     api.queueDocument({ ok: true, value: documentPayload(HASH_B) });
@@ -410,7 +410,7 @@ describe("coverage.changed pendant une opération", () => {
     expect(state().canUndo()).toBe(true);
   });
 
-  test("une opération qui échoue sans 409 laisse le rechargement dû se faire", async () => {
+  test("an operation failing without a 409 lets the pending reload happen", async () => {
     const settle = held();
     const submitted = addStage("verify");
     api.queueDocument({ ok: true, value: documentPayload(HASH_C) });
@@ -426,7 +426,7 @@ describe("coverage.changed pendant une opération", () => {
     expect(state().error).toEqual(error);
   });
 
-  test("une couverture au hash déjà atteint s'applique", async () => {
+  test("coverage at an already reached hash applies", async () => {
     let answer: (result: ApiResult<DocumentPayload>) => void = () => {};
     api.document = () =>
       new Promise((resolve) => {
@@ -450,8 +450,55 @@ describe("coverage.changed pendant une opération", () => {
   });
 });
 
-describe("annonce d'écriture", () => {
-  test("elle ne survit pas à l'annulation qui la dément", async () => {
+describe("switching files during a write", () => {
+  test("the response for the file left does not touch the open file", async () => {
+    let settle: (value: ApiResult<OperationPayload>) => void = () => {};
+    const held = createStore({
+      submit: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      document: api.document,
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    held.getState().documentLoaded("a.yml", documentPayload(HASH_A));
+    const submitted = held.getState().submit({ kind: "addStage", name: "x" });
+    held.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    settle({ ok: true, value: operationPayload(HASH_C, HASH_A) });
+    await submitted;
+    expect(held.getState().file).toBe("b.yml");
+    expect(held.getState().hash).toBe(HASH_B);
+    expect(held.getState().canUndo()).toBe(false);
+    expect(held.getState().pending).toBe(false);
+  });
+});
+
+describe("switching files during a reload", () => {
+  test("the response for the file left does not replace the open file", async () => {
+    let settle: (value: ApiResult<DocumentPayload>) => void = () => {};
+    const held = createStore({
+      submit: api.submit,
+      document: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+      newOpId: () => "op",
+    });
+    held.getState().documentLoaded("a.yml", documentPayload(HASH_A));
+    const handled = held
+      .getState()
+      .serverEvent({ kind: "document.changed", file: "a.yml", hash: HASH_C });
+    held.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    settle({ ok: true, value: documentPayload(HASH_C) });
+    await handled;
+    expect(held.getState().hash).toBe(HASH_B);
+  });
+});
+
+describe("write announcement", () => {
+  test("it does not survive the undo that contradicts it", async () => {
     await addStage("verify");
     state().announce("verify added.");
     api.queue({ ok: true, value: operationPayload(HASH_C, HASH_B) });
@@ -460,26 +507,26 @@ describe("annonce d'écriture", () => {
   });
 });
 
-describe("sélection", () => {
-  test("un job peut être sélectionné puis désélectionné", () => {
+describe("selection", () => {
+  test("a job can be selected then deselected", () => {
     state().selectJob("compile");
     expect(state().selectedJobId).toBe("compile");
     state().selectJob(null);
     expect(state().selectedJobId).toBeNull();
   });
 
-  test("sélectionner depuis un diagnostic sélectionne le job de la plage", () => {
+  test("selecting from a diagnostic selects the job of the range", () => {
     state().selectByRange(MAIN, { start: 0, end: 10 });
     expect(state().selectedJobId).toBe("compile");
   });
 
-  test("une plage hors de tout job ne sélectionne rien", () => {
+  test("a range outside any job selects nothing", () => {
     state().selectJob("compile");
     state().selectByRange(MAIN, { start: 9000, end: 9001 });
     expect(state().selectedJobId).toBeNull();
   });
 
-  test("la sélection d'un job disparu est abandonnée au rechargement", async () => {
+  test("the selection of a vanished job is dropped on reload", async () => {
     state().selectJob("compile");
     api.queueDocument({
       ok: true,
@@ -490,8 +537,8 @@ describe("sélection", () => {
   });
 });
 
-describe("édition désactivée", () => {
-  test("l'édition est désactivée quand un diagnostic d'erreur est présent", () => {
+describe("editing disabled", () => {
+  test("editing is disabled when an error diagnostic is present", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
@@ -507,7 +554,7 @@ describe("édition désactivée", () => {
     expect(state().canEdit()).toBe(false);
   });
 
-  test("une erreur de validation ne désactive pas l'édition : il faut pouvoir la corriger", () => {
+  test("a validation error does not disable editing: it must be fixable", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
@@ -523,7 +570,7 @@ describe("édition désactivée", () => {
     expect(state().canEdit()).toBe(true);
   });
 
-  test("seul un YAML illisible désactive l'édition", () => {
+  test("only unreadable YAML disables editing", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
@@ -546,14 +593,14 @@ describe("édition désactivée", () => {
     expect(state().canEdit()).toBe(false);
   });
 
-  test("un avertissement ne désactive pas l'édition", () => {
+  test("a warning does not disable editing", () => {
     state().documentLoaded(".gitlab-ci.yml", {
       ...documentPayload(),
       diagnostics: [
         {
           code: "JOB_WITHOUT_SCRIPT",
           severity: "warning",
-          params: { job: "muet" },
+          params: { job: "silent" },
           range: null,
           file: MAIN,
         },
@@ -562,22 +609,22 @@ describe("édition désactivée", () => {
     expect(state().canEdit()).toBe(true);
   });
 
-  test("l'édition est désactivée quand le document est supprimé", async () => {
+  test("editing is disabled when the document is deleted", async () => {
     await state().serverEvent({ kind: "document.removed", file: ".gitlab-ci.yml" });
     expect(state().canEdit()).toBe(false);
   });
 
-  test("aucune opération n'est envoyée quand l'édition est désactivée", async () => {
+  test("no operation is sent when editing is disabled", async () => {
     await state().serverEvent({ kind: "document.removed", file: ".gitlab-ci.yml" });
     await addStage("verify");
     expect(api.calls).toEqual([]);
   });
 });
 
-describe("fermeture des bannières", () => {
-  /** Trouvé par /impeccable critique le 2026-10-22 : le bouton Dismiss de la bannière d'erreur
-   *  était câblé sur dismissNotice(), qui ne touche jamais `error`. La bannière était infermable. */
-  test("dismissError efface l'erreur sans toucher à l'avis", async () => {
+describe("dismissing banners", () => {
+  /** Found by /impeccable critique on 2026-10-22: the error banner's Dismiss button was wired to
+   *  dismissNotice(), which never touches `error`. The banner could not be closed. */
+  test("dismissError clears the error without touching the notice", async () => {
     api.queue({
       ok: false,
       error: {
@@ -598,7 +645,7 @@ describe("fermeture des bannières", () => {
     expect(state().notice).not.toBeNull();
   });
 
-  test("dismissNotice efface l'avis sans toucher à l'erreur", async () => {
+  test("dismissNotice clears the notice without touching the error", async () => {
     api.queue({
       ok: false,
       error: {
@@ -617,11 +664,11 @@ describe("fermeture des bannières", () => {
   });
 });
 
-describe("409 : l'erreur du serveur survit au rechargement", () => {
-  /** Le brief déclare « operation rejected (server message shown verbatim) » load-bearing. `send`
-   *  posait `error` puis appelait `reload`, qui le remettait à `null` : seul l'avis générique
-   *  survivait et le message du serveur était perdu. */
-  test("le code et le message du serveur restent affichables après le 409", async () => {
+describe("409: the server error survives the reload", () => {
+  /** The brief declares "operation rejected (server message shown verbatim)" load-bearing. `send`
+   *  set `error` then called `reload`, which reset it to `null`: only the generic notice survived
+   *  and the server's message was lost. */
+  test("the server's code and message stay displayable after the 409", async () => {
     api.queue({
       ok: false,
       error: {
@@ -644,13 +691,13 @@ describe("409 : l'erreur du serveur survit au rechargement", () => {
   });
 });
 
-describe("le texte suit les opérations", () => {
-  /** Trouvé par la revue indépendante du 2026-10-22 : `applyPayload` rafraîchissait `pipeline`,
-   *  `diagnostics` et `hash`, jamais `text`. Les plages des blocs opaques viennent du nouveau
-   *  pipeline, le texte restait celui du dernier chargement complet, et toute opération décalant des
-   *  offsets désalignait les deux. Le watcher supprimant `document.changed` pour les écritures
-   *  propres du serveur, aucun rechargement ne réparait jamais `text`. */
-  test("une opération réussie remplace le texte du document", async () => {
+describe("the text follows operations", () => {
+  /** Found by the 2026-10-22 independent review: `applyPayload` refreshed `pipeline`,
+   *  `diagnostics` and `hash`, never `text`. Opaque block ranges come from the new pipeline, the
+   *  text stayed that of the last full load, and any operation shifting offsets misaligned the
+   *  two. Since the watcher suppresses `document.changed` for the server's own writes, no reload
+   *  ever repaired `text`. */
+  test("a successful operation replaces the document text", async () => {
     expect(state().text).toBe("stages:\n  - build\n");
 
     api.queue({
@@ -663,13 +710,13 @@ describe("le texte suit les opérations", () => {
     expect(state().hash).toBe(HASH_B);
   });
 
-  test("une annulation remet le texte d'avant", async () => {
+  test("an undo restores the previous text", async () => {
     api.queue({
       ok: true,
-      value: { ...operationPayload(HASH_B, HASH_B), text: "après" },
+      value: { ...operationPayload(HASH_B, HASH_B), text: "after" },
     });
     await addStage("verify");
-    expect(state().text).toBe("après");
+    expect(state().text).toBe("after");
 
     api.queue({
       ok: true,
@@ -681,11 +728,11 @@ describe("le texte suit les opérations", () => {
   });
 });
 
-describe("sélection par plage avec plusieurs fichiers", () => {
-  /** Deux fichiers ont chacun leurs offsets à partir de zéro. Sans le fichier dans la clé, la
-   *  plage d'un diagnostic venu d'un fichier inclus tombe dans la plage d'un job du fichier
-   *  principal, et l'écran sélectionne un job qui n'a rien à voir avec le message lu. */
-  test("une plage venue d'un autre fichier ne sélectionne pas un job du fichier principal", () => {
+describe("selection by range with several files", () => {
+  /** Two files each have offsets starting at zero. Without the file in the key, the range of a
+   *  diagnostic from an included file falls within the range of a main-file job, and the screen
+   *  selects a job that has nothing to do with the message being read. */
+  test("a range from another file does not select a main-file job", () => {
     state().documentLoaded(MAIN, {
       text: "stages:\n  - build\n",
       pipeline: pipeline(),
@@ -695,8 +742,8 @@ describe("sélection par plage avec plusieurs fichiers", () => {
       coverage: NO_COVERAGE,
     });
 
-    // `compile` occupe [0, 10[ dans le fichier principal. La même plage dans `ci/jobs.yml` ne
-    // désigne pas ce job.
+    // `compile` spans [0, 10) in the main file. The same range in `ci/jobs.yml` does not point
+    // to this job.
     state().selectByRange("ci/jobs.yml", { start: 0, end: 10 });
     expect(state().selectedJobId).toBeNull();
 
@@ -705,29 +752,29 @@ describe("sélection par plage avec plusieurs fichiers", () => {
   });
 });
 
-describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", () => {
-  /** Trouvé par l'E2E, pas par ce fichier : `documentLoaded` et le rechargement posaient `text`
-   *  sans poser `included`, donc `textOf` rendait une chaîne vide pour un fichier inclus et le
-   *  panneau affichait « Content unavailable » sur un bloc parfaitement lisible. Même classe de
-   *  défaut que l'`applyPayload` qui ne rafraîchissait pas `text` au lot L2 : un champ de l'état
-   *  mis à jour sur un seul des trois chemins qui l'alimentent. */
+describe("included file texts survive every entry path", () => {
+  /** Found by the E2E, not by this file: `documentLoaded` and reload set `text` without setting
+   *  `included`, so `textOf` returned an empty string for an included file and the panel showed
+   *  "Content unavailable" on a perfectly readable block. Same defect class as the
+   *  `applyPayload` that did not refresh `text` in milestone L2: a state field updated on only
+   *  one of the three paths that feed it. */
   const INCLUDED_TEXT = "sast:\n  script:\n    - make scan\n";
 
   function payloadWithIncluded(): DocumentPayload {
     return { ...documentPayload(), included: { "ci/jobs.yml": INCLUDED_TEXT } };
   }
 
-  test("documentLoaded les garde", () => {
+  test("documentLoaded keeps them", () => {
     state().documentLoaded(MAIN, payloadWithIncluded());
     expect(state().textOf("ci/jobs.yml")).toBe(INCLUDED_TEXT);
   });
 
-  /** Le texte **change** entre le premier chargement et le rechargement. Sans ce changement, ne
-   *  pas reposer `included` laisserait en place la valeur du premier chargement et le test
-   *  passerait — c'est la première version de ces deux tests, vérifiée incapable d'échouer. */
+  /** The text **changes** between the first load and the reload. Without that change, not
+   *  resetting `included` would leave the first load's value in place and the test would pass —
+   *  that was the first version of these two tests, verified unable to fail. */
   const RELOADED_TEXT = "sast:\n  script:\n    - make scan --fast\n";
 
-  test("un rechargement après un événement serveur les repose", async () => {
+  test("a reload after a server event sets them again", async () => {
     state().documentLoaded(MAIN, payloadWithIncluded());
     api.queueDocument({
       ok: true,
@@ -737,7 +784,7 @@ describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", 
     expect(state().textOf("ci/jobs.yml")).toBe(RELOADED_TEXT);
   });
 
-  test("une opération réussie les repose", async () => {
+  test("a successful operation sets them again", async () => {
     state().documentLoaded(MAIN, payloadWithIncluded());
     api.queue({
       ok: true,
@@ -747,41 +794,41 @@ describe("les textes des fichiers inclus survivent à chaque chemin d'entrée", 
     expect(state().textOf("ci/jobs.yml")).toBe(RELOADED_TEXT);
   });
 
-  test("le fichier principal se lit dans text, pas dans included", () => {
+  test("the main file is read from text, not from included", () => {
     state().documentLoaded(MAIN, payloadWithIncluded());
     expect(state().textOf(MAIN)).toBe(payloadWithIncluded().text);
     expect(state().textOf("inconnu.yml")).toBe("");
   });
 });
 
-describe("vues et couverture", () => {
+describe("views and coverage", () => {
   const COVERED: Coverage = {
     jobs: [],
     layers: [{ layer: "sast", covered: true, jobs: ["a"], services: [] }],
     partial: false,
   };
 
-  /** Même forme que `included` : un champ posé sur un seul des trois chemins qui l'alimentent. La
-   *  valeur change entre les deux appels, sans quoi le test passerait sans reposer le champ. */
-  test("documentLoaded pose la couverture", () => {
+  /** Same shape as `included`: a field set on only one of the three paths that feed it. The value
+   *  changes between the two calls, otherwise the test would pass without resetting the field. */
+  test("documentLoaded sets coverage", () => {
     state().documentLoaded(MAIN, { ...documentPayload(), coverage: COVERED });
     expect(state().coverage).toEqual(COVERED);
   });
 
-  test("un rechargement la repose", async () => {
+  test("a reload sets it again", async () => {
     state().documentLoaded(MAIN, documentPayload());
     api.queueDocument({ ok: true, value: { ...documentPayload(HASH_B), coverage: COVERED } });
     await state().serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_B });
     expect(state().coverage).toEqual(COVERED);
   });
 
-  test("une opération la repose", async () => {
+  test("an operation sets it again", async () => {
     api.queue({ ok: true, value: { ...operationPayload(HASH_B, HASH_A), coverage: COVERED } });
     await addStage("livrer");
     expect(state().coverage).toEqual(COVERED);
   });
 
-  test("changer de vue oublie la couche et la sélection", () => {
+  test("switching views forgets the layer and the selection", () => {
     state().selectJob("compile");
     state().selectLayer("sast");
     state().setView("coverage");
@@ -789,14 +836,14 @@ describe("vues et couverture", () => {
     expect(state().selectedJobId).toBeNull();
   });
 
-  test("rechoisir la même couche la libère", () => {
+  test("choosing the same layer again releases it", () => {
     state().selectLayer("sast");
     expect(state().selectedLayer).toBe("sast");
     state().selectLayer("sast");
     expect(state().selectedLayer).toBeNull();
   });
 
-  test("See tools ouvre le catalogue et le charge une seule fois", async () => {
+  test("See tools opens the catalogue and loads it only once", async () => {
     state().showTools("dast");
     expect(state().view).toBe("catalog");
     expect(state().catalogLayer).toBe("dast");
@@ -804,7 +851,7 @@ describe("vues et couverture", () => {
     expect(state().catalog).toEqual({ layers: [], tools: [], logos: {} });
   });
 
-  test("un catalogue injoignable devient une erreur à l'écran", async () => {
+  test("an unreachable catalogue becomes an on-screen error", async () => {
     const failing = createStore({
       submit: api.submit,
       document: api.document,
@@ -819,15 +866,15 @@ describe("vues et couverture", () => {
   });
 });
 
-describe("un changement de layout.json", () => {
+describe("a layout.json change", () => {
   const COVERED: Coverage = {
     jobs: [],
     layers: [{ layer: "sast", covered: true, jobs: ["a"], services: [] }],
     partial: false,
   };
 
-  /** Le YAML n'a pas bougé : effacer l'historique et dire « The file changed on disk » serait faux. */
-  test("repose la couverture sans toucher l'historique ni rien annoncer", async () => {
+  /** The YAML did not move: clearing history and saying "The file changed on disk" would be wrong. */
+  test("sets coverage again without touching history or announcing anything", async () => {
     await addStageWith();
     expect(state().canUndo()).toBe(true);
 

@@ -6,13 +6,15 @@ import { LayerTag } from "./LayerTag.tsx";
 export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/master/";
 
 export const LOWER_BOUND_NOTE =
-  "Coverage is a lower bound: some includes are not resolved, and a layer listed as uncovered may be covered by what Keelson cannot read.";
+  "Coverage is a lower bound: part of the pipeline could not be read, and a layer listed as uncovered may be covered by what Keelson cannot read.";
 
 export type CoveragePanelProps = {
   coverage: Coverage;
   selected: LayerId | null;
   onSelect: (layer: LayerId) => void;
   onShowTools: (layer: LayerId) => void;
+  /** Several pipeline files: this panel describes only one, and it must say so. */
+  scope?: { file: string; count: number } | null;
 };
 
 function Uncovered({
@@ -53,7 +55,13 @@ function Uncovered({
   );
 }
 
-export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: CoveragePanelProps) {
+export function CoveragePanel({
+  coverage,
+  selected,
+  onSelect,
+  onShowTools,
+  scope = null,
+}: CoveragePanelProps) {
   const ofSource = (source: LayerSource) =>
     coverage.layers.filter((entry) => findLayer(entry.layer).source === source);
   const owasp = ofSource("owasp");
@@ -70,13 +78,19 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         {platform.length} platform categories seen
       </p>
 
+      {scope === null ? null : (
+        <p data-testid="coverage-scope" className="text-sm text-text-muted">
+          In {scope.file}, 1 of {scope.count} pipeline files.
+        </p>
+      )}
+
       {coverage.partial ? (
         <p data-testid="coverage-lower-bound" className="text-sm text-text-secondary">
           {LOWER_BOUND_NOTE}
         </p>
       ) : null}
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Uncovered OWASP layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Uncovered OWASP layers</h2>
         {uncovered.length === 0 ? (
@@ -90,9 +104,9 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         )}
       </div>
 
-      {/* Une catégorie plateforme est un service autour du pipeline : ne pas la voir dans les jobs
-          n'est pas une lacune de sécurité, et la mêler aux couches OWASP gonflait le manque. */}
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* A platform category is a service around the pipeline: not seeing it in the jobs is not a
+          security gap, and mixing it with the OWASP layers inflated the shortfall. */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Platform categories not seen" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Platform categories not seen</h2>
         {unseen.length === 0 ? (
@@ -106,7 +120,7 @@ export function CoveragePanel({ coverage, selected, onSelect, onShowTools }: Cov
         )}
       </div>
 
-      {/* biome-ignore lint/a11y/useSemanticElements: chaque liste est un groupe nommé, pas un repère ; fieldset est réservé aux formulaires */}
+      {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="Covered layers" className="flex flex-col gap-2">
         <h2 className={SECTION_HEADING}>Covered layers</h2>
         {covered.length === 0 ? (

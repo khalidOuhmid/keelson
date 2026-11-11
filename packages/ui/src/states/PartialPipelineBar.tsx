@@ -5,46 +5,52 @@ import { ChevronRightIcon } from "../icons.tsx";
 export const PARTIAL_HINT =
   "Some includes are not resolved, so jobs may be missing from this view.";
 
+export const PARTIAL_WORKFLOW_HINT =
+  "Some reusable workflows are not read, so jobs may be missing from this view.";
+
 export function unresolvedCount(count: number): string {
   return `${count} unresolved ${count === 1 ? "include" : "includes"}`;
 }
+
+const workflowCount = (count: number): string =>
+  `${count} reusable ${count === 1 ? "workflow" : "workflows"}`;
 
 export type PartialPipelineBarProps = {
   pipeline: Pipeline;
 };
 
-/** Trois choses la séparent de `NoticeBar`, et toutes les trois sont intentionnelles : aucune
- *  teinte de sévérité — un include non résolu est une lacune, pas une erreur —, **aucun bouton
- *  `Dismiss``**, parce qu'un fait ne se congédie pas, et aucune région live, parce que ce n'est pas
- *  un événement mais un état du fichier. */
+/** Three things set it apart from `NoticeBar`, all three intentional: no severity tint — an
+ *  unresolved include is a gap, not an error —, **no `Dismiss` button**, because a fact cannot be
+ *  dismissed, and no live region, because this is not an event but a state of the file. */
 export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
   if (!isPartial(pipeline)) {
     return null;
   }
+  const github = pipeline.provider === "github";
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: un landmark de plus noierait la liste des repères ; ce bloc est un groupe nommé
+    // biome-ignore lint/a11y/useSemanticElements: one more landmark would drown the landmark list; this block is a named group
     <div
       role="group"
       aria-label="Partial pipeline"
       className="max-h-1/3 shrink-0 overflow-y-auto border-b border-border-subtle bg-surface-1 px-3 py-1.5"
     >
       <details className="group">
-        {/* `py-1.5` porte la hauteur de la cible de 20 px — mesurée — à 32 px. */}
+        {/* `py-1.5` raises the target height from 20 px — measured — to 32 px. */}
         <summary className="flex cursor-pointer flex-wrap items-center gap-1.5 py-1.5 text-sm text-text-secondary">
           <ChevronRightIcon className="transition-transform duration-fast ease-out group-open:rotate-90" />
           <span className="text-2xs font-semibold tracking-label text-text-muted uppercase">
             Partial pipeline
           </span>
           <span className="font-mono text-2xs text-text-muted tabular-nums">
-            {unresolvedCount(pipeline.unresolved.length)}
+            {(github ? workflowCount : unresolvedCount)(pipeline.unresolved.length)}
           </span>
-          <span>{PARTIAL_HINT}</span>
+          <span>{github ? PARTIAL_WORKFLOW_HINT : PARTIAL_HINT}</span>
         </summary>
         <ul className="mt-1.5 flex flex-col gap-1">
-          {/* La clé porte la plage, pas l'index : GitLab ne dédoublonne pas les includes, donc le
-              même fichier peut déclarer deux fois la même valeur, et seule la position les
-              distingue. */}
+          {/* The key carries the range, not the index: GitLab does not deduplicate includes, so
+              the same file can declare the same value twice, and only the position tells them
+              apart. */}
           {pipeline.unresolved.map((entry) => (
             <li
               key={`${entry.from}:${entry.range?.start ?? "?"}:${entry.detail}`}
@@ -59,10 +65,10 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
   );
 }
 
-/** Aucune entrée n'est cliquable. La première version en faisait un bouton appelant
- *  `selectByRange`, et c'était un **clic mort** : la plage d'un include tombe dans le bloc opaque
- *  de la clé `include` de premier niveau, que `selectByRange` ne peut par construction jamais
- *  apparier à un job. Un contrôle sans effet est soit branché, soit supprimé. */
+/** No entry is clickable. The first version made each one a button calling `selectByRange`, and it
+ *  was a **dead click**: an include's range falls inside the opaque block of the top-level
+ *  `include` key, which `selectByRange` can by construction never match to a job. A control with no
+ *  effect is either wired up or removed. */
 function Body({ entry }: { entry: UnresolvedInclude }) {
   return (
     <>

@@ -9,6 +9,7 @@ logo: trivy
 detect:
   images: ['aquasec/trivy']
   scripts: ['(^|[\s/])trivy\s']
+  actions: ['aquasecurity/trivy-action']
 snippets:
   gitlab: |
     trivy:

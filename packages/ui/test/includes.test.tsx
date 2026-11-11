@@ -51,7 +51,7 @@ function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
   };
 }
 
-describe("un job inclus dans la vue Pipeline", () => {
+describe("an included job in the Pipeline view", () => {
   function nodeData(id: string) {
     const layout: Layout = {
       nodes: pipeline().jobs.map((entry, index) => ({
@@ -71,37 +71,37 @@ describe("un job inclus dans la vue Pipeline", () => {
     const graph = toFlowGraph(layout, pipeline(), null);
     const found = graph.nodes.find((node) => node.id === id);
     if (found === undefined) {
-      throw new Error(`nœud ${id} absent du graphe`);
+      throw new Error(`node ${id} missing from the graph`);
     }
     return found.data as JobNodeData;
   }
 
-  /** `JobNode` lit le contexte de xyflow par ses `Handle` : sans le provider, le rendu lève. */
+  /** `JobNode` reads xyflow's context through its `Handle`s: without the provider, rendering throws. */
   function renderNode(id: string) {
     return render(
       <ReactFlowProvider>
-        {/* `JobNode` n'utilise que `data` ; le reste de `NodeProps` est fourni par xyflow en
-            production et n'a aucun effet sur ce que ce test mesure. */}
+        {/* `JobNode` only uses `data`; the rest of `NodeProps` is supplied by xyflow in
+            production and has no effect on what this test measures. */}
         <JobNode {...({ id, data: nodeData(id) } as JobNodeProps)} />
       </ReactFlowProvider>,
     );
   }
 
-  test("le graphe marque le job venu d'un fichier inclus", () => {
+  test("the graph marks the job from an included file", () => {
     expect(nodeData("sast").included).toBe(true);
     expect(nodeData("sast").file).toBe(INCLUDED);
     expect(nodeData("local-job").included).toBe(false);
   });
 
-  /** La promesse est que la marque **n'est pas la couleur seule** : le mot `read-only` est dans le
-   *  DOM rendu, et il y est aussi quand le ton de surface change. Un test qui ne vérifierait que la
-   *  classe de fond laisserait passer un nœud teinté mais muet.
+  /** The promise is that the mark **is not colour alone**: the word `read-only` is in the rendered
+   *  DOM, and it is there too when the surface tone changes. A test that only checked the
+   *  background class would let a tinted but silent node through.
    *
-   *  Pas de `title` : mesuré par la passe d'audit, le texte d'un `title` n'apparaît **nulle part**
-   *  dans l'arbre d'accessibilité quand un `aria-describedby` est présent — ni en nom, ni en
-   *  description. Deux formulations du même fait coexistaient, dont une seule était jamais lue, et
-   *  celle-là n'était atteignable qu'à la souris. */
-  test("le nœud rend le mot read-only et le dit à un lecteur d'écran", () => {
+   *  No `title`: as measured by the audit pass, a `title`'s text appears **nowhere** in the
+   *  accessibility tree when an `aria-describedby` is present — neither as name nor as
+   *  description. Two wordings of the same fact coexisted, only one of which was ever read, and
+   *  that one was only reachable with the mouse. */
+  test("the node renders the word read-only and tells a screen reader", () => {
     renderNode("sast");
 
     expect(screen.getByText("read-only")).toBeDefined();
@@ -113,15 +113,15 @@ describe("un job inclus dans la vue Pipeline", () => {
     );
   });
 
-  /** Mesuré par la passe `critique` de L2b : le badge occupait 178 px d'une ligne de 205 et
-   *  réduisait le stage à 23 px tronqués. Il est donc absent d'un nœud inclus, et reste sur un nœud
-   *  du fichier principal, où il n'est pas redondant avec `read-only`. */
-  test("le badge d'origine n'est pas sur un nœud inclus", () => {
+  /** Measured by the L2b `critique` pass: the badge took 178 px of a 205 px row and squeezed the
+   *  stage down to a truncated 23 px. It is therefore absent from an included node, and stays on a
+   *  main-file node, where it is not redundant with `read-only`. */
+  test("the origin badge is not on an included node", () => {
     renderNode("sast");
     expect(screen.queryByTestId("origin-badge")).toBeNull();
   });
 
-  test("le badge d'origine reste sur un nœud du fichier principal", () => {
+  test("the origin badge stays on a main-file node", () => {
     render(
       <ReactFlowProvider>
         <JobNode
@@ -138,7 +138,7 @@ describe("un job inclus dans la vue Pipeline", () => {
     expect(screen.getByTestId("origin-badge")).toBeDefined();
   });
 
-  test("un job du fichier principal ne porte aucune de ces marques", () => {
+  test("a main-file job carries none of these marks", () => {
     renderNode("local-job");
     expect(screen.queryByText("read-only")).toBeNull();
     const button = screen.getByRole("button", { name: /local-job/ });
@@ -146,7 +146,7 @@ describe("un job inclus dans la vue Pipeline", () => {
   });
 });
 
-describe("le panneau de détail d'un job inclus", () => {
+describe("the detail panel of an included job", () => {
   function renderPanel(target: Job, texts: Record<string, string> = {}) {
     return render(
       <JobDetailPanel
@@ -158,12 +158,12 @@ describe("le panneau de détail d'un job inclus", () => {
     );
   }
 
-  test("nomme le fichier source et porte la raison en toutes lettres", () => {
+  test("names the source file and spells out the reason", () => {
     renderPanel(job("sast", INCLUDED));
 
     expect(screen.getByTestId("job-source-file").textContent).toContain(INCLUDED);
-    // Le mot est cherché **dans le titre** : l'en-tête de chaque bloc opaque porte le même mot,
-    // donc une recherche sur tout le document ne mesurerait pas la marque du job.
+    // The word is searched for **in the heading**: every opaque block header carries the same
+    // word, so a search over the whole document would not measure the job's mark.
     expect(screen.getByRole("heading", { level: 2 }).textContent).toContain("read-only");
     const described = screen
       .getByRole("region", { name: "Job detail" })
@@ -173,11 +173,11 @@ describe("le panneau de détail d'un job inclus", () => {
     );
   });
 
-  /** Le défaut que ce test empêche : `sliceOpaque` découpait le texte du fichier **principal**.
-   *  Les deux textes ci-dessous ont la même longueur et des octets différents au même offset —
-   *  sans quoi le test passerait avec le mauvais fichier, et l'écran afficherait un fragment pris
-   *  ailleurs sous la seule promesse « ceci est verbatim ». */
-  test("un bloc opaque est découpé dans le texte de son fichier", () => {
+  /** The defect this test prevents: `sliceOpaque` sliced the **main** file's text. The two texts
+   *  below have the same length and different bytes at the same offset — otherwise the test would
+   *  pass with the wrong file, and the screen would show a fragment taken from elsewhere under the
+   *  sole promise "this is verbatim". */
+  test("an opaque block is sliced from its own file's text", () => {
     const includedText = "script:\n  - make inclu\n";
     const mainText = "script:\n  - make LOCAL\n";
     expect(includedText.length).toBe(mainText.length);
@@ -194,12 +194,12 @@ describe("le panneau de détail d'un job inclus", () => {
     expect(block.textContent).not.toContain("LOCAL");
   });
 
-  test("le fichier source n'est nommé que s'il n'est pas le fichier principal", () => {
+  test("the source file is only named if it is not the main file", () => {
     renderPanel(job("local-job"));
     expect(screen.queryByTestId("job-source-file")).toBeNull();
   });
 
-  test("un job du fichier principal n'a pas de note de verrou", () => {
+  test("a main-file job has no lock note", () => {
     renderPanel(job("local-job"));
     expect(
       screen.getByRole("region", { name: "Job detail" }).getAttribute("aria-describedby"),
@@ -208,7 +208,7 @@ describe("le panneau de détail d'un job inclus", () => {
   });
 });
 
-describe("les contrôles de stages quand la liste vient d'un include", () => {
+describe("stage controls when the list comes from an include", () => {
   function renderStages(stagesFile: string) {
     const drafts: Draft[] = [];
     render(
@@ -220,7 +220,7 @@ describe("les contrôles de stages quand la liste vient d'un include", () => {
     return drafts;
   }
 
-  test("tout est désactivé et la raison nomme le fichier", () => {
+  test("everything is disabled and the reason names the file", () => {
     renderStages(INCLUDED);
 
     expect(
@@ -235,7 +235,7 @@ describe("les contrôles de stages quand la liste vient d'un include", () => {
     ).toBeDefined();
   });
 
-  test("une liste du fichier principal reste éditable", () => {
+  test("a list from the main file stays editable", () => {
     renderStages(MAIN);
     expect(
       [...document.querySelectorAll("button")].some((button) => !button.hasAttribute("disabled")),
@@ -243,10 +243,10 @@ describe("les contrôles de stages quand la liste vient d'un include", () => {
   });
 });
 
-describe("l'indicateur de pipeline partiel", () => {
+describe("the partial pipeline indicator", () => {
   const remote: UnresolvedInclude = {
     form: "remote",
-    detail: "https://exemple.org/ci.yml",
+    detail: "https://example.org/ci.yml",
     from: MAIN,
     range: { start: 12, end: 44 },
   };
@@ -255,12 +255,12 @@ describe("l'indicateur de pipeline partiel", () => {
     return render(<PartialPipelineBar pipeline={pipeline({ unresolved })} />);
   }
 
-  test("absent quand tous les includes sont résolus", () => {
+  test("absent when every include is resolved", () => {
     const { container } = renderBar([]);
     expect(container.textContent).toBe("");
   });
 
-  test("présent et nommé dès qu'un include ne l'est pas", () => {
+  test("present and named as soon as an include is not", () => {
     renderBar([remote]);
     expect(screen.getByRole("group", { name: "Partial pipeline" })).toBeDefined();
     expect(
@@ -269,46 +269,48 @@ describe("l'indicateur de pipeline partiel", () => {
     expect(screen.getByText("1 unresolved include")).toBeDefined();
   });
 
-  test("le compte s'accorde au pluriel", () => {
+  test("the count agrees in the plural", () => {
     renderBar([remote, { ...remote, form: "template", detail: "Jobs/SAST.gitlab-ci.yml" }]);
     expect(screen.getByText("2 unresolved includes")).toBeDefined();
   });
 
-  /** « L'UI doit le dire plutôt que le masquer » n'est tenu que si elle dit **quoi** manque : la
-   *  forme et la valeur écrite, pas seulement qu'il manque quelque chose. */
-  test("chaque entrée nomme sa forme, sa valeur et le fichier qui la déclare", () => {
+  /** "The UI must say it rather than hide it" only holds if it says **what** is missing: the
+   *  form and the written value, not just that something is missing. */
+  test("each entry names its form, its value and the file that declares it", () => {
     renderBar([remote]);
     expect(screen.getByText("remote")).toBeDefined();
-    expect(screen.getByText("https://exemple.org/ci.yml")).toBeDefined();
+    expect(screen.getByText("https://example.org/ci.yml")).toBeDefined();
     expect(screen.getByText("declared in")).toBeDefined();
     expect(screen.getByText(MAIN)).toBeDefined();
   });
 
-  /** Les trois séparations d'avec `NoticeBar`, qui annonce la conséquence d'une action : une
-   *  lacune n'est pas un événement, donc pas de région live, et un fait ne se congédie pas. */
-  test("ce n'est ni une alerte, ni un statut, et rien ne se congédie", () => {
+  /** The three differences from `NoticeBar`, which announces the consequence of an action: a gap
+   *  is not an event, hence no live region, and a fact cannot be dismissed. */
+  test("it is neither an alert nor a status, and nothing can be dismissed", () => {
     renderBar([remote]);
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByRole("button", { name: /dismiss/i })).toBeNull();
   });
 
-  /** Aucune entrée n'est cliquable. La première version en faisait un bouton appelant
-   *  `selectByRange`, et c'était un clic mort : la plage d'un include tombe dans le bloc opaque de
-   *  la clé `include` de premier niveau, que `selectByRange` ne peut jamais apparier à un job.
-   *  Le seul contrôle de la bande est le `summary`. */
-  test("aucune entrée n'est un contrôle", () => {
+  /** No entry is clickable. The first version made each one a button calling `selectByRange`,
+   *  and it was a dead click: an include's range falls within the opaque block of the top-level
+   *  `include` key, which `selectByRange` can never match to a job.
+   *  The banner's only control is the `summary`. */
+  test("no entry is a control", () => {
     renderBar([remote]);
-    expect(screen.queryByRole("button", { name: /exemple\.org/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: (name) => name.includes("example.org/ci.yml") }),
+    ).toBeNull();
     expect(screen.queryAllByRole("button")).toEqual([]);
   });
 
-  /** Ce test mesure la **focalisabilité** du résumé, et rien de plus : `happy-dom` n'implémente pas
-   *  le basculement natif de `<details>` à la touche Entrée, donc l'asserter ici mesurerait le DOM
-   *  simulé et non le produit. Le dépliage au clavier est vérifié sur le vrai navigateur, dans
-   *  `e2e/includes.e2e.ts`. La première version de ce test appelait `.focus()` et s'arrêtait là
-   *  sans le dire. */
-  test("le résumé est focalisable au clavier", () => {
+  /** This test measures the summary's **focusability**, and nothing more: `happy-dom` does not
+   *  implement the native `<details>` toggle on Enter, so asserting it here would measure the
+   *  simulated DOM, not the product. Keyboard expansion is checked in a real browser, in
+   *  `e2e/includes.e2e.ts`. The first version of this test called `.focus()` and stopped there
+   *  without saying so. */
+  test("the summary is keyboard-focusable", () => {
     renderBar([remote]);
 
     const summary = document.querySelector("summary");
@@ -318,11 +320,11 @@ describe("l'indicateur de pipeline partiel", () => {
   });
 });
 
-describe("le texte d'aide du badge d'origine, dans le panneau de détail", () => {
-  /** Le texte dépend du job **et** de l'origine. Le premier correctif ne regardait que l'origine, et
-   *  disait « cannot be overridden here » sur un job surchargé dans le fichier principal, qui reste
-   *  éditable : l'erreur avait changé de côté. Ces tests passent par le panneau parce que c'est lui
-   *  qui sait si le job est éditable, et qu'un test sur le badge seul ne verrait pas l'oubli. */
+describe("the origin badge hint text, in the detail panel", () => {
+  /** The text depends on the job **and** the origin. The first fix only looked at the origin, and
+   *  said "cannot be overridden here" on a job overridden in the main file, which stays editable:
+   *  the error had just switched sides. These tests go through the panel because it is the one
+   *  that knows whether the job is editable, and a test on the badge alone would miss the gap. */
   function hintOn(target: Job): string | null {
     render(<JobDetailPanel job={target} textOf={() => ""} main={MAIN} onClose={() => undefined} />);
     return screen.getByTestId("origin-badge").getAttribute("title");
@@ -331,28 +333,28 @@ describe("le texte d'aide du badge d'origine, dans le panneau de détail", () =>
   const includeOrigin = { kind: "include", file: INCLUDED } as const;
   const extendsOrigin = { kind: "extends", template: ".base" } as const;
 
-  test("job du fichier principal, valeur venue d'un include : la surcharge s'écrit ici", () => {
+  test("main-file job, value from an include: the override is written here", () => {
     const hint = hintOn(job("compile", MAIN, { stage: { value: "build", origin: includeOrigin } }));
     expect(hint).toBe(
       "This value comes from an included file. Changing it writes an explicit override in this job and never touches that file.",
     );
   });
 
-  test("job du fichier principal, valeur héritée d'un template : le texte d'origine", () => {
+  test("main-file job, value inherited from a template: the origin text", () => {
     const hint = hintOn(job("compile", MAIN, { stage: { value: "build", origin: extendsOrigin } }));
     expect(hint).toBe(ORIGIN_HINT);
   });
 
-  test("job inclus, valeur venue d'un include : rien ne se surcharge", () => {
+  test("included job, value from an include: nothing can be overridden", () => {
     const hint = hintOn(job("sast", INCLUDED));
     expect(hint).toBe(
       "This job is defined in an included file. Keelson never writes to included files, so this value cannot be overridden here.",
     );
   });
 
-  /** Les trois champs, un par un : le texte passe par trois appels distincts de `Field`, et un test
-   *  sur le seul stage laissait les deux autres sans aucune garde. */
-  test("Stage, Needs et Environment portent tous le même refus sur un job inclus", () => {
+  /** The three fields, one by one: the text goes through three separate `Field` calls, and a test
+   *  on the stage alone left the other two unguarded. */
+  test("Stage, Needs and Environment all carry the same refusal on an included job", () => {
     render(
       <JobDetailPanel
         job={job("sast", INCLUDED, {
@@ -373,9 +375,9 @@ describe("le texte d'aide du badge d'origine, dans le panneau de détail", () =>
     }
   });
 
-  /** Le cas que regarder l'origine seule ne pouvait pas voir : un job inclus dont la valeur vient
-   *  d'un `extends` portait `ORIGIN_HINT`, qui promet une surcharge impossible. */
-  test("job inclus, valeur héritée d'un template : rien ne se surcharge non plus", () => {
+  /** The case that looking at the origin alone could not see: an included job whose value comes
+   *  from an `extends` carried `ORIGIN_HINT`, which promises an impossible override. */
+  test("included job, value inherited from a template: nothing can be overridden either", () => {
     const hint = hintOn(
       job("sast", INCLUDED, { stage: { value: "build", origin: extendsOrigin } }),
     );

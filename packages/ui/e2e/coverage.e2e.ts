@@ -24,8 +24,8 @@ const TREE: Tree = {
   "ci/scan.yml": "sast:\n  stage: test\n  script:\n    - semgrep ci\n",
 };
 
-test.describe("couverture sur le binaire réel", () => {
-  test("la vue Coverage retire l'édition et étiquette les jobs", async ({ page }) => {
+test.describe("coverage on the real binary", () => {
+  test("the Coverage view removes editing and labels jobs", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -38,7 +38,7 @@ test.describe("couverture sur le binaire réel", () => {
         "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
       );
       await expect(page.locator('[data-job-id="secrets"]')).toContainText("Secrets");
-      // Détecté à travers un include, sur une ligne de script.
+      // Detected through an include, on a script line.
       await expect(page.locator('[data-job-id="sast"]')).toContainText("SAST");
       await expect(page.locator('[data-job-id="compile"]')).not.toContainText("SAST");
 
@@ -50,7 +50,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("choisir une couche met ses jobs en avant", async ({ page }) => {
+  test("choosing a layer highlights its jobs", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -66,7 +66,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("depuis une couche non couverte, le catalogue filtré puis la fiche", async ({ page }) => {
+  test("from an uncovered layer, the filtered catalogue then the entry", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -89,7 +89,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("une surcharge de layout.json se voit sans recharger", async ({ page }) => {
+  test("a layout.json override shows without reloading", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -111,7 +111,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("un pipeline partiel se dit une fois, et la couverture devient une borne basse", async ({
+  test("a partial pipeline is stated once, and coverage becomes a lower bound", async ({
     page,
   }) => {
     const keelson = await startKeelson({
@@ -132,7 +132,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("changer layout.json garde l'historique et n'annonce rien", async ({ page }) => {
+  test("changing layout.json keeps history and announces nothing", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -154,7 +154,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("la vue de lecture n'écrit rien, même à Ctrl+Z", async ({ page }) => {
+  test("the read view writes nothing, even on Ctrl+Z", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -173,7 +173,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("les colonnes du catalogue restent nommées au défilement", async ({ page }) => {
+  test("catalogue columns stay labelled while scrolling", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.setViewportSize({ width: 1280, height: 800 });
@@ -191,7 +191,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("à 375 px, l'en-tête tient dans la fenêtre", async ({ page }) => {
+  test("at 375 px, the header fits in the viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson(TREE);
     try {
@@ -213,7 +213,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("le panneau d'un job dit ce qui a décidé de ses couches", async ({ page }) => {
+  test("a job's panel says what decided its layers", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
       await page.goto(keelson.url);
@@ -225,7 +225,7 @@ test.describe("couverture sur le binaire réel", () => {
     }
   });
 
-  test("à 375 px, la sélection ouvre le panneau dans la fenêtre", async ({ page }) => {
+  test("at 375 px, selection opens the panel inside the viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson(TREE);
     try {

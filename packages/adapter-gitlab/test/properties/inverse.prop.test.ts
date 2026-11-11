@@ -5,8 +5,8 @@ import { runSequence, undoAll } from "./support/sequence.ts";
 
 const texts = corpusTexts();
 
-describe("propriété : une séquence d'opérations puis ses inverses restaure les octets", () => {
-  test("sur tout le corpus", () => {
+describe("property: a sequence of operations followed by its inverses restores the bytes", () => {
+  test("across the whole corpus", () => {
     fc.assert(
       fc.property(
         fc
@@ -21,7 +21,7 @@ describe("propriété : une séquence d'opérations puis ses inverses restaure l
     );
   });
 
-  test("une opération seule est toujours annulable", () => {
+  test("a single operation is always undoable", () => {
     fc.assert(
       fc.property(
         fc
@@ -36,7 +36,7 @@ describe("propriété : une séquence d'opérations puis ses inverses restaure l
     );
   });
 
-  test("les générateurs produisent bien des opérations acceptées", () => {
+  test("the generators do produce accepted operations", () => {
     let accepted = 0;
     fc.assert(
       fc.property(

@@ -57,8 +57,8 @@ function setup(preview = mock(async () => payload()), pipeline = PIPELINE, disab
 
 afterEach(cleanup);
 
-describe("diff par lignes", () => {
-  test("les lignes communes restent, les autres sont marquées", () => {
+describe("line diff", () => {
+  test("common lines stay, the others are marked", () => {
     expect(diffRows("a\nb\nc\n", "a\nx\nc\n")).toEqual([
       { kind: "same", text: "a" },
       { kind: "remove", text: "b" },
@@ -67,7 +67,7 @@ describe("diff par lignes", () => {
     ]);
   });
 
-  test("deux régions éloignées restent deux régions", () => {
+  test("two distant regions stay two regions", () => {
     const middle = Array.from({ length: 20 }, (_, index) => `l${index}`).join("\n");
     const rows = diffRows(`a\n${middle}\nz\n`, `A\n${middle}\nZ\n`);
     expect(rows.filter((row) => row.kind !== "same")).toHaveLength(4);
@@ -76,7 +76,7 @@ describe("diff par lignes", () => {
     expect(visible.filter((row) => row.kind === "same")).toHaveLength(4);
   });
 
-  test("un fichier énorme ne bloque pas : tout le milieu change", () => {
+  test("a huge file does not block: the whole middle changes", () => {
     const left = Array.from({ length: 5000 }, (_, index) => `a${index}`).join("\n");
     const right = Array.from({ length: 5000 }, (_, index) => `b${index}`).join("\n");
     const started = performance.now();
@@ -85,8 +85,8 @@ describe("diff par lignes", () => {
   });
 });
 
-describe("insertion depuis la fiche", () => {
-  test("rien ne part avant d'ouvrir", () => {
+describe("insertion from the catalogue entry", () => {
+  test("nothing is sent before opening", () => {
     const { preview } = setup();
     expect(preview).not.toHaveBeenCalled();
   });
@@ -95,7 +95,7 @@ describe("insertion depuis la fiche", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add to pipeline" }));
   }
 
-  test("le diff et la couche couverte s'affichent avant toute écriture", async () => {
+  test("the diff and the covered layer show before any write", async () => {
     const { onInsert } = setup();
     await open();
     await screen.findByText("trivy:");
@@ -104,7 +104,7 @@ describe("insertion depuis la fiche", () => {
     expect(onInsert).not.toHaveBeenCalled();
   });
 
-  test("le stage du snippet est repris, le nom est libre", async () => {
+  test("the snippet's stage is reused, the name is free", async () => {
     const { preview } = setup();
     await open();
     await waitFor(() => expect(preview).toHaveBeenCalled());
@@ -116,7 +116,7 @@ describe("insertion depuis la fiche", () => {
     });
   });
 
-  test("un nom pris reçoit un suffixe", async () => {
+  test("a taken name gets a suffix", async () => {
     const { preview } = setup(
       mock(async () => payload()),
       {
@@ -130,7 +130,7 @@ describe("insertion depuis la fiche", () => {
     );
   });
 
-  test("un stage absent s'annonce, et l'opération devient composite", async () => {
+  test("a missing stage is announced, and the operation becomes composite", async () => {
     const { preview } = setup(
       mock(async () => payload()),
       {
@@ -151,7 +151,7 @@ describe("insertion depuis la fiche", () => {
     );
   });
 
-  test("insérer envoie la même opération", async () => {
+  test("inserting sends the same operation", async () => {
     const { onInsert } = setup();
     await open();
     await screen.findByText("trivy:");
@@ -162,7 +162,7 @@ describe("insertion depuis la fiche", () => {
     );
   });
 
-  test("un refus se dit en clair et coupe Insert", async () => {
+  test("a rejection is stated plainly and disables Insert", async () => {
     setup(
       mock(
         async () =>
@@ -180,7 +180,7 @@ describe("insertion depuis la fiche", () => {
     ).toBe(true);
   });
 
-  test("une réponse d'un ancien nom ne remplace pas la dernière", async () => {
+  test("a response for an old name does not replace the latest", async () => {
     let first: (value: ApiResult<OperationPayload>) => void = () => {};
     const preview = mock((op: { id?: string }) =>
       op.id === "trivy"
@@ -198,13 +198,13 @@ describe("insertion depuis la fiche", () => {
     expect(screen.queryByText("old:")).toBeNull();
   });
 
-  test("le focus entre dans le formulaire à l'ouverture", async () => {
+  test("focus moves into the form on open", async () => {
     setup();
     await open();
     expect(document.activeElement).toBe(screen.getByLabelText("Job name"));
   });
 
-  test("Cancel referme sans rien écrire", async () => {
+  test("Cancel closes without writing anything", async () => {
     const { onInsert } = setup();
     await open();
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -212,7 +212,7 @@ describe("insertion depuis la fiche", () => {
     expect(onInsert).not.toHaveBeenCalled();
   });
 
-  test("Entrée insère", async () => {
+  test("Enter inserts", async () => {
     const { onInsert } = setup();
     await open();
     await screen.findByText("trivy:");
@@ -220,7 +220,7 @@ describe("insertion depuis la fiche", () => {
     expect(onInsert).toHaveBeenCalledTimes(1);
   });
 
-  test("un diff périmé coupe Insert jusqu'à la réponse suivante", async () => {
+  test("a stale diff disables Insert until the next response", async () => {
     const preview = mock((op: { id?: string }) =>
       op.id === "trivy" ? Promise.resolve(payload()) : new Promise<never>(() => {}),
     );
@@ -232,11 +232,11 @@ describe("insertion depuis la fiche", () => {
     expect((insert as HTMLButtonElement).disabled).toBe(true);
   });
 
-  test("une écriture refusée se dit dans le formulaire", async () => {
+  test("a rejected write is reported in the form", async () => {
     const onInsert = mock(async () => ({
       status: 0,
       code: "NETWORK_ERROR" as const,
-      params: { detail: "coupé" },
+      params: { detail: "cut off" },
     }));
     render(
       <Harness
@@ -251,10 +251,10 @@ describe("insertion depuis la fiche", () => {
     await open();
     await screen.findByText("trivy:");
     await userEvent.click(screen.getByRole("button", { name: "Insert into .gitlab-ci.yml" }));
-    expect((await screen.findByRole("alert")).textContent).toContain("coupé");
+    expect((await screen.findByRole("alert")).textContent).toContain("cut off");
   });
 
-  test("le document change pendant une écriture refusée : la prévisualisation reprend", async () => {
+  test("the document changes during a rejected write: the preview resumes", async () => {
     const preview = mock(async () => payload());
     let refuse: (failure: ApiFailure) => void = () => {};
     const onInsert = mock(
@@ -271,11 +271,11 @@ describe("insertion depuis la fiche", () => {
     rerender(<Harness {...props} pipeline={{ ...PIPELINE }} text={`${BEFORE}# x\n`} />);
     await new Promise((settle) => setTimeout(settle, 10));
     preview.mockClear();
-    refuse({ status: 409, code: "NETWORK_ERROR", params: { detail: "coupé" } });
+    refuse({ status: 409, code: "NETWORK_ERROR", params: { detail: "cut off" } });
     await waitFor(() => expect(preview).toHaveBeenCalled());
   });
 
-  test("le diff est sémantique : ins, del, et le sens en toutes lettres", async () => {
+  test("the diff is semantic: ins, del, and the meaning spelled out", async () => {
     setup(mock(async () => payload("stages:\n  - deploy\n")));
     await open();
     await screen.findByText("Changes to .gitlab-ci.yml");
@@ -284,7 +284,7 @@ describe("insertion depuis la fiche", () => {
     expect(figure?.querySelector("del")?.textContent).toContain("removed");
   });
 
-  test("une édition coupée coupe le bouton", () => {
+  test("disabled editing disables the button", () => {
     setup(undefined, PIPELINE, true);
     expect(
       (screen.getByRole("button", { name: "Add to pipeline" }) as HTMLButtonElement).disabled,

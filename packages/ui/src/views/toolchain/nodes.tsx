@@ -24,8 +24,8 @@ export function ServiceNode({ data }: NodeProps & { data: ServiceNodeData }) {
       <Handle type="target" position={Position.Left} className="!bg-border-strong" />
       <button
         type="button"
-        // Le panneau est le chemin clavier : quinze nœuds de plus dans l'ordre de tabulation ne
-        // feraient que le redoubler, et xyflow ne recadre pas sur un nœud focalisé hors champ.
+        // The panel is the keyboard path: fifteen more nodes in the tab order would only duplicate
+        // it, and xyflow does not pan to a focused node that is out of view.
         tabIndex={-1}
         aria-current={data.selected ? "true" : undefined}
         data-service-id={data.id}
