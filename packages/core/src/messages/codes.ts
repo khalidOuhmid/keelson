@@ -72,6 +72,7 @@ export const SERVICE_NOT_FOUND = "SERVICE_NOT_FOUND";
 export const SERVICE_REFERENCED = "SERVICE_REFERENCED";
 export const INTEGRATION_EXISTS = "INTEGRATION_EXISTS";
 export const INTEGRATION_NOT_FOUND = "INTEGRATION_NOT_FOUND";
+export const READ_ONLY_ADAPTER = "READ_ONLY_ADAPTER";
 
 export const OPERATION_ERROR_CODES = [
   STALE_DOCUMENT,
@@ -92,6 +93,7 @@ export const OPERATION_ERROR_CODES = [
   SERVICE_REFERENCED,
   INTEGRATION_EXISTS,
   INTEGRATION_NOT_FOUND,
+  READ_ONLY_ADAPTER,
 ] as const;
 
 export const FORBIDDEN_HOST = "FORBIDDEN_HOST";
@@ -226,6 +228,7 @@ export type MessageParams = {
   SERVICE_REFERENCED: { service: string; jobs: readonly string[] };
   INTEGRATION_EXISTS: { job: string; target: string; kind: string };
   INTEGRATION_NOT_FOUND: { job: string; target: string; kind: string };
+  READ_ONLY_ADAPTER: { adapter: string; file: string };
 
   FORBIDDEN_HOST: Empty;
   FORBIDDEN_TOKEN: Empty;

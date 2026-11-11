@@ -319,6 +319,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'the push integration of "b" with "n" does not exist',
     },
   ],
+  READ_ONLY_ADAPTER: [
+    {
+      params: { adapter: "github", file: ".github/workflows/ci.yml" },
+      text: '".github/workflows/ci.yml" is read through the github adapter, which Keelson does not edit yet',
+    },
+  ],
   FORBIDDEN_HOST: [{ params: {}, text: "the local server refused the Host header" }],
   FORBIDDEN_TOKEN: [{ params: {}, text: "the session token is missing or invalid" }],
   METHOD_NOT_ALLOWED: [{ params: { method: "DELETE" }, text: "method DELETE is not allowed" }],

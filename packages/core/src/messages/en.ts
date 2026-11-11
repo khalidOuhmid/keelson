@@ -137,6 +137,8 @@ export const EN: Catalogue = {
     `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.target)} already exists`,
   INTEGRATION_NOT_FOUND: (p) =>
     `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.target)} does not exist`,
+  READ_ONLY_ADAPTER: (p) =>
+    `${quoted(p.file)} is read through the ${p.adapter} adapter, which Keelson does not edit yet`,
 
   FORBIDDEN_HOST: () => "the local server refused the Host header",
   FORBIDDEN_TOKEN: () => "the session token is missing or invalid",

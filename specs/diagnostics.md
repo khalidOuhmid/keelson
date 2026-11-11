@@ -212,6 +212,7 @@ Aucune n'est levée comme exception : une exception ne peut signaler qu'un bug d
 | `SERVICE_REFERENCED` | `{ service, jobs }` | `removeService` sur un service encore relié à des jobs. |
 | `INTEGRATION_EXISTS` | `{ job, target, kind }` | L'intégration, ou son écart, figure déjà dans le fichier. `target` est le service ou l'outil. |
 | `INTEGRATION_NOT_FOUND` | `{ job, target, kind }` | L'intégration, ou son écart, ne figure pas dans le fichier. |
+| `READ_ONLY_ADAPTER` | `{ adapter, file }` | Le fichier est lu par un adaptateur que Keelson n'édite pas encore (GitHub Actions depuis L6) : toute opération, prévisualisation comprise, est refusée en 422 sans rien écrire. |
 
 ### `FROM_INCLUDED_FILE`
 

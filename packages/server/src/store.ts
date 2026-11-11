@@ -1,3 +1,4 @@
+import { parse as parseGithub } from "@keelson/adapter-github";
 import {
   apply,
   createFileReader,
@@ -16,7 +17,7 @@ import type {
   SpliceOperation,
 } from "@keelson/core";
 import { parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
+import { NOT_FOUND, READ_ONLY_ADAPTER, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
@@ -120,6 +121,16 @@ export class DocumentStore {
     this.files = files;
   }
 
+  private adapterOf(file: string): WorkspaceFile["adapter"] | undefined {
+    return this.files.find((entry) => entry.path === file)?.adapter;
+  }
+
+  private parseAny(file: string, text: string) {
+    return this.adapterOf(file) === "github"
+      ? parseGithub(text, { file })
+      : parse(text, { file, read: this.reader });
+  }
+
   private absolute(file: string): string | null {
     return resolveWorkspaceFile(this.root, this.files, file);
   }
@@ -138,7 +149,7 @@ export class DocumentStore {
       return null;
     }
 
-    const parsed = parse(text, { file, read: this.reader });
+    const parsed = this.parseAny(file, text);
     const { diagnostics, coverage: covered } = analyse(
       this.root,
       parsed.diagnostics,
@@ -257,6 +268,13 @@ export class DocumentStore {
       return {
         status: 404,
         body: { code: NOT_FOUND, params: { reason: "unknownFile", file } },
+      };
+    }
+
+    if (this.adapterOf(file) === "github") {
+      return {
+        status: 422,
+        body: { code: READ_ONLY_ADAPTER, params: { adapter: "github", file } },
       };
     }
 
