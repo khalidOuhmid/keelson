@@ -45,6 +45,8 @@ exhaustiveness of the rendering branches is checked at compile time.
 | `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | More than `limit` included files. The pipeline is then partial: the first entry cut off is in `Pipeline.unresolved`. GitLab's documented limit is **150** included files per pipeline, nested ones included — a count, not a nesting depth, and Keelson does not invent another. |
 | `EXTENDS_TARGET_NOT_FOUND` | error, or warning | `parse` | `{ template }` | An `extends` points to a key absent from **all** resolved files. Downgraded to a **warning** only if an `include` that could not be read may explain the absence: a remote form, or a `local` one when the caller supplied no reader. A **broken** local `include` downgrades nothing: its cause is already an `INCLUDE_NOT_FOUND` error ([ADR 0007](adr/0007-what-degrades-a-missing-extends-target.md)). Reported once per target. |
 | `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | A chain of `extends` loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
+| `EXTENDS_DEPTH_EXCEEDED` | error | `parse` | `{ job, limit }` | A job inherits through more than `limit` levels of `extends`. GitLab documents **11** levels and refuses more. The templates beyond the limit are not applied; parsing completes. Reported once per job. |
+| `VALUE_CYCLE` | error | `parse` | `{ job, key }` | The value of `key` in the job refers to itself: an alias inside its own anchor (`script: &s [a, *s]`) or a loop of `!reference`s. GitLab refuses it. The loop is cut where it closes; parsing completes. A map merging itself (`&e {name: n, <<: *e}`) is not one: Psych, the parser GitLab uses, reads it as the map alone. |
 | `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | A job has no `script`, `run` or `trigger`. Evaluated **after** resolving `extends` and anchors. |
 | `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | A `needs` entry points to a job that does not exist. A template (a key starting with `.`) is not a valid job for `needs`. |
 | `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | The `needs` form a cycle. One diagnostic per strongly connected component; `cycle` is the path, first element repeated last. |
@@ -126,6 +128,28 @@ orphan:
 
 ```
 error EXTENDS_CYCLE extends cycle: .a → .b → .a
+```
+
+**`EXTENDS_DEPTH_EXCEEDED`**
+
+```yaml
+deploy:
+  extends: .l1   # .l1 extends .l2, … .l11 extends .l12
+```
+
+```
+error EXTENDS_DEPTH_EXCEEDED job "deploy" inherits through more than 11 levels of extends, which GitLab refuses
+```
+
+**`VALUE_CYCLE`**
+
+```yaml
+unit:
+  script: &s [make, *s]
+```
+
+```
+error VALUE_CYCLE the script of job "unit" refers to itself through an alias or a !reference
 ```
 
 **`JOB_WITHOUT_SCRIPT`**

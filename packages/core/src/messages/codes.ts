@@ -6,6 +6,8 @@ export const INCLUDE_CYCLE = "INCLUDE_CYCLE";
 export const INCLUDE_LIMIT_EXCEEDED = "INCLUDE_LIMIT_EXCEEDED";
 export const EXTENDS_TARGET_NOT_FOUND = "EXTENDS_TARGET_NOT_FOUND";
 export const EXTENDS_CYCLE = "EXTENDS_CYCLE";
+export const EXTENDS_DEPTH_EXCEEDED = "EXTENDS_DEPTH_EXCEEDED";
+export const VALUE_CYCLE = "VALUE_CYCLE";
 export const JOB_WITHOUT_SCRIPT = "JOB_WITHOUT_SCRIPT";
 export const UNKNOWN_NEED = "UNKNOWN_NEED";
 export const NEEDS_CYCLE = "NEEDS_CYCLE";
@@ -35,6 +37,8 @@ export const DIAGNOSTIC_CODES = [
   INCLUDE_LIMIT_EXCEEDED,
   EXTENDS_TARGET_NOT_FOUND,
   EXTENDS_CYCLE,
+  EXTENDS_DEPTH_EXCEEDED,
+  VALUE_CYCLE,
   JOB_WITHOUT_SCRIPT,
   UNKNOWN_NEED,
   NEEDS_CYCLE,
@@ -152,6 +156,8 @@ export type MessageParams = {
   INCLUDE_LIMIT_EXCEEDED: { limit: number };
   EXTENDS_TARGET_NOT_FOUND: { template: string };
   EXTENDS_CYCLE: { trail: readonly string[] };
+  EXTENDS_DEPTH_EXCEEDED: { job: string; limit: number };
+  VALUE_CYCLE: { job: string; key: string };
   JOB_WITHOUT_SCRIPT: { job: string };
   UNKNOWN_NEED: { job: string; need: string };
   NEEDS_CYCLE: { cycle: readonly string[] };

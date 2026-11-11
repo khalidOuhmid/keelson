@@ -81,6 +81,18 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
   ],
   EXTENDS_CYCLE: [{ params: { trail: [".a", ".b", ".a"] }, text: "extends cycle: .a → .b → .a" }],
+  EXTENDS_DEPTH_EXCEEDED: [
+    {
+      params: { job: "deploy", limit: 11 },
+      text: 'job "deploy" inherits through more than 11 levels of extends, which GitLab refuses',
+    },
+  ],
+  VALUE_CYCLE: [
+    {
+      params: { job: "unit", key: "script" },
+      text: 'the script of job "unit" refers to itself through an alias or a !reference',
+    },
+  ],
   JOB_WITHOUT_SCRIPT: [
     { params: { job: "silent" }, text: 'job "silent" has no script, no run and no trigger' },
   ],
