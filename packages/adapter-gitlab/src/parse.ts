@@ -45,6 +45,7 @@ import {
   resolveStage,
   type Source,
   sourcesFor,
+  unmodelledNeedsBlock,
 } from "./resolve.ts";
 
 /** The conventional name of the entry file. Serves as the default when the caller has no path to
@@ -296,7 +297,11 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       origin: { kind: "default" as const },
     };
 
-    const jobOpaque = opaqueBlocksOf(entry.definitions);
+    const needsBlock = unmodelledNeedsBlock(sources, jobContext);
+    const jobOpaque = [
+      ...(needsBlock === null ? [] : [needsBlock]),
+      ...opaqueBlocksOf(entry.definitions),
+    ];
 
     if (!SCRIPT_KEYS.some((key) => definesKey(sources, key))) {
       diagnostics.push({

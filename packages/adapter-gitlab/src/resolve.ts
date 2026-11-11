@@ -3,6 +3,7 @@ import type {
   Environment,
   JobSignals,
   Need,
+  OpaqueBlock,
   Origin,
   SourceRange,
   Valued,
@@ -89,7 +90,7 @@ function stringsOf(node: AnyNode): string[] {
 }
 
 /** A value written in a map, and the anchor it was merged from, if any. */
-export type Write = { node: AnyNode; anchor: string | null };
+export type Write = { node: AnyNode; anchor: string | null; pair: Pair<unknown, unknown> };
 
 type Walk = { path: Set<YAMLMap>; memo: Map<YAMLMap, Write | undefined> };
 
@@ -109,7 +110,7 @@ function mergedWrite(
   if (found === undefined) {
     return undefined;
   }
-  return isAlias(value) ? { node: found.node, anchor: value.source } : found;
+  return isAlias(value) ? { ...found, anchor: value.source } : found;
 }
 
 /** The value of `key` in `map` as Psych — the parser GitLab loads its YAML with — reads it: a
@@ -139,7 +140,7 @@ function writeIn(
         : mergedWrite(value, key, document, walk);
       found = merged ?? found;
     } else if (name === key) {
-      found = { node: pair.value as AnyNode, anchor: null };
+      found = { node: pair.value as AnyNode, anchor: null, pair };
     }
   }
   walk.path.delete(map);
@@ -313,6 +314,7 @@ function push(diagnostics: Diagnostic[], diagnostic: Diagnostic): void {
 
 type Match = {
   node: AnyNode;
+  pair: Pair<unknown, unknown>;
   origin: Origin;
   file: string;
 };
@@ -323,7 +325,7 @@ function matches(sources: readonly Source[], key: string): Match[] {
       const pair = localPair(source.map, key);
       return pair === undefined
         ? []
-        : [{ node: pair.value as AnyNode, origin: source.origin, file: source.file }];
+        : [{ node: pair.value as AnyNode, pair, origin: source.origin, file: source.file }];
     }
     const found = lastWrite(source.map, key, source.document);
     if (found === undefined) {
@@ -331,7 +333,7 @@ function matches(sources: readonly Source[], key: string): Match[] {
     }
     const origin: Origin =
       found.anchor === null ? source.origin : { kind: "anchor", name: found.anchor };
-    return [{ node: found.node, origin, file: source.file }];
+    return [{ node: found.node, pair: found.pair, origin, file: source.file }];
   });
 }
 
@@ -444,8 +446,8 @@ function needFrom(item: unknown): Need | null {
     return null;
   }
 
-  // DEBT(2026-10-20): cross-project needs (project / pipeline keys) are ignored by the IR
-  // — they should become an opaque block carried by the job; see specs/gaps.md (2026-10-20).
+  // A cross-project item is not a job of this pipeline: the job carries the list as an opaque
+  // block instead (`unmodelledNeedsBlock`).
   if (localPair(item, "project") !== undefined || localPair(item, "pipeline") !== undefined) {
     return null;
   }
@@ -522,6 +524,22 @@ export function hasUnmodelledNeeds(sources: readonly Source[]): boolean {
   const list = found.node;
   const literal = isSeq(list) && (list as { tag?: string }).tag !== REFERENCE_TAG;
   return !literal || !list.items.every((item) => modelledNeed(item as AnyNode));
+}
+
+/** The `needs` list a job runs with, as written, when it carries items the IR drops — a
+ *  cross-project or nested item: the screen shows the list verbatim instead of losing them. */
+export function unmodelledNeedsBlock(
+  sources: readonly Source[],
+  context: ResolveContext,
+): OpaqueBlock | null {
+  const found = matches(sources, "needs").at(-1);
+  if (found === undefined) {
+    return null;
+  }
+  const list = dereference(found.node, found.file, context, "needs").node;
+  const dropped = isSeq(list) && list.items.some((item) => needFrom(item) === null);
+  const range = pairRange(found.pair);
+  return dropped && range !== null ? { key: "needs", range, file: found.file } : null;
 }
 
 function scriptLines(
