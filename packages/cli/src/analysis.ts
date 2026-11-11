@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { createFileReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
@@ -12,13 +12,14 @@ import {
   parseLayout,
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
+import { readRegularFile } from "./files.ts";
 
 export const DEFAULT_FILE = ".gitlab-ci.yml";
 
-/** La racine depuis laquelle GitLab résout les `include: local`. On remonte jusqu'au premier
- *  dossier qui contient un `.git`, parce que c'est la racine du dépôt que GitLab utilise. Sans
- *  dépôt — un fichier isolé, un test — c'est le dossier du fichier, ce qui revient au cas normal
- *  où `.gitlab-ci.yml` est à la racine. */
+/** The root from which GitLab resolves `include: local`. We walk up to the first directory that
+ *  contains a `.git`, because that is the repository root GitLab uses. Without a repository — an
+ *  isolated file, a test — it is the file's directory, which matches the usual case where
+ *  `.gitlab-ci.yml` sits at the root. */
 function repositoryRoot(file: string): string {
   let current = dirname(file);
   while (true) {
@@ -33,8 +34,8 @@ function repositoryRoot(file: string): string {
   }
 }
 
-/** Le chemin du fichier relatif à la racine, en séparateurs `/` : c'est la forme qu'attendent les
- *  `include` et celle que portent les diagnostics. */
+/** The file path relative to the root, with `/` separators: the form `include` expects and the
+ *  one diagnostics carry. */
 function relativeTo(root: string, file: string): string {
   const prefix = root.endsWith(sep) ? root : root + sep;
   return file.startsWith(prefix) ? file.slice(prefix.length).split(sep).join("/") : basename(file);
@@ -42,11 +43,11 @@ function relativeTo(root: string, file: string): string {
 
 export type Analysis = {
   root: string;
-  /** Les textes par chemin relatif, inclus compris : un diagnostic se situe dans le texte de son
-   *  fichier. */
+  /** The texts by relative path, included files too: a diagnostic is located in the text of its
+   *  own file. */
   texts: ReadonlyMap<string, string>;
   pipeline: Pipeline;
-  /** Les diagnostics du parsing seuls : la couverture y lit qu'un fichier est illisible. */
+  /** The parse diagnostics alone: coverage reads from them that a file is unreadable. */
   parsing: Diagnostic[];
   layout: ParsedLayout;
   toolchain: ToolchainAnalysis;
@@ -55,8 +56,8 @@ export type Analysis = {
 
 export type Target = { file: string; text: string };
 
-/** Les fichiers d'une commande : celui qu'elle nomme, sinon tout le workspace. Rend le message
- *  d'usage si l'un d'eux manque. */
+/** The files of a command: the one it names, otherwise the whole workspace. Returns the usage
+ *  message if one of them is missing. */
 export function readTargets(
   named: string | undefined,
   cwd: string,
@@ -67,19 +68,19 @@ export function readTargets(
   const targets: Target[] = [];
   for (const path of paths) {
     const file = isAbsolute(path) ? path : resolve(cwd, path);
-    try {
-      if (!statSync(file).isFile()) {
-        return { ok: false, message: `"${file}" is not a file` };
-      }
-      targets.push({ file, text: readFileSync(file, "utf8") });
-    } catch {
-      return { ok: false, message: `file not found: ${file}` };
+    const read = readRegularFile(file);
+    if (!read.ok) {
+      return {
+        ok: false,
+        message: read.reason === "notFile" ? `"${file}" is not a file` : `file not found: ${file}`,
+      };
     }
+    targets.push({ file, text: read.text });
   }
   return { ok: true, targets };
 }
 
-/** Ce que `validate`, `coverage` et `export` savent des fichiers : ils doivent dire la même chose. */
+/** What `validate`, `coverage` and `export` know about the files: they must say the same thing. */
 export function analyse(targets: readonly Target[]): Analysis {
   const root = repositoryRoot((targets[0] as Target).file);
   const read = createFileReader(root);

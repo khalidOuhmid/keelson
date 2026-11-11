@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { apply, createFileReader, parse, readInsideRoot } from "@keelson/adapter-gitlab";
 import type { Operation, OperationError } from "@keelson/core";
@@ -8,6 +8,7 @@ import { writeInsideRoot } from "@keelson/server";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import { hunks, renderUnified } from "./diff.ts";
+import { readRegularFile } from "./files.ts";
 import type { CliResult } from "./result.ts";
 
 type Options = {
@@ -69,18 +70,14 @@ function parseArguments(argv: readonly string[]): Options | CliResult {
   };
 }
 
-/** Toutes les opérations sont validées avant de toucher au premier dépôt : un fichier à moitié
- *  valide n'est appliqué nulle part. */
+/** Every operation is validated before the first repository is touched: a half-valid file is
+ *  applied nowhere. */
 function loadOperations(path: string): Operation[] | CliResult {
-  let text: string;
-  try {
-    if (!statSync(path).isFile()) {
-      return usage(`"${path}" is not a file`);
-    }
-    text = readFileSync(path, "utf8");
-  } catch {
-    return usage(`file not found: ${path}`);
+  const read = readRegularFile(path);
+  if (!read.ok) {
+    return usage(read.reason === "notFile" ? `"${path}" is not a file` : `file not found: ${path}`);
   }
+  const text = read.text;
 
   let input: unknown;
   try {
@@ -225,8 +222,8 @@ function renderJson(outcomes: readonly Outcome[]): string {
   return `${JSON.stringify({ results }, null, 2)}\n`;
 }
 
-/** Chaque dépôt est indépendant : l'échec de l'un n'empêche pas les autres d'être écrits, et le
- *  code de sortie dit seulement si au moins un a échoué. */
+/** Each repository is independent: one failing does not stop the others from being written, and
+ *  the exit code only says whether at least one failed. */
 export async function applyCommand(argv: readonly string[], cwd: string): Promise<CliResult> {
   const options = parseArguments(argv);
   if ("exitCode" in options) {
