@@ -16,4 +16,4 @@ In scope: the local server (`keelson start`) — Host check, session token, path
 handling, request limits, atomic writes — the CLI, and the YAML round-trip (an edit that silently
 changes bytes outside its target range is a security-relevant bug for a CI tool).
 
-The threat model is described in [specs/01-plan.md §7 ter](specs/01-plan.md).
+The threat model is described in [specs/01-plan.md §7b](specs/01-plan.md).

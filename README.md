@@ -259,7 +259,7 @@ open in your browser:
 - writes **atomically** (temporary file, `fsync`, `rename`) through one queue per document, with
   idempotent operation ids.
 
-Details in [specs/01-plan.md §7 ter](specs/01-plan.md). To report a vulnerability, see
+Details in [specs/01-plan.md §7b](specs/01-plan.md). To report a vulnerability, see
 [SECURITY.md](SECURITY.md).
 
 ## Documentation

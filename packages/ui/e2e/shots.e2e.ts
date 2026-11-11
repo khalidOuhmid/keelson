@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { startKeelson } from "./support/server.ts";
 
-test("captures desktop et mobile", async ({ browser }) => {
+test("desktop and mobile screenshots", async ({ browser }) => {
   const keelson = await startKeelson();
 
   for (const [name, size] of [

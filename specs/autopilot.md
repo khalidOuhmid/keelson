@@ -35,7 +35,7 @@ Never stop on your own: automatic context compaction handles the session length
 - `@keelson/taxonomy`: the 13 layers of the OWASP DevSecOps Guideline (git secrets, SCA, SAST, IaC, supply chain, IAST, API security, DAST, CNAPP, infrastructure scanning, continuous scanning, compliance, AI/LLM security) and the platform categories (SCM, artifact repositories and registries, secrets, vulnerability aggregation, server-side code quality, runtime observability, runtime security, policy-as-code), each with `source: owasp | platform`. Cited source: https://github.com/OWASP/DevSecOpsGuideline.
 - `@keelson/catalog`: 50 to 100 tools, one YAML per tool validated by zod (`id`, `name`, `kind: job | service`, `layers`, `license`, `homepage`, `logo`, `detect`, `snippets.gitlab`, `snippets.github`, `lastVerified`). At least two tools per OWASP layer, one of them open source; mandatory: DefectDojo, Dependency-Track, Nexus, Harbor, Artifactory, Vault, SonarQube, Sentry, Falco. Each catalogue entry verified on the official site, with the verification URL in the entry.
 - Per-job layer detection through `detect` (on `image` and `script`), overridable in `.devsecops/layout.json`.
-- UI: overlay colouring jobs by layer, "uncovered layers" panel, Catalogue view (layer, licence and adapter filters), tool page.
+- UI: overlay colouring jobs by layer, "uncovered layers" panel, Catalog view (layer, licence and adapter filters), tool page.
 - CLI: `keelson coverage [--require <layers>] [--format json]` (exit code 1 if a required layer is missing); `keelson catalog lint` (schema, logos, `lastVerified` > 6 months).
 - The gaps already attached to L3 in `specs/gaps.md` are handled and closed with evidence.
 

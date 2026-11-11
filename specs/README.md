@@ -3,7 +3,7 @@
 Documentation, specs and code comments are written in English.
 
 - [00-vision.md](00-vision.md) — the problem and the principles
-- [01-plan.md](01-plan.md) — technical plan, CLI (§8), security model (§7 ter), milestones (§11)
+- [01-plan.md](01-plan.md) — technical plan, CLI (§8), security model (§7b), milestones (§11)
 - [progress.md](progress.md) — milestone status and delivery log
 - [gaps.md](gaps.md) — findings outside any milestone: the backlog after v0.1.0
 - [diagnostics.md](diagnostics.md) — public error codes and the shape of their `params`

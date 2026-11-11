@@ -96,7 +96,7 @@ discards.
   catalogue.
 - **Catalogue** — the tools, filterable by layer and by licence.
 
-## 7 bis. Serializable operations
+## 7a. Serializable operations
 
 Every edit goes through an **operation**: a plain JSON object, validated by a zod schema, carrying
 `v: 1` and a `baseHash` (SHA-256 of the text it was computed on). `apply` rejects a stale
@@ -114,7 +114,7 @@ applicable to repositories whose texts differ; writing is all-or-nothing per rep
 ([milestones/l8.md](milestones/l8.md)). Since error codes are public contracts documented in
 [diagnostics.md](diagnostics.md), a remote client can interpret a refusal without reading the code.
 
-## 7 ter. Local server and security model
+## 7b. Local server and security model
 
 `npx keelson start` starts a `node:http` server that **is authoritative over the disk**. The UI
 never writes a file and does not run the adapter: it sends operations, and the server applies them
