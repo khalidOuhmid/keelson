@@ -60,7 +60,15 @@ import { DEFAULT_STAGES } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
 import { parse } from "./parse.ts";
-import { type AnyNode, localPair, localPairs, pairRange, REFERENCE_TAG } from "./resolve.ts";
+import {
+  type AnyNode,
+  keyOf,
+  localPair,
+  localPairs,
+  MERGE_KEY,
+  pairRange,
+  REFERENCE_TAG,
+} from "./resolve.ts";
 import type { ApplyError, ApplyOk } from "./result.ts";
 import {
   afterLine,
@@ -174,7 +182,14 @@ function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target
   return ok({ pair, map });
 }
 
+/** After the job's key, and after its last merge key: Psych lets a later write win, so an
+ *  override written above a `<<` would be overwritten by the merged map. */
 function overrideInsertAt(geometry: Geometry, target: Target): number {
+  const lastMerge = localPairs(target.map).findLast((pair) => keyOf(pair) === MERGE_KEY);
+  const mergeEnd = lastMerge === undefined ? undefined : nodeRange(lastMerge.value as AnyNode)?.[1];
+  if (mergeEnd !== undefined) {
+    return afterLine(geometry.text, mergeEnd);
+  }
   const range = nodeRange(target.pair.key as AnyNode);
   return afterLine(geometry.text, range?.[0] ?? 0);
 }

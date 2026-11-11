@@ -685,7 +685,7 @@ describe("precedence between extends and cross-file definitions", () => {
     expect(parsed.pipeline.jobs[0]?.stage.value).toBe("build");
   });
 
-  test("the extends of both files add up without duplicates", () => {
+  test("the main file's extends replaces the include's, as GitLab's merge replaces a list", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -713,7 +713,7 @@ describe("precedence between extends and cross-file definitions", () => {
       ].join("\n"),
     });
 
-    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".from-include", ".from-main"]);
+    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".from-main", ".from-include"]);
   });
 });
 
