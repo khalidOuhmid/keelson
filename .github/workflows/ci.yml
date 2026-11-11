@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -25,15 +25,18 @@ jobs:
       - name: Lint, typecheck, test, build
         run: bun run check
 
-      - name: Cache des navigateurs Playwright
+      - name: Keelson's own security coverage
+        run: node packages/cli/dist/keelson.js coverage --require sast
+
+      - name: Cache Playwright browsers
         uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
 
-      - name: Installation des navigateurs Playwright
-        run: bunx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: bunx playwright install chromium
 
       - name: E2E
         run: bun run e2e
@@ -46,7 +49,7 @@ jobs:
           retention-days: 7
 
   node-smoke:
-    name: Binaire sous Node ${{ matrix.node }}
+    name: Binary on Node ${{ matrix.node }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -69,7 +72,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Smoke test du binaire buildé sous Node
+      - name: Smoke-test the built binary on Node
         run: |
           node --version
           bun test packages/cli/test/node-smoke.test.ts
