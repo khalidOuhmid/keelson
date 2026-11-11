@@ -26,7 +26,13 @@ export type IncludeReader = {
   /** Every `.yml` and `.yaml` file in the repository, normalised the same way. Only called for an
    *  include that carries a wildcard. */
   candidates(): readonly string[];
+  /** Whether `path`, which `read` refused, exists but resolves outside the repository root. */
+  outsideRoot?(path: string): boolean;
 };
+
+/** “You can use certain CI/CD variables” in `include:local`: such a path is only known when the
+ *  pipeline runs. */
+const VARIABLE = /\$\{?[A-Za-z_]/;
 
 export type ParsedFile = {
   file: string;
@@ -139,7 +145,14 @@ export function includeEntries(root: YAMLMap): Entry[] {
   }
 
   const node = pair.value as AnyNode;
-  return isSeq(node) ? node.items.map((item) => entryOf(item as AnyNode)) : [entryOf(node)];
+  if (isSeq(node)) {
+    return node.items.map((item) => entryOf(item as AnyNode));
+  }
+  const range = contentRange(node);
+  if (range === null || range.start === range.end) {
+    return [{ kind: "malformed", range: contentRange(pair.key as AnyNode) }];
+  }
+  return [entryOf(node)];
 }
 
 export function parseIncludedFile(file: string, text: string): ParsedFile {
@@ -255,10 +268,10 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
     }
 
     const read = state.read;
-    if (read === null) {
-      // No reader: the include is not missing, it was not looked up. Calling it “missing” would
-      // blame the user's file for a choice made by the caller. The pipeline is partial, and that
-      // is all Keelson can say about it.
+    if (read === null || VARIABLE.test(entry.value)) {
+      // No reader, or a path only known at run time: the include is not missing, it was not
+      // looked up. Calling it “missing” would blame the user's file. The pipeline is partial, and
+      // that is all Keelson can say about it.
       state.unresolved.push({
         form: "local",
         detail: entry.value,
@@ -302,7 +315,10 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
 
       const text = read.read(path);
       if (text === null) {
-        notFound(state, parent.file, path, entry.range, { reason: "missing", path });
+        notFound(state, parent.file, path, entry.range, {
+          reason: read.outsideRoot?.(path) === true ? "outsideRoot" : "missing",
+          path,
+        });
         continue;
       }
 

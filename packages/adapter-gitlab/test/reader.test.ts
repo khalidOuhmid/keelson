@@ -73,6 +73,19 @@ describe("the root boundary", () => {
     }
   });
 
+  test("a link that leaves the root is told apart from a missing file", () => {
+    symlinkSync(join(outside, "secret.txt"), join(root, "ci", "leak.yml"));
+    const reader = createFileReader(root);
+    expect(reader.outsideRoot?.("ci/leak.yml")).toBe(true);
+    expect(reader.outsideRoot?.("ci/absent.yml")).toBe(false);
+    expect(reader.outsideRoot?.("ci/jobs.yml")).toBe(false);
+  });
+
+  test("a dangling link is missing, not outside", () => {
+    symlinkSync(join(root, "ci", "nowhere.yml"), join(root, "ci", "dangling.yml"));
+    expect(createFileReader(root).outsideRoot?.("ci/dangling.yml")).toBe(false);
+  });
+
   test("a path that lexically leaves the root is refused", () => {
     expect(createFileReader(root).read("../dehors.yml")).toBeNull();
     expect(createFileReader(root).read("/etc/passwd")).toBeNull();
