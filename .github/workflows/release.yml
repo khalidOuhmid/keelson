@@ -5,7 +5,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -35,3 +35,15 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: GitHub release from the changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            /^## \[/ { if (found) exit; if (index($0, "## [" v "]") == 1) { found = 1; next } }
+            found
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+          gh release create "$GITHUB_REF_NAME" --title "Keelson $GITHUB_REF_NAME" --notes-file release-notes.md
