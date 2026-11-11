@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { hashText, type ToolchainOperation } from "@keelson/core";
+import { documentEnd } from "../src/apply.ts";
 import { applyToolchain, parseToolchain } from "../src/index.ts";
 
 const BASE = `# platform
@@ -414,5 +415,37 @@ describe("splice and inverse", () => {
     expect(result.ok && result.value.text.slice(range?.start, range?.end)).toBe(
       "  harbor:\n    tool: harbor\n",
     );
+  });
+});
+
+describe("a document end marker", () => {
+  test("a new section is written before the closing ...", () => {
+    expect(edited("version: 1\n...\n", { ...add, id: "harbor-prod" })).toBe(
+      "version: 1\nservices:\n  harbor-prod:\n    tool: harbor\n...\n",
+    );
+  });
+
+  test("the marker may carry a comment and CRLF line endings", () => {
+    expect(edited("version: 1\r\n... # end\r\n", { ...add, id: "harbor-prod" })).toBe(
+      "version: 1\r\nservices:\r\n  harbor-prod:\r\n    tool: harbor\r\n... # end\r\n",
+    );
+  });
+
+  test.each([
+    ["version: 1\n...\n", 11],
+    ["version: 1\n... # end\r\nrest", 11],
+    ["...", 0],
+    ["a: 1\n ...\n", -1],
+    ["a: 1\n....\n", -1],
+    ["a: '...'\n", -1],
+  ])("documentEnd(%j) is %d", (text, offset) => {
+    expect(documentEnd(text)).toBe(offset);
+  });
+
+  test("a marker line followed by many tabs is scanned in linear time", () => {
+    const text = `...${"\t".repeat(40_000)}x`;
+    const started = performance.now();
+    expect(documentEnd(text)).toBe(-1);
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });

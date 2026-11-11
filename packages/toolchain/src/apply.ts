@@ -146,6 +146,26 @@ function lines(entries: readonly string[], indent: number, eol: string): string 
   return entries.map((line) => `${" ".repeat(indent)}${line}${eol}`).join("");
 }
 
+const DOCUMENT_END = /^\.\.\.(?:[ \t]+#.*|[ \t]*)\r?$/;
+
+/** The offset of the first `...` line, or -1. Tested line by line: a single regex over the whole
+ *  text backtracked quadratically on a `...` followed by many tabs. */
+export function documentEnd(text: string): number {
+  let start = 0;
+  while (start <= text.length) {
+    const newline = text.indexOf("\n", start);
+    const end = newline === -1 ? text.length : newline;
+    if (text.startsWith("...", start) && DOCUMENT_END.test(text.slice(start, end))) {
+      return start;
+    }
+    if (newline === -1) {
+      return -1;
+    }
+    start = newline + 1;
+  }
+  return -1;
+}
+
 class Editing {
   readonly eol: string;
 
@@ -158,7 +178,7 @@ class Editing {
 
   private appendAtEnd(block: string): Edit {
     // After a final `...`, YAML would open another document.
-    const marker = this.text.search(/^\.\.\.[ \t]*(#.*)?\r?\n?\s*$/m);
+    const marker = documentEnd(this.text);
     const end = marker === -1 ? this.text.length : marker;
     const glue = end === 0 || this.text.slice(0, end).endsWith("\n") ? "" : this.eol;
     const header = this.root === null ? `version: 1${this.eol}` : "";
