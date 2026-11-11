@@ -177,4 +177,52 @@ test.describe("GitHub Actions on the real binary", () => {
       await keelson.stop();
     }
   });
+
+  test("a local reusable workflow is read: the caller covers its jobs and the file is watched", async ({
+    page,
+  }) => {
+    const SCANS = ".github/workflows/scans.yml";
+    const keelson = await startKeelson({
+      [CI]: [
+        "on: push",
+        "jobs:",
+        "  scans:",
+        "    uses: ./.github/workflows/scans.yml",
+        "  deploy:",
+        "    needs: scans",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: ./deploy",
+        "",
+      ].join("\n"),
+      [SCANS]: [
+        "on: workflow_call",
+        "jobs:",
+        "  leaks:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: gitleaks detect",
+        "",
+      ].join("\n"),
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(CI);
+      await expect(page.locator("[data-job-id=scans]")).toBeVisible();
+      await expect(page.getByTestId("included-files-tag")).toHaveText("1 included file");
+      await expect(page.getByRole("group", { name: "Partial pipeline" })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await expect(page.locator("[data-job-id=scans]")).toContainText("Secrets");
+
+      keelson.writeAt(
+        SCANS,
+        "on: workflow_call\njobs:\n  sast:\n    runs-on: ubuntu-latest\n    steps:\n      - run: semgrep scan\n",
+      );
+      await expect(page.locator("[data-job-id=scans]")).toContainText("SAST");
+      await expect(page.locator("[data-job-id=scans]")).not.toContainText("Secrets");
+    } finally {
+      await keelson.stop();
+    }
+  });
 });
