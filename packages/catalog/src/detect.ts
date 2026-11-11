@@ -26,11 +26,10 @@ function onScript(tool: Tool, commands: readonly string[]): boolean {
   return commands.some((command) => patterns.some((pattern) => pattern.test(command)));
 }
 
-function onAction(tool: Tool, actions: readonly string[]): boolean {
+const DOCKER = "docker://";
+
+function onNamedAction(tool: Tool, actions: readonly string[]): boolean {
   return actions.some((action) => {
-    if (action.startsWith("docker://")) {
-      return onImage(tool, action.slice("docker://".length));
-    }
     const name = (action.split("@")[0] ?? "").toLowerCase();
     return tool.detect.actions.some(
       (known) => name === known.toLowerCase() || name.startsWith(`${known.toLowerCase()}/`),
@@ -38,19 +37,30 @@ function onAction(tool: Tool, actions: readonly string[]): boolean {
   });
 }
 
+function onAction(tool: Tool, actions: readonly string[]): boolean {
+  return (
+    onNamedAction(tool, actions) ||
+    actions.some(
+      (action) => action.startsWith(DOCKER) && onImage(tool, action.slice(DOCKER.length)),
+    )
+  );
+}
+
 const commandsOf = (signals: JobSignals): string[] =>
   signals.script.flatMap((line) => executedCommands(line));
 
 export type DetectedIntegration = { tool: string; kind: IntegrationKind };
 
-/** On the script only: a client image does not prove that a job talks to the service. */
+/** On the script or the service's own action: a client image does not prove that a job talks to
+ *  the service, `docker://` included. */
 export function detectIntegrations(
   signals: JobSignals,
   tools: readonly Tool[],
 ): DetectedIntegration[] {
   const commands = commandsOf(signals);
   return tools.flatMap((tool): DetectedIntegration[] =>
-    tool.integration !== null && onScript(tool, commands)
+    tool.integration !== null &&
+    (onScript(tool, commands) || onNamedAction(tool, signals.actions ?? []))
       ? [{ tool: tool.id, kind: tool.integration }]
       : [],
   );

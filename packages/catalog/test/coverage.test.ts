@@ -70,6 +70,37 @@ describe("detected integrations", () => {
     expect(detectIntegrations({ image: "exemple/nexus", script: [] }, [service])).toEqual([]);
   });
 
+  test("a service action declared by the entry proves the integration", () => {
+    const vault = tool("vault", {
+      kind: "service",
+      integration: "fetch-secret",
+      detect: { images: [], scripts: [], actions: ["hashicorp/vault-action"] },
+    });
+    expect(
+      detectIntegrations(
+        { image: null, script: [], actions: ["hashicorp/vault-action@v3"] },
+        [vault],
+      ),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
+  test("a docker:// action is an image, and does not prove the integration either", () => {
+    expect(
+      detectIntegrations({ image: null, script: [], actions: ["docker://exemple/nexus"] }, [
+        service,
+      ]),
+    ).toEqual([]);
+  });
+
+  test("the real Vault action proposes a fetch-secret", () => {
+    expect(
+      detectIntegrations(
+        { image: null, script: [], actions: ["hashicorp/vault-action@v3"] },
+        tools,
+      ),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
   test("a tool without integration proposes nothing", () => {
     expect(detectIntegrations({ image: null, script: ["trivy"] }, [tool("trivy")])).toEqual([]);
   });

@@ -48,8 +48,9 @@ dismissed:                # inferred integrations you rejected, so they are not 
 | `integrations[].kind` | `push` \| `upload-report` \| `fetch-secret` \| `notify` | What the job does with the service. |
 | `dismissed[]` | `{ job, tool, kind }` | Rejected proposals. |
 
-**Inference proposes, the file decides.** Keelson reads job scripts and proposes integrations (for
-example `vault kv get` → `fetch-secret` to a Vault service). A proposal becomes real only when you
+**Inference proposes, the file decides.** Keelson reads job scripts and the GitHub actions a step
+uses, and proposes integrations (for example `vault kv get` or `uses: hashicorp/vault-action` →
+`fetch-secret` to a Vault service). A client image alone proposes nothing. A proposal becomes real only when you
 confirm it, which writes it to `integrations`; dismissing it writes it to `dismissed`. A declared
 service also counts towards coverage: a `vault` service covers the *secrets management* platform
 category even before any job uses it.
