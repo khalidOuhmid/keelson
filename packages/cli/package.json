@@ -34,7 +34,8 @@
     "keelson": "./dist/keelson.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "engines": {
     "node": ">=20"
