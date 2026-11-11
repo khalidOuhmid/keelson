@@ -717,6 +717,26 @@ describe("precedence between extends and cross-file definitions", () => {
   });
 });
 
+describe("root opaque blocks", () => {
+  test("a key redefined as a job by a later file is a job, not also a root opaque block", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: ["include: ci/a.yml", "", JOB("compile", "build")].join("\n"),
+      "ci/a.yml": "compile: placeholder\nvariables:\n  A: b\n",
+    });
+    expect(parsed.pipeline.jobs.map((job) => job.id)).toEqual(["compile"]);
+    expect(parsed.pipeline.opaque.map((block) => block.key)).toEqual(["variables", "include"]);
+  });
+
+  test("a job replaced by a scalar in a later file stays a root opaque block", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: "include: ci/a.yml\ncompile: placeholder\n",
+      "ci/a.yml": JOB("compile", "build"),
+    });
+    expect(parsed.pipeline.jobs).toEqual([]);
+    expect(parsed.pipeline.opaque.map((block) => block.key)).toEqual(["include", "compile"]);
+  });
+});
+
 describe("opaque blocks of an overridden job", () => {
   /** The defect the review found **on the milestone's own golden**: opaque blocks were taken from
    *  the owning definition alone, so a job defined in an include and overridden in the main file

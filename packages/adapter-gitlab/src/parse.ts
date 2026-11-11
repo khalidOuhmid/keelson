@@ -335,7 +335,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     stages,
     jobs,
     templates,
-    opaque: collected.opaque,
+    opaque: collected.opaque.filter((block) => collected.kinds.get(block.key) !== "map"),
     main,
     files,
     unresolved,
