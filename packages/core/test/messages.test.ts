@@ -145,6 +145,36 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'job "call" calls the reusable workflow "o/r/.github/workflows/x.yml@v1", which Keelson does not read, so its jobs are not shown',
     },
   ],
+  WORKFLOW_CALL_INVALID: [
+    {
+      params: { reason: "missing", job: "scans", path: ".github/workflows/scans.yml" },
+      text: 'job "scans" calls the reusable workflow ".github/workflows/scans.yml", which does not exist',
+    },
+    {
+      params: { reason: "outsideRoot", job: "scans", path: "../x.yml" },
+      text: 'job "scans" calls the reusable workflow "../x.yml", whose path leaves the repository root',
+    },
+    {
+      params: { reason: "notInWorkflows", job: "scans", path: "ci/x.yml" },
+      text: 'job "scans" calls "ci/x.yml", but a reusable workflow is a .yml or .yaml file directly in .github/workflows',
+    },
+    {
+      params: {
+        reason: "cycle",
+        job: "back",
+        trail: [".github/workflows/a.yml", ".github/workflows/b.yml", ".github/workflows/a.yml"],
+      },
+      text: 'job "back" closes a reusable workflow cycle: .github/workflows/a.yml → .github/workflows/b.yml → .github/workflows/a.yml',
+    },
+    {
+      params: { reason: "depth", job: "next", path: ".github/workflows/w10.yml", limit: 10 },
+      text: 'job "next" calls ".github/workflows/w10.yml" beyond 10 levels of nested workflows, which GitHub refuses',
+    },
+    {
+      params: { reason: "limit", job: "c50", path: ".github/workflows/w50.yml", limit: 50 },
+      text: 'job "c50" calls ".github/workflows/w50.yml" beyond 50 unique reusable workflows, which GitHub refuses',
+    },
+  ],
   TOOLCHAIN_INVALID: [
     {
       params: { detail: "version: Invalid input" },

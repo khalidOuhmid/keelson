@@ -48,6 +48,7 @@ export {
   TOOLCHAIN_UNKNOWN_TOOL,
   UNKNOWN_NEED,
   UNKNOWN_STAGE,
+  WORKFLOW_CALL_INVALID,
   WORKFLOW_UNRESOLVED,
 } from "./messages/codes.ts";
 

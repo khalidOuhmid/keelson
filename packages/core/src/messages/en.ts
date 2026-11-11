@@ -22,6 +22,19 @@ export const EN: Catalogue = {
     `this ${p.form} include is not resolved (${p.detail}), so the pipeline shown may be incomplete`,
   WORKFLOW_UNRESOLVED: (p) =>
     `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.target)}, which Keelson does not read, so its jobs are not shown`,
+  WORKFLOW_CALL_INVALID: {
+    missing: (p) =>
+      `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.path)}, which does not exist`,
+    outsideRoot: (p) =>
+      `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.path)}, whose path leaves the repository root`,
+    notInWorkflows: (p) =>
+      `job ${quoted(p.job)} calls ${quoted(p.path)}, but a reusable workflow is a .yml or .yaml file directly in .github/workflows`,
+    cycle: (p) => `job ${quoted(p.job)} closes a reusable workflow cycle: ${chain(p.trail)}`,
+    depth: (p) =>
+      `job ${quoted(p.job)} calls ${quoted(p.path)} beyond ${p.limit} levels of nested workflows, which GitHub refuses`,
+    limit: (p) =>
+      `job ${quoted(p.job)} calls ${quoted(p.path)} beyond ${p.limit} unique reusable workflows, which GitHub refuses`,
+  },
   INCLUDE_NOT_FOUND: {
     missing: (p) => `included file ${quoted(p.path)} does not exist`,
     notYaml: (p) => `included file ${quoted(p.path)} is not a .yml or .yaml file`,
