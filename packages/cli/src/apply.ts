@@ -1,6 +1,12 @@
 import { existsSync, lstatSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
-import { apply, createFileReader, parse, readInsideRoot } from "@keelson/adapter-gitlab";
+import {
+  apply,
+  createFileReader,
+  parse,
+  readInsideRoot,
+  readRegularFile,
+} from "@keelson/adapter-gitlab";
 import type { Operation, OperationError } from "@keelson/core";
 import { parseOperation } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
@@ -8,7 +14,6 @@ import { writeInsideRoot } from "@keelson/server";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import { hunks, renderUnified } from "./diff.ts";
-import { readRegularFile } from "./files.ts";
 import type { CliResult } from "./result.ts";
 
 type Options = {

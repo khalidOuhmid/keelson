@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
-import { createFileReader, readInsideRoot } from "@keelson/adapter-gitlab";
+import { createFileReader, readInsideRoot, readRegularFile } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type { Diagnostic, Pipeline } from "@keelson/core";
 import { mergePipelines, TOOLCHAIN_FILE, validate } from "@keelson/core";
@@ -12,7 +12,6 @@ import {
   parseLayout,
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
-import { readRegularFile } from "./files.ts";
 
 export const DEFAULT_FILE = ".gitlab-ci.yml";
 

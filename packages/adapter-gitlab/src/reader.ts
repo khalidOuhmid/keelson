@@ -1,5 +1,6 @@
-import { type Dirent, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { type Dirent, readdirSync, realpathSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
+import { readRegularFile } from "./files.ts";
 import type { IncludeReader } from "./includes.ts";
 
 const YAML_EXTENSIONS = [".yml", ".yaml"] as const;
@@ -10,6 +11,11 @@ const YAML_EXTENSIONS = [".yml", ".yaml"] as const;
 const SKIPPED_DIRECTORIES = new Set([".git", "node_modules"]);
 
 const MAX_WALK_ENTRIES = 50_000;
+
+function textOf(path: string): string | null {
+  const read = readRegularFile(path);
+  return read.ok ? read.text : null;
+}
 
 function walk(root: string): string[] {
   const found: string[] = [];
@@ -92,7 +98,7 @@ export function readInsideRoot(root: string, path: string): string | null {
     return null;
   }
   try {
-    return statSync(real).isFile() ? readFileSync(real, "utf8") : null;
+    return textOf(real);
   } catch {
     return null;
   }
@@ -112,7 +118,7 @@ export function createFileReader(root: string): IncludeReader {
 
       // Regular files only: reading a FIFO blocks forever, and would freeze the server.
       try {
-        return statSync(real).isFile() ? readFileSync(real, "utf8") : null;
+        return textOf(real);
       } catch {
         return null;
       }
