@@ -19,7 +19,7 @@ Blocage : aucun
 | L5 — propositions et insertion | TERMINÉ | `971ae5b` (`--no-ff`) |
 | L6 — adaptateur GitHub Actions | **LOT COURANT** | — |
 | L7 — packaging open source | À FAIRE | — |
-| L8 — flotte | À FAIRE | — |
+| L8 — flotte | TERMINÉ | branche `worktree-agent-a2e944e08d1f71c15`, non fusionnée |
 
 ## Journal
 
@@ -756,3 +756,38 @@ rouvre rien.
 **Clôture.** Fusion `971ae5b`. Depuis un clone sans `dist/` : `bun run check`, propriétés à 500 runs,
 71 E2E, smoke test Node, `export` compris. `check` vert sur `main`.
 
+
+### 2026-11-11 — L8 — `keelson apply`
+
+Cadrage dans `specs/lots/l8.md`, écrit depuis `main` à `f044143`. L6 reste le lot courant, L7 à
+faire : L8 a été mené en parallèle, sur une branche à part, parce qu'il ne touche que la CLI.
+
+**Livré.** `keelson apply <ops.json> [<dépôt>...] [--file] [--rebase] [--dry-run] [--json]`. Le
+fichier d'opérations est validé en entier par `parseOperation` avant le premier dépôt : un JSON
+illisible, un tableau vide ou une opération invalide sortent en 2, l'index nommé
+(`operations[1]: …`), le texte rendu par `@keelson/core/messages`. Chaque dépôt est traité seul : la
+séquence s'applique en mémoire, chaque opération sur le `document` rendu par la précédente, et le
+fichier n'est écrit qu'une fois, par `writeInsideRoot` (désormais exporté par `@keelson/server`),
+si toute la séquence aboutit. `--rebase` réancre chaque `baseHash` sur le texte courant ; sans lui,
+un dépôt dont le texte diffère rend `STALE_DOCUMENT` et les autres sont écrits. `--dry-run` rend
+`+n -m line(s)`, le nouveau hash et un diff `-U0`. `--json` rend `{ results: [...] }`, avec `code`,
+`params`, `kind` et l'index pour une erreur d'opération.
+
+**Frontière.** Le fichier visé est lu par `readInsideRoot` : un `--file ../x` et un lien vers
+l'extérieur sont refusés sans lecture ni écriture, deux tests. Les `include` passent par
+`createFileReader` sur la racine du dépôt : un `removeJob` sur un job inclus rend
+`FROM_INCLUDED_FILE`, pas `JOB_NOT_FOUND`.
+
+**TDD.** `packages/cli/test/apply.test.ts` et les listes de commandes de `run.test.ts` écrits
+d'abord : 30 échecs sur 41 avant toute implémentation. Le test à deux blocs du diff, ajouté après,
+est prouvé par mutation. Deux mutations après coup : le `--rebase` retiré fait tomber 1 test, la
+numérotation des blocs du diff en fait tomber 3. Arbre restauré et vérifié après chacune.
+
+**Commandes.** `bun run lint` et `bun run typecheck` : 0 erreur. `bun test packages/cli` : vert
+hors `sert le bundle d'UI embarqué`, qui exige `dist/ui` et passe sous `bun run check`.
+`bun run check` : **1803 pass / 4 fail**, les quatre échecs étant les tests `chmod` du serveur,
+préexistants, qui échouent parce que le conteneur tourne en root.
+
+**Écarts.** Quatre, du 2026-11-11 : `baseHash` encore exigé sous `--rebase`, deux diffs de même
+algorithme, aucune relecture du disque avant le `rename`, GitLab seul. **Dettes datées** : aucune.
+**ADR** : aucun, les décisions de forme sont dans le cadrage.
