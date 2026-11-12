@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Coverage } from "@keelson/catalog";
 import type { Operation, Pipeline } from "@keelson/core";
 import { LAYERS } from "@keelson/taxonomy";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   ApiResult,
@@ -787,5 +787,78 @@ describe("the focus policy across panels", () => {
     const layer = await screen.findByLabelText("Layer");
     await waitFor(() => expect(document.activeElement).toBe(layer));
     expect((layer as HTMLSelectElement).value).not.toBe("any");
+  });
+});
+
+describe("finding a job by name", () => {
+  test("Ctrl+K opens the search with its field focused, Escape gives focus back", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    const trigger = screen.getByRole("button", { name: "Find job" });
+    trigger.focus();
+
+    await userEvent.keyboard("{Control>}k{/Control}");
+    const field = await screen.findByRole("combobox", { name: "Find a job" });
+    expect(document.activeElement).toBe(field);
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("combobox", { name: "Find a job" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  test("typing narrows the list, prefix matches first, and says when nothing matches", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: "Find job" }));
+
+    await userEvent.keyboard("i");
+    const options = () =>
+      within(screen.getByRole("listbox", { name: "Jobs" }))
+        .queryAllByRole("option")
+        .map((option) => option.getAttribute("data-job"));
+    expect(options()).toEqual(["compile", "unit"]);
+    await userEvent.keyboard("{Backspace}un");
+    expect(options()).toEqual(["unit"]);
+    await userEvent.keyboard("zz");
+    expect(options()).toEqual([]);
+    expect(screen.getByRole("status").textContent).toBe("No job matches unzz.");
+  });
+
+  test("the arrows move the active option, Enter opens that job and focuses its node", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: "Find job" }));
+    const field = screen.getByRole("combobox", { name: "Find a job" });
+
+    expect(
+      document.getElementById(field.getAttribute("aria-activedescendant") ?? "")?.dataset.job,
+    ).toBe("compile");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(
+      document.getElementById(field.getAttribute("aria-activedescendant") ?? "")?.dataset.job,
+    ).toBe("unit");
+    await userEvent.keyboard("{Enter}");
+
+    expect(await screen.findByRole("region", { name: /job detail/i })).toBeDefined();
+    expect(screen.getByRole("region", { name: /job detail/i }).textContent).toContain("unit");
+    expect(screen.queryByRole("combobox", { name: "Find a job" })).toBeNull();
+    await waitFor(() => expect((document.activeElement as HTMLElement).dataset.jobId).toBe("unit"));
+  });
+
+  test("a click on an option opens that job", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: "Find job" }));
+    await userEvent.click(screen.getByRole("option", { name: /compile/ }));
+    expect(screen.getByRole("region", { name: /job detail/i }).textContent).toContain("compile");
+  });
+
+  test("the slash key opens it too, but not while typing in a field", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    screen.getByRole("textbox", { name: "New stage name" }).focus();
+    await userEvent.keyboard("/");
+    expect(screen.queryByRole("combobox", { name: "Find a job" })).toBeNull();
+
+    screen.getByRole("button", { name: "Find job" }).focus();
+    await userEvent.keyboard("/");
+    expect(screen.getByRole("combobox", { name: "Find a job" })).toBeDefined();
   });
 });

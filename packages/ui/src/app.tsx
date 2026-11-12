@@ -27,7 +27,7 @@ import { JobEditor } from "./editing/JobEditor.tsx";
 import { NewJobForm } from "./editing/NewJobForm.tsx";
 import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
-import { focusWhenDrawn, useCoveringPanel } from "./focus.ts";
+import { focusWhenDrawn, overlaysCover, useCoveringPanel } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
@@ -40,6 +40,7 @@ import { NoticeBar } from "./states/NoticeBar.tsx";
 import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
 import { CatalogView } from "./views/catalog/CatalogView.tsx";
 import { CoveragePanel } from "./views/coverage/CoveragePanel.tsx";
+import { JobSearch } from "./views/pipeline/JobSearch.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
 import { ServicePanel } from "./views/toolchain/ServicePanel.tsx";
 import { ToolchainCanvas } from "./views/toolchain/ToolchainCanvas.tsx";
@@ -148,6 +149,8 @@ export function App({ deps }: AppProps = {}) {
     panelTrigger.current?.focus();
   };
   const sidebar = useCoveringPanel<HTMLElement>(sidebarOpen);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchTrigger = useRef<HTMLButtonElement | null>(null);
   const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
 
@@ -311,6 +314,33 @@ export function App({ deps }: AppProps = {}) {
       : (state.pipeline?.jobs.find((job) => job.id === state.selectedJobId) ?? null);
 
   const blocking = state.diagnostics.some(blocksEditing);
+  const searchable =
+    state.status === "ready" &&
+    !blocking &&
+    state.pipeline !== null &&
+    (state.view === "pipeline" || state.view === "coverage");
+  const searchableNow = useRef(false);
+  searchableNow.current = searchable;
+
+  useEffect(() => {
+    const handle = (event: KeyboardEvent): void => {
+      if (!searchableNow.current) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const typing =
+        (target?.matches("input, select, textarea") ?? false) || target?.isContentEditable === true;
+      const shortcut =
+        ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") ||
+        (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey);
+      if (shortcut) {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, []);
   const jobPanelOpen =
     selected !== null && state.pipeline !== null && state.view !== "catalog" && !inToolchain;
   const jobPanel = useCoveringPanel<HTMLElement>(jobPanelOpen);
@@ -505,6 +535,19 @@ export function App({ deps }: AppProps = {}) {
                 : "Panel"}
             </button>
           ) : null}
+          {searchable ? (
+            <button
+              ref={searchTrigger}
+              type="button"
+              aria-expanded={searchOpen}
+              aria-keyshortcuts="Control+K Meta+K /"
+              title="Find job (Ctrl+K or /)"
+              onClick={() => setSearchOpen(true)}
+              className={BUTTON}
+            >
+              Find job
+            </button>
+          ) : null}
           <nav aria-label="Views" className="flex items-center gap-1">
             {VIEWS.map(({ view, label }) => (
               <button
@@ -539,6 +582,23 @@ export function App({ deps }: AppProps = {}) {
           ) : null}
         </span>
       </header>
+
+      {searchOpen && searchable && state.pipeline !== null ? (
+        <JobSearch
+          jobs={state.pipeline.jobs}
+          onClose={() => {
+            setSearchOpen(false);
+            searchTrigger.current?.focus();
+          }}
+          onPick={(id) => {
+            setSearchOpen(false);
+            store.getState().selectJob(id);
+            if (!overlaysCover()) {
+              focusWhenDrawn(`[data-job-id="${CSS.escape(id)}"]`);
+            }
+          }}
+        />
+      ) : null}
 
       {state.pipeline === null ? null : <PartialPipelineBar pipeline={state.pipeline} />}
 

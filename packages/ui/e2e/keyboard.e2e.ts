@@ -141,6 +141,21 @@ test("a job reached with the keyboard is panned into view", async ({ page }) => 
     .toBe(true);
 });
 
+test("a job is reached by typing its name, without a mouse", async ({ page }) => {
+  await open(page);
+
+  await page.keyboard.press("Control+k");
+  const field = page.getByRole("combobox", { name: "Find a job" });
+  await expect(field).toBeFocused();
+  await page.keyboard.type("deploy");
+  await expect(page.getByRole("listbox", { name: "Jobs" }).getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("region", { name: "Job detail" })).toContainText("deploy-production");
+  await expect(field).toHaveCount(0);
+  await expect.poll(() => focusedJob(page)).toBe("deploy-production");
+});
+
 test("a job can be selected from the keyboard, without a mouse", async ({ page }) => {
   await open(page);
 

@@ -497,7 +497,7 @@ plus a hairline; if a new surface seems to need lifting, it needs the next `surf
 shadow token invented for it.
 
 **The Covering-Surface Rule.** Whatever covers the rest of the screen owns focus, and only that: the
-confirmation dialog, the job search and, below `lg`, the three overlays. Opening one moves focus
+confirmation dialog and, below `lg`, the three overlays. Opening one moves focus
 into it, Tab and Shift+Tab cycle inside it, Escape closes it, and closing it — by button or by
 Escape — returns focus to the control that opened it, or to the graph when that control is gone.
 Only a surface that blocks the page carries `aria-modal`. From `lg` up a side column covers nothing
@@ -644,7 +644,8 @@ and gets no editor.
 The header is an identity-and-state bar of at least 44px holding the product's one navigation group:
 the product name at 13px semibold, the open file path beside it in 12px monospace `text-muted`
 truncating from the end, a tag counting the included files when there are any, and on the right the
-write indicator, the `Panel` button below `lg`, the `Views` navigation of four ghost buttons
+write indicator, the `Panel` button below `lg`, on the Pipeline and Coverage views the `Find job`
+ghost button (Ctrl+K, Cmd+K or `/` outside a field), the `Views` navigation of four ghost buttons
 (Pipeline, Toolchain, Coverage, Catalog), and on the Pipeline and Toolchain views the undo/redo ghost pair with their shortcuts
 in the `title` attribute. It is underlined by a hairline and sits on the floor colour.
 
@@ -697,6 +698,16 @@ and italic. Lines wrap with a hanging indent — a continuation starts two colum
 indentation, so it never reads as a new key — gutters are hidden, and the view is read-only with no focus outline of its
 own. When the range cannot be read back from the file, the block is replaced by an explicit
 "Content unavailable" notice on `surface-2` stating that the block is still on disk and untouched.
+
+### Job Search
+
+A `surface-1` band under the header, in the flow like the partial pipeline bar and ruled by the same
+hairline, capped at one third of the viewport. It holds a combobox in the field style, named "Find a
+job", above a listbox of job ids in 12px monospace with their stage in 11px monospace `text-muted`.
+Prefix matches come first, then inner matches, each in file order. Up and Down move the active
+option (`surface-3` fill, `text-primary`), Enter or a click opens the job — its detail panel, and
+focus on its node — and Escape closes the band and returns focus to `Find job`. It covers nothing,
+so it does not trap focus. When nothing matches, one `role="status"` sentence says so.
 
 ### Partial Pipeline Bar
 
