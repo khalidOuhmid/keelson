@@ -130,6 +130,22 @@ describe("validation", () => {
     ).toEqual([["TOOLCHAIN_UNKNOWN_JOB", "warning"]]);
   });
 
+  test("a service whose tool runs as a CI job is a warning naming both", () => {
+    const scanner = { ...tool("trivy", null), kind: "job" as const };
+    const service = { id: "scan", tool: "trivy", url: null, environment: null };
+    expect(
+      validateToolchain(chain({ services: [service] }), pipeline({}), [...TOOLS, scanner]),
+    ).toEqual([
+      {
+        code: "TOOLCHAIN_JOB_TOOL_AS_SERVICE",
+        severity: "warning",
+        params: { service: "scan", tool: "trivy" },
+        range: null,
+        file: ".devsecops/toolchain.yaml",
+      },
+    ]);
+  });
+
   test("a duplicate is reported once", () => {
     const link = { job: "build", service: "nexus-prod", kind: "push" } as const;
     expect(codes(chain({ services: [nexus], integrations: [link, link, link] }))).toEqual([

@@ -166,6 +166,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   TOOLCHAIN_UNKNOWN_JOB: [
     { params: { job: "b" }, text: 'toolchain.yaml names job "b", which does not exist' },
   ],
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE: [
+    {
+      params: { service: "scan", tool: "trivy" },
+      text: 'service "scan" names "trivy", a tool that runs as a CI job: its layers count as covered by this declaration alone',
+    },
+  ],
   TOOLCHAIN_DUPLICATE_INTEGRATION: [
     {
       params: { job: "b", service: "n", kind: "push" },

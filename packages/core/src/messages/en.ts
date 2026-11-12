@@ -62,6 +62,8 @@ export const EN: Catalogue = {
   TOOLCHAIN_UNKNOWN_SERVICE: (p) =>
     `job ${quoted(p.job)} is integrated with ${quoted(p.service)}, which is not a declared service`,
   TOOLCHAIN_UNKNOWN_JOB: (p) => `toolchain.yaml names job ${quoted(p.job)}, which does not exist`,
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE: (p) =>
+    `service ${quoted(p.service)} names ${quoted(p.tool)}, a tool that runs as a CI job: its layers count as covered by this declaration alone`,
   TOOLCHAIN_DUPLICATE_INTEGRATION: (p) =>
     `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.service)} is listed twice`,
 

@@ -65,6 +65,7 @@ exhaustiveness of the rendering branches is checked at compile time.
 | `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | An integration names an undeclared service. |
 | `TOOLCHAIN_UNKNOWN_JOB` | error, or warning | `validateToolchain` | `{ job }` | An integration names a job absent from the pipeline. A warning on a partial pipeline: the job may come from an unresolved include. |
 | `TOOLCHAIN_DUPLICATE_INTEGRATION` | warning | `validateToolchain` | `{ job, service, kind }` | The same integration appears twice. |
+| `TOOLCHAIN_JOB_TOOL_AS_SERVICE` | warning | `validateToolchain` | `{ service, tool }` | A service names a catalogue tool of kind `job` (a scanner that runs in CI, not a platform service). Its layers still count as covered, by the declaration alone, and the warning says so. |
 
 ### Examples
 

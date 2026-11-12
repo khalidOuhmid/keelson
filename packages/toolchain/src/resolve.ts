@@ -4,6 +4,7 @@ import {
   isPartial,
   TOOLCHAIN_DUPLICATE_INTEGRATION,
   TOOLCHAIN_FILE,
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE,
   TOOLCHAIN_UNKNOWN_JOB,
   TOOLCHAIN_UNKNOWN_SERVICE,
   TOOLCHAIN_UNKNOWN_TOOL,
@@ -64,6 +65,16 @@ export function validateToolchain(
       }),
     );
 
+  const jobTools = toolchain.services
+    .filter((service) => tools.some((tool) => tool.id === service.tool && tool.kind === "job"))
+    .map((service) =>
+      diagnostic({
+        code: TOOLCHAIN_JOB_TOOL_AS_SERVICE,
+        severity: "warning",
+        params: { service: service.id, tool: service.tool },
+      }),
+    );
+
   const seen = new Set<string>();
   const reported = new Set<string>();
   const integrations = toolchain.integrations.flatMap((entry): Diagnostic[] => {
@@ -106,7 +117,7 @@ export function validateToolchain(
     ];
   });
 
-  return [...unknownTools, ...integrations];
+  return [...unknownTools, ...jobTools, ...integrations];
 }
 
 export type ToolchainAnalysis = {
