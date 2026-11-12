@@ -79,6 +79,27 @@ test("a job can be selected from the keyboard, without a mouse", async ({ page }
   await expect(page.getByRole("region", { name: "Job detail" })).toContainText("lint");
 });
 
+test("Tab reaches every job node and focus lands on it", async ({ page }) => {
+  await open(page);
+  const jobs = await page
+    .locator("[data-job-id]")
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-job-id") ?? ""));
+  expect(jobs.length).toBeGreaterThan(3);
+
+  const reached: string[] = [];
+  for (let step = 0; step < 120 && reached.length < jobs.length; step += 1) {
+    await page.keyboard.press("Tab");
+    const focused = await page.evaluate(
+      () => document.activeElement?.getAttribute("data-job-id") ?? null,
+    );
+    if (focused !== null && !reached.includes(focused)) {
+      reached.push(focused);
+    }
+  }
+
+  expect([...reached].sort()).toEqual([...jobs].sort());
+});
+
 test("changing a job's stage works from the keyboard", async ({ page }) => {
   await open(page);
 
@@ -89,11 +110,13 @@ test("changing a job's stage works from the keyboard", async ({ page }) => {
   await stage.focus();
   await stage.selectOption("scan");
 
-  // ADR 0004: browsing the select writes nothing. The 2026-10-22 review showed that reading the
-  // disk right after `selectOption` won the race against the faulty write, and that the final
-  // assertion was then satisfied by that very write. So we wait for two positive barriers — the
-  // button enabled again, then the lasting absence of an operation — before asserting that
-  // nothing was written.
+  // ADR 0004: browsing the select writes nothing. What catches a write sent by the selection is
+  // `toBeEnabled`: sending puts the editor in pending in the same render, which disables
+  // `Move to stage`, and once the write lands the job is already in the chosen stage, so the
+  // button never comes back. Checked on 2026-11-12 by making the select submit: that assertion
+  // fails first, every run; without it, `Undo` is the one that fails, after the pending wait.
+  // A write deferred past these polls would pass all three, and the disk read below only sees a
+  // write that has already landed.
   const move = page.getByRole("button", { name: "Move to stage" });
   await expect(move).toBeEnabled();
   await expect(page.getByTestId("pending-indicator")).toHaveCount(0);
