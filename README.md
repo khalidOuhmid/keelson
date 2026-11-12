@@ -242,7 +242,8 @@ runtime observability, runtime security and policy as code.
 | | Read | Coverage | Edit in the UI | `keelson apply` |
 | --- | :---: | :---: | :---: | :---: |
 | GitLab CI (`.gitlab-ci.yml`, local `include:`) | ✅ | ✅ | ✅ | ✅ |
-| GitHub Actions (`.github/workflows/*.yml`) | ✅ | ✅ | ✅ | planned |
+| GitHub Actions (`.github/workflows/*.yml`) | ✅ | ✅ | ✅ | ✅ `--file .github/workflows/<name>.yml` |
+| Toolchain (`.devsecops/toolchain.yaml`) | ✅ | ✅ | ✅ | ✅ `--file .devsecops/toolchain.yaml` |
 | Remote GitLab includes (`project:`, `remote:`, `template:`) | reported | — | — | — |
 
 ## Security model
@@ -279,7 +280,6 @@ Details in [specs/01-plan.md §7b](specs/01-plan.md). To report a vulnerability,
 All planned milestones (L0–L8) are delivered — see the [delivery log](specs/progress.md). Next:
 
 - [ ] Publish `keelson@0.1.0` on npm with provenance
-- [ ] `keelson apply` on GitHub workflows and on `.devsecops/toolchain.yaml`
 - [ ] Resolve local reusable workflows and composite actions on GitHub
 - [ ] Cached resolution of remote GitLab includes
 - [ ] More CI systems (Azure Pipelines, Jenkins, CircleCI)

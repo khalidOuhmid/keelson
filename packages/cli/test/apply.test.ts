@@ -520,4 +520,11 @@ describe("help", () => {
   test("apply appears in the general help", async () => {
     expect((await run(["--help"])).stdout).toContain("apply ");
   });
+
+  test("apply --help names the three targets and the optional baseHash", async () => {
+    const { stdout } = await run(["apply", "--help"]);
+    expect(stdout).toContain(".github/workflows/*.yml");
+    expect(stdout).toContain(".devsecops/toolchain.yaml");
+    expect(stdout).toContain("baseHash may then be left out");
+  });
 });
