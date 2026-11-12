@@ -54,6 +54,23 @@ describe("successful responses are validated", () => {
     });
   });
 
+  test("the repository coverage is read from GET /api/coverage and validated", async () => {
+    const asked: string[] = [];
+    const body = { files: [".gitlab-ci.yml"], coverage: DOCUMENT.coverage };
+    const client = new KeelsonClient({
+      token: "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        asked.push(`${init?.method ?? "GET"} ${url}`);
+        return new Response(JSON.stringify(body), { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    expect(await client.repositoryCoverage()).toEqual({ ok: true, value: body });
+    expect(asked).toEqual(["GET /api/coverage"]);
+
+    const broken = await answering(200, { files: "x", coverage: {} }).repositoryCoverage();
+    expect(broken.ok ? null : broken.error.code).toBe("UNEXPECTED_RESPONSE");
+  });
+
   test("a body that is not JSON is an unexpected response", async () => {
     const result = await answering(200, "<html>").document(".gitlab-ci.yml");
     expect(result.ok ? null : result.error.code).toBe("UNEXPECTED_RESPONSE");

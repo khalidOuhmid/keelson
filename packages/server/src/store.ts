@@ -181,7 +181,9 @@ export class DocumentStore {
     };
   }
 
-  private parsedOnDisk(path: string): { text: string; pipeline: Pipeline; parsing: Diagnostic[] }[] {
+  private parsedOnDisk(
+    path: string,
+  ): { text: string; pipeline: Pipeline; parsing: Diagnostic[] }[] {
     const text = this.reader.read(path);
     if (text === null) {
       return [];

@@ -49,6 +49,9 @@ export type OperationPayload = {
   coverage: Coverage;
 };
 
+/** Every CI file of the workspace together, as `keelson coverage` without arguments. */
+export type RepositoryCoveragePayload = { files: string[]; coverage: Coverage };
+
 export type CatalogPayload = Catalog & { layers: readonly Layer[] };
 
 export type ToolchainPayload = {
@@ -162,6 +165,15 @@ const workspacePayload: Validate<{ files: WorkspaceFile[] }> = (body) => {
         (fields(entry)?.adapter === "gitlab" || fields(entry)?.adapter === "github"),
     );
   return valid ? { files: files as WorkspaceFile[] } : null;
+};
+
+const repositoryCoveragePayload: Validate<RepositoryCoveragePayload> = (body) => {
+  const shape = fields(body);
+  const files = shape?.files;
+  const coverage = coverageSchema.safeParse(shape?.coverage);
+  return Array.isArray(files) && files.every((file) => typeof file === "string") && coverage.success
+    ? { files: files as string[], coverage: coverage.data }
+    : null;
 };
 
 // DEBT(2026-11-12): the catalogue and the toolchain are checked one level deep — the catalogue's own `toolSchema` would bring `yaml` into the UI bundle, and the toolchain entries have no wire schema yet.
@@ -278,6 +290,10 @@ export class KeelsonClient {
       method: "POST",
       body: JSON.stringify({ op }),
     });
+  }
+
+  repositoryCoverage(): Promise<ApiResult<RepositoryCoveragePayload>> {
+    return this.call("/api/coverage", repositoryCoveragePayload);
   }
 
   toolchain(): Promise<ApiResult<ToolchainPayload>> {

@@ -5,7 +5,7 @@ import {
   lowerBoundNote,
 } from "@keelson/catalog";
 import { findLayer, guidelineUrl, type LayerId, type LayerSource } from "@keelson/taxonomy";
-import { SECTION_HEADING } from "../../editing/controls.ts";
+import { BUTTON, SECTION_HEADING } from "../../editing/controls.ts";
 import { LayerTag } from "./LayerTag.tsx";
 
 export type CoveragePanelProps = {
@@ -15,8 +15,14 @@ export type CoveragePanelProps = {
   selected: LayerId | null;
   onSelect: (layer: LayerId) => void;
   onShowTools: (layer: LayerId) => void;
-  /** Several pipeline files: this panel describes only one, and it must say so. */
-  scope?: { file: string; count: number } | null;
+  /** Several pipeline files: the panel says which it describes, the open one or all of them, and
+   *  `onChange` lets the user choose. */
+  scope?: {
+    file: string;
+    count: number;
+    whole?: boolean;
+    onChange?: (whole: boolean) => void;
+  } | null;
 };
 
 function Uncovered({
@@ -82,9 +88,31 @@ export function CoveragePanel({
         {platform.length} platform categories seen
       </p>
 
+      {scope?.onChange === undefined ? null : (
+        // biome-ignore lint/a11y/useSemanticElements: a pair of toggle buttons, not a form
+        <div role="group" aria-label="Coverage scope" className="flex items-center gap-1">
+          {[
+            { whole: false, label: "This file" },
+            { whole: true, label: "Whole repository" },
+          ].map((entry) => (
+            <button
+              key={entry.label}
+              type="button"
+              aria-pressed={(scope.whole ?? false) === entry.whole}
+              onClick={() => scope.onChange?.(entry.whole)}
+              className={`${BUTTON} aria-pressed:border-accent aria-pressed:bg-surface-3 aria-pressed:font-semibold aria-pressed:text-text-primary`}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {scope === null ? null : (
         <p data-testid="coverage-scope" className="text-sm text-text-muted">
-          In {scope.file}, 1 of {scope.count} pipeline files.
+          {scope.whole === true
+            ? `Across all ${scope.count} pipeline files.`
+            : `In ${scope.file}, 1 of ${scope.count} pipeline files.`}
         </p>
       )}
 

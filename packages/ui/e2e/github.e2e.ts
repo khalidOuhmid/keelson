@@ -214,6 +214,28 @@ test.describe("GitHub Actions on the real binary", () => {
     }
   });
 
+  test("the Coverage panel switches to the whole repository, as keelson coverage does", async ({
+    page,
+  }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Coverage" }).click();
+      const covered = page.getByRole("group", { name: "Covered layers" });
+      await expect(page.getByTestId("coverage-scope")).toContainText("1 of 2 pipeline files");
+      await expect(covered.getByRole("button", { name: /Secrets/ })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Whole repository" }).click();
+      await expect(page.getByTestId("coverage-scope")).toHaveText("Across all 2 pipeline files.");
+      await expect(covered.getByRole("button", { name: /Secrets/ })).toContainText("publish");
+
+      await page.getByRole("button", { name: "This file" }).click();
+      await expect(covered.getByRole("button", { name: /Secrets/ })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("a job's panel does not mention stages", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {

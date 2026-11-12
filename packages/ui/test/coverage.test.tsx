@@ -114,6 +114,41 @@ describe("coverage panel", () => {
     );
   });
 
+  test("several files: a switch chooses this file or the whole repository", async () => {
+    const scopes: boolean[] = [];
+    const { rerender } = render(
+      <CoveragePanel
+        coverage={coverage({})}
+        cause={null}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3, whole: false, onChange: (whole) => scopes.push(whole) }}
+      />,
+    );
+    const group = screen.getByRole("group", { name: "Coverage scope" });
+    expect(
+      within(group).getByRole("button", { name: "This file" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    await userEvent.click(within(group).getByRole("button", { name: "Whole repository" }));
+    expect(scopes).toEqual([true]);
+
+    rerender(
+      <CoveragePanel
+        coverage={coverage({})}
+        cause={null}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3, whole: true, onChange: (whole) => scopes.push(whole) }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Whole repository" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.getByTestId("coverage-scope").textContent).toBe("Across all 3 pipeline files.");
+  });
+
   test("an uncovered layer gives its summary, and its path to the tools", async () => {
     const { onShowTools } = renderPanel(coverage({ sast: ["a"] }));
     const uncovered = screen.getByRole("group", { name: "Uncovered OWASP layers" });

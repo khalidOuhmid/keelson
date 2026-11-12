@@ -1,4 +1,4 @@
-import { lowerBoundCause } from "@keelson/catalog";
+import { type Coverage, lowerBoundCause } from "@keelson/catalog";
 import {
   emptyPipeline,
   isPartial,
@@ -16,6 +16,7 @@ import {
   type DocumentPayload,
   KeelsonClient,
   type OperationPayload,
+  type RepositoryCoveragePayload,
   type ToolchainOperationPayload,
   type ToolchainPayload,
   type WorkspaceFile,
@@ -73,6 +74,7 @@ type ClientSurface = {
     opId: string,
   ) => Promise<ApiResult<ToolchainOperationPayload>>;
   savePositions: (positions: Positions) => Promise<ApiResult<{ positions: Positions }>>;
+  repositoryCoverage: () => Promise<ApiResult<RepositoryCoveragePayload>>;
   eventsUrl: () => string;
 };
 
@@ -383,6 +385,32 @@ export function App({ deps }: AppProps = {}) {
   const filePanel = useCoveringPanel<HTMLElement>(readingText !== undefined);
 
   const readingCoverage = state.view === "coverage";
+  const [wholeRepository, setWholeRepository] = useState(false);
+  const [repositoryCoverage, setRepositoryCoverage] = useState<Coverage | null>(null);
+  const askedCoverage = useRef(0);
+  const severalFiles = state.files.length > 1;
+  // Re-read on every change of this file's coverage: a write or an event changed the disk.
+  useEffect(() => {
+    if (!readingCoverage || !wholeRepository || !severalFiles || state.coverage === null) {
+      return;
+    }
+    askedCoverage.current += 1;
+    const turn = askedCoverage.current;
+    void resolved.client.repositoryCoverage().then((result) => {
+      if (turn !== askedCoverage.current) {
+        return;
+      }
+      if (result.ok) {
+        setRepositoryCoverage(result.value.coverage);
+      } else {
+        store.setState({ error: result.error });
+      }
+    });
+  }, [readingCoverage, wholeRepository, severalFiles, state.coverage, resolved, store]);
+  const shownCoverage =
+    wholeRepository && severalFiles && repositoryCoverage !== null
+      ? repositoryCoverage
+      : state.coverage;
   const overlay = useMemo(
     () =>
       readingCoverage
@@ -705,9 +733,18 @@ export function App({ deps }: AppProps = {}) {
               )
             ) : readingCoverage && state.coverage !== null ? (
               <CoveragePanel
-                coverage={state.coverage}
+                coverage={shownCoverage ?? state.coverage}
                 cause={lowerBoundCause(state.pipeline, state.diagnostics)}
-                scope={files.length > 1 ? { file: state.file ?? "", count: files.length } : null}
+                scope={
+                  severalFiles
+                    ? {
+                        file: state.file ?? "",
+                        count: files.length,
+                        whole: wholeRepository && repositoryCoverage !== null,
+                        onChange: setWholeRepository,
+                      }
+                    : null
+                }
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}
                 onShowTools={(layer) => {

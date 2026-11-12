@@ -112,7 +112,11 @@ type Harness = {
 };
 
 function harness(
-  options: { files?: { path: string; adapter: "gitlab" }[]; document?: DocumentPayload } = {},
+  options: {
+    files?: { path: string; adapter: "gitlab" }[];
+    document?: DocumentPayload;
+    repository?: Coverage;
+  } = {},
 ): Harness {
   const submitted: Harness["submitted"] = [];
   const submits: ApiResult<OperationPayload>[] = [];
@@ -159,6 +163,13 @@ function harness(
         toolchain: async () => ({ ok: true, value: TOOLCHAIN }),
         submitToolchain: async () => ({ ok: true, value: { ...TOOLCHAIN, inverse: INVERSE } }),
         savePositions: async (positions) => ({ ok: true, value: { positions } }),
+        repositoryCoverage: async () => ({
+          ok: true,
+          value: {
+            files: (options.files ?? []).map((file) => file.path),
+            coverage: options.repository ?? NO_COVERAGE,
+          },
+        }),
         eventsUrl: () => "/api/events?token=x",
       },
       subscribe: (_url, onEvent) => {
@@ -977,6 +988,39 @@ describe("the focus policy across panels", () => {
     const layer = await screen.findByLabelText("Layer");
     await waitFor(() => expect(document.activeElement).toBe(layer));
     expect((layer as HTMLSelectElement).value).not.toBe("any");
+  });
+});
+
+describe("the repository scope of coverage", () => {
+  test("Whole repository shows the layers every file covers together", async () => {
+    const layers = (covered: string[]) =>
+      LAYERS.map((layer) => ({
+        layer: layer.id,
+        covered: covered.includes(layer.id),
+        jobs: covered.includes(layer.id) ? ["publish"] : [],
+        services: [],
+        ci: [],
+      }));
+    await renderApp(
+      harness({
+        files: [
+          { path: ".gitlab-ci.yml", adapter: "gitlab" },
+          { path: "other.gitlab-ci.yml", adapter: "gitlab" },
+        ],
+        document: { ...DOCUMENT, coverage: { jobs: [], partial: false, layers: layers([]) } },
+        repository: { jobs: [], partial: false, layers: layers(["secrets"]) },
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Coverage" }));
+    const covered = screen.getByRole("group", { name: "Covered layers" });
+    expect(within(covered).queryByText(findLayer("secrets").name)).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Whole repository" }));
+    await waitFor(() => expect(within(covered).getByText(findLayer("secrets").name)).toBeDefined());
+    expect(screen.getByTestId("coverage-scope").textContent).toBe("Across all 2 pipeline files.");
+
+    await userEvent.click(screen.getByRole("button", { name: "This file" }));
+    expect(within(covered).queryByText(findLayer("secrets").name)).toBeNull();
   });
 });
 
