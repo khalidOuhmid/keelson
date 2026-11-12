@@ -1,4 +1,11 @@
-import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
+import {
+  type Coverage,
+  coverage,
+  type LowerBoundCause,
+  loadCatalog,
+  lowerBoundCause,
+  lowerBoundNote,
+} from "@keelson/catalog";
 import type { Diagnostic } from "@keelson/core";
 import { COVERAGE_LAYER_MISSING, hasErrors, INVALID_YAML } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
@@ -31,7 +38,11 @@ function missingRequired(
   );
 }
 
-function renderText(result: Coverage, messages: readonly string[]): string {
+function renderText(
+  result: Coverage,
+  cause: LowerBoundCause | null,
+  messages: readonly string[],
+): string {
   const lines = result.layers.map((entry) => {
     const state = entry.covered ? "covered" : "missing";
     const jobs = entry.jobs.length === 0 ? "" : `  ${entry.jobs.join(", ")}`;
@@ -40,7 +51,7 @@ function renderText(result: Coverage, messages: readonly string[]): string {
     return `${state}  ${entry.layer.padEnd(26)}${findLayer(entry.layer).name}${jobs}${services}${ci}`;
   });
   if (result.partial) {
-    lines.push("", "partial: part of the pipeline could not be read, so coverage is a lower bound");
+    lines.push("", `partial: ${lowerBoundNote(cause ?? "unresolvedInclude")}`);
   }
   return `${[...lines, ...messages].join("\n")}\n`;
 }
@@ -112,6 +123,7 @@ export function coverageCommand(argv: readonly string[], cwd: string): CliResult
           )}\n`
         : renderText(
             result,
+            lowerBoundCause(analysis.pipeline, analysis.parsing),
             notes.map((entry) => `${entry.severity} ${entry.code} ${renderMessage(entry)}`),
           ),
     stderr: "",

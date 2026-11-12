@@ -8,6 +8,9 @@ export {
   type JobCoverage,
   type LayerCoverage,
   type LayerOverrides,
+  type LowerBoundCause,
+  lowerBoundCause,
+  lowerBoundNote,
 } from "./coverage.ts";
 export {
   type DetectedIntegration,

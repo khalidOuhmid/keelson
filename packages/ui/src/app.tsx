@@ -1,3 +1,4 @@
+import { lowerBoundCause } from "@keelson/catalog";
 import {
   emptyPipeline,
   isPartial,
@@ -674,6 +675,7 @@ export function App({ deps }: AppProps = {}) {
             ) : reading && state.coverage !== null ? (
               <CoveragePanel
                 coverage={state.coverage}
+                cause={lowerBoundCause(state.pipeline, state.diagnostics)}
                 scope={files.length > 1 ? { file: state.file ?? "", count: files.length } : null}
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}

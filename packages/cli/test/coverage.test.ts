@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadCatalog } from "@keelson/catalog";
+import { loadCatalog, lowerBoundNote } from "@keelson/catalog";
 import { run } from "../src/run.ts";
 
 let root = "";
@@ -116,9 +116,7 @@ describe("keelson coverage", () => {
   test("a partial pipeline says so: coverage is a lower bound", async () => {
     const main = `include:\n  - template: Jobs/SAST.gitlab-ci.yml\n\n${JOBS.split("\n").slice(2).join("\n")}`;
     const { stdout } = await run(["coverage"], { cwd: tree(main) });
-    expect(stdout).toContain(
-      "partial: part of the pipeline could not be read, so coverage is a lower bound",
-    );
+    expect(stdout).toContain(`partial: ${lowerBoundNote("unresolvedInclude")}`);
     expect((await json(tree(main))).body.partial).toBe(true);
   });
 
@@ -128,6 +126,8 @@ describe("keelson coverage", () => {
     const { body, exitCode } = await json(tree("a:\n  - x\n bad: [1,\n"));
     expect(exitCode).toBe(1);
     expect(body.partial).toBe(true);
+    const { stdout } = await run(["coverage"], { cwd: tree("a:\n  - x\n bad: [1,\n") });
+    expect(stdout).toContain(`partial: ${lowerBoundNote("invalidYaml")}`);
     expect(body.diagnostics.map((entry: { code: string }) => entry.code)).toContain("INVALID_YAML");
   });
 
