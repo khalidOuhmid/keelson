@@ -3,12 +3,13 @@ import { readToken } from "../src/api/token.ts";
 
 type Replaced = { url: string }[];
 
-function harness(search: string) {
+function harness(search: string, hash = "") {
   const replaced: Replaced = [];
   return {
     replaced,
     token: readToken({
       search,
+      hash,
       pathname: "/",
       replaceState: (url: string) => replaced.push({ url }),
     }),
@@ -46,6 +47,11 @@ describe("readToken", () => {
     const { replaced, token } = harness("?token=");
     expect(token).toBeNull();
     expect(replaced).toEqual([]);
+  });
+
+  test("keeps the hash, which names the open file", () => {
+    const { replaced } = harness("?token=abc", "#file=ci.yml");
+    expect(replaced[0]?.url).toBe("/#file=ci.yml");
   });
 
   test("decodes an encoded token", () => {

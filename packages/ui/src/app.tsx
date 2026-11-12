@@ -9,6 +9,7 @@ import {
 import type { Positions } from "@keelson/toolchain";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
+import { fileInAddress, rememberFile } from "./api/address.ts";
 import {
   type ApiResult,
   type CatalogPayload,
@@ -191,6 +192,7 @@ export function App({ deps }: AppProps = {}) {
     }
     store.getState().documentLoaded(path, document.value);
     store.getState().announceOpened(path, hadHistory);
+    rememberFile(path);
   };
 
   useEffect(() => {
@@ -206,7 +208,9 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
 
-      const first = workspace.value.files[0];
+      const named = fileInAddress(window.location.hash);
+      const first =
+        workspace.value.files.find((entry) => entry.path === named) ?? workspace.value.files[0];
       if (first === undefined) {
         store.getState().workspaceEmpty();
         return;
@@ -217,6 +221,7 @@ export function App({ deps }: AppProps = {}) {
       const document = await resolved.client.document(first.path);
       if (document.ok) {
         store.getState().documentLoaded(first.path, document.value);
+        rememberFile(first.path);
         return;
       }
       store.getState().workspaceEmpty();
