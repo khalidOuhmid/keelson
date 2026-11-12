@@ -71,6 +71,19 @@ describe("successful responses are validated", () => {
     expect(broken.ok ? null : broken.error.code).toBe("UNEXPECTED_RESPONSE");
   });
 
+  test("clearing positions sends PUT /api/layout/positions with clear: true", async () => {
+    const asked: string[] = [];
+    const client = new KeelsonClient({
+      token: "t",
+      fetch: (async (url: string, init?: RequestInit) => {
+        asked.push(`${init?.method ?? "GET"} ${url} ${String(init?.body)}`);
+        return new Response(JSON.stringify({ positions: {} }), { status: 200 });
+      }) as unknown as typeof fetch,
+    });
+    expect(await client.clearPositions()).toEqual({ ok: true, value: { positions: {} } });
+    expect(asked).toEqual(['PUT /api/layout/positions {"positions":{},"clear":true}']);
+  });
+
   test("a body that is not JSON is an unexpected response", async () => {
     const result = await answering(200, "<html>").document(".gitlab-ci.yml");
     expect(result.ok ? null : result.error.code).toBe("UNEXPECTED_RESPONSE");

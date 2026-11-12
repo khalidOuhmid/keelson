@@ -163,6 +163,7 @@ function harness(
         toolchain: async () => ({ ok: true, value: TOOLCHAIN }),
         submitToolchain: async () => ({ ok: true, value: { ...TOOLCHAIN, inverse: INVERSE } }),
         savePositions: async (positions) => ({ ok: true, value: { positions } }),
+        clearPositions: async () => ({ ok: true, value: { positions: {} } }),
         repositoryCoverage: async () => ({
           ok: true,
           value: {

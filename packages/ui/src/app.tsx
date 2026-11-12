@@ -74,6 +74,7 @@ type ClientSurface = {
     opId: string,
   ) => Promise<ApiResult<ToolchainOperationPayload>>;
   savePositions: (positions: Positions) => Promise<ApiResult<{ positions: Positions }>>;
+  clearPositions: () => Promise<ApiResult<{ positions: Positions }>>;
   repositoryCoverage: () => Promise<ApiResult<RepositoryCoveragePayload>>;
   eventsUrl: () => string;
 };
@@ -135,6 +136,7 @@ export function App({ deps }: AppProps = {}) {
         load: () => resolved.client.toolchain(),
         submit: (op, opId) => resolved.client.submitToolchain(op, opId),
         savePositions: (positions) => resolved.client.savePositions(positions),
+        clearPositions: () => resolved.client.clearPositions(),
         newOpId: resolved.newOpId ?? (() => crypto.randomUUID()),
       }),
     [resolved],
@@ -476,6 +478,7 @@ export function App({ deps }: AppProps = {}) {
           selectedService={toolchainState.selectedService}
           onSelectService={(id) => toolchainStore.getState().selectService(id)}
           onMove={(node, position) => void toolchainStore.getState().move(node, position)}
+          onResetLayout={() => void toolchainStore.getState().resetLayout()}
           invalid={toolchainInvalid}
         />
       );
