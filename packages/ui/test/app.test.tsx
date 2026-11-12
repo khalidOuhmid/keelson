@@ -675,3 +675,23 @@ describe("Escape in the confirmation does not reach the panel", () => {
     expect(screen.getByRole("region", { name: /job detail/i })).toBeDefined();
   });
 });
+
+describe("landmarks and heading outline", () => {
+  test("the product name is the page's one level-1 heading", async () => {
+    await renderApp(harness());
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings.map((heading) => heading.textContent)).toEqual(["Keelson"]);
+  });
+
+  test("every complementary landmark has an accessible name, the job column included", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    await screen.findByRole("region", { name: /job detail/i });
+
+    const asides = [...document.querySelectorAll("aside")];
+    expect(asides.map((aside) => aside.getAttribute("aria-label"))).toEqual([
+      "Edit pipeline",
+      "Job",
+    ]);
+  });
+});

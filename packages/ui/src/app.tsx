@@ -418,8 +418,8 @@ export function App({ deps }: AppProps = {}) {
       />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
-        <span className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
-          <span className="text-sm font-semibold text-text-primary">Keelson</span>
+        <div className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
+          <h1 className="text-sm font-semibold text-text-primary">Keelson</h1>
           {state.file === null ? null : files.length > 1 ? (
             <select
               aria-label="Pipeline file"
@@ -467,7 +467,7 @@ export function App({ deps }: AppProps = {}) {
               {includedCount === 1 ? "1 included file" : `${includedCount} included files`}
             </span>
           )}
-        </span>
+        </div>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {state.pending || toolchainState.pending ? (
             <span
@@ -615,7 +615,10 @@ export function App({ deps }: AppProps = {}) {
         state.pipeline === null ||
         state.view === "catalog" ||
         inToolchain ? null : (
-          <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1">
+          <aside
+            aria-label="Job"
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
+          >
             <JobDetailPanel
               job={selected}
               textOf={(file) => state.textOf(file)}
