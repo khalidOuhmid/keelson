@@ -166,25 +166,43 @@ test("a job can be selected from the keyboard, without a mouse", async ({ page }
   await expect(page.getByRole("region", { name: "Job detail" })).toContainText("lint");
 });
 
-test("Tab reaches every job node and focus lands on it", async ({ page }) => {
+test("the graph is one tab stop, and the arrow keys reach every job", async ({ page }) => {
   await open(page);
   const jobs = await page
     .locator("[data-job-id]")
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-job-id") ?? ""));
   expect(jobs.length).toBeGreaterThan(3);
 
-  const reached: string[] = [];
-  for (let step = 0; step < 120 && reached.length < jobs.length; step += 1) {
+  const focusedJob = () =>
+    page.evaluate(() => document.activeElement?.getAttribute("data-job-id") ?? null);
+
+  let entered: string | null = null;
+  for (let step = 0; step < 40 && entered === null; step += 1) {
     await page.keyboard.press("Tab");
-    const focused = await page.evaluate(
-      () => document.activeElement?.getAttribute("data-job-id") ?? null,
-    );
-    if (focused !== null && !reached.includes(focused)) {
-      reached.push(focused);
+    entered = await focusedJob();
+  }
+  expect(entered).not.toBeNull();
+
+  await page.keyboard.press("Tab");
+  expect(await focusedJob()).toBeNull();
+  await page.keyboard.press("Shift+Tab");
+  expect(await focusedJob()).toBe(entered);
+
+  const reached = new Set<string>([entered ?? ""]);
+  for (let column = 0; column < jobs.length; column += 1) {
+    await page.keyboard.press("Home");
+    for (let move = 0; move < column; move += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    for (const key of ["ArrowDown", "ArrowUp"]) {
+      for (let row = 0; row < jobs.length; row += 1) {
+        reached.add((await focusedJob()) ?? "");
+        await page.keyboard.press(key);
+      }
     }
   }
 
-  expect([...reached].sort()).toEqual([...jobs].sort());
+  expect([...reached].filter(Boolean).sort()).toEqual([...jobs].sort());
 });
 
 test("changing a job's stage works from the keyboard", async ({ page }) => {

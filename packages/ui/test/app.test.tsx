@@ -776,6 +776,7 @@ describe("the focus policy across panels", () => {
           covered: false,
           jobs: [],
           services: [],
+          ci: [],
         })),
       },
     };
