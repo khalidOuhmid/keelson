@@ -29,10 +29,11 @@ export type KeelsonServer = {
 
 export { type Adapter, adapterFor } from "./adapters.ts";
 export { MAX_BODY_BYTES } from "./app.ts";
+export { type Disk, readDisk } from "./disk.ts";
 export { createToken, isAllowedHost, LOOPBACK, TOKEN_HEADER, tokensMatch } from "./security.ts";
 export { HEARTBEAT_MS } from "./sse.ts";
 export { DocumentStore, OPID_HISTORY } from "./store.ts";
-export { ToolchainStore } from "./toolchain.ts";
+export { ToolchainStore, unreadableToolchain } from "./toolchain.ts";
 export type { DocumentEvent } from "./watcher.ts";
 export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
 export { writeAtomic, writeInsideRoot } from "./write.ts";

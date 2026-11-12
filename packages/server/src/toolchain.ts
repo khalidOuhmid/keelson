@@ -1,5 +1,3 @@
-import { lstatSync } from "node:fs";
-import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type {
@@ -30,12 +28,9 @@ import {
   parsePositions,
   writePositions,
 } from "@keelson/toolchain";
+import { type Disk, readDisk } from "./disk.ts";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
 import { writeInsideRoot } from "./write.ts";
-
-/** What the UTF-8 decoder puts in place of invalid bytes: a file that decodes to it would be
- *  rewritten with it, so it counts as unreadable. */
-const REPLACEMENT_CHARACTER = "\uFFFD";
 
 export type ToolchainBody = {
   text: string;
@@ -60,9 +55,8 @@ export type PositionsResponse = {
   body: { positions: Positions } | ErrorBody;
 };
 
-type Disk = { kind: "absent" } | { kind: "unreadable" } | { kind: "text"; text: string };
-
-function unreadable(): Diagnostic {
+/** What `keelson start` and `keelson validate` both say about a toolchain they cannot read. */
+export function unreadableToolchain(): Diagnostic {
   return {
     code: TOOLCHAIN_INVALID,
     severity: "error",
@@ -83,21 +77,8 @@ export class ToolchainStore {
     private readonly documents: DocumentStore,
   ) {}
 
-  /** A file that cannot be read is not a missing file: treating it as empty would overwrite it.
-   *  Unreadable means: what escapes the root, what refuses reading, a directory, and anything that
-   *  is not UTF-8, which the patch would rewrite with replacement characters. */
   private read(path: string): Disk {
-    const text = readInsideRoot(this.root, path);
-    if (text !== null) {
-      return text.includes(REPLACEMENT_CHARACTER) ? { kind: "unreadable" } : { kind: "text", text };
-    }
-    try {
-      lstatSync(join(this.root, path));
-      return { kind: "unreadable" };
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      return { kind: code === "ENOENT" || code === "ENOTDIR" ? "absent" : "unreadable" };
-    }
+    return readDisk(this.root, path);
   }
 
   /** A toolchain is repository-wide: its jobs are those of every file in the workspace. */
@@ -138,7 +119,7 @@ export class ToolchainStore {
     const disk = this.read(TOOLCHAIN_FILE);
     const body = await this.body(disk.kind === "text" ? disk.text : "");
     return disk.kind === "unreadable"
-      ? { ...body, diagnostics: [unreadable(), ...body.diagnostics] }
+      ? { ...body, diagnostics: [unreadableToolchain(), ...body.diagnostics] }
       : body;
   }
 

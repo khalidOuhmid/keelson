@@ -29,6 +29,7 @@ export const TOOLCHAIN_UNKNOWN_TOOL = "TOOLCHAIN_UNKNOWN_TOOL";
 export const TOOLCHAIN_UNKNOWN_SERVICE = "TOOLCHAIN_UNKNOWN_SERVICE";
 export const TOOLCHAIN_UNKNOWN_JOB = "TOOLCHAIN_UNKNOWN_JOB";
 export const TOOLCHAIN_DUPLICATE_INTEGRATION = "TOOLCHAIN_DUPLICATE_INTEGRATION";
+export const TOOLCHAIN_JOB_TOOL_AS_SERVICE = "TOOLCHAIN_JOB_TOOL_AS_SERVICE";
 
 export const DIAGNOSTIC_CODES = [
   INVALID_YAML,
@@ -62,6 +63,7 @@ export const DIAGNOSTIC_CODES = [
   TOOLCHAIN_UNKNOWN_SERVICE,
   TOOLCHAIN_UNKNOWN_JOB,
   TOOLCHAIN_DUPLICATE_INTEGRATION,
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE,
 ] as const;
 
 export const STALE_DOCUMENT = "STALE_DOCUMENT";
@@ -189,6 +191,7 @@ export type MessageParams = {
   TOOLCHAIN_UNKNOWN_SERVICE: { job: string; service: string };
   TOOLCHAIN_UNKNOWN_JOB: { job: string };
   TOOLCHAIN_DUPLICATE_INTEGRATION: { job: string; service: string; kind: string };
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE: { service: string; tool: string };
 
   STALE_DOCUMENT: { expected: string; received: string };
   JOB_NOT_FOUND: { job: string };

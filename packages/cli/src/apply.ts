@@ -1,19 +1,24 @@
-import { existsSync, lstatSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve } from "node:path";
+import { existsSync, statSync } from "node:fs";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { createFileReader, readRegularFile } from "@keelson/adapter-gitlab";
+import type { Operation, OperationError, Result, ToolchainOperation } from "@keelson/core";
 import {
-  apply,
-  createFileReader,
-  parse,
-  readInsideRoot,
-  readRegularFile,
-} from "@keelson/adapter-gitlab";
-import type { Operation, OperationError } from "@keelson/core";
-import { parseOperation } from "@keelson/core";
+  hashText,
+  ok,
+  parseOperation,
+  parseRebasableOperation,
+  parseRebasableToolchainOperation,
+  parseToolchainOperation,
+  STALE_DOCUMENT,
+  TOOLCHAIN_FILE,
+} from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { writeInsideRoot } from "@keelson/server";
+import { adapterFor, writeInsideRoot } from "@keelson/server";
+import { applyToolchain } from "@keelson/toolchain";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import { hunks, renderUnified } from "./diff.ts";
+import { readInside, refusalMessage } from "./files.ts";
 import type { CliResult } from "./result.ts";
 
 type Options = {
@@ -25,10 +30,15 @@ type Options = {
   json: boolean;
 };
 
+/** Called between the computation and the write: the window a concurrent write falls into. */
+export type ApplyHooks = { beforeWrite?: (root: string, file: string) => void };
+
+type Step = { kind: string; baseHash?: string };
+
 type Failure = {
   message: string;
   operation?: number;
-  kind?: Operation["kind"];
+  kind?: string;
   code?: OperationError["code"];
   params?: OperationError["params"];
 };
@@ -36,6 +46,68 @@ type Failure = {
 type Outcome =
   | { repo: string; ok: true; applied: number; written: boolean; hash: string; diff: string }
   | { repo: string; ok: false; error: Failure };
+
+/** A text and what applying one more operation to it gives. */
+type Session = {
+  text: string;
+  hash: string;
+  apply(operation: Step): Result<Session, OperationError>;
+};
+
+/** What `--file` designates: a CI file, read by the adapter of its provider, or the toolchain,
+ *  which `keelson start` creates when it is missing and so does `apply`. */
+type Target = {
+  validate(candidate: unknown, rebase: boolean): Result<Step, OperationError>;
+  whenAbsent: string | null;
+  open(root: string, file: string, text: string): Session;
+};
+
+function ciSession(file: string, root: string, text: string): Session {
+  const adapter = adapterFor(file);
+  const read = createFileReader(root);
+  const parsed = adapter.parse(text, { file, read });
+  return {
+    text,
+    hash: parsed.hash,
+    apply: (operation) => {
+      const result = adapter.apply(parsed, operation as Operation);
+      return result.ok ? ok(ciSession(file, root, result.value.text)) : result;
+    },
+  };
+}
+
+function toolchainSession(text: string): Session {
+  return {
+    text,
+    hash: hashText(text),
+    apply: (operation) => {
+      const result = applyToolchain(text, operation as ToolchainOperation);
+      return result.ok ? ok(toolchainSession(result.value.text)) : result;
+    },
+  };
+}
+
+const CI_TARGET: Target = {
+  validate: (candidate, rebase) =>
+    rebase ? parseRebasableOperation(candidate) : parseOperation(candidate),
+  whenAbsent: null,
+  open: (root, file, text) => ciSession(file, root, text),
+};
+
+const TOOLCHAIN_TARGET: Target = {
+  validate: (candidate, rebase) =>
+    rebase ? parseRebasableToolchainOperation(candidate) : parseToolchainOperation(candidate),
+  whenAbsent: "",
+  open: (_root, _file, text) => toolchainSession(text),
+};
+
+function normalised(file: string): string {
+  return file.split("\\").join("/").replace(/^\.\//, "");
+}
+
+function targetFor(file: string): Target {
+  return normalised(file) === TOOLCHAIN_FILE ? TOOLCHAIN_TARGET : CI_TARGET;
+}
 
 function usage(message: string): CliResult {
   return { stdout: "", stderr: `keelson apply: ${message}\n`, exitCode: 2 };
@@ -76,17 +148,16 @@ function parseArguments(argv: readonly string[]): Options | CliResult {
 }
 
 /** Every operation is validated before the first repository is touched: a half-valid file is
- *  applied nowhere. */
-function loadOperations(path: string): Operation[] | CliResult {
+ *  applied nowhere. Under `--rebase` the anchor is each repository's text, so it may be left out. */
+function loadOperations(path: string, target: Target, rebase: boolean): Step[] | CliResult {
   const read = readRegularFile(path);
   if (!read.ok) {
     return usage(read.reason === "notFile" ? `"${path}" is not a file` : `file not found: ${path}`);
   }
-  const text = read.text;
 
   let input: unknown;
   try {
-    input = JSON.parse(text);
+    input = JSON.parse(read.text);
   } catch {
     return usage(`${path} is not valid JSON`);
   }
@@ -96,9 +167,9 @@ function loadOperations(path: string): Operation[] | CliResult {
     return usage("the operations file contains no operation");
   }
 
-  const operations: Operation[] = [];
+  const operations: Step[] = [];
   for (const [index, candidate] of list.entries()) {
-    const validated = parseOperation(candidate);
+    const validated = target.validate(candidate, rebase);
     if (!validated.ok) {
       const where = Array.isArray(input) ? `operations[${index}]` : "operation";
       return usage(`${where}: ${renderMessage(validated.error)}`);
@@ -113,20 +184,42 @@ function insideRoot(root: string, path: string): boolean {
   return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
 }
 
-function exists(path: string): boolean {
-  try {
-    lstatSync(path);
-    return true;
-  } catch {
-    return false;
+/** A parent that exists but is not a directory: `mkdir` would fail, and the write with it. */
+function blockedParent(root: string, file: string): string | null {
+  for (let parent = dirname(file); parent !== "." && parent !== ""; parent = dirname(parent)) {
+    const absolute = resolve(root, parent);
+    if (existsSync(absolute) && !statSync(absolute).isDirectory()) {
+      return parent;
+    }
   }
+  return null;
+}
+
+type Read = { ok: true; text: string } | { ok: false; message: string };
+
+function readTarget(root: string, file: string, target: Target): Read {
+  const read = readInside(root, file);
+  if (read.ok) {
+    return read;
+  }
+  if (read.reason !== "absent") {
+    return { ok: false, message: refusalMessage(read.reason, file) };
+  }
+  const blocked = blockedParent(root, file);
+  if (blocked !== null) {
+    return { ok: false, message: `${blocked} is not a directory` };
+  }
+  return target.whenAbsent === null
+    ? { ok: false, message: `file not found: ${file}` }
+    : { ok: true, text: target.whenAbsent };
 }
 
 async function applyTo(
   label: string,
   root: string,
-  operations: readonly Operation[],
+  operations: readonly Step[],
   options: Options,
+  hooks: ApplyHooks,
 ): Promise<Outcome> {
   const fail = (error: Failure): Outcome => ({ repo: label, ok: false, error });
 
@@ -137,21 +230,17 @@ async function applyTo(
     return fail({ message: `${options.file} is outside the repository` });
   }
 
-  const original = readInsideRoot(root, options.file);
-  if (original === null) {
-    return fail({
-      message: exists(resolve(root, options.file))
-        ? `${options.file} is outside the repository`
-        : `file not found: ${options.file}`,
-    });
+  const main = relative(root, resolve(root, options.file)).split("\\").join("/");
+  const target = targetFor(main);
+  const original = readTarget(root, main, target);
+  if (!original.ok) {
+    return fail({ message: original.message });
   }
 
-  const main = relative(root, resolve(root, options.file)).split("\\").join("/");
-  let document = parse(original, { file: main, read: createFileReader(root) }).document;
-
+  let session = target.open(root, main, original.text);
   for (const [index, operation] of operations.entries()) {
-    const anchored = options.rebase ? { ...operation, baseHash: document.hash } : operation;
-    const result = apply(document, anchored);
+    const anchored = options.rebase ? { ...operation, baseHash: session.hash } : operation;
+    const result = session.apply(anchored);
     if (!result.ok) {
       return fail({
         operation: index,
@@ -161,13 +250,24 @@ async function applyTo(
         message: renderMessage(result.error),
       });
     }
-    document = result.value.document;
+    session = result.value;
   }
 
-  if (!options.dryRun && document.text !== original) {
-    const written = await writeInsideRoot(root, options.file, document.text).catch(() => false);
+  if (!options.dryRun && session.text !== original.text) {
+    hooks.beforeWrite?.(root, main);
+    // DEBT(2026-11-12): a write landing between this re-read and the rename is still lost —
+    // closing it needs a lock shared with `keelson start`, which does not exist yet.
+    const now = readTarget(root, main, target);
+    if (!now.ok || now.text !== original.text) {
+      const error = {
+        code: STALE_DOCUMENT,
+        params: { expected: hashText(now.ok ? now.text : ""), received: hashText(original.text) },
+      } as const;
+      return fail({ ...error, message: renderMessage(error) });
+    }
+    const written = await writeInsideRoot(root, main, session.text).catch(() => false);
     if (!written) {
-      return fail({ message: `could not write ${options.file}` });
+      return fail({ message: `could not write ${main}` });
     }
   }
 
@@ -176,8 +276,8 @@ async function applyTo(
     ok: true,
     applied: operations.length,
     written: !options.dryRun,
-    hash: document.hash,
-    diff: options.dryRun ? dryRunReport(`${label}/${main}`, original, document) : "",
+    hash: session.hash,
+    diff: options.dryRun ? dryRunReport(`${label}/${main}`, original.text, session) : "",
   };
 }
 
@@ -229,13 +329,21 @@ function renderJson(outcomes: readonly Outcome[]): string {
 
 /** Each repository is independent: one failing does not stop the others from being written, and
  *  the exit code only says whether at least one failed. */
-export async function applyCommand(argv: readonly string[], cwd: string): Promise<CliResult> {
+export async function applyCommand(
+  argv: readonly string[],
+  cwd: string,
+  hooks: ApplyHooks = {},
+): Promise<CliResult> {
   const options = parseArguments(argv);
   if ("exitCode" in options) {
     return options;
   }
 
-  const operations = loadOperations(resolve(cwd, options.operations));
+  const operations = loadOperations(
+    resolve(cwd, options.operations),
+    targetFor(options.file),
+    options.rebase,
+  );
   if ("exitCode" in operations) {
     return operations;
   }
@@ -243,7 +351,7 @@ export async function applyCommand(argv: readonly string[], cwd: string): Promis
   const targets = options.repositories.length === 0 ? ["."] : options.repositories;
   const outcomes: Outcome[] = [];
   for (const target of targets) {
-    outcomes.push(await applyTo(target, resolve(cwd, target), operations, options));
+    outcomes.push(await applyTo(target, resolve(cwd, target), operations, options, hooks));
   }
 
   return {

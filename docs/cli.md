@@ -40,6 +40,11 @@ Parses the pipeline (resolving local `include:` on GitLab), validates it (unknow
 cycles, unknown stages, needs pointing to a later stage, jobs without a script…), and checks
 `.devsecops/toolchain.yaml` and `.devsecops/layout.json`.
 
+The CI files are read inside the repository root, as `keelson start` reads them: a file linked
+outside the repository, a directory or a file that is not UTF-8 is a usage error (exit `2`), for
+`coverage` and `export` too. A `toolchain.yaml` that exists but cannot be read is reported as
+`TOOLCHAIN_INVALID`, never taken as missing.
+
 Text output, one line per diagnostic:
 
 ```text
@@ -123,21 +128,40 @@ stop the others.
 
 | Option | Effect |
 | --- | --- |
-| `--file <path>` | CI file inside each repository (default: `.gitlab-ci.yml`) |
-| `--rebase` | Anchor each operation on the current text of each repository instead of its `baseHash` |
+| `--file <path>` | File inside each repository (default: `.gitlab-ci.yml`); it picks the target, see below |
+| `--rebase` | Anchor each operation on the current text of each repository; `baseHash` may then be left out |
 | `--dry-run` | Print a unified diff per repository and write nothing |
 | `--json` | Print `{ results: [{ repo, ok, applied, written, hash?, error? }] }` |
 
 Without `--rebase`, an operation whose `baseHash` does not match the file is refused with
 `STALE_DOCUMENT` — the safe default when an operations file was computed on a specific revision.
-With `--rebase`, one operations file can be replayed across many repositories whose files differ.
+With `--rebase`, one operations file can be replayed across many repositories whose files differ,
+and an operation written by hand may omit `baseHash` altogether; a `baseHash` that is present must
+still be a 64-character hex digest.
+
+`--file` chooses what the operations edit:
+
+| `--file` | Target | Operations |
+| --- | --- | --- |
+| `.gitlab-ci.yml` or any other path | GitLab CI, local `include:` resolved | [CI operations](#operations) |
+| `.github/workflows/<name>.yml` | GitHub Actions, through the same adapter as `keelson start` | [CI operations](#operations), GitHub column |
+| `.devsecops/toolchain.yaml` | The toolchain, created with its directory when missing | [Toolchain operations](#toolchain-operations) |
+
+An operation of the other family (a `addService` on a CI file, a `addStage` on the toolchain) is an
+invalid operations file, exit `2`. A campaign that adds a service and the job that uses it runs
+`keelson apply` twice, once per target.
+
+Just before writing, each file is read again: if it changed since it was read (an editor, a running
+`keelson start`), nothing is written and the repository fails with `STALE_DOCUMENT`.
 
 ```sh
 keelson apply add-secret-scan.json services/* --rebase --dry-run
 keelson apply add-secret-scan.json services/* --rebase --json > report.json
 ```
 
-Paths that leave a repository (`--file ../x`, symlinks pointing outside) are refused.
+Paths that leave a repository (`--file ../x`, symlinks pointing outside) are refused, and so are a
+directory, a file that is not UTF-8 (it would be rewritten with replacement characters) and a parent
+such as `.devsecops` that exists as a regular file.
 
 ### Operations
 
@@ -162,4 +186,17 @@ On GitLab, `setEnvironment` with `null` on a job that inherits an environment (t
 a merge key or an include) writes `environment: null` in the job, which is how GitLab excludes an
 inherited key. Refusals carry a stable `{ code, params }`; see
 [specs/diagnostics.md](../specs/diagnostics.md).
-`keelson apply` currently targets GitLab CI files; GitHub workflows are edited through the UI.
+
+### Toolchain operations
+
+The same envelope (`v: 1`, `baseHash` of `.devsecops/toolchain.yaml`, the empty text when the file
+is missing, and `kind`), applied with `--file .devsecops/toolchain.yaml`:
+
+| Kind | Fields |
+| --- | --- |
+| `addService` | `id`, `tool`, `url` (or `null`), `environment` (or `null`) |
+| `updateService` | `id`, then any of `tool`, `url`, `environment` |
+| `removeService` | `id` |
+| `addIntegration` / `removeIntegration` | `job`, `service`, `integration` (`push`, `upload-report`, `fetch-secret`, `notify`) |
+| `dismissIntegration` / `restoreIntegration` | `job`, `tool`, `integration` |
+| `splice` | `start`, `end`, `text` |
