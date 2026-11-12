@@ -240,3 +240,53 @@ describe("a local reusable workflow", () => {
     }
   });
 });
+
+describe("GET /api/coverage", () => {
+  type Body = {
+    files: string[];
+    coverage: { partial: boolean; layers: { layer: string; covered: boolean; jobs: string[] }[] };
+  };
+  const covered = (body: Body) =>
+    body.coverage.layers.filter((entry) => entry.covered).map((entry) => entry.layer);
+
+  test("covers the layers of every workflow together, as keelson coverage does", async () => {
+    const response = await api("/api/coverage");
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Body;
+    expect(body.files).toEqual([".github/workflows/ci.yml", ".github/workflows/release.yaml"]);
+    expect(covered(body)).toContain("secrets");
+    const one = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as Body;
+    expect(covered(one)).not.toContain("secrets");
+    for (const layer of covered(one)) {
+      expect(covered(body)).toContain(layer);
+    }
+    expect(body.coverage.layers.find((entry) => entry.layer === "secrets")?.jobs).toEqual([
+      "publish",
+    ]);
+  });
+
+  test("reads the disk as it is now", async () => {
+    writeFileSync(
+      join(root, ".github/workflows/release.yaml"),
+      "on: push\njobs:\n  publish:\n    runs-on: x\n    steps:\n      - run: make\n",
+    );
+    const body = (await (await api("/api/coverage")).json()) as Body;
+    expect(covered(body)).not.toContain("secrets");
+  });
+
+  test("a workflow that does not parse makes the repository coverage partial", async () => {
+    writeFileSync(join(root, ".github/workflows/release.yaml"), "jobs: [\n");
+    const body = (await (await api("/api/coverage")).json()) as Body;
+    expect(body.coverage.partial).toBe(true);
+  });
+
+  test("refuses another method", async () => {
+    const response = await api("/api/coverage", { method: "POST" });
+    expect(response.status).toBe(405);
+  });
+
+  test("needs the token", async () => {
+    const response = await fetch(`http://127.0.0.1:${server.port}/api/coverage`);
+    expect(response.status).toBe(403);
+  });
+});

@@ -174,30 +174,52 @@ export class DocumentStore {
   private repository(file: string, pipeline: Pipeline): Repository {
     const others = this.files
       .filter((entry) => entry.path !== file)
-      .flatMap((entry) => {
-        const text = this.reader.read(entry.path);
-        if (text === null) {
-          return [];
-        }
-        const known = this.neighbours.get(entry.path);
-        if (known?.text === text) {
-          return [known];
-        }
-        try {
-          const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
-          // A workflow depends only on its text; a GitLab file also depends on its includes.
-          const neighbour = { text, pipeline: read.pipeline, parsing: read.diagnostics };
-          if (read.pipeline.provider === "github") {
-            this.neighbours.set(entry.path, neighbour);
-          }
-          return [neighbour];
-        } catch {
-          return [];
-        }
-      });
+      .flatMap((entry) => this.parsedOnDisk(entry.path));
     return {
       pipeline: mergePipelines([pipeline, ...others.map((other) => other.pipeline)]),
       parsing: others.flatMap((other) => other.parsing),
+    };
+  }
+
+  private parsedOnDisk(path: string): { text: string; pipeline: Pipeline; parsing: Diagnostic[] }[] {
+    const text = this.reader.read(path);
+    if (text === null) {
+      return [];
+    }
+    const known = this.neighbours.get(path);
+    if (known?.text === text) {
+      return [known];
+    }
+    try {
+      const read = adapterFor(path).parse(text, { file: path, read: this.reader });
+      // A workflow depends only on its text; a GitLab file also depends on its includes.
+      const neighbour = { text, pipeline: read.pipeline, parsing: read.diagnostics };
+      if (read.pipeline.provider === "github") {
+        this.neighbours.set(path, neighbour);
+      }
+      return [neighbour];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Every CI file of the workspace together, as `keelson coverage` without arguments sees them. */
+  repositoryCoverage(): { files: string[]; coverage: Coverage } {
+    // DEBT(2026-11-12): a file the parser throws on or cannot read is left out without making the coverage partial — the CLI stops on it instead; gap 44 removes the throws.
+    const parsed = this.files.flatMap((entry) => this.parsedOnDisk(entry.path));
+    const pipeline = mergePipelines(parsed.map((entry) => entry.pipeline));
+    const parsing = parsed.flatMap((entry) => entry.parsing);
+    const { tools } = loadCatalog();
+    const layout = parseLayout(readInsideRoot(this.root, LAYOUT_FILE), pipeline);
+    const toolchain = analyseToolchain(
+      readInsideRoot(this.root, TOOLCHAIN_FILE),
+      pipeline,
+      tools,
+      parsing,
+    );
+    return {
+      files: this.files.map((entry) => entry.path),
+      coverage: coverage(pipeline, tools, layout.overrides, parsing, toolchain.toolchain.services),
     };
   }
 

@@ -140,6 +140,15 @@ export function createRequestHandler(context: AppContext) {
       return;
     }
 
+    if (pathname === "/api/coverage") {
+      if (request.method !== "GET") {
+        fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });
+        return;
+      }
+      send(response, 200, context.store.repositoryCoverage() as unknown as Json);
+      return;
+    }
+
     if (pathname === "/api/catalog") {
       if (request.method !== "GET") {
         fail(response, 405, METHOD_NOT_ALLOWED, { method: methodOf(request) });

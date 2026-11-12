@@ -127,6 +127,7 @@ and writes.
 | GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }`, `adapter` being `gitlab` or `github` |
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
+| GET | `/api/coverage` | 200 `{ files, coverage }`: every CI file of the workspace together, read from disk at the request, as `keelson coverage` without arguments computes it — the scope "Whole repository" of the Coverage panel |
 | POST | `/api/documents/:file/operations` | body `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` with the current `hash` · 413 · 422 `{ code, params }` |
 | POST | `/api/documents/:file/preview` | body `{ op }` → 200 the result without writing · same refusals as an operation |
 | GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
