@@ -1,5 +1,12 @@
 import type { Diagnostic, Pipeline } from "@keelson/core";
-import { LAYOUT_INVALID, LAYOUT_UNKNOWN_JOB, LAYOUT_UNKNOWN_LAYER } from "@keelson/core";
+import {
+  INVALID_YAML,
+  isPartial,
+  LAYOUT_INVALID,
+  LAYOUT_UNKNOWN_JOB,
+  LAYOUT_UNKNOWN_LAYER,
+  LAYOUT_UNREAD_JOB,
+} from "@keelson/core";
 import { isLayerId, type LayerId } from "@keelson/taxonomy";
 import { z } from "zod";
 
@@ -106,8 +113,13 @@ function invalid(detail: string): ParsedLayout {
 }
 
 /** An unreadable file blocks nothing: detection applies, and the diagnostic says so. A null `text`
- *  means the file does not exist, which is the normal case. */
-export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayout {
+ *  means the file does not exist, which is the normal case. `parsing` are the diagnostics of the CI
+ *  files: on a pipeline read in part, a job the file names may be in the part that was not read. */
+export function parseLayout(
+  text: string | null,
+  pipeline: Pipeline,
+  parsing: readonly Diagnostic[] = [],
+): ParsedLayout {
   if (text === null) {
     return { overrides: {}, positions: {}, diagnostics: [] };
   }
@@ -125,13 +137,18 @@ export function parseLayout(text: string | null, pipeline: Pipeline): ParsedLayo
   }
 
   const known = new Set(pipeline.jobs.map((job) => job.id));
+  const partial = isPartial(pipeline) || parsing.some((entry) => entry.code === INVALID_YAML);
   const diagnostics: Diagnostic[] = [];
   const overrides: [string, readonly LayerId[]][] = [];
 
   for (const [job, layers] of Object.entries(read.value.layers)) {
     if (!known.has(job)) {
-      diagnostics.push(warn({ code: LAYOUT_UNKNOWN_JOB, params: { job } }));
-      continue;
+      diagnostics.push(
+        warn({ code: partial ? LAYOUT_UNREAD_JOB : LAYOUT_UNKNOWN_JOB, params: { job } }),
+      );
+      if (!partial) {
+        continue;
+      }
     }
     for (const layer of layers.filter((entry) => !isLayerId(entry))) {
       diagnostics.push(warn({ code: LAYOUT_UNKNOWN_LAYER, params: { job, layer } }));

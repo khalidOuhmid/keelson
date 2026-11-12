@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { emptyPipeline, type Job, type Pipeline } from "@keelson/core";
+import { type Diagnostic, emptyPipeline, type Job, type Pipeline } from "@keelson/core";
 import { LAYOUT_FILE, parseLayout, parsePositions, writePositions } from "../src/index.ts";
 
 const PIPELINE = emptyPipeline(".gitlab-ci.yml");
@@ -58,6 +58,32 @@ describe("layout.json", () => {
     const result = parsed({ version: 1, layers: { absent: ["sast"] } });
     expect(result.overrides).toEqual({});
     expect(result.diagnostics[0]?.code).toBe("LAYOUT_UNKNOWN_JOB");
+  });
+
+  test("on a partial pipeline, an unseen job keeps its override, with a warning", () => {
+    const partial = {
+      ...pipeline(["unit"]),
+      unresolved: [{ kind: "remote", location: "https://example.org/ci.yml" }],
+    } as unknown as Pipeline;
+    const result = parseLayout(
+      JSON.stringify({ version: 1, layers: { remote: ["sast", "inventee"] } }),
+      partial,
+    );
+    expect(result.overrides).toEqual({ remote: ["sast"] });
+    expect(result.diagnostics.map((entry) => [entry.code, entry.severity])).toEqual([
+      ["LAYOUT_UNREAD_JOB", "warning"],
+      ["LAYOUT_UNKNOWN_LAYER", "warning"],
+    ]);
+  });
+
+  test("a CI file that did not parse leaves its jobs unseen too", () => {
+    const result = parseLayout(
+      JSON.stringify({ version: 1, layers: { lost: ["sast"] } }),
+      pipeline([]),
+      [{ code: "INVALID_YAML" } as Diagnostic],
+    );
+    expect(result.overrides).toEqual({ lost: ["sast"] });
+    expect(result.diagnostics[0]?.code).toBe("LAYOUT_UNREAD_JOB");
   });
 });
 

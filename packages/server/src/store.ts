@@ -37,12 +37,13 @@ function analyse(
 ): Analysis {
   const { tools } = loadCatalog();
   // `layout.json` and the toolchain are repository-wide: a job from another workflow is not unknown there.
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository.pipeline);
+  const everyParsing = [...parsing, ...repository.parsing];
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository.pipeline, everyParsing);
   const toolchain = analyseToolchain(
     readInsideRoot(root, TOOLCHAIN_FILE),
     repository.pipeline,
     tools,
-    [...parsing, ...repository.parsing],
+    everyParsing,
   );
   return {
     diagnostics: [

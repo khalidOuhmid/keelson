@@ -106,7 +106,7 @@ export function analyse(targets: readonly Target[]): Analysis {
 
   const pipeline = mergePipelines(parsed.map(({ result }) => result.pipeline));
   const parsing = parsed.flatMap(({ result }) => result.diagnostics);
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline, parsing);
   const toolchain = toolchainOf(root, pipeline, parsing);
 
   return {

@@ -64,6 +64,8 @@ export const EN: Catalogue = {
   LAYOUT_UNKNOWN_LAYER: (p) =>
     `layout.json assigns job ${quoted(p.job)} to unknown layer ${quoted(p.layer)}`,
   LAYOUT_UNKNOWN_JOB: (p) => `layout.json names job ${quoted(p.job)}, which does not exist`,
+  LAYOUT_UNREAD_JOB: (p) =>
+    `layout.json names job ${quoted(p.job)}, absent from the part of the pipeline Keelson could read: its override is kept`,
   COVERAGE_LAYER_MISSING: (p) => `required layer ${quoted(p.layer)} (${p.name}) is not covered`,
   // `detail` comes from zod or `yaml`, in English.
   CATALOG_INVALID_TOOL: (p) => `invalid tool file: ${p.detail}`,

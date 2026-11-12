@@ -118,6 +118,38 @@ describe("GET /api/toolchain", () => {
   });
 });
 
+describe("a layout.json override on a truncated pipeline", () => {
+  test("names a job of the workflow that did not parse: a warning on every document", async () => {
+    const root = mkdtempSync(join(tmpdir(), "keelson-truncated-"));
+    const files = {
+      ".github/workflows/a.yml":
+        "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - run: make\n",
+      ".github/workflows/b.yml": "on: push\njobs:\n  deploy: [\n",
+      ".devsecops/layout.json": '{"version":1,"layers":{"deploy":["sast"]}}',
+    };
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(join(root, file, ".."), { recursive: true });
+      writeFileSync(join(root, file), text);
+    }
+    const server = await createServer({ root, port: 0 });
+    try {
+      for (const name of ["a", "b"]) {
+        const response = await fetch(
+          `http://127.0.0.1:${server.port}/api/documents/.github%2Fworkflows%2F${name}.yml`,
+          { headers: { "x-keelson-token": server.token } },
+        );
+        const body = (await response.json()) as { diagnostics: { code: string }[] };
+        const codes = body.diagnostics.map((entry) => entry.code);
+        expect(codes).toContain("LAYOUT_UNREAD_JOB");
+        expect(codes).not.toContain("LAYOUT_UNKNOWN_JOB");
+      }
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true });
+    }
+  });
+});
+
 describe("a toolchain job on a truncated pipeline", () => {
   const TOOLCHAIN =
     "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: deploy\n    service: n\n    kind: push\n";

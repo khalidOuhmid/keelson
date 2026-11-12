@@ -148,6 +148,22 @@ describe("keelson coverage", () => {
     const { stdout } = await run(["validate"], { cwd: tree(JOBS, layout) });
     expect(stdout).toContain("LAYOUT_UNKNOWN_JOB");
   });
+
+  test("an override of a job from a remote include is kept, with a warning", async () => {
+    const layout = JSON.stringify({ version: 1, layers: { "remote-scan": ["sast"] } });
+    const main = `include:\n  - remote: https://example.org/ci.yml\n${JOBS}`;
+    const { stdout } = await run(["validate"], { cwd: tree(main, layout) });
+    expect(stdout).toContain("LAYOUT_UNREAD_JOB");
+    expect(stdout).toContain("its override is kept");
+    expect(stdout).not.toContain("LAYOUT_UNKNOWN_JOB");
+  });
+
+  test("so is an override of a job in a CI file that did not parse", async () => {
+    const layout = JSON.stringify({ version: 1, layers: { secrets: ["sast"] } });
+    const { stdout } = await run(["validate"], { cwd: tree("secrets: [\n", layout) });
+    expect(stdout).toContain("INVALID_YAML");
+    expect(stdout).toContain("LAYOUT_UNREAD_JOB");
+  });
 });
 
 describe("keelson catalog lint", () => {

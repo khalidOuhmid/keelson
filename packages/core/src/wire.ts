@@ -51,6 +51,7 @@ export const PARAMS_SCHEMAS = {
   LAYOUT_INVALID: z.object({ detail: text }),
   LAYOUT_UNKNOWN_LAYER: z.object({ job: text, layer: text }),
   LAYOUT_UNKNOWN_JOB: z.object({ job: text }),
+  LAYOUT_UNREAD_JOB: z.object({ job: text }),
   COVERAGE_LAYER_MISSING: z.object({ layer: text, name: text }),
   CATALOG_INVALID_TOOL: z.object({ detail: text }),
   CATALOG_DUPLICATE_TOOL: z.object({ tool: text }),
