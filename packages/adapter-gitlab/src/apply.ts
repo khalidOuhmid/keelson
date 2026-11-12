@@ -1101,7 +1101,7 @@ function flowComma(text: string, from: number, to: number): number | null {
  *  that gap, only the item and the comma go: the comment and its line break stay where they are. */
 function flowItemRemoval(
   text: string,
-  item: readonly [number, number],
+  item: readonly [number, number, ...number[]],
   preceding: number | undefined,
   following: number | undefined,
 ): Splice[] {
