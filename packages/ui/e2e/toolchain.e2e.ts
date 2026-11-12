@@ -67,6 +67,51 @@ test.describe("toolchain on the real binary", () => {
     }
   });
 
+  test("Reset layout clears the saved positions, after a confirmation", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+      ".devsecops/layout.json": `${JSON.stringify({
+        version: 1,
+        layers: { build: ["sast"] },
+        positions: { "service:vault": { x: 900, y: 700 } },
+      })}\n`,
+    });
+    const shownX = async (): Promise<number> =>
+      Number.parseFloat(
+        (
+          await page
+            .locator(".react-flow__node-service")
+            .evaluate((element) => (element as HTMLElement).style.transform)
+        ).slice("translate(".length),
+      );
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.locator("[data-service-id=vault]")).toBeVisible();
+      expect(await shownX()).toBeCloseTo(900, 2);
+
+      await page.getByRole("button", { name: "Reset layout" }).click();
+      const dialog = page.getByRole("alertdialog", { name: "Reset layout" });
+      await expect(dialog.getByRole("button", { name: "Reset positions" })).toBeFocused();
+      await dialog.getByRole("button", { name: "Reset positions" }).click();
+
+      await expect
+        .poll(() => JSON.parse(keelson.readAt(".devsecops/layout.json")))
+        .toEqual({ version: 1, layers: { build: ["sast"] }, positions: {} });
+      await expect.poll(shownX).not.toBeCloseTo(900, 2);
+      await expect(page.getByRole("button", { name: "Reset layout" })).toHaveCount(0);
+
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.locator("[data-service-id=vault]")).toBeVisible();
+      expect(await shownX()).not.toBeCloseTo(900, 2);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("a moved position survives a reload", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
