@@ -200,13 +200,22 @@ export class ToolchainStore {
   }
 
   /** In the same queue as operations: `layout.json` is re-read just before being rewritten. */
-  savePositions(raw: unknown): Promise<PositionsResponse> {
-    const next = this.queue.then(() => this.writePositions(raw));
+  savePositions(raw: unknown, clear: unknown = false): Promise<PositionsResponse> {
+    const next = this.queue.then(() => this.writePositions(raw, clear));
     this.queue = next.catch(() => undefined);
     return next;
   }
 
-  private async writePositions(raw: unknown): Promise<PositionsResponse> {
+  private async writePositions(raw: unknown, clear: unknown): Promise<PositionsResponse> {
+    if (typeof clear !== "boolean") {
+      return {
+        status: 400,
+        body: {
+          code: INVALID_OPERATION,
+          params: { reason: "schema", path: "clear", detail: "expected a boolean" },
+        },
+      };
+    }
     const parsed = parsePositions(raw);
     if (!parsed.ok) {
       return {
@@ -222,7 +231,7 @@ export class ToolchainStore {
     const text =
       disk.kind === "unreadable"
         ? null
-        : writePositions(disk.kind === "text" ? disk.text : null, parsed.positions);
+        : writePositions(disk.kind === "text" ? disk.text : null, parsed.positions, { clear });
     if (text === null) {
       return {
         status: 422,

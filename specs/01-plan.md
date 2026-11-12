@@ -132,7 +132,7 @@ and writes.
 | POST | `/api/documents/:file/preview` | body `{ op }` → 200 the result without writing · same refusals as an operation |
 | GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
 | POST | `/api/toolchain/operations` | body `{ op, opId }` → 200 the same body plus `inverse` · 400 · 409 with the current `hash` · 422 |
-| PUT | `/api/layout/positions` | body `{ positions }`, merged into the file → 200 with the complete map · 400 · 422 if `layout.json` is unreadable |
+| PUT | `/api/layout/positions` | body `{ positions, clear? }`: `positions` merged into the file; `clear: true` first drops every saved position (the toolchain's "Reset layout"), the other keys of `layout.json` stay → 200 with the complete map · 400 (`clear` not a boolean included) · 422 if `layout.json` is unreadable |
 | GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `document.written { file, hash, opId }` (the server's own write for an operation, so that other tabs learn about it; the sending tab recognises its `opId`), `coverage.changed { file }`, `toolchain.changed { hash }`, `workspace.changed { files: [{ path, adapter }] }` (same list as `GET /api/workspace`), heartbeat every 15 s |
 | GET | `/*` | UI bundle, SPA fallback to `index.html` |
 
