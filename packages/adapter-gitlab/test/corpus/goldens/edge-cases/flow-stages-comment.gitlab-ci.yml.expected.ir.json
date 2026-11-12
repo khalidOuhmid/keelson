@@ -1,0 +1,131 @@
+{
+  "stages": [
+    {
+      "name": "build",
+      "implicit": false,
+      "range": {
+        "start": 9,
+        "end": 14
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "test",
+      "implicit": false,
+      "range": {
+        "start": 40,
+        "end": 44
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "name": "deploy",
+      "implicit": false,
+      "range": {
+        "start": 46,
+        "end": 52
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "compile",
+      "stage": {
+        "value": "build",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 81,
+            "end": 94
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "signals": {
+        "image": null,
+        "script": ["make"]
+      },
+      "range": {
+        "start": 55,
+        "end": 94
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "id": "unit",
+      "stage": {
+        "value": "test",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 117,
+            "end": 136
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "signals": {
+        "image": null,
+        "script": ["make check"]
+      },
+      "range": {
+        "start": 95,
+        "end": 136
+      },
+      "file": ".gitlab-ci.yml"
+    },
+    {
+      "id": "ship",
+      "stage": {
+        "value": "deploy",
+        "origin": {
+          "kind": "local"
+        }
+      },
+      "needs": null,
+      "environment": null,
+      "extends": [],
+      "opaque": [
+        {
+          "key": "script",
+          "range": {
+            "start": 161,
+            "end": 179
+          },
+          "file": ".gitlab-ci.yml"
+        }
+      ],
+      "signals": {
+        "image": null,
+        "script": ["make ship"]
+      },
+      "range": {
+        "start": 137,
+        "end": 179
+      },
+      "file": ".gitlab-ci.yml"
+    }
+  ],
+  "templates": [],
+  "opaque": [],
+  "main": ".gitlab-ci.yml",
+  "files": [".gitlab-ci.yml"],
+  "unresolved": []
+}

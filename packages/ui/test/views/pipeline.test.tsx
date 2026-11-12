@@ -397,8 +397,8 @@ describe("templates on the render", () => {
       ],
     ),
     templates: [
-      { id: ".docker", range: { start: 0, end: 5 }, file: MAIN },
-      { id: ".deploy-base", range: { start: 6, end: 9 }, file: MAIN },
+      { id: ".docker", range: { start: 0, end: 5 }, file: MAIN, extends: [] },
+      { id: ".deploy-base", range: { start: 6, end: 9 }, file: MAIN, extends: [] },
     ],
   };
 
@@ -422,5 +422,52 @@ describe("templates on the render", () => {
       "1 job",
     );
     expect(document.querySelectorAll("[data-job-id]")).toHaveLength(2);
+  });
+
+  const CHAINED: Pipeline = {
+    ...pipeline(
+      [{ name: "build" }, { name: "deploy" }],
+      [
+        { id: "image", stage: "build", extends: [".docker"] },
+        { id: "ship", stage: "deploy", extends: [".deploy-base"] },
+      ],
+    ),
+    templates: [
+      { id: ".deploy-base", range: { start: 0, end: 5 }, file: MAIN, extends: [".docker"] },
+      { id: ".docker", range: { start: 6, end: 9 }, file: MAIN, extends: [] },
+    ],
+  };
+
+  function nodeLeft(id: string): number {
+    const node = document.querySelector<HTMLElement>(`.react-flow__node[data-id="${id}"]`);
+    const match = /translate\((-?[\d.]+)px/.exec(node?.style.transform ?? "");
+    if (match?.[1] === undefined) {
+      throw new Error(`node ${id} has no position`);
+    }
+    return Number(match[1]);
+  }
+
+  test("a template extending another is drawn downstream of it, with a handle the link comes into", async () => {
+    await renderCanvas(CHAINED);
+    await screen.findByRole("group", { name: "Templates" });
+    expect(nodeLeft("template:.docker")).toBeLessThan(nodeLeft("template:.deploy-base"));
+    expect(nodeLeft("template:.deploy-base")).toBeLessThan(nodeLeft("column:build"));
+    const handles = (id: string) =>
+      document.querySelectorAll(`.react-flow__node[data-id="${id}"] .react-flow__handle.target`)
+        .length;
+    expect(handles("template:.deploy-base")).toBe(1);
+    expect(handles("template:.docker")).toBe(0);
+  });
+
+  test("the template column frames every template level", async () => {
+    await renderCanvas(CHAINED);
+    await screen.findByRole("group", { name: "Templates" });
+    const column = document.querySelector<HTMLElement>(
+      '.react-flow__node[data-id="column:templates"]',
+    );
+    expect(nodeLeft("column:templates")).toBe(nodeLeft("template:.docker"));
+    expect(Number.parseFloat(column?.style.width ?? "0")).toBeGreaterThan(
+      nodeLeft("template:.deploy-base") - nodeLeft("template:.docker"),
+    );
   });
 });

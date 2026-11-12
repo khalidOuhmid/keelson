@@ -418,9 +418,9 @@ describe("templates", () => {
           : { ...job, extends: [".deploy-base", ".missing"] },
       ),
       templates: [
-        { id: ".docker", range: { start: 0, end: 1 }, file: MAIN },
-        { id: ".deploy-base", range: { start: 2, end: 3 }, file: MAIN },
-        { id: ".unused", range: { start: 4, end: 5 }, file: MAIN },
+        { id: ".docker", range: { start: 0, end: 1 }, file: MAIN, extends: [] },
+        { id: ".deploy-base", range: { start: 2, end: 3 }, file: MAIN, extends: [] },
+        { id: ".unused", range: { start: 4, end: 5 }, file: MAIN, extends: [] },
       ],
     };
   }
@@ -460,6 +460,106 @@ describe("templates", () => {
       ".deploy-base->ship",
       ".docker->image",
     ]);
+  });
+
+  test("an inheritance edge says it is an extends into a job", async () => {
+    const layout = await layoutPipeline(withTemplates(), METRICS);
+    expect(layout.inheritance.find((edge) => edge.target === "image")).toMatchObject({
+      kind: "extends",
+      into: "job",
+    });
+  });
+
+  function chained(): Pipeline {
+    const base = withTemplates();
+    return {
+      ...base,
+      jobs: base.jobs.map((job) =>
+        job.id === "rollback" ? { ...job, extends: [], merges: [".deploy-base", ".docker"] } : job,
+      ),
+      templates: [
+        { id: ".deploy-base", range: { start: 0, end: 1 }, file: MAIN, extends: [".docker"] },
+        { id: ".docker", range: { start: 2, end: 3 }, file: MAIN, extends: [] },
+        {
+          id: ".unused",
+          range: { start: 4, end: 5 },
+          file: MAIN,
+          extends: [".deploy-base"],
+          merges: [".docker"],
+        },
+      ],
+    };
+  }
+
+  test("a template extending another is drawn one column downstream of its parent", async () => {
+    const layout = await layoutPipeline(chained(), METRICS);
+    const at = new Map(layout.templates.map((node) => [node.id, node]));
+    const step = METRICS.nodeWidth + METRICS.columnGap;
+    const first = layout.columns[0]?.x ?? 0;
+    expect(at.get(".docker")?.x).toBe(first - 3 * step);
+    expect(at.get(".deploy-base")?.x).toBe(first - 2 * step);
+    expect(at.get(".unused")?.x).toBe(first - step);
+  });
+
+  test("templates sharing a column do not overlap", async () => {
+    const pipelineWithSiblings: Pipeline = {
+      ...chained(),
+      templates: [
+        { id: ".a", range: { start: 0, end: 1 }, file: MAIN, extends: [] },
+        { id: ".b", range: { start: 2, end: 3 }, file: MAIN, extends: [".a"] },
+        { id: ".c", range: { start: 4, end: 5 }, file: MAIN, extends: [".a"] },
+        { id: ".d", range: { start: 6, end: 7 }, file: MAIN, extends: [] },
+      ],
+    };
+    const layout = await layoutPipeline(pipelineWithSiblings, METRICS);
+    for (const left of layout.templates) {
+      for (const right of layout.templates) {
+        if (left.id >= right.id) {
+          continue;
+        }
+        const apart =
+          left.x + left.width <= right.x ||
+          right.x + right.width <= left.x ||
+          left.y + left.height <= right.y ||
+          right.y + right.height <= left.y;
+        expect(apart).toBe(true);
+      }
+    }
+    expect(layout.height).toBeGreaterThanOrEqual(
+      Math.max(...layout.templates.map((node) => node.y + node.height)),
+    );
+  });
+
+  test("template-to-template extends and merges are edges of their own kind", async () => {
+    const layout = await layoutPipeline(chained(), METRICS);
+    expect(
+      layout.inheritance
+        .map((edge) => `${edge.source} ${edge.kind} ${edge.into} ${edge.target}`)
+        .sort(),
+    ).toEqual([
+      ".deploy-base extends job ship",
+      ".deploy-base extends template .unused",
+      ".deploy-base merge job rollback",
+      ".docker extends job image",
+      ".docker extends template .deploy-base",
+      ".docker merge job rollback",
+      ".docker merge template .unused",
+    ]);
+    expect(new Set(layout.inheritance.map((edge) => edge.id)).size).toBe(layout.inheritance.length);
+  });
+
+  test("an extends cycle between templates still places every template once", async () => {
+    const cyclic: Pipeline = {
+      ...chained(),
+      templates: [
+        { id: ".a", range: { start: 0, end: 1 }, file: MAIN, extends: [".b"] },
+        { id: ".b", range: { start: 2, end: 3 }, file: MAIN, extends: [".a"] },
+        { id: ".self", range: { start: 4, end: 5 }, file: MAIN, extends: [".self"] },
+      ],
+    };
+    const layout = await layoutPipeline(cyclic, METRICS);
+    expect(layout.templates.map((node) => node.id).sort()).toEqual([".a", ".b", ".self"]);
+    expect(layout.inheritance.some((edge) => edge.source === edge.target)).toBe(false);
   });
 
   test("without templates there is no template column", async () => {

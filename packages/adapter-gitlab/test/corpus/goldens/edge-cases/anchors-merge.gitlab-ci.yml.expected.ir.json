@@ -32,6 +32,7 @@
       "needs": null,
       "environment": null,
       "extends": [],
+      "merges": [".defaults"],
       "opaque": [
         {
           "key": "<<",
@@ -82,6 +83,7 @@
       },
       "environment": null,
       "extends": [],
+      "merges": [".defaults", ".extra"],
       "opaque": [
         {
           "key": "<<",
@@ -118,7 +120,8 @@
         "start": 0,
         "end": 53
       },
-      "file": ".gitlab-ci.yml"
+      "file": ".gitlab-ci.yml",
+      "extends": []
     },
     {
       "id": ".extra",
@@ -126,7 +129,8 @@
         "start": 54,
         "end": 90
       },
-      "file": ".gitlab-ci.yml"
+      "file": ".gitlab-ci.yml",
+      "extends": []
     }
   ],
   "opaque": [],

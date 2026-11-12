@@ -38,6 +38,7 @@ import {
   defaultSources,
   definesKey,
   effectiveExtends,
+  effectiveMerges,
   hasUnmodelledNeeds,
   keyOf,
   localPair,
@@ -279,6 +280,15 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
 
   const templates: Template[] = [];
   const jobEntries: { id: string; definitions: readonly Definition[]; range: SourceRange }[] = [];
+  const templateMaps = new Map<YAMLMap, string>(
+    [...lookup]
+      .filter(([key]) => key.startsWith("."))
+      .flatMap(([key, definitions]) => definitions.map((definition) => [definition.map, key])),
+  );
+  const mergesOf = (definitions: readonly Definition[]): { merges?: string[] } => {
+    const merges = effectiveMerges(definitions, context, templateMaps);
+    return merges.length === 0 ? {} : { merges };
+  };
 
   for (const [key, definitions] of lookup) {
     const range = collected.ranges.get(key) ?? emptyRange();
@@ -287,7 +297,13 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     const owner = definitions[definitions.length - 1]?.file ?? main;
 
     if (key.startsWith(".")) {
-      templates.push({ id: key, range, file: owner });
+      templates.push({
+        id: key,
+        range,
+        file: owner,
+        extends: effectiveExtends(definitions, { ...context, job: key }),
+        ...mergesOf(definitions),
+      });
     } else {
       jobEntries.push({ id: key, definitions, range });
     }
@@ -331,6 +347,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       ...(hasUnmodelledNeeds(sources) ? { unmodelledNeeds: true as const } : {}),
       environment: resolveEnvironment(sources, jobContext),
       extends: effectiveExtends(entry.definitions, jobContext),
+      ...mergesOf(entry.definitions),
       opaque: jobOpaque,
       signals: resolveSignals(sources, defaults, jobContext),
       range: entry.range,

@@ -61,4 +61,21 @@ describe("a pipeline from the network", () => {
       pipelineSchema.safeParse({ ...broken, templates: [{ id: ".t", range: range() }] }).success,
     ).toBe(false);
   });
+
+  test("a template carries its extends and merges, a job its merges", () => {
+    const base = pipeline({ jobs: [{ ...job("unit", "test"), merges: [".t"] }] });
+    const shown = {
+      ...base,
+      templates: [
+        { id: ".t", range: range(), file: base.main, extends: [".u"], merges: [".v"] },
+        { id: ".u", range: range(), file: base.main, extends: [] },
+      ],
+    };
+    expect(pipelineSchema.parse(shown)).toEqual(shown);
+    const withoutExtends = {
+      ...shown,
+      templates: [{ id: ".t", range: range(), file: base.main }],
+    };
+    expect(pipelineSchema.safeParse(withoutExtends).success).toBe(false);
+  });
 });

@@ -191,6 +191,7 @@ const job = z.object({
     z.object({ name: text, url: text.exactOptional(), action: text.exactOptional() }),
   ).nullable(),
   extends: z.array(text),
+  merges: z.array(text).exactOptional(),
   opaque: z.array(opaqueBlock),
   signals: z.object({
     image: text.nullable(),
@@ -206,7 +207,15 @@ export const pipelineSchema = z.object({
     z.object({ name: text, implicit: z.boolean(), range: sourceRange.nullable(), file: text }),
   ),
   jobs: z.array(job),
-  templates: z.array(z.object({ id: text, range: sourceRange, file: text })),
+  templates: z.array(
+    z.object({
+      id: text,
+      range: sourceRange,
+      file: text,
+      extends: z.array(text),
+      merges: z.array(text).exactOptional(),
+    }),
+  ),
   opaque: z.array(opaqueBlock),
   main: text,
   files: z.array(text),

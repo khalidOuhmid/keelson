@@ -1052,20 +1052,22 @@ function planMoveStage(
   const written = text.slice(victimRange[0], victimRange[1]);
   const ownPrefix = linePrefix(text, victimRange[0]);
   const position = items.indexOf(victim);
-  let removal: Splice;
+  let removal: Splice[];
   if (declared.seq.flow === true) {
-    const following = nodeRange(items[position + 1])?.[0];
-    const preceding = nodeRange(items[position - 1])?.[1];
-    removal =
-      following !== undefined
-        ? { start: victimRange[0], end: following, text: "" }
-        : { start: preceding ?? victimRange[0], end: victimRange[1], text: "" };
+    removal = flowItemRemoval(
+      text,
+      victimRange,
+      nodeRange(items[position - 1])?.[1],
+      nodeRange(items[position + 1])?.[0],
+    );
   } else {
-    removal = {
-      start: lineStart(text, victimRange[0]),
-      end: afterLine(text, victimRange[1]),
-      text: "",
-    };
+    removal = [
+      {
+        start: lineStart(text, victimRange[0]),
+        end: afterLine(text, victimRange[1]),
+        text: "",
+      },
+    ];
   }
 
   const insertion = stageInsertion(
@@ -1079,7 +1081,49 @@ function planMoveStage(
   if (insertion === null) {
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" });
   }
-  return ok([removal, insertion]);
+  return ok([...removal, insertion]);
+}
+
+/** The comma separating two flow items, skipping the comments in the gap between them. */
+function flowComma(text: string, from: number, to: number): number | null {
+  for (let at = from; at < to; at += 1) {
+    if (text[at] === "#") {
+      const end = text.indexOf("\n", at);
+      at = end === -1 || end > to ? to : end;
+    } else if (text[at] === ",") {
+      return at;
+    }
+  }
+  return null;
+}
+
+/** A flow item goes with the comma that separates it from its neighbour. When a comment stands in
+ *  that gap, only the item and the comma go: the comment and its line break stay where they are. */
+function flowItemRemoval(
+  text: string,
+  item: readonly [number, number, ...number[]],
+  preceding: number | undefined,
+  following: number | undefined,
+): Splice[] {
+  const [start, end] = item;
+  const gap: [number, number] | null =
+    following !== undefined
+      ? [end, following]
+      : preceding !== undefined
+        ? [preceding, start]
+        : null;
+  if (gap === null) {
+    return [{ start, end, text: "" }];
+  }
+  const comma = flowComma(text, gap[0], gap[1]);
+  if (comma === null || !text.slice(gap[0], gap[1]).includes("#")) {
+    return following !== undefined
+      ? [{ start, end: following, text: "" }]
+      : [{ start: preceding ?? start, end, text: "" }];
+  }
+  const commaSplice = { start: comma, end: comma + 1, text: "" };
+  const itemSplice = { start, end, text: "" };
+  return comma < start ? [commaSplice, itemSplice] : [itemSplice, commaSplice];
 }
 
 function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {

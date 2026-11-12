@@ -1,7 +1,7 @@
 import type { Origin, Pipeline } from "@keelson/core";
 import type { LayerId } from "@keelson/taxonomy";
 import type { Edge, Node } from "@xyflow/react";
-import type { Layout } from "./layout.ts";
+import type { InheritanceEdge, Layout } from "./layout.ts";
 
 export const JOB_NODE_TYPE = "keelsonJob";
 export const COLUMN_NODE_TYPE = "keelsonStageColumn";
@@ -56,6 +56,8 @@ export type ColumnNodeData = {
 export type TemplateNodeData = {
   id: string;
   file: string;
+  /** The template extends or merges another drawn template: an edge comes into it. */
+  inherits: boolean;
 };
 
 export type TemplateColumnData = {
@@ -73,6 +75,8 @@ export type FlowNode =
 export type EdgeData = {
   optional: boolean;
   highlighted: boolean;
+  /** On an inheritance edge only: what the value is inherited through. */
+  kind?: InheritanceEdge["kind"];
 };
 
 export type FlowGraph = {
@@ -195,17 +199,27 @@ export function toFlowGraph(
   });
 
   const templateFiles = new Map(pipeline.templates.map((template) => [template.id, template.file]));
-  const first = layout.templates[0];
+  const drawnTemplates = new Set(layout.templates.map((template) => template.id));
+  const inheritanceDrawn = layout.inheritance.filter(
+    (edge) =>
+      drawnTemplates.has(edge.source) &&
+      (edge.into === "job" ? jobs.has(edge.target) : drawnTemplates.has(edge.target)),
+  );
+  const inheriting = new Set(
+    inheritanceDrawn.filter((edge) => edge.into === "template").map((edge) => edge.target),
+  );
+  const left = Math.min(...layout.templates.map((template) => template.x));
+  const right = Math.max(...layout.templates.map((template) => template.x + template.width));
   const templateColumn =
-    first === undefined
+    layout.templates.length === 0
       ? []
       : [
           {
             id: "column:templates",
             type: TEMPLATE_COLUMN_TYPE,
-            position: { x: first.x, y: 0 },
+            position: { x: left, y: 0 },
             data: { count: layout.templates.length } satisfies TemplateColumnData,
-            width: first.width,
+            width: right - left,
             height: columnHeight,
             draggable: false,
             selectable: false,
@@ -220,6 +234,7 @@ export function toFlowGraph(
     data: {
       id: template.id,
       file: templateFiles.get(template.id) ?? pipeline.main,
+      inherits: inheriting.has(template.id),
     } satisfies TemplateNodeData,
     width: template.width,
     height: template.height,
@@ -229,24 +244,32 @@ export function toFlowGraph(
     zIndex: JOB_Z,
   }));
 
-  const inheritance: Edge<EdgeData>[] = layout.inheritance
-    .filter((edge) => jobs.has(edge.target))
-    .map((edge) => ({
-      id: edge.id,
-      source: `template:${edge.source}`,
-      target: edge.target,
-      selectable: false,
-      data: { optional: false, highlighted: false },
-      ariaLabel: `${edge.target} extends ${edge.source}`,
-      // Dotted, in the quiet border tone: an optional need is dashed, and an inheritance link is
-      // not a dependency.
-      style: {
-        stroke: "var(--color-border-default)",
-        strokeWidth: "var(--keelson-edge-width)",
-        strokeDasharray: "0 var(--keelson-edge-dash)",
-        strokeLinecap: "round",
-      },
-    }));
+  const inheritance: Edge<EdgeData>[] = inheritanceDrawn.map((edge) => ({
+    id: edge.id,
+    source: `template:${edge.source}`,
+    target: edge.into === "job" ? edge.target : `template:${edge.target}`,
+    selectable: false,
+    data: { optional: false, highlighted: false, kind: edge.kind },
+    ariaLabel: `${edge.target} ${edge.kind === "merge" ? "merges" : "extends"} ${edge.source}`,
+    // In the quiet border tone: an inheritance link is not a dependency. An extends is dotted; a
+    // merge alternates dash and dot, and says so in words, as an optional need is only dashed.
+    style: {
+      stroke: "var(--color-border-default)",
+      strokeWidth: "var(--keelson-edge-width)",
+      strokeDasharray:
+        edge.kind === "merge"
+          ? "var(--keelson-edge-dash) var(--keelson-edge-dash) 0 var(--keelson-edge-dash)"
+          : "0 var(--keelson-edge-dash)",
+      strokeLinecap: "round",
+    },
+    ...(edge.kind === "merge"
+      ? {
+          label: "merge",
+          labelStyle: { fill: "var(--color-text-muted)", fontSize: "var(--text-2xs)" },
+          labelBgStyle: { fill: "var(--color-surface-0)" },
+        }
+      : {}),
+  }));
 
   return {
     nodes: [...templateColumn, ...columnNodes, ...templateNodes, ...jobNodes],

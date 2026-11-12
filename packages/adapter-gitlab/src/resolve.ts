@@ -15,6 +15,7 @@ import {
   VALUE_CYCLE,
 } from "@keelson/core";
 import {
+  type Alias,
   type Document,
   isAlias,
   isMap,
@@ -23,6 +24,7 @@ import {
   isSeq,
   type Node,
   type Pair,
+  visit,
   type YAMLMap,
 } from "yaml";
 import { MAX_EXTENDS_DEPTH } from "./defaults.ts";
@@ -89,6 +91,30 @@ function stringsOf(node: AnyNode): string[] {
   return [];
 }
 
+const aliasTargets = new WeakMap<Document.Parsed, Map<Alias, Node | undefined>>();
+
+/** `alias.resolve(document)`, which walks the whole document on every call, read from one walk
+ *  per document: the last node carrying the anchor before the alias. */
+export function resolveAlias(alias: Alias, document: Document.Parsed): Node | undefined {
+  let targets = aliasTargets.get(document);
+  if (targets === undefined) {
+    const table = new Map<Alias, Node | undefined>();
+    const anchors = new Map<string, Node>();
+    visit(document, {
+      Node: (_key, node) => {
+        if (isAlias(node)) {
+          table.set(node, anchors.get(node.source));
+        } else if (typeof node.anchor === "string") {
+          anchors.set(node.anchor, node);
+        }
+      },
+    });
+    aliasTargets.set(document, table);
+    targets = table;
+  }
+  return targets.has(alias) ? targets.get(alias) : alias.resolve(document);
+}
+
 /** A value written in a map, and the anchor it was merged from, if any. */
 export type Write = { node: AnyNode; anchor: string | null; pair: Pair<unknown, unknown> };
 
@@ -100,7 +126,7 @@ function mergedWrite(
   document: Document.Parsed,
   walk: Walk,
 ): Write | undefined {
-  const target = isAlias(value) ? value.resolve(document) : value;
+  const target = isAlias(value) ? resolveAlias(value, document) : value;
   if (!isMap(target) || walk.path.has(target)) {
     return undefined;
   }
@@ -154,7 +180,7 @@ export function extendsOf(map: YAMLMap, document: Document.Parsed | null): strin
     return pair === undefined ? [] : stringsOf(pair.value as AnyNode);
   }
   const node = lastWrite(map, "extends", document)?.node;
-  return stringsOf(isAlias(node) ? (node.resolve(document) as AnyNode) : node);
+  return stringsOf(isAlias(node) ? (resolveAlias(node, document) as AnyNode) : node);
 }
 
 /** A definition of a top-level key, in the file that carries it. The same key can have several: a
@@ -287,6 +313,34 @@ export function effectiveExtends(
     }
   }
   return [];
+}
+
+/** The templates a definition merges through its own merge keys, `<<: *anchor` or a list of
+ *  them, across every definition in merge order. Only an anchor on a template's own map names a
+ *  template: one on a job or a nested value names nothing that is drawn. */
+export function effectiveMerges(
+  definitions: readonly Definition[],
+  context: ResolveContext,
+  templates: ReadonlyMap<YAMLMap, string>,
+): string[] {
+  const names = definitions.flatMap((definition) => {
+    const document = documentOf(context, definition.file);
+    if (document === null) {
+      return [];
+    }
+    return localPairs(definition.map)
+      .filter((pair) => keyOf(pair) === MERGE_KEY)
+      .flatMap((pair) => {
+        const value = pair.value as AnyNode;
+        return isSeq(value) ? (value.items as AnyNode[]) : [value];
+      })
+      .flatMap((item) => {
+        const target = isAlias(item) ? resolveAlias(item, document) : undefined;
+        const name = isMap(target) ? templates.get(target) : undefined;
+        return name === undefined ? [] : [name];
+      });
+  });
+  return [...new Set(names)];
 }
 
 /** Serialisation with sorted keys: deduplication used to rely on the message, which no longer
