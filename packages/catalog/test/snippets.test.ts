@@ -123,16 +123,15 @@ describe("a GitLab snippet", () => {
     ).toEqual([]);
   });
 
-  test("clears the image entrypoint, which would otherwise receive the runner's shell", () => {
-    expect(
-      imaged
-        .filter(
-          (job) =>
-            IMAGES[job.image ?? ""]?.entrypoint !== null &&
-            JSON.stringify(job.entrypoint) !== JSON.stringify([""]),
-        )
-        .map((job) => job.tool),
-    ).toEqual([]);
+  test("clears an image entrypoint that would receive the runner's shell, and only that one", () => {
+    const wrong = imaged.filter((job) => {
+      const facts = IMAGES[job.image ?? ""];
+      const cleared = JSON.stringify(job.entrypoint) === JSON.stringify([""]);
+      return facts?.runnerKeepsEntrypoint !== undefined
+        ? cleared
+        : facts?.entrypoint !== null && !cleared;
+    });
+    expect(wrong.map((job) => job.tool)).toEqual([]);
   });
 
   test("calls commands that are on the image's PATH or at their absolute path", () => {
@@ -171,7 +170,10 @@ describe("a GitHub docker run", () => {
   test("keeps an entrypoint the tool depends on", () => {
     expect(
       dockerRuns
-        .filter((run) => run.entrypoint !== null && IMAGES[run.image]?.keepEntrypoint !== undefined)
+        .filter(
+          (run) =>
+            run.entrypoint !== null && IMAGES[run.image]?.dockerKeepsEntrypoint !== undefined,
+        )
         .map((run) => run.tool),
     ).toEqual([]);
   });

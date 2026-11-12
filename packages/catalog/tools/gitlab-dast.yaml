@@ -1,0 +1,25 @@
+id: gitlab-dast
+name: 'GitLab DAST'
+kind: job
+layers: [dast]
+license: Proprietary
+homepage: https://docs.gitlab.com/user/application_security/dast/
+verifiedAt: https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Security/DAST.gitlab-ci.yml
+logo: gitlab
+detect:
+  images: ['registry.gitlab.com/security-products/dast']
+  scripts: []
+snippets:
+  gitlab: |
+    dast:
+      stage: test
+      image: registry.gitlab.com/security-products/dast:6
+      variables:
+        DAST_TARGET_URL: $TARGET_URL
+      script:
+        - /analyze
+      artifacts:
+        reports:
+          dast: gl-dast-report.json
+  github: null
+lastVerified: 2026-11-12

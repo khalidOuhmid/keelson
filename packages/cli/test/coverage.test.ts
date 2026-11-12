@@ -151,7 +151,7 @@ describe("keelson coverage", () => {
 });
 
 describe("keelson catalog lint", () => {
-  const NOW = new Date("2026-11-04T00:00:00Z");
+  const NOW = new Date("2026-11-12T00:00:00Z");
 
   test("the bundled catalogue is clean", async () => {
     const result = await run(["catalog", "lint"], { now: NOW, cwd: root });

@@ -9,8 +9,10 @@ export type ImageFacts = {
   shell: string | null;
   /** Absolute paths of the executables the snippets call. */
   files: readonly string[];
-  /** The image entrypoint does work the tool needs: overriding it breaks the tool. */
-  keepEntrypoint?: string;
+  /** Why the image entrypoint must stay under a GitLab runner, or under `docker run`: it does
+   *  work the tool needs. */
+  runnerKeepsEntrypoint?: string;
+  dockerKeepsEntrypoint?: string;
 };
 
 const SYSTEM = ["/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"];
@@ -83,6 +85,46 @@ export const IMAGES: Readonly<Record<string, ImageFacts>> = {
     path: ["/opt/sonar-scanner/bin", ...SYSTEM],
     shell: "/usr/bin/bash",
     files: ["/opt/sonar-scanner/bin/sonar-scanner"],
+  },
+  "registry.gitlab.com/security-products/api-security:6": {
+    entrypoint: ["/peach/entrypoint.sh"],
+    path: SYSTEM,
+    shell: "/bin/bash",
+    files: ["/peach/analyzer-api-security"],
+    runnerKeepsEntrypoint:
+      "under GITLAB_CI it hands over to bash, as the official template relies on",
+  },
+  "registry.gitlab.com/security-products/container-scanning:8": {
+    entrypoint: null,
+    path: ["/home/gitlab", "/usr/local/bundle/bin", ...SYSTEM],
+    shell: "/usr/bin/bash",
+    files: ["/usr/local/bundle/bin/gtcs"],
+  },
+  "registry.gitlab.com/security-products/dast:6": {
+    entrypoint: ["/browserker/entrypoint.sh"],
+    path: SYSTEM,
+    shell: "/usr/bin/bash",
+    files: ["/analyze"],
+    runnerKeepsEntrypoint: "it starts the Squid proxy the scan goes through",
+  },
+  "registry.gitlab.com/security-products/gemnasium:6": {
+    entrypoint: null,
+    path: SYSTEM,
+    shell: "/bin/sh",
+    files: ["/analyzer"],
+  },
+  "registry.gitlab.com/security-products/gitlab-advanced-sast:2": {
+    entrypoint: ["/entrypoint.sh"],
+    path: ["/", ...SYSTEM],
+    shell: "/bin/sh",
+    files: ["/analyzer"],
+    runnerKeepsEntrypoint: "it moves TMPDIR to /dev/shm, as the official template keeps it",
+  },
+  "registry.gitlab.com/security-products/secrets:7": {
+    entrypoint: null,
+    path: SYSTEM,
+    shell: "/bin/sh",
+    files: ["/analyzer"],
   },
   "ghcr.io/gitleaks/gitleaks:latest": {
     entrypoint: ["gitleaks"],
@@ -209,7 +251,7 @@ export const IMAGES: Readonly<Record<string, ImageFacts>> = {
     path: SYSTEM,
     shell: "/bin/bash",
     files: ["/usr/bin/trufflehog"],
-    keepEntrypoint:
+    dockerKeepsEntrypoint:
       "it runs git config --global --add safe.directory '*', and the image has no .gitconfig: a checkout owned by the runner's user is refused by git otherwise",
   },
   "zaproxy/zap-stable:latest": {

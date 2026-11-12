@@ -89,7 +89,7 @@ describe("the bundled catalogue", () => {
       file: name,
       text: readFileSync(join(TOOLS_DIR, name), "utf8"),
     }));
-    expect(lintCatalog(entries, logos, new Date("2026-11-04T00:00:00Z"))).toEqual([]);
+    expect(lintCatalog(entries, logos, new Date("2026-11-12T00:00:00Z"))).toEqual([]);
   });
 });
 

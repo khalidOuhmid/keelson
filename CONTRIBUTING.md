@@ -34,9 +34,14 @@ bun run dev          # local server on a dev fixture + Vite UI on http://localho
 
 1. Add `packages/catalog/tools/<id>.yaml` (schema in `packages/catalog/src/schema.ts`): layers,
    licence, detection (`images`, `scripts` regexes, GitHub `actions`), GitLab and GitHub snippets,
-   `lastVerified`.
-2. `bun run catalog:build` and commit the regenerated `catalog.json`.
-3. `bun run build && node packages/cli/dist/keelson.js catalog lint packages/catalog/tools`.
+   `lastVerified`. An image in `detect.images` written without its registry (`aquasec/trivy`)
+   matches any image with the same last name, mirrors included; one written with its registry
+   (`registry.gitlab.com/security-products/dast`) matches its whole path under any registry.
+2. Record each image a snippet uses in `packages/catalog/test/images.ts`: its entrypoint, `PATH`,
+   shell and executables, read from the registry (image config and layer listing). The snippet
+   tests check every GitLab job and `docker run` against them.
+3. `bun run catalog:build` and commit the regenerated `catalog.json`.
+4. `bun run build && node packages/cli/dist/keelson.js catalog lint packages/catalog/tools`.
 
 ## Releasing
 

@@ -527,6 +527,160 @@
       "integration": null
     },
     {
+      "id": "gitlab-advanced-sast",
+      "name": "GitLab Advanced SAST",
+      "kind": "job",
+      "layers": [
+        "sast"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://docs.gitlab.com/user/application_security/sast/gitlab_advanced_sast/",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/SAST.gitlab-ci.yml",
+      "logo": "gitlab",
+      "detect": {
+        "images": [
+          "registry.gitlab.com/security-products/gitlab-advanced-sast"
+        ],
+        "scripts": [],
+        "actions": []
+      },
+      "snippets": {
+        "gitlab": "gitlab-advanced-sast:\n  stage: test\n  image: registry.gitlab.com/security-products/gitlab-advanced-sast:2\n  script:\n    - /analyzer run\n  artifacts:\n    reports:\n      sast: gl-sast-report.json\n",
+        "github": null
+      },
+      "lastVerified": "2026-11-12",
+      "integration": null
+    },
+    {
+      "id": "gitlab-api-security",
+      "name": "GitLab API Security Testing",
+      "kind": "job",
+      "layers": [
+        "api"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://docs.gitlab.com/user/application_security/api_security_testing/",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Security/API-Security.gitlab-ci.yml",
+      "logo": "gitlab",
+      "detect": {
+        "images": [
+          "registry.gitlab.com/security-products/api-security"
+        ],
+        "scripts": [],
+        "actions": []
+      },
+      "snippets": {
+        "gitlab": "api_security:\n  stage: test\n  image: registry.gitlab.com/security-products/api-security:6\n  variables:\n    APISEC_TARGET_URL: $TARGET_URL\n    APISEC_OPENAPI: openapi.json\n  script:\n    - /peach/analyzer-api-security\n  artifacts:\n    when: always\n    reports:\n      dast: gl-api-security-report.json\n",
+        "github": null
+      },
+      "lastVerified": "2026-11-12",
+      "integration": null
+    },
+    {
+      "id": "gitlab-container-scanning",
+      "name": "GitLab Container Scanning",
+      "kind": "job",
+      "layers": [
+        "sca",
+        "infrastructure"
+      ],
+      "license": "MIT",
+      "homepage": "https://docs.gitlab.com/user/application_security/container_scanning/",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/Container-Scanning.gitlab-ci.yml",
+      "logo": "gitlab",
+      "detect": {
+        "images": [
+          "registry.gitlab.com/security-products/container-scanning"
+        ],
+        "scripts": [],
+        "actions": []
+      },
+      "snippets": {
+        "gitlab": "container_scanning:\n  stage: test\n  image: registry.gitlab.com/security-products/container-scanning:8\n  variables:\n    GIT_STRATEGY: none\n    CS_IMAGE: $IMAGE\n  script:\n    - gtcs scan\n  artifacts:\n    reports:\n      container_scanning: gl-container-scanning-report.json\n",
+        "github": null
+      },
+      "lastVerified": "2026-11-12",
+      "integration": null
+    },
+    {
+      "id": "gitlab-dast",
+      "name": "GitLab DAST",
+      "kind": "job",
+      "layers": [
+        "dast"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://docs.gitlab.com/user/application_security/dast/",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Security/DAST.gitlab-ci.yml",
+      "logo": "gitlab",
+      "detect": {
+        "images": [
+          "registry.gitlab.com/security-products/dast"
+        ],
+        "scripts": [],
+        "actions": []
+      },
+      "snippets": {
+        "gitlab": "dast:\n  stage: test\n  image: registry.gitlab.com/security-products/dast:6\n  variables:\n    DAST_TARGET_URL: $TARGET_URL\n  script:\n    - /analyze\n  artifacts:\n    reports:\n      dast: gl-dast-report.json\n",
+        "github": null
+      },
+      "lastVerified": "2026-11-12",
+      "integration": null
+    },
+    {
+      "id": "gitlab-dependency-scanning",
+      "name": "GitLab Dependency Scanning",
+      "kind": "job",
+      "layers": [
+        "sca"
+      ],
+      "license": "Proprietary",
+      "homepage": "https://docs.gitlab.com/user/application_security/dependency_scanning/",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/Dependency-Scanning.gitlab-ci.yml",
+      "logo": "gitlab",
+      "detect": {
+        "images": [
+          "registry.gitlab.com/security-products/gemnasium",
+          "registry.gitlab.com/security-products/gemnasium-maven",
+          "registry.gitlab.com/security-products/gemnasium-python",
+          "registry.gitlab.com/security-products/dependency-scanning"
+        ],
+        "scripts": [],
+        "actions": []
+      },
+      "snippets": {
+        "gitlab": "gemnasium-dependency_scanning:\n  stage: test\n  image: registry.gitlab.com/security-products/gemnasium:6\n  script:\n    - /analyzer run\n  artifacts:\n    reports:\n      dependency_scanning: gl-dependency-scanning-report.json\n",
+        "github": null
+      },
+      "lastVerified": "2026-11-12",
+      "integration": null
+    },
+    {
+      "id": "gitlab-secret-detection",
+      "name": "GitLab Secret Detection",
+      "kind": "job",
+      "layers": [
+        "secrets"
+      ],
+      "license": "MIT",
+      "homepage": "https://docs.gitlab.com/user/application_security/secret_detection/pipeline/",
+      "verifiedAt": "https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/Secret-Detection.gitlab-ci.yml",
+      "logo": "gitlab",
+      "detect": {
+        "images": [
+          "registry.gitlab.com/security-products/secrets"
+        ],
+        "scripts": [],
+        "actions": []
+      },
+      "snippets": {
+        "gitlab": "secret_detection:\n  stage: test\n  image: registry.gitlab.com/security-products/secrets:7\n  variables:\n    GIT_DEPTH: \"50\"\n  script:\n    - /analyzer run\n  artifacts:\n    reports:\n      secret_detection: gl-secret-detection-report.json\n",
+        "github": null
+      },
+      "lastVerified": "2026-11-12",
+      "integration": null
+    },
+    {
       "id": "gitlab",
       "name": "GitLab",
       "kind": "service",

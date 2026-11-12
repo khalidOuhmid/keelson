@@ -1,0 +1,23 @@
+id: gitlab-dependency-scanning
+name: 'GitLab Dependency Scanning'
+kind: job
+layers: [sca]
+license: Proprietary
+homepage: https://docs.gitlab.com/user/application_security/dependency_scanning/
+verifiedAt: https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/Dependency-Scanning.gitlab-ci.yml
+logo: gitlab
+detect:
+  images: ['registry.gitlab.com/security-products/gemnasium', 'registry.gitlab.com/security-products/gemnasium-maven', 'registry.gitlab.com/security-products/gemnasium-python', 'registry.gitlab.com/security-products/dependency-scanning']
+  scripts: []
+snippets:
+  gitlab: |
+    gemnasium-dependency_scanning:
+      stage: test
+      image: registry.gitlab.com/security-products/gemnasium:6
+      script:
+        - /analyzer run
+      artifacts:
+        reports:
+          dependency_scanning: gl-dependency-scanning-report.json
+  github: null
+lastVerified: 2026-11-12

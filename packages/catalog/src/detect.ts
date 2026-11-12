@@ -8,17 +8,64 @@ export type Detection = {
   layers: readonly LayerId[];
 };
 
-/** An image name without registry, path, tag or digest: a private mirror is still the same image,
- *  but `mycorp/trivy-report-uploader` is not Trivy. */
-function imageName(image: string): string {
-  const withoutDigest = image.toLowerCase().split("@")[0] ?? "";
-  const last = withoutDigest.split("/").at(-1) ?? "";
-  return last.split(":")[0] ?? "";
+/** The defaults GitLab's Secure templates give the variables that name their analyzer images,
+ *  as the templates write them. Any other variable stays unresolved. */
+const TEMPLATE_VARIABLES: Readonly<Record<string, string>> = {
+  CI_TEMPLATE_REGISTRY_HOST: "registry.gitlab.com",
+  SECURE_ANALYZERS_PREFIX: "$CI_TEMPLATE_REGISTRY_HOST/security-products",
+  CS_ANALYZER_IMAGE: "$CI_TEMPLATE_REGISTRY_HOST/security-products/container-scanning:8",
+  APISEC_IMAGE: "api-security",
+  DAST_API_IMAGE: "api-security",
+};
+
+const VARIABLE = /\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))/g;
+
+function expand(image: string): string {
+  let current = image;
+  for (let round = 0; round < 3; round += 1) {
+    const next = current.replace(
+      VARIABLE,
+      (written, braced: string | undefined, bare: string | undefined) =>
+        TEMPLATE_VARIABLES[braced ?? bare ?? ""] ?? written,
+    );
+    if (next === current) {
+      break;
+    }
+    current = next;
+  }
+  return current;
+}
+
+/** The repository path, without tag or digest. */
+function segments(image: string): string[] {
+  const parts = (image.toLowerCase().split("@")[0] ?? "").split("/");
+  const last = parts.pop() ?? "";
+  return [...parts, last.split(":")[0] ?? ""];
+}
+
+const isRegistry = (segment: string): boolean =>
+  segment.includes(".") || segment.includes(":") || segment === "localhost";
+
+/** A catalogue image written without its registry matches on its last name: a private mirror is
+ *  still the same image, but `mycorp/trivy-report-uploader` is not Trivy. One written with its
+ *  registry, as GitLab's analyzers are since their names are generic (`secrets`, `dast`), matches
+ *  on its whole path under any registry. */
+function sameImage(candidate: string, image: readonly string[]): boolean {
+  const known = segments(candidate);
+  if (known.length < 2 || !isRegistry(known[0] ?? "")) {
+    return known.at(-1) === image.at(-1);
+  }
+  const path = known.slice(1);
+  const tail = image.slice(image.length - path.length);
+  return image.length > path.length && path.every((part, index) => part === tail[index]);
 }
 
 function onImage(tool: Tool, image: string | null): boolean {
-  const name = image === null ? null : imageName(image);
-  return name !== null && tool.detect.images.some((candidate) => imageName(candidate) === name);
+  if (image === null) {
+    return false;
+  }
+  const path = segments(expand(image));
+  return tool.detect.images.some((candidate) => sameImage(candidate, path));
 }
 
 function onScript(tool: Tool, commands: readonly string[]): boolean {
