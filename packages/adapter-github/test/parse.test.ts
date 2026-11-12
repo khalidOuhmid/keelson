@@ -136,7 +136,7 @@ describe("reading a workflow", () => {
     });
     expect(pipeline.jobs.map((entry) => entry.id)).toEqual(["c"]);
     expect(
-      diagnostics.map((entry) => [entry.code, entry.severity, entry.params, entry.file]),
+      diagnostics.map((entry): unknown[] => [entry.code, entry.severity, entry.params, entry.file]),
     ).toEqual([
       ["WORKFLOW_JOB_INVALID", "error", { reason: "notMap", job: "a" }, FILE],
       ["WORKFLOW_JOB_INVALID", "error", { reason: "notMap", job: "b" }, FILE],
@@ -148,7 +148,7 @@ describe("reading a workflow", () => {
       "jobs:\n  a:\n    needs: {job: b}\n    steps: [{run: x}]\n  b:\n    needs: [a, {x: 1}]\n    steps: [{run: x}]\n",
       { file: FILE },
     );
-    expect(diagnostics.map((entry) => [entry.code, entry.params])).toEqual([
+    expect(diagnostics.map((entry): unknown[] => [entry.code, entry.params])).toEqual([
       ["WORKFLOW_JOB_INVALID", { reason: "needs", job: "a" }],
       ["WORKFLOW_JOB_INVALID", { reason: "needs", job: "b" }],
     ]);
