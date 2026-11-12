@@ -22,7 +22,7 @@ const FAMILIES: { namespace: string; utilities: string }[] = [
 const SPACING_UTILITIES =
   "(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy]|w|h|size|min-[wh]|max-[wh]|inset(?:-[xy])?|top|right|bottom|left|translate-[xy]|scroll-[mp][xytrblse]?)";
 
-function escape(text: string): string {
+function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -33,7 +33,7 @@ function bounded(pattern: string): RegExp {
 /** A token is consumed by its full name — `var(--x)`, a string read at runtime — or by a utility
  *  class of its own family whose name ends exactly on the token's stem. */
 export function isConsumed(token: string, consumers: string): boolean {
-  if (bounded(escape(token)).test(consumers)) {
+  if (bounded(escapeRegExp(token)).test(consumers)) {
     return true;
   }
   if (token === "--spacing") {
@@ -44,5 +44,5 @@ export function isConsumed(token: string, consumers: string): boolean {
     return false;
   }
   const stem = token.slice(`--${family.namespace}-`.length);
-  return bounded(`${family.utilities}-${escape(stem)}`).test(consumers);
+  return bounded(`${family.utilities}-${escapeRegExp(stem)}`).test(consumers);
 }
