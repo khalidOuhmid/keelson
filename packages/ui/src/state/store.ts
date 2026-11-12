@@ -1,6 +1,7 @@
 import type { Coverage } from "@keelson/catalog";
 import type { Diagnostic, Operation, Pipeline, SourceRange, SpliceOperation } from "@keelson/core";
 import { INVALID_YAML } from "@keelson/core";
+import { NETWORK_ERROR } from "@keelson/core/messages";
 import type { LayerId } from "@keelson/taxonomy";
 import { createStore as createZustandStore, type StoreApi } from "zustand/vanilla";
 import type {
@@ -73,10 +74,6 @@ export type KeelsonState = {
   files: WorkspaceFile[];
 
   workspaceLoaded(files: WorkspaceFile[]): void;
-  /** Opens another file of the repository: undo history belongs to a single file. */
-  openFile(file: string): Promise<void>;
-  /** The current file is read by an adapter that Keelson does not edit yet. */
-  readOnly(): boolean;
   documentLoaded(file: string, payload: DocumentPayload): void;
   workspaceEmpty(): void;
   selectJob(id: string | null): void;
@@ -137,35 +134,64 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       });
     };
 
-    /** A `coverage.changed` saw another hash during an operation: the operation's response decides,
-     *  and only a failure without a 409 leaves the reload still to do. */
+    /** A `coverage.changed` or another tab's write arrived during an operation on the same file:
+     *  the operation's response decides, and only a failure without a 409 leaves the reload to do. */
     let reloadOwed = false;
+    /** The file the operation in flight writes to. */
+    let writing: string | null = null;
+    /** The opIds this tab sent: their `document.written` is this tab's own write. */
+    const ownOperations = new Set<string>();
 
-    const reload = async (file: string, notice: Notice): Promise<void> => {
+    /** Only the latest read applies: a load, a removal or a later read makes an older answer moot,
+     *  whatever order the answers arrive in. */
+    let readTurn = 0;
+    const supersedeReads = (): void => {
+      readTurn += 1;
+    };
+    const read = async (file: string): Promise<ApiResult<DocumentPayload> | null> => {
+      readTurn += 1;
+      const turn = readTurn;
       const result = await dependencies.document(file);
-      if (get().file !== file) {
-        return;
-      }
+      return turn === readTurn && get().file === file ? result : null;
+    };
+
+    const show = (payload: DocumentPayload, notice: Notice): void => {
       clearHistory();
-
-      if (!result.ok) {
-        set({ status: "removed", error: result.error, selectedJobId: null });
-        return;
-      }
-
-      const stillThere = result.value.pipeline.jobs.some((job) => job.id === get().selectedJobId);
+      const stillThere = payload.pipeline.jobs.some((job) => job.id === get().selectedJobId);
       set({
-        text: result.value.text,
-        included: result.value.included,
-        coverage: result.value.coverage,
-        pipeline: result.value.pipeline,
-        diagnostics: result.value.diagnostics,
-        hash: result.value.hash,
+        text: payload.text,
+        included: payload.included,
+        coverage: payload.coverage,
+        pipeline: payload.pipeline,
+        diagnostics: payload.diagnostics,
+        hash: payload.hash,
         status: "ready",
         selectedJobId: stillThere ? get().selectedJobId : null,
         error: null,
         notice,
       });
+    };
+
+    /** A server that no longer answers has not deleted the file: the screen keeps what it shows. */
+    const readFailed = (error: ApiFailure): void => {
+      clearHistory();
+      if (error.code === NETWORK_ERROR) {
+        set({ error });
+        return;
+      }
+      set({ status: "removed", error, selectedJobId: null });
+    };
+
+    const reload = async (file: string, notice: Notice): Promise<void> => {
+      const result = await read(file);
+      if (result === null) {
+        return;
+      }
+      if (result.ok) {
+        show(result.value, notice);
+      } else {
+        readFailed(result.error);
+      }
     };
 
     const send = async (
@@ -174,14 +200,18 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       onSuccess: () => void,
     ): Promise<boolean> => {
       const file = get().file;
-      if (file === null || !get().canEdit()) {
+      if (file === null || !get().canEdit() || get().pending) {
         return false;
       }
 
       // "Added" would be false as soon as the next operation runs, an Undo for instance.
       set({ pending: true, ...(get().notice?.kind === "written" ? { notice: null } : {}) });
-      const result = await dependencies.submit(file, op, dependencies.newOpId());
+      writing = file;
+      const opId = dependencies.newOpId();
+      ownOperations.add(opId);
+      const result = await dependencies.submit(file, op, opId);
       set({ pending: false });
+      writing = null;
       const owed = reloadOwed;
       reloadOwed = false;
 
@@ -208,14 +238,18 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           message:
             "The file changed on disk. Your change was not applied; the document has been reloaded.",
         });
-        set({ error: result.error });
+        if (get().file === file) {
+          set({ error: result.error });
+        }
         return false;
       }
 
       if (owed) {
         await reload(file, RELOADED);
       }
-      set({ error: result.error });
+      if (get().file === file) {
+        set({ error: result.error });
+      }
       return false;
     };
 
@@ -242,26 +276,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
         set({ files });
       },
 
-      async openFile(file) {
-        if (file === get().file) {
-          return;
-        }
-        clearHistory();
-        set({ status: "loading", selectedJobId: null, error: null, notice: null });
-        const result = await dependencies.document(file);
-        if (result.ok) {
-          get().documentLoaded(file, result.value);
-          return;
-        }
-        set({ file, status: "removed", error: result.error });
-      },
-
-      readOnly() {
-        const { file, files } = get();
-        return files.find((entry) => entry.path === file)?.adapter === "github";
-      },
-
       documentLoaded(file, payload) {
+        supersedeReads();
         clearHistory();
         set({
           file,
@@ -279,6 +295,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       },
 
       workspaceEmpty() {
+        supersedeReads();
         clearHistory();
         set({ file: null, pipeline: null, status: "empty", diagnostics: [], hash: null });
       },
@@ -339,7 +356,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
 
       canEdit() {
         const { status, diagnostics } = get();
-        return status === "ready" && !diagnostics.some(blocksEditing) && !get().readOnly();
+        return status === "ready" && !diagnostics.some(blocksEditing);
       },
 
       canUndo() {
@@ -397,11 +414,16 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       },
 
       async serverEvent(event) {
+        if (event.kind === "workspace.changed") {
+          set({ files: event.files });
+          return;
+        }
         if (event.file !== get().file) {
           return;
         }
 
         if (event.kind === "document.removed") {
+          supersedeReads();
           clearHistory();
           set({
             status: "removed",
@@ -410,26 +432,38 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           return;
         }
 
+        if (event.kind === "document.written") {
+          if (ownOperations.delete(event.opId) || event.hash === get().hash) {
+            return;
+          }
+          if (writing === event.file) {
+            reloadOwed = true;
+            return;
+          }
+          await reload(event.file, RELOADED);
+          return;
+        }
+
         if (event.kind === "coverage.changed") {
           const known = get().hash;
-          const result = await dependencies.document(event.file);
-          if (!result.ok) {
+          const result = await read(event.file);
+          if (result === null || !result.ok) {
             return;
           }
           if (result.value.hash === get().hash) {
             set({ coverage: result.value.coverage, diagnostics: result.value.diagnostics });
             return;
           }
-          // Another hash with no operation from this client: the server does not broadcast its
-          // own writes, so no `document.changed` will follow. With an operation, its response wins.
+          // Another hash with no operation from this client: no `document.changed` will follow.
+          // With an operation, its response wins.
           if (get().hash !== known) {
             return;
           }
-          if (get().pending) {
+          if (writing === event.file) {
             reloadOwed = true;
             return;
           }
-          await reload(event.file, RELOADED);
+          show(result.value, RELOADED);
           return;
         }
 

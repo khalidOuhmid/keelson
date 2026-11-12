@@ -894,3 +894,240 @@ describe("a layout.json change", () => {
     await addStage("livrer");
   }
 });
+
+type Gate<T> = { promise: Promise<T>; open: (value: T) => void };
+
+function gate<T>(): Gate<T> {
+  let open: (value: T) => void = () => {};
+  const promise = new Promise<T>((resolve) => {
+    open = resolve;
+  });
+  return { promise, open };
+}
+
+/** Every request waits until the test opens its gate, in any order. */
+function gated() {
+  const reads: Gate<ApiResult<DocumentPayload>>[] = [];
+  const writes: Gate<ApiResult<OperationPayload>>[] = [];
+  let ids = 0;
+  const gatedStore = createStore({
+    submit: () => {
+      const next = gate<ApiResult<OperationPayload>>();
+      writes.push(next);
+      return next.promise;
+    },
+    document: () => {
+      const next = gate<ApiResult<DocumentPayload>>();
+      reads.push(next);
+      return next.promise;
+    },
+    catalog: async () => ({ ok: true, value: { layers: [], tools: [], logos: {} } }),
+    newOpId: () => {
+      ids += 1;
+      return `op-${ids}`;
+    },
+  });
+  gatedStore.getState().documentLoaded(MAIN, documentPayload(HASH_A));
+  return { store: gatedStore, reads, writes };
+}
+
+const flush = (): Promise<void> => new Promise((settle) => setTimeout(settle, 0));
+
+const STALE_409 = {
+  ok: false,
+  error: {
+    status: 409,
+    code: "STALE_DOCUMENT",
+    params: { expected: HASH_C, received: HASH_A },
+    hash: HASH_C,
+  },
+} as const;
+
+const OFFLINE = {
+  ok: false,
+  error: { status: 0, code: "NETWORK_ERROR", params: { detail: "connection refused" } },
+} as const;
+
+describe("reads answered out of order", () => {
+  test("two coverage.changed GETs: the later request wins, whatever the order of answers", async () => {
+    const { store: s, reads } = gated();
+    const first = s.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    const second = s.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    reads[1]?.open({
+      ok: true,
+      value: { ...documentPayload(HASH_A), coverage: { ...NO_COVERAGE, partial: true } },
+    });
+    await second;
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_A) });
+    await first;
+    expect(s.getState().coverage?.partial).toBe(true);
+  });
+
+  test("a GET answered after a 409 does not replace the stale notice with reloaded", async () => {
+    const { store: s, reads, writes } = gated();
+    const changed = s
+      .getState()
+      .serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_C });
+    const submitted = s.getState().submit({ kind: "addStage", name: "x" });
+    writes[0]?.open(STALE_409);
+    await flush();
+    reads[1]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await submitted;
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await changed;
+    expect(s.getState().notice?.kind).toBe("stale");
+    expect(s.getState().error?.code).toBe("STALE_DOCUMENT");
+  });
+
+  test("a document.removed arriving during a reload is not overwritten", async () => {
+    const { store: s, reads } = gated();
+    const changed = s
+      .getState()
+      .serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_C });
+    await s.getState().serverEvent({ kind: "document.removed", file: MAIN });
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await changed;
+    expect(s.getState().status).toBe("removed");
+    expect(s.getState().notice?.kind).toBe("removed");
+  });
+
+  test("A then B then A: the reload started on the first A does not replace the last one", async () => {
+    const { store: s, reads } = gated();
+    const changed = s
+      .getState()
+      .serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_C });
+    s.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    s.getState().documentLoaded(MAIN, documentPayload(HASH_B));
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await changed;
+    expect(s.getState().hash).toBe(HASH_B);
+    expect(s.getState().notice).toBeNull();
+  });
+});
+
+describe("a server that stops answering", () => {
+  test("a reload that cannot reach the server says NETWORK_ERROR and keeps the document", async () => {
+    const { store: s, reads } = gated();
+    const changed = s
+      .getState()
+      .serverEvent({ kind: "document.changed", file: MAIN, hash: HASH_C });
+    reads[0]?.open(OFFLINE);
+    await changed;
+    expect(s.getState().status).toBe("ready");
+    expect(s.getState().error?.code).toBe("NETWORK_ERROR");
+  });
+
+  test("the reload owed during an operation fails as NETWORK_ERROR, not as removed", async () => {
+    const { store: s, reads, writes } = gated();
+    const submitted = s.getState().submit({ kind: "addStage", name: "x" });
+    const covered = s.getState().serverEvent({ kind: "coverage.changed", file: MAIN });
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await covered;
+    writes[0]?.open(OFFLINE);
+    await flush();
+    reads[1]?.open(OFFLINE);
+    await submitted;
+    expect(s.getState().status).toBe("ready");
+    expect(s.getState().error?.code).toBe("NETWORK_ERROR");
+  });
+});
+
+describe("one operation at a time", () => {
+  test("undo or a second submission during an operation sends nothing", async () => {
+    const { store: s, writes } = gated();
+    const first = s.getState().submit({ kind: "addStage", name: "x" });
+    writes[0]?.open({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await first;
+    const second = s.getState().submit({ kind: "addStage", name: "y" });
+    await s.getState().undo();
+    expect(await s.getState().submit({ kind: "addStage", name: "z" })).toBe(false);
+    expect(writes).toHaveLength(2);
+    writes[1]?.open({ ok: true, value: operationPayload(HASH_C, HASH_B) });
+    expect(await second).toBe(true);
+    expect(s.getState().hash).toBe(HASH_C);
+  });
+});
+
+describe("switching files around an operation", () => {
+  test("a 409 on A followed by a switch to B does not put A's error on B", async () => {
+    const { store: s, reads, writes } = gated();
+    const submitted = s.getState().submit({ kind: "addStage", name: "x" });
+    writes[0]?.open(STALE_409);
+    await flush();
+    s.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await submitted;
+    expect(s.getState().file).toBe("b.yml");
+    expect(s.getState().error).toBeNull();
+    expect(s.getState().notice).toBeNull();
+  });
+
+  test("a coverage.changed on B during an operation on A reloads B", async () => {
+    const { store: s, reads, writes } = gated();
+    const submitted = s.getState().submit({ kind: "addStage", name: "x" });
+    s.getState().documentLoaded("b.yml", documentPayload(HASH_B));
+    const covered = s.getState().serverEvent({ kind: "coverage.changed", file: "b.yml" });
+    reads[0]?.open({ ok: true, value: documentPayload(HASH_C) });
+    await covered;
+    writes[0]?.open({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await submitted;
+    expect(s.getState().file).toBe("b.yml");
+    expect(s.getState().hash).toBe(HASH_C);
+    expect(s.getState().notice?.kind).toBe("reloaded");
+  });
+});
+
+describe("document.written", () => {
+  test("the tab that sent the operation recognises its opId and reads nothing", async () => {
+    const { store: s, reads, writes } = gated();
+    const submitted = s.getState().submit({ kind: "addStage", name: "x" });
+    await s
+      .getState()
+      .serverEvent({ kind: "document.written", file: MAIN, hash: HASH_B, opId: "op-1" });
+    writes[0]?.open({ ok: true, value: operationPayload(HASH_B, HASH_A) });
+    await submitted;
+    expect(reads).toHaveLength(0);
+    expect(s.getState().notice).toBeNull();
+    expect(s.getState().canUndo()).toBe(true);
+  });
+
+  test("another tab's write reloads this one", async () => {
+    await addStage("verify");
+    api.queueDocument({ ok: true, value: documentPayload(HASH_C) });
+    await state().serverEvent({
+      kind: "document.written",
+      file: MAIN,
+      hash: HASH_C,
+      opId: "elsewhere",
+    });
+    expect(state().hash).toBe(HASH_C);
+    expect(state().canUndo()).toBe(false);
+    expect(state().notice?.kind).toBe("reloaded");
+  });
+
+  test("a write already reached is not read again", async () => {
+    const { store: s, reads } = gated();
+    await s
+      .getState()
+      .serverEvent({ kind: "document.written", file: MAIN, hash: HASH_A, opId: "elsewhere" });
+    expect(reads).toHaveLength(0);
+  });
+});
+
+describe("workspace.changed", () => {
+  test("replaces the file list", async () => {
+    await state().serverEvent({
+      kind: "workspace.changed",
+      files: [
+        { path: MAIN, adapter: "gitlab" },
+        { path: ".github/workflows/ci.yml", adapter: "github" },
+      ],
+    });
+    expect(state().files.map((entry) => entry.path)).toEqual([MAIN, ".github/workflows/ci.yml"]);
+  });
+
+  test("a GitHub workflow in the list stays editable", () => {
+    state().workspaceLoaded([{ path: MAIN, adapter: "github" }]);
+    expect(state().canEdit()).toBe(true);
+  });
+});

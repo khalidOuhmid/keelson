@@ -160,7 +160,6 @@ export function App({ deps }: AppProps = {}) {
   const [display, setDisplay] = useState<Display>("graph");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchTrigger = useRef<HTMLButtonElement | null>(null);
-  const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
 
   const opening = useRef(0);
@@ -200,7 +199,7 @@ export function App({ deps }: AppProps = {}) {
       }
 
       setRoot(first.path);
-      setFiles(workspace.value.files);
+      store.getState().workspaceLoaded(workspace.value.files);
       const document = await resolved.client.document(first.path);
       if (document.ok) {
         store.getState().documentLoaded(first.path, document.value);
@@ -369,6 +368,7 @@ export function App({ deps }: AppProps = {}) {
     [reading, state.coverage, state.selectedLayer],
   );
 
+  const files = state.files;
   const file = state.file;
   const hash = state.hash;
   const insertion = useMemo(
@@ -609,8 +609,8 @@ export function App({ deps }: AppProps = {}) {
           </nav>
           {state.view === "pipeline" ? (
             <HistoryControls
-              canUndo={state.canUndo()}
-              canRedo={state.canRedo()}
+              canUndo={editable && state.canUndo()}
+              canRedo={editable && state.canRedo()}
               onUndo={() => void store.getState().undo()}
               onRedo={() => void store.getState().redo()}
             />

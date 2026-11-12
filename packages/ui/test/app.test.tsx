@@ -563,6 +563,82 @@ describe("banners and in-flight operation, on the render", () => {
   });
 });
 
+describe("Undo while an operation is in flight", () => {
+  test("Undo and Redo are disabled until the response arrives", async () => {
+    const h = harness();
+    await renderApp(h);
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    await waitFor(() => expect((undo as HTMLButtonElement).disabled).toBe(false));
+
+    let release: () => void = () => {};
+    const original = h.deps.client.submit;
+    h.deps.client.submit = async (file, op, opId) => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return original(file, op, opId);
+    };
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "publish");
+    const clicked = userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    await screen.findByTestId("pending-indicator");
+    expect((screen.getByRole("button", { name: "Undo" }) as HTMLButtonElement).disabled).toBe(true);
+
+    release();
+    await clicked;
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: "Undo" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+  });
+});
+
+describe("the file picker follows the workspace", () => {
+  const WORKFLOW = ".github/workflows/ci.yml";
+
+  test("a workflow created while Keelson runs appears in the picker, and leaves it when removed", async () => {
+    const h = harness();
+    await renderApp(h);
+    expect(screen.queryByLabelText("Pipeline file")).toBeNull();
+
+    h.emit({
+      kind: "workspace.changed",
+      files: [
+        { path: MAIN, adapter: "gitlab" },
+        { path: WORKFLOW, adapter: "github" },
+      ],
+    });
+    const picker = await screen.findByLabelText("Pipeline file");
+    expect([...picker.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      MAIN,
+      "ci.yml",
+    ]);
+
+    h.emit({ kind: "workspace.changed", files: [{ path: MAIN, adapter: "gitlab" }] });
+    await new Promise((settle) => setTimeout(settle, 20));
+    expect(screen.queryByLabelText("Pipeline file")).toBeNull();
+  });
+});
+
+describe("a write from another tab", () => {
+  test("another tab's write reloads the screen and says so; this tab's own does not", async () => {
+    const h = harness();
+    await renderApp(h);
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    await waitFor(() => expect(h.submitted).toHaveLength(1));
+
+    h.emit({ kind: "document.written", file: MAIN, hash: "c".repeat(64), opId: "op-1" });
+    await new Promise((settle) => setTimeout(settle, 20));
+    expect(screen.queryByText(/changed on disk/i)).toBeNull();
+
+    h.emit({ kind: "document.written", file: MAIN, hash: "c".repeat(64), opId: "elsewhere" });
+    expect(await screen.findByText(/changed on disk/i)).toBeDefined();
+  });
+});
+
 describe("closing the detail panel from the keyboard", () => {
   /** Found by /impeccable critique on 2026-10-22: `onSelectJob(null)` could only be reached by a
    *  mouse click on the canvas background. No keyboard user could close the panel, and fifteen
