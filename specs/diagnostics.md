@@ -39,12 +39,14 @@ exhaustiveness of the rendering branches is checked at compile time.
 | Code | Severity | Produced by | `params` | Meaning |
 | --- | --- | --- | --- | --- |
 | `INVALID_YAML` | error | `parse` | `{ detail }` | The file is not valid YAML. One diagnostic per error returned by the `yaml` library, with its position. `detail` is the library's sentence, kept verbatim: it is already in English and more precise than any rewording. Parsing continues: the returned pipeline is partial. |
-| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | An `include` of a form Keelson does not resolve: `remote`, `project`, `template` or `component`. One diagnostic per entry, not one per file. `detail` is the value as written. The pipeline shown is **partial**: see `Pipeline.unresolved` and `isPartial()`, which also count broken local `include`s, themselves reported by `INCLUDE_NOT_FOUND`. |
-| `INCLUDE_NOT_FOUND` | error | `parse` | union on `reason`: `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | An `include: local` leads to nothing usable. `missing`: the file does not exist. `notYaml`: GitLab requires the `.yml` or `.yaml` extension. `outsideRoot`: the path leaves the repository root — refused **before** any read, because the server reads the disk on behalf of a web page. `malformed`: the entry has no recognisable shape. |
+| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | An `include` of a form Keelson does not resolve: `remote`, `project`, `template` or `component`, and a `local` path carrying a CI/CD variable (`ci/$ENV.yml`), only known when the pipeline runs. One diagnostic per entry, not one per file. `detail` is the value as written. The pipeline shown is **partial**: see `Pipeline.unresolved` and `isPartial()`, which also count broken local `include`s, themselves reported by `INCLUDE_NOT_FOUND`. |
+| `INCLUDE_NOT_FOUND` | error | `parse` | union on `reason`: `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | An `include: local` leads to nothing usable. `missing`: the file does not exist. `notYaml`: GitLab requires the `.yml` or `.yaml` extension. `outsideRoot`: the path leaves the repository root — refused **before** any read, because the server reads the disk on behalf of a web page — or a symbolic link resolves outside it. `malformed`: the entry has no recognisable shape; an `include:` with no value is named `include` in `Pipeline.unresolved`. |
 | `INCLUDE_CYCLE` | error | `parse` | `{ trail }` | A chain of `include`s loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
 | `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | More than `limit` included files. The pipeline is then partial: the first entry cut off is in `Pipeline.unresolved`. GitLab's documented limit is **150** included files per pipeline, nested ones included — a count, not a nesting depth, and Keelson does not invent another. |
 | `EXTENDS_TARGET_NOT_FOUND` | error, or warning | `parse` | `{ template }` | An `extends` points to a key absent from **all** resolved files. Downgraded to a **warning** only if an `include` that could not be read may explain the absence: a remote form, or a `local` one when the caller supplied no reader. A **broken** local `include` downgrades nothing: its cause is already an `INCLUDE_NOT_FOUND` error ([ADR 0007](adr/0007-what-degrades-a-missing-extends-target.md)). Reported once per target. |
 | `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | A chain of `extends` loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
+| `EXTENDS_DEPTH_EXCEEDED` | error | `parse` | `{ job, limit }` | A job inherits through more than `limit` levels of `extends`. GitLab documents **11** levels and refuses more. The templates beyond the limit are not applied; parsing completes. Reported once per job. |
+| `VALUE_CYCLE` | error | `parse` | `{ job, key }` | The value of `key` in the job refers to itself: an alias inside its own anchor (`script: &s [a, *s]`) or a loop of `!reference`s. GitLab refuses it. The loop is cut where it closes; parsing completes. A map merging itself (`&e {name: n, <<: *e}`) is not one: Psych, the parser GitLab uses, reads it as the map alone. |
 | `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | A job has no `script`, `run` or `trigger`. Evaluated **after** resolving `extends` and anchors. |
 | `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | A `needs` entry points to a job that does not exist. A template (a key starting with `.`) is not a valid job for `needs`. |
 | `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | The `needs` form a cycle. One diagnostic per strongly connected component; `cycle` is the path, first element repeated last. |
@@ -128,6 +130,28 @@ orphan:
 
 ```
 error EXTENDS_CYCLE extends cycle: .a → .b → .a
+```
+
+**`EXTENDS_DEPTH_EXCEEDED`**
+
+```yaml
+deploy:
+  extends: .l1   # .l1 extends .l2, … .l11 extends .l12
+```
+
+```
+error EXTENDS_DEPTH_EXCEEDED job "deploy" inherits through more than 11 levels of extends, which GitLab refuses
+```
+
+**`VALUE_CYCLE`**
+
+```yaml
+unit:
+  script: &s [make, *s]
+```
+
+```
+error VALUE_CYCLE the script of job "unit" refers to itself through an alias or a !reference
 ```
 
 **`JOB_WITHOUT_SCRIPT`**
@@ -232,7 +256,6 @@ an exception: an exception can only signal a Keelson bug.
 | `schema` | `path`, `detail` | The zod schema rejects the operation. `detail` is zod's sentence, in English; `path` locates it within the operation, and is `""` when the error concerns the root. |
 | `flowStyleJob` | `job` | The job is written in flow style (`{ … }`); editing in place would assume a line-based rendering. |
 | `jobWithoutScript` | — | `addJob` without any script line. |
-| `inheritedEnvironment` | `job`, `origin` | Removing an inherited environment: GitLab has no cancellation key. `origin` says where it comes from (`extends`, `anchor`, `default`). |
 | `sharedValue` | `job`, `key` | The value comes from an anchor alias or a `!reference`, and writing it in place would lose something: `addNeed` on a shared list, or `setJobStage` on a `!reference` carrying an anchor, a comment or an explicit `?` key. |
 | `flowStyleToolchain` | `section` | A section of `toolchain.yaml` is written in flow style and is not empty. |
 | `invalidToolchain` | — | `toolchain.yaml` carries a `TOOLCHAIN_INVALID`: Keelson does not edit a file it does not understand. |

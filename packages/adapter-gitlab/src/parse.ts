@@ -17,7 +17,13 @@ import {
 } from "@keelson/core";
 import type { Document } from "yaml";
 import { isMap, isSeq, type YAMLMap } from "yaml";
-import { DEFAULT_STAGE, DEFAULT_STAGES, isReservedTopLevel } from "./defaults.ts";
+import {
+  DEFAULT_STAGE,
+  DEFAULT_STAGES,
+  FIRST_STAGE,
+  isReservedTopLevel,
+  LAST_STAGE,
+} from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import {
   type IncludeReader,
@@ -31,7 +37,7 @@ import {
   type Definition,
   defaultSources,
   definesKey,
-  extendsOf,
+  effectiveExtends,
   hasUnmodelledNeeds,
   keyOf,
   localPair,
@@ -45,6 +51,7 @@ import {
   resolveStage,
   type Source,
   sourcesFor,
+  unmodelledNeedsBlock,
 } from "./resolve.ts";
 
 /** The conventional name of the entry file. Serves as the default when the caller has no path to
@@ -99,7 +106,12 @@ function declaredStages(root: YAMLMap, file: string): Stage[] | null {
     return typeof value === "string" ? [{ name: value, implicit: false, range, file }] : [];
   });
 
-  return stages.length === 0 ? null : stages;
+  if (stages.length === 0) {
+    return null;
+  }
+  const rank = (stage: Stage): number =>
+    stage.name === FIRST_STAGE ? 0 : stage.name === LAST_STAGE ? 2 : 1;
+  return stages.toSorted((left, right) => rank(left) - rank(right));
 }
 
 function yamlDiagnostics(parsed: ParsedFile): Diagnostic[] {
@@ -262,6 +274,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
      *  counts the broken ones because they are missing from the screen (ADR 0007). */
     extendsSeverity: resolution.unresolved.length === 0 ? "error" : "warning",
     main,
+    job: "",
   };
 
   const templates: Template[] = [];
@@ -288,13 +301,18 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
   const jobs: Job[] = jobEntries.map((entry) => {
     const owner = entry.definitions[entry.definitions.length - 1];
     const ownerFile = owner?.file ?? main;
-    const sources = sourcesFor(entry.definitions, { kind: "local" }, context);
-    const stage = resolveStage(sources, context) ?? {
+    const jobContext: ResolveContext = { ...context, job: entry.id };
+    const sources = sourcesFor(entry.definitions, { kind: "local" }, jobContext);
+    const stage = resolveStage(sources, jobContext) ?? {
       value: DEFAULT_STAGE,
       origin: { kind: "default" as const },
     };
 
-    const jobOpaque = opaqueBlocksOf(entry.definitions);
+    const needsBlock = unmodelledNeedsBlock(sources, jobContext);
+    const jobOpaque = [
+      ...(needsBlock === null ? [] : [needsBlock]),
+      ...opaqueBlocksOf(entry.definitions),
+    ];
 
     if (!SCRIPT_KEYS.some((key) => definesKey(sources, key))) {
       diagnostics.push({
@@ -309,14 +327,12 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     return {
       id: entry.id,
       stage,
-      needs: resolveNeeds(sources, context),
+      needs: resolveNeeds(sources, jobContext),
       ...(hasUnmodelledNeeds(sources) ? { unmodelledNeeds: true as const } : {}),
-      environment: resolveEnvironment(sources, context),
-      // The union of the `extends` of every definition, deduplicated: the main file can add a
-      // template without removing the include's, and GitLab applies both.
-      extends: [...new Set(entry.definitions.flatMap((definition) => extendsOf(definition.map)))],
+      environment: resolveEnvironment(sources, jobContext),
+      extends: effectiveExtends(entry.definitions, jobContext),
       opaque: jobOpaque,
-      signals: resolveSignals(sources, defaults, context),
+      signals: resolveSignals(sources, defaults, jobContext),
       range: entry.range,
       file: ownerFile,
     };
@@ -335,7 +351,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     stages,
     jobs,
     templates,
-    opaque: collected.opaque,
+    opaque: collected.opaque.filter((block) => collected.kinds.get(block.key) !== "map"),
     main,
     files,
     unresolved,

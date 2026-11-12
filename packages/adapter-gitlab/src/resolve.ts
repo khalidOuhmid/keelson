@@ -3,11 +3,17 @@ import type {
   Environment,
   JobSignals,
   Need,
+  OpaqueBlock,
   Origin,
   SourceRange,
   Valued,
 } from "@keelson/core";
-import { EXTENDS_CYCLE, EXTENDS_TARGET_NOT_FOUND } from "@keelson/core";
+import {
+  EXTENDS_CYCLE,
+  EXTENDS_DEPTH_EXCEEDED,
+  EXTENDS_TARGET_NOT_FOUND,
+  VALUE_CYCLE,
+} from "@keelson/core";
 import {
   type Document,
   isAlias,
@@ -19,6 +25,7 @@ import {
   type Pair,
   type YAMLMap,
 } from "yaml";
+import { MAX_EXTENDS_DEPTH } from "./defaults.ts";
 
 export const REFERENCE_TAG = "!reference";
 
@@ -82,32 +89,72 @@ function stringsOf(node: AnyNode): string[] {
   return [];
 }
 
-export function extendsOf(map: YAMLMap): string[] {
-  const pair = localPair(map, "extends");
-  return pair === undefined ? [] : stringsOf(pair.value as AnyNode);
+/** A value written in a map, and the anchor it was merged from, if any. */
+export type Write = { node: AnyNode; anchor: string | null; pair: Pair<unknown, unknown> };
+
+type Walk = { path: Set<YAMLMap>; memo: Map<YAMLMap, Write | undefined> };
+
+function mergedWrite(
+  value: AnyNode,
+  key: string,
+  document: Document.Parsed,
+  walk: Walk,
+): Write | undefined {
+  const target = isAlias(value) ? value.resolve(document) : value;
+  if (!isMap(target) || walk.path.has(target)) {
+    return undefined;
+  }
+  const found = walk.memo.has(target)
+    ? walk.memo.get(target)
+    : writeIn(target, key, document, walk);
+  if (found === undefined) {
+    return undefined;
+  }
+  return isAlias(value) ? { ...found, anchor: value.source } : found;
 }
 
-function anchorMerges(map: YAMLMap, document: Document.Parsed): { map: YAMLMap; name: string }[] {
-  const merges: { map: YAMLMap; name: string }[] = [];
+/** The value of `key` in `map` as Psych — the parser GitLab loads its YAML with — reads it: a
+ *  merge key writes the merged map's keys at its own position, and a later write wins. Of a merge
+ *  list, the first map wins. A map already being read is skipped: `j: &j { <<: *j }` is `j`.
+ *  Each map is read once per lookup, so that diamond merges stay linear. */
+export function lastWrite(map: YAMLMap, key: string, document: Document.Parsed): Write | undefined {
+  return writeIn(map, key, document, { path: new Set(), memo: new Map() });
+}
 
+function writeIn(
+  map: YAMLMap,
+  key: string,
+  document: Document.Parsed,
+  walk: Walk,
+): Write | undefined {
+  walk.path.add(map);
+  let found: Write | undefined;
   for (const pair of localPairs(map)) {
-    if (keyOf(pair) !== MERGE_KEY) {
-      continue;
-    }
-    const value = pair.value as AnyNode;
-    const aliases = isSeq(value) ? value.items : [value];
-    for (const alias of aliases) {
-      if (!isAlias(alias)) {
-        continue;
-      }
-      const target = alias.resolve(document);
-      if (isMap(target)) {
-        merges.push({ map: target, name: alias.source });
-      }
+    const name = keyOf(pair);
+    if (name === MERGE_KEY) {
+      const value = pair.value as AnyNode;
+      const merged = isSeq(value)
+        ? value.items
+            .map((item) => mergedWrite(item as AnyNode, key, document, walk))
+            .find((write) => write !== undefined)
+        : mergedWrite(value, key, document, walk);
+      found = merged ?? found;
+    } else if (name === key) {
+      found = { node: pair.value as AnyNode, anchor: null, pair };
     }
   }
+  walk.path.delete(map);
+  walk.memo.set(map, found);
+  return found;
+}
 
-  return merges;
+export function extendsOf(map: YAMLMap, document: Document.Parsed | null): string[] {
+  if (document === null) {
+    const pair = localPair(map, "extends");
+    return pair === undefined ? [] : stringsOf(pair.value as AnyNode);
+  }
+  const node = lastWrite(map, "extends", document)?.node;
+  return stringsOf(isAlias(node) ? (node.resolve(document) as AnyNode) : node);
 }
 
 /** A definition of a top-level key, in the file that carries it. The same key can have several: a
@@ -124,6 +171,7 @@ export type Source = {
   /** The file this map comes from. Aliases and `!reference`s resolve against the document of
    *  **this** file: an anchor only exists in the file that declares it. */
   file: string;
+  document: Document.Parsed | null;
 };
 
 export type ResolveContext = {
@@ -136,6 +184,8 @@ export type ResolveContext = {
   extendsSeverity: "error" | "warning";
   /** The main file, the only one whose values have the `local` origin. */
   main: string;
+  /** The job being resolved, named by the diagnostics found on the way. */
+  job: string;
 };
 
 function documentOf(context: ResolveContext, file: string): Document.Parsed | null {
@@ -162,57 +212,81 @@ export function sourcesFor(
   trail: readonly string[] = [],
 ): Source[] {
   const inherited: Source[] = [];
-  const own: Source[] = [];
+  const own: Source[] = definitions.map((definition) => ({
+    map: definition.map,
+    origin: originOf(context, definition, selfOrigin),
+    file: definition.file,
+    document: documentOf(context, definition.file),
+  }));
 
-  for (const definition of definitions) {
-    const map = definition.map;
-    const extendsRange = (): SourceRange | null =>
-      pairRange(localPair(map, "extends") ?? ({} as Pair<unknown, unknown>));
+  // `extends` is a string or a list: GitLab's merge of an include with the main file replaces it,
+  // it does not add to it. Only the last definition that writes one counts.
+  const carrier = definitions.findLast(
+    (definition) => extendsOf(definition.map, documentOf(context, definition.file)).length > 0,
+  );
+  if (carrier === undefined) {
+    return own;
+  }
+  const extendsRange = (): SourceRange | null => {
+    const pair = localPair(carrier.map, "extends");
+    return pair === undefined ? null : pairRange(pair);
+  };
 
-    for (const template of extendsOf(map)) {
-      if (trail.includes(template)) {
-        push(context.diagnostics, {
-          code: EXTENDS_CYCLE,
-          severity: "error",
-          params: { trail: [...trail, template] },
-          range: extendsRange(),
-          file: definition.file,
-        });
-        continue;
-      }
-
-      const target = context.lookup.get(template);
-      if (target === undefined || target.length === 0) {
-        push(context.diagnostics, {
-          code: EXTENDS_TARGET_NOT_FOUND,
-          severity: context.extendsSeverity,
-          params: { template },
-          range: extendsRange(),
-          file: definition.file,
-        });
-        continue;
-      }
-
-      inherited.push(
-        ...sourcesFor(target, { kind: "extends", template }, context, [...trail, template]),
-      );
+  for (const template of extendsOf(carrier.map, documentOf(context, carrier.file))) {
+    if (trail.includes(template)) {
+      push(context.diagnostics, {
+        code: EXTENDS_CYCLE,
+        severity: "error",
+        params: { trail: [...trail, template] },
+        range: extendsRange(),
+        file: carrier.file,
+      });
+      continue;
     }
 
-    const document = documentOf(context, definition.file);
-    if (document !== null) {
-      for (const merge of [...anchorMerges(map, document)].reverse()) {
-        own.push({
-          map: merge.map,
-          origin: { kind: "anchor", name: merge.name },
-          file: definition.file,
-        });
-      }
+    if (trail.length + 1 > MAX_EXTENDS_DEPTH) {
+      push(context.diagnostics, {
+        code: EXTENDS_DEPTH_EXCEEDED,
+        severity: "error",
+        params: { job: context.job, limit: MAX_EXTENDS_DEPTH },
+        range: extendsRange(),
+        file: carrier.file,
+      });
+      continue;
     }
 
-    own.push({ map, origin: originOf(context, definition, selfOrigin), file: definition.file });
+    const target = context.lookup.get(template);
+    if (target === undefined || target.length === 0) {
+      push(context.diagnostics, {
+        code: EXTENDS_TARGET_NOT_FOUND,
+        severity: context.extendsSeverity,
+        params: { template },
+        range: extendsRange(),
+        file: carrier.file,
+      });
+      continue;
+    }
+
+    inherited.push(
+      ...sourcesFor(target, { kind: "extends", template }, context, [...trail, template]),
+    );
   }
 
   return [...inherited, ...own];
+}
+
+/** The `extends` GitLab applies to a job: those of its last definition that writes one. */
+export function effectiveExtends(
+  definitions: readonly Definition[],
+  context: ResolveContext,
+): string[] {
+  for (const definition of definitions.toReversed()) {
+    const found = extendsOf(definition.map, documentOf(context, definition.file));
+    if (found.length > 0) {
+      return [...new Set(found)];
+    }
+  }
+  return [];
 }
 
 /** Serialisation with sorted keys: deduplication used to rely on the message, which no longer
@@ -240,16 +314,26 @@ function push(diagnostics: Diagnostic[], diagnostic: Diagnostic): void {
 
 type Match = {
   node: AnyNode;
+  pair: Pair<unknown, unknown>;
   origin: Origin;
   file: string;
 };
 
 function matches(sources: readonly Source[], key: string): Match[] {
   return sources.flatMap((source) => {
-    const pair = localPair(source.map, key);
-    return pair === undefined
-      ? []
-      : [{ node: pair.value as AnyNode, origin: source.origin, file: source.file }];
+    if (source.document === null) {
+      const pair = localPair(source.map, key);
+      return pair === undefined
+        ? []
+        : [{ node: pair.value as AnyNode, pair, origin: source.origin, file: source.file }];
+    }
+    const found = lastWrite(source.map, key, source.document);
+    if (found === undefined) {
+      return [];
+    }
+    const origin: Origin =
+      found.anchor === null ? source.origin : { kind: "anchor", name: found.anchor };
+    return [{ node: found.node, pair: found.pair, origin, file: source.file }];
   });
 }
 
@@ -260,35 +344,12 @@ export function definesKey(sources: readonly Source[], key: string): boolean {
 /** The value of `key` in `node`, through aliases and merge keys: `undefined` if the key is absent,
  *  `null` if `node` is not a map, that is if the value replaced any map that earlier files would
  *  have defined there. */
-function entryAt(
-  node: AnyNode,
-  key: string,
-  document: Document.Parsed,
-  visited: Set<YAMLMap> = new Set(),
-): AnyNode {
+function entryAt(node: AnyNode, key: string, document: Document.Parsed): AnyNode {
   const target = isAlias(node) ? node.resolve(document) : node;
   if (!isMap(target)) {
     return null;
   }
-
-  const pair = localPair(target, key);
-  if (pair !== undefined) {
-    return pair.value as AnyNode;
-  }
-
-  // `job: &a` followed by `<<: *a` is valid YAML: a map can merge onto itself. A map already
-  // visited did not have the key: the set is shared, a diamond stays linear.
-  visited.add(target);
-  for (const merge of anchorMerges(target, document)) {
-    if (visited.has(merge.map)) {
-      continue;
-    }
-    const merged = entryAt(merge.map, key, document, visited);
-    if (merged !== undefined) {
-      return merged;
-    }
-  }
-  return undefined;
+  return lastWrite(target, key, document)?.node;
 }
 
 /** The path in a single document, or `undefined` if it is not there. `Document.getIn` traverses
@@ -318,28 +379,45 @@ function referenceTarget(path: readonly string[], context: ResolveContext): AnyN
 
 /** An alias does **not** cross files: in GitLab, an anchor is local to the document that declares
  *  it, so it resolves against the file the map carrying it comes from. A `!reference`, on the
- *  other hand, crosses them. */
+ *  other hand, crosses them, and can target another `!reference`: the chain is followed, and a
+ *  loop in it is a `VALUE_CYCLE`. */
 function dereference(
   node: AnyNode,
   file: string,
   context: ResolveContext,
+  key: string,
 ): { node: AnyNode; origin: Origin | null } {
   const document = documentOf(context, file);
   if (document === null) {
     return { node, origin: null };
   }
 
-  if (isAlias(node)) {
-    return { node: node.resolve(document) ?? null, origin: null };
+  let current: AnyNode = isAlias(node) ? (node.resolve(document) ?? null) : node;
+  let origin: Origin | null = null;
+  const seen = new Set<string>();
+  while (isSeq(current) && (current as { tag?: string }).tag === REFERENCE_TAG) {
+    const path = stringsOf(current);
+    const step = JSON.stringify(path);
+    if (seen.has(step)) {
+      cycle(context, key, node, file);
+      return { node: null, origin };
+    }
+    seen.add(step);
+    origin ??= { kind: "reference", path };
+    current = referenceTarget(path, context);
   }
 
-  const tagged = node as { tag?: string } | null | undefined;
-  if (tagged?.tag === REFERENCE_TAG && isSeq(node)) {
-    const path = stringsOf(node);
-    return { node: referenceTarget(path, context), origin: { kind: "reference", path } };
-  }
+  return { node: current, origin };
+}
 
-  return { node, origin: null };
+function cycle(context: ResolveContext, key: string, node: AnyNode, file: string): void {
+  push(context.diagnostics, {
+    code: VALUE_CYCLE,
+    severity: "error",
+    params: { job: context.job, key },
+    range: contentRange(node),
+    file,
+  });
 }
 
 export function resolveStage(
@@ -351,7 +429,7 @@ export function resolveStage(
     return null;
   }
 
-  const { node, origin } = dereference(found.node, found.file, context);
+  const { node, origin } = dereference(found.node, found.file, context, "stage");
   if (!isScalar(node) || typeof node.value !== "string") {
     return null;
   }
@@ -368,8 +446,8 @@ function needFrom(item: unknown): Need | null {
     return null;
   }
 
-  // DEBT(2026-10-20): cross-project needs (project / pipeline keys) are ignored by the IR
-  // — they should become an opaque block carried by the job; see specs/gaps.md (2026-10-20).
+  // A cross-project item is not a job of this pipeline: the job carries the list as an opaque
+  // block instead (`unmodelledNeedsBlock`).
   if (localPair(item, "project") !== undefined || localPair(item, "pipeline") !== undefined) {
     return null;
   }
@@ -399,7 +477,7 @@ export function resolveNeeds(
     return null;
   }
 
-  const { node, origin } = dereference(found.node, found.file, context);
+  const { node, origin } = dereference(found.node, found.file, context, "needs");
   if (!isSeq(node)) {
     return null;
   }
@@ -448,65 +526,46 @@ export function hasUnmodelledNeeds(sources: readonly Source[]): boolean {
   return !literal || !list.items.every((item) => modelledNeed(item as AnyNode));
 }
 
-function plainObject(node: AnyNode): Record<string, unknown> | null {
-  if (!isMap(node)) {
+/** The `needs` list a job runs with, as written, when it carries items the IR drops — a
+ *  cross-project or nested item: the screen shows the list verbatim instead of losing them. */
+export function unmodelledNeedsBlock(
+  sources: readonly Source[],
+  context: ResolveContext,
+): OpaqueBlock | null {
+  const found = matches(sources, "needs").at(-1);
+  if (found === undefined) {
     return null;
   }
-  const json = node.toJSON() as unknown;
-  return typeof json === "object" && json !== null && !Array.isArray(json)
-    ? (json as Record<string, unknown>)
-    : null;
+  const list = dereference(found.node, found.file, context, "needs").node;
+  const dropped = isSeq(list) && list.items.some((item) => needFrom(item) === null);
+  const range = pairRange(found.pair);
+  return dropped && range !== null ? { key: "needs", range, file: found.file } : null;
 }
 
-function deepMerge(
-  base: Record<string, unknown>,
-  overlay: Record<string, unknown>,
-): Record<string, unknown> {
-  const merged: Record<string, unknown> = { ...base };
-
-  for (const key of Object.keys(overlay)) {
-    const incoming = overlay[key];
-    const existing = merged[key];
-    const bothMaps =
-      typeof incoming === "object" &&
-      incoming !== null &&
-      !Array.isArray(incoming) &&
-      typeof existing === "object" &&
-      existing !== null &&
-      !Array.isArray(existing);
-
-    merged[key] = bothMaps
-      ? deepMerge(existing as Record<string, unknown>, incoming as Record<string, unknown>)
-      : incoming;
-  }
-
-  return merged;
-}
-
-function environmentFrom(raw: Record<string, unknown>): Environment | null {
-  const name = raw.name;
-  if (typeof name !== "string") {
-    return null;
-  }
-
-  const environment: Environment = { name };
-  if (typeof raw.url === "string") {
-    environment.url = raw.url;
-  }
-  if (typeof raw.action === "string") {
-    environment.action = raw.action;
-  }
-  return environment;
-}
-
-function scriptLines(node: AnyNode, file: string, context: ResolveContext): string[] {
-  const { node: target } = dereference(node, file, context);
+function scriptLines(
+  node: AnyNode,
+  file: string,
+  context: ResolveContext,
+  key: string,
+  path: Set<Node> = new Set(),
+): string[] {
+  const { node: target } = dereference(node, file, context, key);
   if (isScalar(target)) {
     return typeof target.value === "string" ? [target.value] : [];
   }
-  return isSeq(target)
-    ? target.items.flatMap((item) => scriptLines(item as AnyNode, file, context))
-    : [];
+  if (!isSeq(target)) {
+    return [];
+  }
+  if (path.has(target)) {
+    cycle(context, key, node, file);
+    return [];
+  }
+  path.add(target);
+  const lines = target.items.flatMap((item) =>
+    scriptLines(item as AnyNode, file, context, key, path),
+  );
+  path.delete(target);
+  return lines;
 }
 
 const SCRIPT_SECTIONS = ["before_script", "script", "after_script"] as const;
@@ -517,16 +576,18 @@ function inheritedKeys(
   context: ResolveContext,
 ): ReadonlySet<string> | null {
   // GitLab deep-merges `inherit` across `extends`: the closest `default` wins, even if a closer
-  // `inherit` only mentions `variables`. `<<` does not deep-merge: `entryAt` therefore reads the
-  // effective `inherit` of each definition, anchors included.
+  // `inherit` only mentions `variables`. Within one definition, merge keys are shallow, which
+  // `lastWrite` reads.
   const value = sources
-    .filter((source) => source.origin.kind !== "anchor")
     .toReversed()
     .map((source) => {
-      const document = documentOf(context, source.file);
-      const entry = document === null ? undefined : entryAt(source.map, "inherit", document);
-      const map = entry === undefined ? null : dereference(entry, source.file, context).node;
-      return isMap(map) ? (localPair(map, "default")?.value as AnyNode) : undefined;
+      if (source.document === null) {
+        return undefined;
+      }
+      const entry = lastWrite(source.map, "inherit", source.document)?.node;
+      const map =
+        entry === undefined ? null : dereference(entry, source.file, context, "inherit").node;
+      return isMap(map) ? lastWrite(map, "default", source.document)?.node : undefined;
     })
     .find((entry) => entry !== undefined);
   if (isScalar(value) && value.value === false) {
@@ -539,19 +600,15 @@ function inheritedKeys(
  *  The script is not one of them: a top-level `script` does not exist. */
 export function defaultSources(root: YAMLMap, file: string, context: ResolveContext): Source[] {
   const document = documentOf(context, file);
-  const value = localPair(root, "default")?.value as AnyNode;
+  const value =
+    document === null
+      ? (localPair(root, "default")?.value as AnyNode)
+      : lastWrite(root, "default", document)?.node;
   const target = isAlias(value) && document !== null ? value.resolve(document) : value;
   const origin: Origin = { kind: "default" };
-  const merged =
-    isMap(target) && document !== null
-      ? anchorMerges(target, document)
-          .reverse()
-          .map((merge) => ({ map: merge.map, origin, file }))
-      : [];
   return [
-    { map: root, origin, file },
-    ...merged,
-    ...(isMap(target) ? [{ map: target, origin, file }] : []),
+    { map: root, origin, file, document },
+    ...(isMap(target) ? [{ map: target, origin, file, document }] : []),
   ];
 }
 
@@ -559,11 +616,11 @@ export function defaultSources(root: YAMLMap, file: string, context: ResolveCont
  *  walk up, and so does a written `name`. */
 function imageOf(found: readonly Match[], context: ResolveContext): string | null {
   for (const source of found.toReversed()) {
-    const image = dereference(source.node, source.file, context).node;
+    const image = dereference(source.node, source.file, context, "image").node;
     const document = documentOf(context, source.file);
     const named =
       isMap(image) && document !== null
-        ? dereference(entryAt(image, "name", document), source.file, context).node
+        ? dereference(entryAt(image, "name", document), source.file, context, "image").node
         : image;
     if (isScalar(named) && named.value !== null) {
       return typeof named.value === "string" ? named.value : null;
@@ -596,12 +653,18 @@ export function resolveSignals(
 
   return {
     image: imageOf(candidates("image"), context),
-    script: sections.flatMap((section) =>
-      section === undefined ? [] : scriptLines(section.node, section.file, context),
+    script: sections.flatMap((section, index) =>
+      section === undefined
+        ? []
+        : scriptLines(section.node, section.file, context, SCRIPT_SECTIONS[index] ?? "script"),
     ),
   };
 }
 
+const ENVIRONMENT_FIELDS = ["name", "url", "action"] as const;
+
+/** `extends` and `include` deep-merge an environment written as a map, and a string or `null`
+ *  replaces it whole: `environment: null` is how a job cancels an inherited one. */
 export function resolveEnvironment(
   sources: readonly Source[],
   context: ResolveContext,
@@ -612,21 +675,45 @@ export function resolveEnvironment(
     return null;
   }
 
-  const resolvedLast = dereference(last.node, last.file, context);
-  const origin = resolvedLast.origin ?? last.origin;
-
-  if (isScalar(resolvedLast.node) && typeof resolvedLast.node.value === "string") {
-    return { value: { name: resolvedLast.node.value }, origin };
-  }
-
-  let merged: Record<string, unknown> = {};
+  let fields: Partial<Record<(typeof ENVIRONMENT_FIELDS)[number], string>> = {};
+  let fromMap = false;
+  let origin: Origin = last.origin;
   for (const match of found) {
-    const object = plainObject(dereference(match.node, match.file, context).node);
-    if (object !== null) {
-      merged = deepMerge(merged, object);
+    const resolved = dereference(match.node, match.file, context, "environment");
+    origin = resolved.origin ?? match.origin;
+    const document = documentOf(context, match.file);
+    if (!isMap(resolved.node) || document === null) {
+      const name = isScalar(resolved.node) ? resolved.node.value : null;
+      fields = typeof name === "string" ? { name } : {};
+      fromMap = false;
+      continue;
+    }
+    if (!fromMap) {
+      fields = {};
+    }
+    fromMap = true;
+    for (const field of ENVIRONMENT_FIELDS) {
+      const value = dereference(
+        entryAt(resolved.node, field, document),
+        match.file,
+        context,
+        "environment",
+      ).node;
+      if (isScalar(value) && typeof value.value === "string") {
+        fields[field] = value.value;
+      }
     }
   }
 
-  const environment = environmentFrom(merged);
-  return environment === null ? null : { value: environment, origin };
+  if (fields.name === undefined) {
+    return null;
+  }
+  const environment: Environment = { name: fields.name };
+  if (fields.url !== undefined) {
+    environment.url = fields.url;
+  }
+  if (fields.action !== undefined) {
+    environment.action = fields.action;
+  }
+  return { value: environment, origin };
 }

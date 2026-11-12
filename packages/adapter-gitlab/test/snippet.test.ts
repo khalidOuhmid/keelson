@@ -159,6 +159,27 @@ describe("composite", () => {
     expect(result.ok && result.value.text.slice(0, range?.start)).toBe(BASE.slice(0, range?.start));
   });
 
+  test("touched never splits a surrogate pair, and the inverse stays exact", () => {
+    const text = "stages:\n  - \u{1F600}\n\ncompile:\n  stage: \u{1F600}\n  script:\n    - make\n";
+    const result = run(text, {
+      kind: "composite",
+      steps: [
+        { kind: "addStage", name: "\u{1F601}", index: 0 },
+        { ...steps[1], stage: "\u{1F601}" },
+      ],
+    });
+    if (!result.ok) {
+      throw new Error("refused");
+    }
+    const range = result.value.touched[0];
+    const isLow = (code: number | undefined) =>
+      code !== undefined && code >= 0xdc00 && code <= 0xdfff;
+    expect(isLow(result.value.text.charCodeAt(range?.start ?? 0))).toBe(false);
+    expect(isLow(result.value.text.charCodeAt(range?.end ?? 0))).toBe(false);
+    const back = apply(parse(result.value.text).document, result.value.inverse as SpliceOperation);
+    expect(back.ok && back.value.text).toBe(text);
+  });
+
   test("a refused step refuses everything", () => {
     const result = run(BASE, {
       kind: "composite",

@@ -49,6 +49,10 @@ export const EN: Catalogue = {
   EXTENDS_TARGET_NOT_FOUND: (p) =>
     `extends target ${quoted(p.template)} does not exist in any resolved file`,
   EXTENDS_CYCLE: (p) => `extends cycle: ${chain(p.trail)}`,
+  EXTENDS_DEPTH_EXCEEDED: (p) =>
+    `job ${quoted(p.job)} inherits through more than ${p.limit} levels of extends, which GitLab refuses`,
+  VALUE_CYCLE: (p) =>
+    `the ${p.key} of job ${quoted(p.job)} refers to itself through an alias or a !reference`,
   JOB_WITHOUT_SCRIPT: (p) => `job ${quoted(p.job)} has no script, no run and no trigger`,
   UNKNOWN_NEED: (p) => `job ${quoted(p.job)} needs ${quoted(p.need)}, which does not exist`,
   NEEDS_CYCLE: (p) => `needs cycle: ${chain(p.cycle)}`,
@@ -110,8 +114,6 @@ export const EN: Catalogue = {
     flowStyleJob: (p) =>
       `job ${quoted(p.job)} is written in flow style, in-place editing is not supported`,
     jobWithoutScript: () => "an added job must have at least one script line",
-    inheritedEnvironment: (p) =>
-      `the environment of ${quoted(p.job)} is inherited (${p.origin}) and cannot be removed locally`,
     sharedValue: (p) =>
       `the ${p.key} of ${quoted(p.job)} comes through an anchor or a !reference that Keelson cannot rewrite in place`,
     flowStyleToolchain: (p) =>

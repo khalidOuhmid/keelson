@@ -12,6 +12,8 @@ import {
   MAX_INCLUDED_FILES,
   matchesWildcard,
   normaliseIncludePath,
+  parseIncludedFile,
+  resolveIncludes,
 } from "../src/includes.ts";
 import { GITLAB_CI_FILE, parse } from "../src/parse.ts";
 
@@ -176,6 +178,37 @@ describe("resolution", () => {
     });
     expect(parsed.pipeline.files).toEqual(["ci/a.yml", "ci/a.yml", GITLAB_CI_FILE]);
     expect(parsed.pipeline.jobs.map((job) => job.id)).toEqual(["a"]);
+  });
+
+  test("a file included several times is read and parsed once per resolution", () => {
+    const files: Record<string, string> = {
+      [GITLAB_CI_FILE]: ["include:", "  - ci/a.yml", "  - ci/b.yml", "  - ci/a.yml", ""].join("\n"),
+      "ci/a.yml": "include: ci/common.yml\n",
+      "ci/b.yml": "include: ci/common.yml\n",
+      "ci/common.yml": JOB("common", "build"),
+    };
+    const reads: string[] = [];
+    const read: IncludeReader = {
+      read: (path) => {
+        reads.push(path);
+        return files[path] ?? null;
+      },
+      candidates: () => Object.keys(files),
+    };
+    const main = parseIncludedFile(GITLAB_CI_FILE, files[GITLAB_CI_FILE] ?? "");
+    const resolution = resolveIncludes(main, read);
+
+    expect(resolution.files.map((file) => file.file)).toEqual([
+      "ci/common.yml",
+      "ci/a.yml",
+      "ci/common.yml",
+      "ci/b.yml",
+      "ci/common.yml",
+      "ci/a.yml",
+    ]);
+    expect(reads.toSorted()).toEqual(["ci/a.yml", "ci/b.yml", "ci/common.yml"]);
+    const commons = resolution.files.filter((file) => file.file === "ci/common.yml");
+    expect(new Set(commons).size).toBe(1);
   });
 
   test("a cycle is reported and resolution completes", () => {
@@ -563,6 +596,17 @@ describe("a broken local include makes the pipeline partial", () => {
     expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["42"]);
   });
 
+  test("an include key with no value is named by its key, not by an empty detail", () => {
+    const parsed = parseTree({ [GITLAB_CI_FILE]: "include:\nbuild:\n  script: make\n" });
+    expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["include"]);
+    expect(parsed.pipeline.unresolved[0]?.range).toEqual({ start: 0, end: 7 });
+  });
+
+  test("a null item of an include list is named by the key too", () => {
+    const parsed = parseTree({ [GITLAB_CI_FILE]: "include:\n  - ~\n" });
+    expect(parsed.pipeline.unresolved.map((entry) => entry.detail)).toEqual(["~"]);
+  });
+
   test("a resolved include does not count, even next to a broken one", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: ["include:", "  - /ci/good.yml", "  - /ci/absent.yml", ""].join("\n"),
@@ -641,7 +685,7 @@ describe("precedence between extends and cross-file definitions", () => {
     expect(parsed.pipeline.jobs[0]?.stage.value).toBe("build");
   });
 
-  test("the extends of both files add up without duplicates", () => {
+  test("the main file's extends replaces the include's, as GitLab's merge replaces a list", () => {
     const parsed = parseTree({
       [GITLAB_CI_FILE]: [
         "include: ci/jobs.yml",
@@ -669,7 +713,27 @@ describe("precedence between extends and cross-file definitions", () => {
       ].join("\n"),
     });
 
-    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".from-include", ".from-main"]);
+    expect(parsed.pipeline.jobs[0]?.extends).toEqual([".from-main", ".from-include"]);
+  });
+});
+
+describe("root opaque blocks", () => {
+  test("a key redefined as a job by a later file is a job, not also a root opaque block", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: ["include: ci/a.yml", "", JOB("compile", "build")].join("\n"),
+      "ci/a.yml": "compile: placeholder\nvariables:\n  A: b\n",
+    });
+    expect(parsed.pipeline.jobs.map((job) => job.id)).toEqual(["compile"]);
+    expect(parsed.pipeline.opaque.map((block) => block.key)).toEqual(["variables", "include"]);
+  });
+
+  test("a job replaced by a scalar in a later file stays a root opaque block", () => {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: "include: ci/a.yml\ncompile: placeholder\n",
+      "ci/a.yml": JOB("compile", "build"),
+    });
+    expect(parsed.pipeline.jobs).toEqual([]);
+    expect(parsed.pipeline.opaque.map((block) => block.key)).toEqual(["include", "compile"]);
   });
 });
 
@@ -921,5 +985,45 @@ describe("include limit and partial pipeline", () => {
     expect(
       parsed.diagnostics.find((entry) => entry.code === EXTENDS_TARGET_NOT_FOUND)?.severity,
     ).toBe("warning");
+  });
+});
+
+describe("variables in a local include", () => {
+  /** “You can use certain CI/CD variables” in `include:local`
+   *  <https://docs.gitlab.com/ci/yaml/#includelocal>: the path is only known at run time. */
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: a GitLab variable, written as in the file
+  test.each([["ci/$ENV.yml"], ["ci/${ENV}.yml"], ["$CI_PROJECT_DIR/ci/jobs.yml"]])(
+    "%s is unresolved, not missing",
+    (path) => {
+      const parsed = parseTree({
+        [GITLAB_CI_FILE]: `include:\n  - local: '${path}'\n`,
+      });
+      expect(parsed.diagnostics.map((entry) => entry.code)).toEqual([INCLUDE_UNRESOLVED]);
+      expect(parsed.pipeline.unresolved).toEqual([
+        { form: "local", detail: path, from: GITLAB_CI_FILE, range: expect.any(Object) },
+      ]);
+      expect(isPartial(parsed.pipeline)).toBe(true);
+    },
+  );
+
+  test("a dollar that names no variable is still a path", () => {
+    const parsed = parseTree({ [GITLAB_CI_FILE]: "include: ci/a$.yml\n" });
+    expect(parsed.diagnostics.map((entry) => entry.code)).toEqual([INCLUDE_NOT_FOUND]);
+  });
+});
+
+describe("a reader that refuses a path", () => {
+  test("a path the reader refuses as outside the root is reported as such", () => {
+    const files: Record<string, string> = { [GITLAB_CI_FILE]: "include: ci/leak.yml\n" };
+    const read: IncludeReader = {
+      read: (path) => files[path] ?? null,
+      candidates: () => Object.keys(files),
+      outsideRoot: (path) => path === "ci/leak.yml",
+    };
+    const parsed = parse(files[GITLAB_CI_FILE] ?? "", { file: GITLAB_CI_FILE, read });
+    expect(parsed.diagnostics.find((entry) => entry.code === INCLUDE_NOT_FOUND)?.params).toEqual({
+      reason: "outsideRoot",
+      path: "ci/leak.yml",
+    });
   });
 });
