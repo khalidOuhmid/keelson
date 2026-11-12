@@ -75,6 +75,8 @@ test("undo restores the original bytes", async ({ page }) => {
   expect(keelson.read()).not.toBe(original);
 
   await page.getByRole("button", { name: "Undo" }).click();
+  // Undo is disabled as soon as the write leaves: only Redo says that it landed.
+  await expect(page.getByRole("button", { name: "Redo" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
 
   expect(keelson.read()).toBe(original);
