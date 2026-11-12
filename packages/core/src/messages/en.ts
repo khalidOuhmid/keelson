@@ -68,6 +68,8 @@ export const EN: Catalogue = {
   CATALOG_MISSING_SNIPPET: (p) => `job tool ${quoted(p.tool)} has no snippet`,
   CATALOG_STALE_TOOL: (p) =>
     `tool ${quoted(p.tool)} was last verified on ${p.lastVerified}, more than six months ago`,
+  CATALOG_FUTURE_VERIFIED: (p) =>
+    `tool ${quoted(p.tool)} claims a verification on ${p.lastVerified}, which is in the future`,
   // `detail` comes from `yaml` or zod, in English.
   TOOLCHAIN_INVALID: (p) => `.devsecops/toolchain.yaml is not usable: ${p.detail}`,
   TOOLCHAIN_UNKNOWN_TOOL: (p) =>

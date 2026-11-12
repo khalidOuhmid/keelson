@@ -102,7 +102,8 @@ keelson catalog lint [dir]
 
 Lints `tools/*.yaml` in `dir` against the catalogue schema (licence, layers, detection patterns that
 compile, snippets that parse, logos that exist). Without `dir`, lints the catalogue embedded in the
-binary. Entries whose `lastVerified` date is old are reported as notices.
+binary. Entries whose `lastVerified` date is old are reported as notices; a date after today is an
+error.
 
 ## `keelson apply`
 

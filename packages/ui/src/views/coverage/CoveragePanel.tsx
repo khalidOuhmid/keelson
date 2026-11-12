@@ -1,9 +1,7 @@
 import type { Coverage, LayerCoverage } from "@keelson/catalog";
-import { findLayer, type LayerId, type LayerSource } from "@keelson/taxonomy";
+import { findLayer, guidelineUrl, type LayerId, type LayerSource } from "@keelson/taxonomy";
 import { SECTION_HEADING } from "../../editing/controls.ts";
 import { LayerTag } from "./LayerTag.tsx";
-
-export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/master/";
 
 export const LOWER_BOUND_NOTE =
   "Coverage is a lower bound: part of the pipeline could not be read, and a layer listed as uncovered may be covered by what Keelson cannot read.";
@@ -25,6 +23,7 @@ function Uncovered({
   onShowTools: (layer: LayerId) => void;
 }) {
   const layer = findLayer(entry.layer);
+  const guideline = guidelineUrl(layer);
   return (
     <li className="flex flex-col gap-1">
       <span className="flex items-center gap-1.5">
@@ -40,9 +39,9 @@ function Uncovered({
         >
           See tools
         </button>
-        {layer.guideline === null ? null : (
+        {guideline === null ? null : (
           <a
-            href={`${GUIDELINE_ROOT}${layer.guideline}`}
+            href={guideline}
             target="_blank"
             rel="noreferrer"
             className="text-text-secondary underline underline-offset-2"

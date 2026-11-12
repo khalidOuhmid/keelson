@@ -158,14 +158,30 @@ const isShell = (word: string): boolean =>
   /^(?:ba|z|da)?sh$/.test(word.slice(word.lastIndexOf("/") + 1));
 
 /** The commands that run the shell passed to them as an argument. */
-const CARRIERS = new Set(["docker", "podman", "xargs", "find"]);
+const CARRIERS = new Set(["docker", "podman", "find"]);
+
+/** The `xargs` options that take a separate value. */
+const XARGS_VALUES =
+  /^(-[adEILnPs]|--(arg-file|delimiter|max-args|max-lines|max-procs|max-chars|process-slot-var))$/;
+
+/** The command `xargs` runs, its options removed: `xargs grep x` searches. */
+function afterXargs(command: string): string {
+  const words = [...command.matchAll(/\S+/g)];
+  let index = 1;
+  while (words[index]?.[0].startsWith("-") === true) {
+    index += XARGS_VALUES.test(words[index]?.[0] ?? "") ? 2 : 1;
+  }
+  const start = words[index]?.index;
+  return start === undefined ? "" : command.slice(start);
+}
 
 /** The `ssh` options that take a value. */
 const SSH_VALUES = /^-[bcDEeFIiJLlmOopQRSWw]$/;
 
 const isQuoted = (word: string): boolean => /^["']/.test(word);
 
-/** The script passed to `sh -c`, `su -c`, `eval` or `ssh`, or `null`. Word by word, quotes included:
+/** The script passed to `sh -c`, `su -c`, `eval` or `ssh`, `""` when it is read from standard
+ *  input, or `null`. Word by word, quotes included:
  *  a quoted `sh -c` is not an execution, and a regex over repeated options can blow up. */
 function shellArgument(command: string): string | null {
   const words = [...command.matchAll(/"[^"]*"|'[^']*'|\S+/g)];
@@ -203,8 +219,12 @@ function shellArgument(command: string): string | null {
       return null;
     }
     if (/^-\w*c$/.test(word)) {
-      // After a carrier, only a quoted script counts: `xargs grep sh -c x` searches, it does not run.
+      // After a carrier, only a quoted script counts: `docker exec c grep sh -c x` searches.
       return carried && !isQuoted(text(index + 1)) ? null : script(index + 1);
+    }
+    // `-s` reads the script from standard input: what follows are its arguments.
+    if (/^-\w*s\w*$/.test(word) && head !== "su") {
+      return "";
     }
     if (word === "-o") {
       index += 1;
@@ -227,7 +247,9 @@ function resolved(raw: string, depth: number): string[] {
       continue;
     }
     const first = command.split(/\s+/, 1)[0] ?? "";
-    if (WRAPPERS.has(first) || /^\w+=/.test(first)) {
+    if (first === "xargs") {
+      command = afterXargs(command).trim();
+    } else if (WRAPPERS.has(first) || /^\w+=/.test(first)) {
       command = command.slice(first.length).trim();
     } else {
       break;

@@ -70,6 +70,36 @@ describe("detected integrations", () => {
     expect(detectIntegrations({ image: "exemple/nexus", script: [] }, [service])).toEqual([]);
   });
 
+  test("a service action declared by the entry proves the integration", () => {
+    const vault = tool("vault", {
+      kind: "service",
+      integration: "fetch-secret",
+      detect: { images: [], scripts: [], actions: ["hashicorp/vault-action"] },
+    });
+    expect(
+      detectIntegrations({ image: null, script: [], actions: ["hashicorp/vault-action@v3"] }, [
+        vault,
+      ]),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
+  test("a docker:// action is an image, and does not prove the integration either", () => {
+    expect(
+      detectIntegrations({ image: null, script: [], actions: ["docker://exemple/nexus"] }, [
+        service,
+      ]),
+    ).toEqual([]);
+  });
+
+  test("the real Vault action proposes a fetch-secret", () => {
+    expect(
+      detectIntegrations(
+        { image: null, script: [], actions: ["hashicorp/vault-action@v3"] },
+        tools,
+      ),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
   test("a tool without integration proposes nothing", () => {
     expect(detectIntegrations({ image: null, script: ["trivy"] }, [tool("trivy")])).toEqual([]);
   });
@@ -372,6 +402,11 @@ describe("shell splitting on hostile input", () => {
     ['git commit -m "fix: use sh -c trivy fs ."'],
     ['grep -r "run sh -c trivy fs ." .'],
     ["ls /bin/sh -c trivy fs ."],
+    ["xargs grep sh -c trivy fs"],
+    ["xargs -0 -n 1 grep trivy"],
+    ["sh -s -- -c gitleaks"],
+    ["bash -s gitleaks detect"],
+    ["sh -es -- trivy fs ."],
   ])("%s runs nothing", (line) => {
     expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
   });
@@ -381,6 +416,11 @@ describe("shell splitting on hostile input", () => {
     ['su - bob -c "trivy fs ."'],
     ['find . -exec sh -c "trivy fs ." ;'],
     ['/bin/bash -c "trivy fs ."'],
+    ["xargs trivy fs"],
+    ["xargs -n1 trivy image"],
+    ["xargs -I {} trivy image {}"],
+    ["xargs --max-args=1 -P 4 trivy image"],
+    ["cat images.txt | xargs -L 1 trivy image"],
   ])("%s runs the tool too", (line) => {
     expect(
       detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
