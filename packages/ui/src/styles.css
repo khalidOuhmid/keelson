@@ -23,6 +23,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* `transition-colors` animates `outline-color`: at rest it must already be the accent, or the
+     ring starts from the inherited text colour on every control that transitions. */
+  * {
+    outline-color: var(--color-accent);
+  }
+
   :focus-visible {
     outline: var(--keelson-focus-ring-width) solid var(--color-accent);
     outline-offset: var(--keelson-focus-ring-offset);
