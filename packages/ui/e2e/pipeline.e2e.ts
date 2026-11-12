@@ -64,6 +64,22 @@ test("adding a need writes the file and appears in the panel", async ({ page }) 
   expect(keelson.read()).toMatch(/lint:[\s\S]*needs:[\s\S]*build-image/);
 });
 
+test("after a write, the notice names the line it changed in the file", async ({ page }) => {
+  await open(page);
+  await page.getByRole("textbox", { name: "New stage name" }).fill("verify");
+  await page.getByRole("button", { name: "Add stage" }).click();
+
+  const notice = page.getByRole("status").filter({ hasText: "Changed line" });
+  await expect(notice).toBeVisible();
+  const line =
+    keelson
+      .read()
+      .split("\n")
+      .findIndex((entry) => entry.includes("verify")) + 1;
+  expect(line).toBeGreaterThan(0);
+  await expect(notice).toHaveText(new RegExp(`Changed line ${line} of \\.gitlab-ci\\.yml\\.`));
+});
+
 test("undo restores the original bytes", async ({ page }) => {
   await open(page);
   const original = keelson.read();

@@ -406,7 +406,7 @@ describe("coverage.changed during an operation", () => {
 
     settle({ ok: true, value: operationPayload(HASH_B, HASH_A) });
     await submitted;
-    expect(state().notice).toBeNull();
+    expect(state().notice?.kind).toBe("written");
     expect(state().canUndo()).toBe(true);
   });
 
@@ -503,6 +503,36 @@ describe("write announcement", () => {
     state().announce("verify added.");
     api.queue({ ok: true, value: operationPayload(HASH_C, HASH_B) });
     await state().undo();
+    expect(state().notice?.message).not.toContain("verify added.");
+  });
+
+  test("every write names the lines it changed in the file", async () => {
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_B, HASH_A), touched: [{ start: 8, end: 17 }] },
+    });
+    await addStage("verify");
+    expect(state().notice).toEqual({
+      kind: "written",
+      message: "Changed line 2 of .gitlab-ci.yml.",
+    });
+  });
+
+  test("an announcement keeps the lines of the write it announces", async () => {
+    api.queue({
+      ok: true,
+      value: { ...operationPayload(HASH_B, HASH_A), touched: [{ start: 0, end: 17 }] },
+    });
+    await addStage("verify");
+    state().announce("verify added to .gitlab-ci.yml.");
+    expect(state().notice?.message).toBe(
+      "verify added to .gitlab-ci.yml. Changed lines 1–2 of .gitlab-ci.yml.",
+    );
+  });
+
+  test("a write that touched nothing announces nothing", async () => {
+    api.queue({ ok: true, value: { ...operationPayload(HASH_B, HASH_A), touched: [] } });
+    await addStage("verify");
     expect(state().notice).toBeNull();
   });
 });
@@ -886,7 +916,7 @@ describe("a layout.json change", () => {
 
     expect(state().coverage).toEqual(COVERED);
     expect(state().canUndo()).toBe(true);
-    expect(state().notice).toBeNull();
+    expect(state().notice?.kind).toBe("written");
   });
 
   async function addStageWith(): Promise<void> {
@@ -1087,7 +1117,7 @@ describe("document.written", () => {
     writes[0]?.open({ ok: true, value: operationPayload(HASH_B, HASH_A) });
     await submitted;
     expect(reads).toHaveLength(0);
-    expect(s.getState().notice).toBeNull();
+    expect(s.getState().notice?.kind).toBe("written");
     expect(s.getState().canUndo()).toBe(true);
   });
 

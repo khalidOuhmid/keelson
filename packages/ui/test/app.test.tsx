@@ -622,6 +622,30 @@ describe("the file picker follows the workspace", () => {
   });
 });
 
+describe("what was just written", () => {
+  test("the notice names the lines the write changed", async () => {
+    const h = harness();
+    h.queueSubmit({
+      ok: true,
+      value: {
+        text: DOCUMENT_TEXT,
+        pipeline: pipeline(),
+        diagnostics: [],
+        hash: NEXT,
+        included: {},
+        coverage: NO_COVERAGE,
+        inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
+        touched: [{ start: 18, end: 27 }],
+      },
+    });
+    await renderApp(h);
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    const notice = await screen.findByText("Changed line 3 of .gitlab-ci.yml.");
+    expect(notice.closest("[role=status]")).not.toBeNull();
+  });
+});
+
 describe("a write from another tab", () => {
   test("another tab's write reloads the screen and says so; this tab's own does not", async () => {
     const h = harness();

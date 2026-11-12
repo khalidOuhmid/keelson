@@ -13,6 +13,7 @@ import type {
   WorkspaceFile,
 } from "../api/client.ts";
 import type { ServerEvent } from "../api/events.ts";
+import { describeTouched } from "../editing/touched.ts";
 
 export type Draft = Operation extends infer T
   ? T extends { v: 1; baseHash: string }
@@ -142,6 +143,8 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
     /** A `coverage.changed` or another tab's write arrived during an operation on the same file:
      *  the operation's response decides, and only a failure without a 409 leaves the reload to do. */
     let reloadOwed = false;
+    /** The lines the last write changed, said again by the announcement that follows it. */
+    let lastChange: string | null = null;
     /** The file the operation in flight writes to. */
     let writing: string | null = null;
     /** The opIds this tab sent: their `document.written` is this tab's own write. */
@@ -232,6 +235,10 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
           entry.inverse = result.value.inverse;
         }
         onSuccess();
+        lastChange = describeTouched(file, result.value.text, result.value.touched);
+        if (lastChange !== null) {
+          set({ notice: { kind: "written", message: lastChange } });
+        }
         return true;
       }
 
@@ -481,7 +488,12 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
       },
 
       announce(message) {
-        set({ notice: { kind: "written", message } });
+        set({
+          notice: {
+            kind: "written",
+            message: lastChange === null ? message : `${message} ${lastChange}`,
+          },
+        });
       },
 
       dismissNotice() {
