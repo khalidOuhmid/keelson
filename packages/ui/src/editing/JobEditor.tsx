@@ -176,7 +176,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         </label>
 
         {github ? null : (
-          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <label className="flex min-h-6 items-center gap-1.5 text-xs text-text-secondary">
             <input
               type="checkbox"
               checked={optional}
@@ -188,7 +188,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         )}
 
         {github ? null : (
-          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <label className="flex min-h-6 items-center gap-1.5 text-xs text-text-secondary">
             <input
               type="checkbox"
               checked={artifacts}

@@ -554,6 +554,9 @@ Ghost by default. There is no filled button anywhere in the product.
   confirm button).
 - **Icon button:** the stage reorder pair is the same button with an SVG arrow in place of the label
   and an `aria-label`; it never shrinks below the standard padding.
+- **Target size:** every button, every standalone text link and every checkbox row is at least
+  24 × 24px (`min-h-6 min-w-6`), the WCAG 2.2 target-size floor, even though the commitment in
+  `PRODUCT.md` is 2.1 AA. A checkbox keeps its native size; its whole label row is the target.
 - **Current view:** the view switcher's button for the open view carries `aria-current="page"`, an
   `accent` border, the `surface-3` fill and a semibold `text-primary` label.
 - **Text link:** no border and no fill, underlined at a 2px offset. `accent` for "See tools" and

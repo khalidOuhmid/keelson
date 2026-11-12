@@ -59,3 +59,47 @@ test("the focus ring is the accent on every tab stop, from the first frame", asy
   expect(ringed.length).toBeGreaterThan(20);
   expect(ringed.filter((entry) => entry.color !== expected)).toEqual([]);
 });
+
+async function smallTargets(page: Page) {
+  return page.evaluate(() => {
+    const targets = [
+      ...document.querySelectorAll<HTMLElement>(
+        "header button, header select, aside button, aside select, aside input:not([type=checkbox]), aside summary, aside a, main form select, main summary",
+      ),
+      ...[...document.querySelectorAll<HTMLInputElement>("aside input[type=checkbox]")].map(
+        (input) => input.closest("label") ?? input,
+      ),
+    ];
+    return targets
+      .filter((element) => element.getClientRects().length > 0)
+      .map((element) => {
+        const box = element.getBoundingClientRect();
+        return {
+          name: element.getAttribute("aria-label") ?? element.textContent?.trim().slice(0, 30),
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+        };
+      })
+      .filter((entry) => entry.width < 24 || entry.height < 24);
+  });
+}
+
+test("every control of the editing surfaces is at least 24 × 24 px", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "unit-tests" }).click();
+  await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
+  expect(await smallTargets(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Coverage", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Coverage" })).toBeVisible();
+  expect(await smallTargets(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Toolchain", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Toolchain" })).toBeVisible();
+  expect(await smallTargets(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Catalog", exact: true }).click();
+  await page.getByRole("region", { name: "Tool catalogue" }).getByRole("button").first().click();
+  await expect(page.getByRole("region", { name: "Tool detail" })).toBeVisible();
+  expect(await smallTargets(page)).toEqual([]);
+});
