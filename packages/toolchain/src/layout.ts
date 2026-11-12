@@ -165,8 +165,12 @@ export function parseLayout(
 
 /** The text of `layout.json` with these positions added, or `null` if the current file is not
  *  understood: Keelson does not overwrite what it cannot read. Keys it ignores and positions written
- *  by someone else survive. */
-export function writePositions(text: string | null, positions: Positions): string | null {
+ *  by someone else survive, unless `clear` asks for every saved position to go first. */
+export function writePositions(
+  text: string | null,
+  positions: Positions,
+  options: { clear?: boolean } = {},
+): string | null {
   let current: unknown = { version: 1 };
   if (text !== null) {
     try {
@@ -181,8 +185,8 @@ export function writePositions(text: string | null, positions: Positions): strin
   }
 
   const sorted = Object.fromEntries(
-    Object.entries({ ...read.value.positions, ...positions }).sort(([left], [right]) =>
-      left < right ? -1 : 1,
+    Object.entries({ ...(options.clear === true ? {} : read.value.positions), ...positions }).sort(
+      ([left], [right]) => (left < right ? -1 : 1),
     ),
   );
   return `${JSON.stringify({ ...(current as object), positions: sorted }, null, 2)}\n`;
