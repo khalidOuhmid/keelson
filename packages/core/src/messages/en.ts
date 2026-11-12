@@ -131,6 +131,7 @@ export const EN: Catalogue = {
     notForProvider: (p) => `operation ${p.operation} has no meaning in a GitHub Actions workflow`,
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,
+    notADirectory: (p) => `${quoted(p.path)} is not a directory, nothing was written`,
     noRootMap: () => "this file has no YAML map at its root",
     notUtf8: (p) => `${quoted(p.file)} is not UTF-8 text, Keelson does not rewrite it`,
     wouldBreakYaml: (p) =>
