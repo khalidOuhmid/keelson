@@ -292,12 +292,14 @@ describe("templates", () => {
   const WITH_TEMPLATE: Pipeline = {
     ...PIPELINE,
     jobs: PIPELINE.jobs.map((job) => (job.id === "compile" ? { ...job, extends: [".base"] } : job)),
-    templates: [{ id: ".base", range: { start: 0, end: 5 }, file: MAIN }],
+    templates: [{ id: ".base", range: { start: 0, end: 5 }, file: MAIN, extends: [] }],
   };
   const TEMPLATED: Layout = {
     ...LAYOUT,
     templates: [{ id: ".base", x: -280, y: 0, width: 200, height: 64 }],
-    inheritance: [{ id: ".base=>compile", source: ".base", target: "compile", optional: false }],
+    inheritance: [
+      { id: ".base=>compile", source: ".base", target: "compile", kind: "extends", into: "job" },
+    ],
   };
 
   test("a template is its own node type in its own column, with its count, below the header", () => {
@@ -330,5 +332,63 @@ describe("templates", () => {
   test("without templates there is no template column", () => {
     const graph = toFlowGraph(LAYOUT, PIPELINE, null);
     expect(graph.nodes.some((node) => node.type === TEMPLATE_COLUMN_TYPE)).toBe(false);
+  });
+
+  const CHAINED: Pipeline = {
+    ...PIPELINE,
+    jobs: PIPELINE.jobs.map((job) =>
+      job.id === "compile" ? { ...job, extends: [".build"], merges: [".base"] } : job,
+    ),
+    templates: [
+      { id: ".base", range: { start: 0, end: 5 }, file: MAIN, extends: [] },
+      { id: ".build", range: { start: 6, end: 9 }, file: MAIN, extends: [".base"] },
+    ],
+  };
+  const CHAINED_LAYOUT: Layout = {
+    ...LAYOUT,
+    templates: [
+      { id: ".base", x: -560, y: 0, width: 200, height: 64 },
+      { id: ".build", x: -280, y: 0, width: 200, height: 64 },
+    ],
+    inheritance: [
+      { id: ".base<<compile", source: ".base", target: "compile", kind: "merge", into: "job" },
+      { id: ".base=>.build", source: ".base", target: ".build", kind: "extends", into: "template" },
+      { id: ".build=>compile", source: ".build", target: "compile", kind: "extends", into: "job" },
+    ],
+  };
+
+  test("the template column spans every template level", () => {
+    const graph = toFlowGraph(CHAINED_LAYOUT, CHAINED, null);
+    const column = graph.nodes.find((node) => node.type === TEMPLATE_COLUMN_TYPE);
+    expect(column?.position.x).toBe(-560);
+    expect(column?.width).toBe(480);
+    expect(column?.data).toEqual({ count: 2 });
+  });
+
+  test("a template extending another is linked to it, template to template", () => {
+    const graph = toFlowGraph(CHAINED_LAYOUT, CHAINED, null);
+    const edge = graph.edges.find((entry) => entry.id === ".base=>.build");
+    expect(edge?.source).toBe("template:.base");
+    expect(edge?.target).toBe("template:.build");
+    expect(edge?.ariaLabel).toBe(".build extends .base");
+    expect(edge?.data?.kind).toBe("extends");
+    const inheriting = graph.nodes.find((node) => node.id === "template:.build");
+    const root = graph.nodes.find((node) => node.id === "template:.base");
+    expect(inheriting?.data).toMatchObject({ inherits: true });
+    expect(root?.data).toMatchObject({ inherits: false });
+  });
+
+  test("a merge is its own kind of edge, named and drawn apart from an extends", () => {
+    const graph = toFlowGraph(CHAINED_LAYOUT, CHAINED, null);
+    const merge = graph.edges.find((entry) => entry.id === ".base<<compile");
+    const extended = graph.edges.find((entry) => entry.id === ".build=>compile");
+    expect(merge?.source).toBe("template:.base");
+    expect(merge?.target).toBe("compile");
+    expect(merge?.ariaLabel).toBe("compile merges .base");
+    expect(merge?.data?.kind).toBe("merge");
+    expect(merge?.label).toBe("merge");
+    expect(extended?.label).toBeUndefined();
+    expect(merge?.style?.strokeDasharray).toBeDefined();
+    expect(merge?.style?.strokeDasharray).not.toBe(extended?.style?.strokeDasharray);
   });
 });

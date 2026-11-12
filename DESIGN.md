@@ -528,7 +528,10 @@ left/right handles and are the one place stroke weight carries meaning: 1.5px
 (`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
 `accent` when the edge touches the selection, dashed at 4px when the dependency is optional or, on the
 Toolchain view, when the integration is only proposed. A toolchain edge also carries its type in
-words and an arrowhead, so neither dash nor colour speaks alone.
+words and an arrowhead, so neither dash nor colour speaks alone. An inheritance edge leaves a
+template, for a job or for another template drawn one column downstream, in `border-default` at the
+normal weight: dotted for an `extends`, dash and dot for a merge key, which also carries the word
+"merge".
 
 Icons are inline SVG on a 16-unit viewBox, 1.75 stroke, sized `1em` and coloured `currentColor`, so
 a mark always matches the size and colour of the text beside it. Severity marks are distinguished by

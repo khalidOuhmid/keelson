@@ -8,6 +8,14 @@ export type TemplateNodeProps = NodeProps & { data: TemplateNodeData };
 export function TemplateNode({ data }: TemplateNodeProps) {
   return (
     <>
+      {data.inherits ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+          className="!bg-border-strong"
+        />
+      ) : null}
       <div
         data-template-id={data.id}
         className="flex h-full w-full flex-col justify-center gap-0.5 rounded-md border border-dashed border-border-strong bg-surface-0 px-2.5 py-2"
