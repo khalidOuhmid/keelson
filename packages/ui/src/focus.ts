@@ -65,7 +65,9 @@ export function overlaysCover(): boolean {
 export function focusWhenDrawn(selector: string, frames = 120): void {
   const found = document.querySelector<HTMLElement>(selector);
   if (found !== null) {
-    found.focus();
+    // A graph node is revealed by panning the graph: a browser scroll of its container would move
+    // the nodes out from under the viewport, and the node off the canvas.
+    found.focus(found.closest(".react-flow") === null ? undefined : { preventScroll: true });
   } else if (frames > 0) {
     requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
   }
