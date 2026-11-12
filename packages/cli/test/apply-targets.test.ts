@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText, TOOLCHAIN_FILE } from "@keelson/core";
 import { applyCommand } from "../src/apply.ts";
@@ -124,6 +124,19 @@ describe("a concurrent write", () => {
       `✗ ${root}  the document changed since the operation was computed\n`,
     );
     expect(readFileSync(join(root, TOOLCHAIN_FILE), "utf8")).toBe(concurrent);
+  });
+
+  test("a file another Keelson process keeps locked is left alone", async () => {
+    const root = repository({ ".gitlab-ci.yml": CI });
+    const lock = join(root, "..gitlab-ci.yml.keelson-lock");
+    writeFileSync(lock, JSON.stringify({ pid: process.pid, host: hostname(), token: "held" }));
+    const ops = { v: 1, baseHash: hashText(CI), kind: "addStage", name: "deploy" };
+    const result = await applyCommand([opsFile(ops), root], root, { lockTimeoutMs: 100 });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("is locked by another Keelson process");
+    expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(CI);
+    expect(readFileSync(lock, "utf8")).toContain('"token":"held"');
   });
 
   test("an unchanged disk is written as before", async () => {
