@@ -105,6 +105,11 @@ const RELOADED: Notice = {
   message: "The file changed on disk and was reloaded.",
 };
 
+const WRITTEN_ELSEWHERE: Notice = {
+  kind: "reloaded",
+  message: "Another Keelson tab wrote the file. It was reloaded and Undo history was cleared.",
+};
+
 export function createStore(dependencies: StoreDependencies): KeelsonStore {
   let undoStack: HistoryEntry[] = [];
   let redoStack: HistoryEntry[] = [];
@@ -440,7 +445,7 @@ export function createStore(dependencies: StoreDependencies): KeelsonStore {
             reloadOwed = true;
             return;
           }
-          await reload(event.file, RELOADED);
+          await reload(event.file, WRITTEN_ELSEWHERE);
           return;
         }
 

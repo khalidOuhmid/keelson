@@ -1102,7 +1102,10 @@ describe("document.written", () => {
     });
     expect(state().hash).toBe(HASH_C);
     expect(state().canUndo()).toBe(false);
-    expect(state().notice?.kind).toBe("reloaded");
+    expect(state().notice).toEqual({
+      kind: "reloaded",
+      message: "Another Keelson tab wrote the file. It was reloaded and Undo history was cleared.",
+    });
   });
 
   test("a write already reached is not read again", async () => {

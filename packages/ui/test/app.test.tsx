@@ -632,10 +632,10 @@ describe("a write from another tab", () => {
 
     h.emit({ kind: "document.written", file: MAIN, hash: "c".repeat(64), opId: "op-1" });
     await new Promise((settle) => setTimeout(settle, 20));
-    expect(screen.queryByText(/changed on disk/i)).toBeNull();
+    expect(screen.queryByText(/another keelson tab wrote the file/i)).toBeNull();
 
     h.emit({ kind: "document.written", file: MAIN, hash: "c".repeat(64), opId: "elsewhere" });
-    expect(await screen.findByText(/changed on disk/i)).toBeDefined();
+    expect(await screen.findByText(/another keelson tab wrote the file/i)).toBeDefined();
   });
 });
 
