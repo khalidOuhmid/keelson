@@ -255,6 +255,12 @@ describe("the partial pipeline indicator", () => {
     return render(<PartialPipelineBar pipeline={pipeline({ unresolved })} />);
   }
 
+  test("its disclosure chevron takes the rotation class passed to the icon", () => {
+    renderBar([remote]);
+    const chevron = document.querySelector("summary svg");
+    expect(chevron?.getAttribute("class")).toContain("group-open:rotate-90");
+  });
+
   test("absent when every include is resolved", () => {
     const { container } = renderBar([]);
     expect(container.textContent).toBe("");
