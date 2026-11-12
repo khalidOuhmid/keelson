@@ -147,6 +147,21 @@ describe("coverage report", () => {
     expect(text).toMatch(/Artifact repositories and registries \| yes \| {2}\| nexus \|/);
   });
 
+  test("a line break in a job or service name stays inside its cell", () => {
+    const broken = coverage(
+      { ...PIPELINE, jobs: [job("scan\r\n| x |\nnext", "test", [], ["trivy fs ."])] },
+      tools,
+      {},
+      [],
+      [{ id: "nex\nus", tool: "nexus", url: null, environment: "prod" }],
+    );
+    const lines = renderCoverageMarkdown(broken).split("\n");
+    expect(lines.filter((line) => line.startsWith("| "))).toHaveLength(23);
+    expect(lines.every((line) => line === "" || /^[#|C0-9]/.test(line))).toBe(true);
+    expect(lines.join("\n")).toContain("scan \\| x \\| next");
+    expect(lines.join("\n")).toContain("nex us");
+  });
+
   test("a partial pipeline states the lower bound", () => {
     expect(renderCoverageMarkdown({ ...result, partial: true })).toContain("lower bound");
   });
