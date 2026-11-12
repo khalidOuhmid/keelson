@@ -17,6 +17,8 @@ export type JobNodeData = {
   id: string;
   stage: string;
   stageOrigin: Origin;
+  /** GitHub: the stage is a level derived from `needs`, which the column already names. */
+  derived: boolean;
   needs: NeedSummary[];
   environment: string | null;
   extendsFrom: string[];
@@ -38,9 +40,16 @@ export type LayerOverlay = {
   selected: LayerId | null;
 };
 
+/** `level 2` as a column or a description names it. */
+export function levelName(level: string): string {
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
 export type ColumnNodeData = {
   name: string;
   implicit: boolean;
+  /** GitHub: a level derived from `needs`, not a stage. */
+  derived: boolean;
   jobCount: number;
 };
 
@@ -95,6 +104,7 @@ export function toFlowGraph(
     data: {
       name: column.name,
       implicit: column.implicit,
+      derived: pipeline.provider === "github",
       jobCount: column.jobIds.length,
     } satisfies ColumnNodeData,
     width: column.width,
@@ -120,6 +130,7 @@ export function toFlowGraph(
           id: job.id,
           stage: job.stage.value,
           stageOrigin: job.stage.origin,
+          derived: pipeline.provider === "github",
           needs: (job.needs?.value ?? []).map((need) => ({
             job: need.job,
             optional: need.optional,

@@ -46,7 +46,7 @@ export function PipelineTable({
                 Job
               </th>
               <th scope="col" className="px-2 py-1 font-semibold">
-                Stage
+                {pipeline.provider === "github" ? "Level" : "Stage"}
               </th>
               <th scope="col" className="px-2 py-1 font-semibold">
                 Needs

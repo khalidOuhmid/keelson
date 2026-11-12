@@ -292,6 +292,34 @@ describe("the partial pipeline indicator", () => {
     expect(screen.getByText(MAIN)).toBeDefined();
   });
 
+  test("an unread reusable workflow names the job that calls it", () => {
+    const workflow: UnresolvedInclude = {
+      form: "workflow",
+      detail: "acme/ci/.github/workflows/scan.yml@v1",
+      from: MAIN,
+      range: { start: 112, end: 150 },
+    };
+    render(
+      <PartialPipelineBar
+        pipeline={pipeline({
+          provider: "github",
+          jobs: [
+            job("build", MAIN, { range: { start: 0, end: 90 } }),
+            job("shared", MAIN, { range: { start: 100, end: 160 } }),
+          ],
+          unresolved: [workflow],
+        })}
+      />,
+    );
+    expect(screen.getByRole("listitem").textContent).toContain("called by");
+    expect(screen.getByText("shared")).toBeDefined();
+  });
+
+  test("an include has no calling job", () => {
+    renderBar([remote]);
+    expect(screen.queryByText("called by")).toBeNull();
+  });
+
   /** The three differences from `NoticeBar`, which announces the consequence of an action: a gap
    *  is not an event, hence no live region, and a fact cannot be dismissed. */
   test("it is neither an alert nor a status, and nothing can be dismissed", () => {

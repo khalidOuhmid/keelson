@@ -80,6 +80,70 @@ test.describe("GitHub Actions on the real binary", () => {
     }
   });
 
+  test("the partial bar names the job that calls the unread workflow", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(REL);
+      const bar = page.getByRole("group", { name: "Partial pipeline" });
+      await bar.locator("summary").click();
+      await expect(bar.getByRole("listitem")).toContainText(/called by\s*shared/);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("levels are named once, by their column, and read as levels", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await expect(page.locator("[data-job-id=test]")).toBeVisible();
+      await expect(page.getByRole("group", { name: "Level 2", exact: true })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Stage / })).toHaveCount(0);
+      await expect(page.locator("[data-job-id=test]")).not.toContainText("level");
+      await expect(page.locator("[data-job-id=build]")).not.toContainText("level");
+
+      await page.getByRole("button", { name: "Table", exact: true }).click();
+      const table = page.getByRole("table", { name: "Pipeline jobs" });
+      await expect(table.getByRole("columnheader", { name: "Level" })).toBeVisible();
+      await expect(table.getByRole("columnheader", { name: "Stage" })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("the chosen file is kept in the address, without the token", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(REL);
+      await expect(page.locator("[data-job-id=publish]")).toBeVisible();
+      const address = new URL(page.url());
+      expect(address.search).not.toContain("token");
+      expect(address.hash).not.toContain("token");
+      expect(decodeURIComponent(address.hash)).toContain(REL);
+
+      await page.goto(`${keelson.url}${address.hash}`);
+      await expect(page.locator("[data-job-id=publish]")).toBeVisible();
+      await expect(page.getByLabel("Pipeline file")).toHaveValue(REL);
+      expect(new URL(page.url()).hash).toBe(address.hash);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("a file named in the address that no longer exists opens the first one", async ({
+    page,
+  }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(`${keelson.url}#file=${encodeURIComponent(".github/workflows/gone.yml")}`);
+      await expect(page.locator("[data-job-id=build]")).toBeVisible();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("inserting a tool writes its steps, with no stage choice", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     const original = keelson.readAt(CI);

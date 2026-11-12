@@ -1,4 +1,4 @@
-import type { Pipeline, UnresolvedInclude } from "@keelson/core";
+import type { Job, Pipeline, UnresolvedInclude } from "@keelson/core";
 import { isPartial } from "@keelson/core";
 import { ChevronRightIcon } from "../icons.tsx";
 
@@ -56,7 +56,7 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
               key={`${entry.from}:${entry.range?.start ?? "?"}:${entry.detail}`}
               className="flex flex-wrap items-center gap-1.5"
             >
-              <Body entry={entry} />
+              <Body entry={entry} caller={callerOf(pipeline.jobs, entry)} />
             </li>
           ))}
         </ul>
@@ -69,7 +69,19 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
  *  was a **dead click**: an include's range falls inside the opaque block of the top-level
  *  `include` key, which `selectByRange` can by construction never match to a job. A control with no
  *  effect is either wired up or removed. */
-function Body({ entry }: { entry: UnresolvedInclude }) {
+/** A reusable workflow is called by a job: its range falls inside that job's. */
+function callerOf(jobs: readonly Job[], entry: UnresolvedInclude): string | null {
+  const start = entry.range?.start;
+  if (entry.form !== "workflow" || start === undefined) {
+    return null;
+  }
+  return (
+    jobs.find((job) => job.file === entry.from && job.range.start <= start && start < job.range.end)
+      ?.id ?? null
+  );
+}
+
+function Body({ entry, caller }: { entry: UnresolvedInclude; caller: string | null }) {
   return (
     <>
       <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase">
@@ -80,6 +92,14 @@ function Body({ entry }: { entry: UnresolvedInclude }) {
         declared in
       </span>
       <span className="font-mono text-xs text-text-muted">{entry.from}</span>
+      {caller === null ? null : (
+        <>
+          <span className="text-2xs font-semibold tracking-label text-text-muted uppercase">
+            called by
+          </span>
+          <span className="font-mono text-xs text-text-muted">{caller}</span>
+        </>
+      )}
     </>
   );
 }

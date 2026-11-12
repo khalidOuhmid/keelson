@@ -1,5 +1,5 @@
 import type { NodeProps } from "@xyflow/react";
-import type { ColumnNodeData } from "./graph.ts";
+import { type ColumnNodeData, levelName } from "./graph.ts";
 
 export type StageColumnNodeProps = NodeProps & {
   data: ColumnNodeData;
@@ -12,7 +12,7 @@ export function StageColumnNode({ data }: StageColumnNodeProps) {
     // biome-ignore lint/a11y/useSemanticElements: a column per stage must not become a landmark; fieldset is reserved for form controls
     <div
       role="group"
-      aria-label={`Stage ${data.name}`}
+      aria-label={data.derived ? levelName(data.name) : `Stage ${data.name}`}
       className="h-full w-full rounded-lg border border-border-subtle bg-surface-1"
     >
       <header className="flex h-[var(--keelson-column-header-height)] items-center justify-between gap-2 border-b border-border-subtle px-2.5">

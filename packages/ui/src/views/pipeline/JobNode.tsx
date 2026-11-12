@@ -1,7 +1,7 @@
 import { findLayer } from "@keelson/taxonomy";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
 import { LayerTags } from "../coverage/LayerTag.tsx";
-import type { JobNodeData, NeedSummary } from "./graph.ts";
+import { type JobNodeData, levelName, type NeedSummary } from "./graph.ts";
 import { KEYBOARD_HINT_ID } from "./navigation.ts";
 import { OriginBadge } from "./OriginBadge.tsx";
 
@@ -28,7 +28,7 @@ export function JobNode({ data }: JobNodeProps) {
     data.layers === null || data.layers.length === 0
       ? ""
       : `Layers: ${data.layers.map((id) => findLayer(id).name).join(", ")}.`,
-    `Stage ${data.stage}.`,
+    data.derived ? `${levelName(data.stage)}.` : `Stage ${data.stage}.`,
     describeNeeds(data.needs),
     data.environment === null ? "" : `Environment ${data.environment}.`,
     data.extendsFrom.length === 0 ? "" : `Extends ${data.extendsFrom.join(", ")}.`,
@@ -71,7 +71,7 @@ export function JobNode({ data }: JobNodeProps) {
         <span className="flex items-center gap-1 overflow-hidden">
           {data.layers !== null ? (
             <LayerTags layers={data.layers} limit={2} />
-          ) : (
+          ) : data.derived ? null : (
             <>
               <span className="truncate font-mono text-xs text-text-muted">{data.stage}</span>
               {data.included ? null : <OriginBadge origin={data.stageOrigin} />}
