@@ -98,6 +98,7 @@ export const PARAMS_SCHEMAS = {
     reason("dynamicExpression", { job: text }),
     reason("readsOwnId", { job: text }),
     reason("outsideRoot", { path: text }),
+    reason("notADirectory", { path: text }),
     reason("noRootMap", {}),
     reason("notUtf8", { file: text }),
     reason("wouldBreakYaml", { operation: text }),
