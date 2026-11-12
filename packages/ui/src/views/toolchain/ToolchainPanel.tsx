@@ -297,7 +297,7 @@ export function ToolchainPanel({
             aria-expanded={adding}
             aria-controls="new-service-form"
             onClick={() => setAdding(!adding)}
-            className="group flex cursor-pointer items-center gap-1"
+            className="group flex min-h-6 cursor-pointer items-center gap-1"
           >
             <ChevronRightIcon className="transition-transform duration-fast ease-out group-aria-expanded:rotate-90" />
             New service
