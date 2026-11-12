@@ -34,7 +34,7 @@ export { HEARTBEAT_MS } from "./sse.ts";
 export { DocumentStore, OPID_HISTORY } from "./store.ts";
 export { ToolchainStore } from "./toolchain.ts";
 export type { DocumentEvent } from "./watcher.ts";
-export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
+export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile, type YamlPath } from "./workspace.ts";
 export { writeAtomic, writeInsideRoot } from "./write.ts";
 
 export async function createServer(options: ServerOptions): Promise<KeelsonServer> {
