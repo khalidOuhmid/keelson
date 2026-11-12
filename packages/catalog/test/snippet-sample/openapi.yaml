@@ -1,0 +1,21 @@
+openapi: 3.0.3
+info:
+  title: Sample
+  version: 1.0.0
+  description: The API the catalogue snippets lint.
+  contact:
+    name: Keelson
+servers:
+  - url: https://example.org
+tags:
+  - name: health
+    description: Liveness.
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      description: Whether the service is up.
+      tags: [health]
+      responses:
+        "200":
+          description: Up.

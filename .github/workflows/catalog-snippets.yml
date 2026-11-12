@@ -1,0 +1,71 @@
+name: Catalogue snippets
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 3 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: List the snippets a runner can start on its own
+        id: matrix
+        run: echo "matrix=$(bun packages/catalog/test/snippet-matrix.ts)" >> "$GITHUB_OUTPUT"
+
+  snippet:
+    name: ${{ matrix.tool }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: packages/catalog/test/snippet-sample
+
+      - name: Prepare the sample as a repository of its own
+        run: |
+          cp -R packages/catalog/test/snippet-sample "$RUNNER_TEMP/sample"
+          cd "$RUNNER_TEMP/sample"
+          git init -q
+          git add -A
+          git -c user.name=keelson -c user.email=keelson@example.org commit -qm sample
+
+      - name: Install the tool
+        if: matrix.setup != ''
+        env:
+          SETUP: ${{ matrix.setup }}
+        run: bash -c "$SETUP"
+
+      - name: Run the snippet
+        working-directory: ${{ runner.temp }}/sample
+        env:
+          SNIPPET: ${{ matrix.run }}
+        run: |
+          set +e
+          bash -c "$SNIPPET"
+          code=$?
+          case "$code" in
+            125|126|127)
+              echo "::error::the snippet could not start (exit $code)"
+              exit 1
+              ;;
+          esac
+          echo "the snippet started and exited with $code"
