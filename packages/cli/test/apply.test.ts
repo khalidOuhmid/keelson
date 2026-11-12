@@ -282,6 +282,20 @@ describe("--dry-run", () => {
     expect(result.stdout).toContain("@@ -5,1 +5,1 @@\n-compile:\n+build-all:\n");
   });
 
+  test("a small change in a large file is a single small hunk, not the whole file", async () => {
+    const jobs = Array.from(
+      { length: 1200 },
+      (_, index) => `job${index}:\n  stage: build\n  script:\n    - make ${index}\n`,
+    ).join("\n");
+    const large = `${BASE}\n${jobs}`;
+    const root = repository(large);
+    const result = await run(["apply", opsFile(addStage(large, "deploy")), root, "--dry-run"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("  +1 -0 line(s)");
+    expect(result.stdout).toContain("@@ -3,0 +4,1 @@\n+  - deploy\n");
+  });
+
   test("a failure stays a failure in dry-run", async () => {
     const root = repository(OTHER);
     const result = await run(["apply", opsFile(addStage(BASE, "deploy")), root, "--dry-run"]);

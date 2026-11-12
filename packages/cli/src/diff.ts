@@ -1,72 +1,11 @@
+import { diffRows } from "@keelson/core";
+
 export type Hunk = {
   before: { start: number; count: number };
   after: { start: number; count: number };
   removed: string[];
   added: string[];
 };
-
-/** Beyond this, the longest-common-subsequence table would cost more than it gives: the middle is
- *  rendered as replaced, which is still true. */
-const MAX_CELLS = 4_000_000;
-
-function linesOf(text: string): string[] {
-  const lines = text.split(/\r?\n/);
-  if (lines.at(-1) === "") {
-    lines.pop();
-  }
-  return lines;
-}
-
-type Row = { kind: "same" | "add" | "remove"; text: string };
-
-function rows(left: readonly string[], right: readonly string[]): Row[] {
-  const columns = right.length + 1;
-  if ((left.length + 1) * columns > MAX_CELLS) {
-    return [
-      ...left.map((text): Row => ({ kind: "remove", text })),
-      ...right.map((text): Row => ({ kind: "add", text })),
-    ];
-  }
-
-  const table = new Uint32Array((left.length + 1) * columns);
-  for (let row = left.length - 1; row >= 0; row -= 1) {
-    for (let column = right.length - 1; column >= 0; column -= 1) {
-      table[row * columns + column] =
-        left[row] === right[column]
-          ? (table[(row + 1) * columns + column + 1] ?? 0) + 1
-          : Math.max(
-              table[(row + 1) * columns + column] ?? 0,
-              table[row * columns + column + 1] ?? 0,
-            );
-    }
-  }
-
-  const found: Row[] = [];
-  let row = 0;
-  let column = 0;
-  while (row < left.length && column < right.length) {
-    if (left[row] === right[column]) {
-      found.push({ kind: "same", text: left[row] ?? "" });
-      row += 1;
-      column += 1;
-    } else if (
-      (table[(row + 1) * columns + column] ?? 0) >= (table[row * columns + column + 1] ?? 0)
-    ) {
-      found.push({ kind: "remove", text: left[row] ?? "" });
-      row += 1;
-    } else {
-      found.push({ kind: "add", text: right[column] ?? "" });
-      column += 1;
-    }
-  }
-  for (; row < left.length; row += 1) {
-    found.push({ kind: "remove", text: left[row] ?? "" });
-  }
-  for (; column < right.length; column += 1) {
-    found.push({ kind: "add", text: right[column] ?? "" });
-  }
-  return found;
-}
 
 /** The hunks of a unified diff without context (`-U0`). A hunk empty on one side carries, as in
  *  `diff`, the number of the line **after** which it is inserted. */
@@ -75,7 +14,7 @@ export function hunks(before: string, after: string): Hunk[] {
   let line = { before: 0, after: 0 };
   let current: Hunk | null = null;
 
-  for (const row of rows(linesOf(before), linesOf(after))) {
+  for (const row of diffRows(before, after)) {
     if (row.kind === "same") {
       current = null;
       line = { before: line.before + 1, after: line.after + 1 };
