@@ -27,6 +27,7 @@ import { JobEditor } from "./editing/JobEditor.tsx";
 import { NewJobForm } from "./editing/NewJobForm.tsx";
 import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
+import { focusWhenDrawn, overlaysCover, trapTab } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
@@ -75,16 +76,6 @@ export type AppDeps = {
   subscribe?: typeof subscribeToEvents;
   newOpId?: () => string;
 };
-
-/** Graph layout is asynchronous: the node does not exist yet on the next render. */
-function focusWhenDrawn(selector: string, frames = 120): void {
-  const found = document.querySelector<HTMLElement>(selector);
-  if (found !== null) {
-    found.focus();
-  } else if (frames > 0) {
-    requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
-  }
-}
 
 function browserDeps(): AppDeps {
   const token = readToken(browserLocation()) ?? "";

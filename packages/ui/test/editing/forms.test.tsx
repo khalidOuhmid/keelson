@@ -490,6 +490,25 @@ describe("JobEditor — the confirmation is usable from the keyboard", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete job" }));
   });
 
+  test("Tab and Shift+Tab cycle inside the dialog and never leave it", async () => {
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    const dialog = screen.getByRole("alertdialog");
+    const confirm = screen.getByRole("button", { name: "Delete unit" });
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+
+    await userEvent.tab();
+    expect(document.activeElement).toBe(cancel);
+    await userEvent.tab();
+    expect(document.activeElement).toBe(confirm);
+    await userEvent.tab({ shift: true });
+    expect(document.activeElement).toBe(cancel);
+    for (let step = 0; step < 5; step += 1) {
+      await userEvent.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+  });
+
   test("Cancel also returns focus to the trigger", async () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
