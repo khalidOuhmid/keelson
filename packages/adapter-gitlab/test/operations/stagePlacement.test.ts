@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { parse } from "../../src/parse.ts";
 import { expectOk, jobOf, roundTrip } from "../support/apply.ts";
+import { readEdgeCase } from "../support/corpus.ts";
 
 const JOB = "\ncompile:\n  stage: build\n  script: make\n";
 const WITH_FIXED = `stages:\n  - .pre\n  - build\n  - test\n  - .post\n${JOB}`;
@@ -87,27 +88,72 @@ describe(".pre and .post stay at the ends", () => {
 describe("a comment standing alone in the stages list", () => {
   const commented = `stages:\n  - build\n  # quality gates below\n  - test\n  - deploy\n${JOB}`;
 
-  test("survives moving the stage above it", () => {
+  test("stays above the item that followed it when the stage above it moves", () => {
     const applied = expectOk(commented, { kind: "moveStage", name: "build", toIndex: 2 });
-    expect(applied.text).toContain("# quality gates below\n");
+    expect(applied.text).toBe(
+      `stages:\n  # quality gates below\n  - test\n  - deploy\n  - build\n${JOB}`,
+    );
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual(["test", "deploy", "build"]);
   });
 
-  test("survives moving the last stage to the front", () => {
+  test("stays between its two neighbours when the last stage moves to the front", () => {
     const applied = expectOk(commented, { kind: "moveStage", name: "deploy", toIndex: 0 });
-    expect(applied.text).toContain("# quality gates below\n");
+    expect(applied.text).toBe(
+      `stages:\n  - deploy\n  - build\n  # quality gates below\n  - test\n${JOB}`,
+    );
   });
 
-  test("survives adding a stage next to it", () => {
+  test("stays above the item that followed it when a stage is added next to it", () => {
     const applied = expectOk(commented, { kind: "addStage", name: "lint", index: 1 });
-    expect(applied.text).toContain("# quality gates below\n");
+    expect(applied.text).toBe(
+      `stages:\n  - build\n  # quality gates below\n  - lint\n  - test\n  - deploy\n${JOB}`,
+    );
     roundTrip(commented, { kind: "moveStage", name: "build", toIndex: 2 });
   });
 
   test("a trailing comment after the last item stays after the list", () => {
     const trailing = `stages:\n  - build\n  - test\n  # end of stages\n${JOB}`;
     const applied = expectOk(trailing, { kind: "moveStage", name: "test", toIndex: 0 });
-    expect(applied.text).toContain("# end of stages\n");
+    expect(applied.text).toBe(`stages:\n  - test\n  - build\n  # end of stages\n${JOB}`);
+  });
+});
+
+describe("a comment inside a multi-line flow stages list", () => {
+  const flow = `stages: [build, # c\n  test]\n${JOB}`;
+
+  test("stays on the first line when the stage before it moves after the next one", () => {
+    const applied = expectOk(flow, { kind: "moveStage", name: "build", toIndex: 1 });
+    expect(applied.text).toBe(`stages: [ # c\n  test, build]\n${JOB}`);
+    expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual(["test", "build"]);
+    roundTrip(flow, { kind: "moveStage", name: "build", toIndex: 1 });
+  });
+
+  test("stays after the stage it followed when the stage after it moves to the front", () => {
+    const applied = expectOk(flow, { kind: "moveStage", name: "test", toIndex: 0 });
+    expect(applied.text).toBe(`stages: [test, build # c\n  ]\n${JOB}`);
+    expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual(["test", "build"]);
+    roundTrip(flow, { kind: "moveStage", name: "test", toIndex: 0 });
+  });
+
+  test("a comment written before the comma survives moving the stage it follows", () => {
+    const before = `stages: [build # c\n  , test, deploy]\n${JOB}`;
+    const applied = expectOk(before, { kind: "moveStage", name: "build", toIndex: 2 });
+    expect(applied.text).toBe(`stages: [ # c\n   test, deploy, build]\n${JOB}`);
+    roundTrip(before, { kind: "moveStage", name: "build", toIndex: 2 });
+  });
+
+  test("the corpus fixture keeps its comment through every move", () => {
+    const fixture = readEdgeCase("flow-stages-comment");
+    for (const name of ["build", "test", "deploy"]) {
+      for (const toIndex of [0, 1, 2]) {
+        const applied = expectOk(fixture, { kind: "moveStage", name, toIndex });
+        expect(applied.text.match(/# quality gates below\n/g)?.length).toBe(1);
+        roundTrip(fixture, { kind: "moveStage", name, toIndex });
+      }
+    }
+    expect(expectOk(fixture, { kind: "moveStage", name: "build", toIndex: 2 }).text).toStartWith(
+      "stages: [ # quality gates below\n  test, deploy, build]\n",
+    );
   });
 });
 
