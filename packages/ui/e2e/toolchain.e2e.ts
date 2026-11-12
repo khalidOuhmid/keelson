@@ -112,6 +112,56 @@ test.describe("toolchain on the real binary", () => {
     }
   });
 
+  test("a refresh during a drag leaves the dragged node under the pointer", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const node = page.locator("[data-service-id=vault]");
+      const before = await node.boundingBox();
+      const other = page.locator("[data-toolchain-job=build]");
+      const otherBefore = await other.boundingBox();
+      if (before === null || otherBefore === null) {
+        throw new Error("node missing");
+      }
+      await page.mouse.move(before.x + 20, before.y + 20);
+      await page.mouse.down();
+      await page.mouse.move(before.x - 120, before.y + 110, { steps: 8 });
+      const held = await node.boundingBox();
+
+      keelson.writeAt(
+        ".devsecops/layout.json",
+        `${JSON.stringify({ version: 1, positions: { "job:build": { x: -400, y: -300 } } })}\n`,
+      );
+      await expect
+        .poll(async () => (await other.boundingBox())?.x ?? otherBefore.x)
+        .not.toBeCloseTo(otherBefore.x, 0);
+      const during = await node.boundingBox();
+      expect(during?.x).toBeCloseTo(held?.x ?? Number.NaN, 0);
+      expect(during?.y).toBeCloseTo(held?.y ?? Number.NaN, 0);
+
+      await page.mouse.move(before.x - 140, before.y + 130, { steps: 2 });
+      await page.mouse.up();
+      await expect
+        .poll(() => {
+          try {
+            return Object.keys(JSON.parse(keelson.readAt(".devsecops/layout.json")).positions);
+          } catch {
+            return [];
+          }
+        })
+        .toEqual(["job:build", "service:vault"]);
+      const after = await node.boundingBox();
+      expect(after?.x).toBeCloseTo((held?.x ?? Number.NaN) - 20, 0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("a moved position survives a reload", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,

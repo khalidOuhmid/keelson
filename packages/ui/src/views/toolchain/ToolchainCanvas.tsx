@@ -34,6 +34,18 @@ export type ToolchainCanvasProps = {
   invalid: boolean;
 };
 
+/** A node being dragged stays under the pointer: its drop, not a refresh, decides where it goes. */
+function keepDragged(next: Node[], current: Node[]): Node[] {
+  const dragged = new Map(current.filter((node) => node.dragging).map((node) => [node.id, node]));
+  if (dragged.size === 0) {
+    return next;
+  }
+  return next.map((node) => {
+    const held = dragged.get(node.id);
+    return held === undefined ? node : { ...node, position: held.position, dragging: true };
+  });
+}
+
 function ResetLayout({ onReset }: { onReset: () => void }) {
   const [asking, setAsking] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -124,7 +136,7 @@ export function ToolchainCanvas({
 
   const container = useRef<HTMLElement>(null);
   const [nodes, setNodes] = useState<Node[]>(graph.nodes);
-  useEffect(() => setNodes(graph.nodes), [graph]);
+  useEffect(() => setNodes((current) => keepDragged(graph.nodes, current)), [graph]);
 
   return (
     <section
