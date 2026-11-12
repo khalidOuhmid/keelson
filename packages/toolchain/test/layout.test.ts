@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { emptyPipeline, type Job, type Pipeline } from "@keelson/core";
-import { LAYOUT_FILE, parseLayout, writePositions } from "../src/index.ts";
+import { LAYOUT_FILE, parseLayout, parsePositions, writePositions } from "../src/index.ts";
 
 const PIPELINE = emptyPipeline(".gitlab-ci.yml");
 
@@ -112,5 +112,40 @@ describe("positions", () => {
     expect(writePositions("{", {})).toBeNull();
     expect(writePositions("[]", {})).toBeNull();
     expect(writePositions('{"version":2}', {})).toBeNull();
+  });
+});
+
+describe("a `__proto__` key", () => {
+  const PROTO = '{"version":1,"positions":{"__proto__":{"x":1,"y":2},"a":{"x":3,"y":4}}}';
+
+  test("is a position like any other", () => {
+    const { positions } = parseLayout(PROTO, PIPELINE);
+    expect(Object.getPrototypeOf(positions)).toBe(Object.prototype);
+    expect(Object.keys(positions)).toEqual(["__proto__", "a"]);
+    expect(Object.getOwnPropertyDescriptor(positions, "__proto__")?.value).toEqual({ x: 1, y: 2 });
+  });
+
+  test("is checked like any other", () => {
+    const text = '{"version":1,"positions":{"__proto__":{"x":"left","y":2}}}';
+    expect(parseLayout(text, PIPELINE).diagnostics[0]?.code).toBe("LAYOUT_INVALID");
+    expect(parsePositions(JSON.parse('{"__proto__":{"x":1}}')).ok).toBe(false);
+  });
+
+  test("survives a write", () => {
+    const written = writePositions(PROTO, { b: { x: 0, y: 0 } }) ?? "";
+    expect(Object.keys(JSON.parse(written).positions)).toEqual(["__proto__", "a", "b"]);
+  });
+
+  test("is an override for a job of that name", () => {
+    const text = '{"version":1,"layers":{"__proto__":["sast"]}}';
+    const result = parseLayout(text, pipeline(["__proto__"]));
+    expect(Object.getPrototypeOf(result.overrides)).toBe(Object.prototype);
+    expect(Object.keys(result.overrides)).toEqual(["__proto__"]);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("of an unknown job is reported", () => {
+    const result = parseLayout('{"version":1,"layers":{"__proto__":["sast"]}}', PIPELINE);
+    expect(result.diagnostics[0]?.code).toBe("LAYOUT_UNKNOWN_JOB");
   });
 });
