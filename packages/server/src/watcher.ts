@@ -1,6 +1,6 @@
-import { type FSWatcher, watch } from "node:fs";
+import { type FSWatcher, realpathSync, watch } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import { WORKFLOWS_DIR } from "@keelson/adapter-github";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { hashText, TOOLCHAIN_FILE } from "@keelson/core";
@@ -49,6 +49,13 @@ export function watchDocuments(
   let closed = false;
   const toolchainHash = (): string => hashText(readInsideRoot(root, TOOLCHAIN_FILE) ?? "");
   let knownToolchain = toolchainHash();
+  const realRoot = (() => {
+    try {
+      return realpathSync(root);
+    } catch {
+      return root;
+    }
+  })();
   const workflowsDirectory = resolve(root, WORKFLOWS_DIR);
   const githubDirectory = dirname(workflowsDirectory);
 
@@ -194,6 +201,15 @@ export function watchDocuments(
     } catch {}
   };
 
+  const targetOf = (absolute: string): string | null => {
+    try {
+      const target = realpathSync(absolute);
+      return target.startsWith(`${realRoot}${sep}`) ? target : null;
+    } catch {
+      return null;
+    }
+  };
+
   /** Recomputed on each load: the set of included files changes as soon as the main file changes
    *  its `include` key. Watches already set are not removed — a directory no longer needed costs
    *  only a descriptor, whereas removing it would miss the return of an include just removed. */
@@ -209,8 +225,15 @@ export function watchDocuments(
       const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE, TOOLCHAIN_FILE];
       for (const file of [main, ...store.includedFiles(main), ...companions]) {
         const absolute = resolve(root, file);
-        tracked.set(absolute, { file, main, companion: companions.includes(file) });
+        const entry = { file, main, companion: companions.includes(file) };
+        tracked.set(absolute, entry);
         watchDirectory(dirname(absolute));
+        // An internal link: its target changes without any event on the link's own name.
+        const target = targetOf(absolute);
+        if (target !== null && target !== absolute) {
+          tracked.set(target, entry);
+          watchDirectory(dirname(target));
+        }
       }
     }
   };

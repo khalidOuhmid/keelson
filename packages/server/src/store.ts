@@ -1,3 +1,5 @@
+import { readFile, realpath } from "node:fs/promises";
+import { sep } from "node:path";
 import { createFileReader, type IncludeReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type {
@@ -10,7 +12,7 @@ import type {
   SpliceOperation,
 } from "@keelson/core";
 import { mergePipelines, parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
+import { INVALID_OPERATION, NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { adapterFor } from "./adapters.ts";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
@@ -83,6 +85,27 @@ export type StoreResponse = {
 };
 
 export type WrittenEvent = { file: string; hash: string; opId: string };
+
+const STRICT_UTF8 = new TextDecoder("utf-8", { fatal: true });
+
+/** Where a write must go: the target of an internal link, never the link itself, which a `rename`
+ *  would replace with a regular file. `null` if the target leaves the root. */
+async function writeTarget(root: string, absolute: string): Promise<string | null> {
+  const realRoot = await realpath(root);
+  const target = await realpath(absolute).catch(() => absolute);
+  return target.startsWith(`${realRoot}${sep}`) ? target : null;
+}
+
+/** The decoder replaces invalid bytes: writing the decoded text back would change bytes outside
+ *  the touched range. */
+async function isUtf8(path: string): Promise<boolean> {
+  try {
+    STRICT_UTF8.decode(await readFile(path));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type Loaded = {
   absolute: string;
@@ -348,6 +371,20 @@ export class DocumentStore {
       };
     }
 
+    const target = await writeTarget(this.root, current.absolute);
+    if (target === null) {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: file } },
+      };
+    }
+    if (!(await isUtf8(target))) {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "notUtf8", file } },
+      };
+    }
+
     const adapter = adapterFor(file);
     const parsed = adapter.parse(current.text, { file, read: this.reader });
     const result = adapter.apply(parsed, validated.value);
@@ -398,7 +435,7 @@ export class DocumentStore {
       hash: result.value.hash,
     });
     try {
-      await this.write(current.absolute, result.value.text);
+      await this.write(target, result.value.text);
     } catch (error) {
       this.loaded.set(file, current);
       throw error;

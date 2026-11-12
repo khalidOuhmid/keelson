@@ -239,8 +239,9 @@ an exception: an exception can only signal a Keelson bug.
 | `dynamicExpression` | `job` | GitHub Actions: an expression reads the whole `needs` or `jobs` context, or reads it through a computed index (`toJSON(needs)`, `needs[matrix.dep]`, `jobs[inputs.x]`), and may therefore target `job` without naming it. Only the context root counts: neither `env.NEEDS` nor a `'needs-review'` label. |
 | `notForProvider` | `operation` | GitHub Actions: the operation is meaningless, for lack of stages or need options. |
 | `invalidLayout` | — | **Server**: `layout.json` is not readable. Keelson does not overwrite what it does not understand. |
-| `outsideRoot` | `path` | **Server**: `.devsecops` leads outside the repository. Nothing is written. |
+| `outsideRoot` | `path` | **Server**: `.devsecops`, or the target of a linked main document, leads outside the repository. Nothing is written. |
 | `noRootMap` | — | The file has no YAML map at its root, and the operation is not a `splice`. |
+| `notUtf8` | `file` | **Server**: the document's bytes are not valid UTF-8. Decoding would replace them, and writing back the decoded text would change bytes outside the touched range: the operation and its preview are refused. A literal U+FFFD in a valid UTF-8 file is not refused. |
 | `wouldBreakYaml` | `operation` | The resulting text would be invalid YAML; nothing was written. |
 | `unreadableBody` | — | **Server**: the request body is not readable JSON. |
 | `missingOpId` | — | **Server**: `opId` missing or empty. |
