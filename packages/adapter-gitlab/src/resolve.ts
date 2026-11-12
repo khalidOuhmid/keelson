@@ -178,7 +178,7 @@ export type ResolveContext = {
   documents: ReadonlyMap<string, Document.Parsed>;
   /** The documents in merge order. Distinct from `documents`, which keeps only the first position
    *  of a file included twice: GitLab retains the last. */
-  merged: readonly Document.Parsed[];
+  merged: readonly { file: string; document: Document.Parsed }[];
   lookup: ReadonlyMap<string, readonly Definition[]>;
   diagnostics: Diagnostic[];
   extendsSeverity: "error" | "warning";
@@ -365,16 +365,29 @@ function targetIn(path: readonly string[], document: Document.Parsed): AnyNode {
   return isAlias(node) ? (node.resolve(document) ?? null) : node;
 }
 
+/** A node and the file whose anchors it resolves against. */
+export type Layer = { node: AnyNode; file: string };
+
 /** A `!reference` targets the merged configuration, so it crosses files: we walk back up the
- *  merge order and the first file that defines the path wins, as for a value. */
-function referenceTarget(path: readonly string[], context: ResolveContext): AnyNode {
-  for (const document of [...context.merged].reverse()) {
-    const target = targetIn(path, document);
-    if (target !== undefined) {
-      return target;
+ *  merge order and the first file that defines the path wins, as for a value. A map is deep-merged
+ *  with the maps earlier files write at the same path, down to the first value that is not one:
+ *  the layers come back in merge order, the winner last. */
+function referenceTarget(path: readonly string[], context: ResolveContext): Layer[] {
+  const layers: Layer[] = [];
+  for (const { file, document } of context.merged.toReversed()) {
+    const node = targetIn(path, document);
+    if (node === undefined) {
+      continue;
     }
+    if (!isMap(node)) {
+      if (layers.length === 0) {
+        layers.push({ node, file });
+      }
+      break;
+    }
+    layers.unshift({ node, file });
   }
-  return null;
+  return layers.length === 0 ? [{ node: null, file: context.main }] : layers;
 }
 
 /** An alias does **not** cross files: in GitLab, an anchor is local to the document that declares
@@ -386,28 +399,33 @@ function dereference(
   file: string,
   context: ResolveContext,
   key: string,
-): { node: AnyNode; origin: Origin | null } {
+): Layer & { origin: Origin | null; layers: readonly Layer[] } {
   const document = documentOf(context, file);
   if (document === null) {
-    return { node, origin: null };
+    return { node, file, origin: null, layers: [{ node, file }] };
   }
 
-  let current: AnyNode = isAlias(node) ? (node.resolve(document) ?? null) : node;
+  let layers: readonly Layer[] = [
+    { node: isAlias(node) ? (node.resolve(document) ?? null) : node, file },
+  ];
   let origin: Origin | null = null;
   const seen = new Set<string>();
-  while (isSeq(current) && (current as { tag?: string }).tag === REFERENCE_TAG) {
+  for (;;) {
+    const winner = layers.at(-1) ?? { node: null, file };
+    const current = winner.node;
+    if (!isSeq(current) || (current as { tag?: string }).tag !== REFERENCE_TAG) {
+      return { ...winner, origin, layers };
+    }
     const path = stringsOf(current);
     const step = JSON.stringify(path);
     if (seen.has(step)) {
       cycle(context, key, node, file);
-      return { node: null, origin };
+      return { node: null, file, origin, layers: [{ node: null, file }] };
     }
     seen.add(step);
     origin ??= { kind: "reference", path };
-    current = referenceTarget(path, context);
+    layers = referenceTarget(path, context);
   }
-
-  return { node: current, origin };
 }
 
 function cycle(context: ResolveContext, key: string, node: AnyNode, file: string): void {
@@ -681,26 +699,28 @@ export function resolveEnvironment(
   for (const match of found) {
     const resolved = dereference(match.node, match.file, context, "environment");
     origin = resolved.origin ?? match.origin;
-    const document = documentOf(context, match.file);
-    if (!isMap(resolved.node) || document === null) {
-      const name = isScalar(resolved.node) ? resolved.node.value : null;
-      fields = typeof name === "string" ? { name } : {};
-      fromMap = false;
-      continue;
-    }
-    if (!fromMap) {
-      fields = {};
-    }
-    fromMap = true;
-    for (const field of ENVIRONMENT_FIELDS) {
-      const value = dereference(
-        entryAt(resolved.node, field, document),
-        match.file,
-        context,
-        "environment",
-      ).node;
-      if (isScalar(value) && typeof value.value === "string") {
-        fields[field] = value.value;
+    for (const layer of resolved.layers) {
+      const document = documentOf(context, layer.file);
+      if (!isMap(layer.node) || document === null) {
+        const name = isScalar(layer.node) ? layer.node.value : null;
+        fields = typeof name === "string" ? { name } : {};
+        fromMap = false;
+        continue;
+      }
+      if (!fromMap) {
+        fields = {};
+      }
+      fromMap = true;
+      for (const field of ENVIRONMENT_FIELDS) {
+        const value = dereference(
+          entryAt(layer.node, field, document),
+          layer.file,
+          context,
+          "environment",
+        ).node;
+        if (isScalar(value) && typeof value.value === "string") {
+          fields[field] = value.value;
+        }
       }
     }
   }

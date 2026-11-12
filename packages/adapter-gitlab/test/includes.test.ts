@@ -864,6 +864,70 @@ describe("a !reference crosses files", () => {
   });
 });
 
+describe("an environment: !reference reads the deep-merged configuration", () => {
+  function environmentOf(main: string, included: string) {
+    const parsed = parseTree({
+      [GITLAB_CI_FILE]: [
+        "include: ci/base.yml",
+        "",
+        main,
+        "deliver:",
+        "  environment: !reference [.base, environment]",
+        "  script:",
+        "    - make",
+        "",
+      ].join("\n"),
+      "ci/base.yml": included,
+    });
+    return parsed.pipeline.jobs.find((job) => job.id === "deliver")?.environment;
+  }
+
+  test("a map split between the include and the main file is merged key by key", () => {
+    expect(
+      environmentOf(
+        ".base:\n  environment:\n    url: https://main.example.org\n",
+        ".base:\n  environment:\n    name: production\n    url: https://inc.example.org\n",
+      ),
+    ).toEqual({
+      value: { name: "production", url: "https://main.example.org" },
+      origin: { kind: "reference", path: [".base", "environment"] },
+    });
+  });
+
+  test("a scalar written later replaces the included map whole", () => {
+    expect(
+      environmentOf(
+        ".base:\n  environment: staging\n",
+        ".base:\n  environment:\n    name: production\n    url: https://inc.example.org\n",
+      )?.value,
+    ).toEqual({ name: "staging" });
+  });
+
+  test("a parent replaced by a scalar lets nothing of the include through", () => {
+    expect(
+      environmentOf(".base: 1\n", ".base:\n  environment:\n    name: production\n"),
+    ).toBeNull();
+  });
+
+  test("the fields of an included map resolve their aliases in the included file", () => {
+    expect(
+      environmentOf(
+        "",
+        "u: &u https://inc.example.org\nn: &n production\n.base:\n  environment:\n    name: *n\n    url: *u\n",
+      )?.value,
+    ).toEqual({ name: "production", url: "https://inc.example.org" });
+  });
+
+  test("a merge key of an included map resolves in the included file", () => {
+    expect(
+      environmentOf(
+        "",
+        ".e: &e\n  name: production\n.base:\n  environment:\n    <<: *e\n    url: https://inc.example.org\n",
+      )?.value,
+    ).toEqual({ name: "production", url: "https://inc.example.org" });
+  });
+});
+
 describe("the target of a !reference follows the merged configuration", () => {
   const ref = "deploy:\n  stage: !reference [.b, stage]\n  script:\n    - make\n";
 

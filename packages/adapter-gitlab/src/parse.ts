@@ -265,7 +265,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
 
   const context: ResolveContext = {
     documents,
-    merged: order.map((parsed) => parsed.yaml),
+    merged: order.map((parsed) => ({ file: parsed.file, document: parsed.yaml })),
     lookup,
     diagnostics,
     /** Downgraded to a warning **only** if an include we could not read may explain the absence:
