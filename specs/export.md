@@ -8,7 +8,8 @@ that carries errors is still exported, and `--format json` reports them.
 
 A coverage report: a `# Coverage report` title, the count of OWASP layers and platform categories,
 a lower-bound sentence if the pipeline is partial, then a four-column table (`Layer`, `Covered`,
-`Jobs`, `Services`), one row per layer, in taxonomy order. A `|` or a `\` in a name is escaped.
+`Jobs`, `Services`), one row per layer, in taxonomy order. `Services` also names the CI that proves
+source control (`ci gitlab-ci`, `ci github-actions`). A `|` or a `\` in a name is escaped.
 
 ## `mermaid`
 

@@ -804,7 +804,7 @@ describe("included file texts survive every entry path", () => {
 describe("views and coverage", () => {
   const COVERED: Coverage = {
     jobs: [],
-    layers: [{ layer: "sast", covered: true, jobs: ["a"], services: [] }],
+    layers: [{ layer: "sast", covered: true, jobs: ["a"], services: [], ci: [] }],
     partial: false,
   };
 
@@ -869,7 +869,7 @@ describe("views and coverage", () => {
 describe("a layout.json change", () => {
   const COVERED: Coverage = {
     jobs: [],
-    layers: [{ layer: "sast", covered: true, jobs: ["a"], services: [] }],
+    layers: [{ layer: "sast", covered: true, jobs: ["a"], services: [], ci: [] }],
     partial: false,
   };
 

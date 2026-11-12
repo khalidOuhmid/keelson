@@ -143,6 +143,7 @@ export function CoveragePanel({
                       {[
                         ...entry.jobs,
                         ...entry.services.map((service) => `service ${service}`),
+                        ...entry.ci.map((system) => `ci ${system}`),
                       ].join(", ")}
                     </span>
                   </span>

@@ -2,6 +2,7 @@ export const PACKAGE_NAME = "@keelson/catalog";
 
 export { type Catalog, type Logo, loadCatalog } from "./catalog.ts";
 export {
+  type CiSystem,
   type Coverage,
   coverage,
   type JobCoverage,

@@ -113,7 +113,7 @@ describe("detected integrations", () => {
       [{ id: "git", tool: "gitea", url: null, environment: null }],
     );
     const entry = result.layers.find((layer) => layer.layer === "scm");
-    expect(entry).toEqual({ layer: "scm", covered: true, jobs: [], services: ["git"] });
+    expect(entry).toEqual({ layer: "scm", covered: true, jobs: [], services: ["git"], ci: [] });
   });
 
   test("a service whose tool is unknown covers nothing", () => {
@@ -282,6 +282,7 @@ describe("coverage", () => {
       covered: true,
       jobs: ["x", "y"],
       services: [],
+      ci: [],
     });
     expect(result.layers.find((entry) => entry.layer === "dast")?.covered).toBe(false);
     expect(result.layers).toHaveLength(21);
@@ -329,6 +330,46 @@ describe("coverage", () => {
     const unresolved = [{ form: "remote" as const, detail: "x", from: "a", range: null }];
     expect(coverage(pipeline([], unresolved), CATALOG).partial).toBe(true);
     expect(coverage(pipeline([]), CATALOG).partial).toBe(false);
+  });
+});
+
+/** Only a forge runs its CI: a job read from a GitLab CI file or a GitHub workflow proves that the
+ *  repository is hosted on one. */
+describe("source control, proven by the CI that runs the jobs", () => {
+  const scm = (jobs: Job[]) =>
+    coverage(pipeline(jobs), []).layers.find((entry) => entry.layer === "scm");
+  const inWorkflow = (id: string): Job => ({ ...job(id, null), file: ".github/workflows/ci.yml" });
+
+  test("a job of a GitLab CI file covers it", () => {
+    expect(scm([{ ...job("x", null), file: "ci/jobs.yml" }])).toEqual({
+      layer: "scm",
+      covered: true,
+      jobs: [],
+      services: [],
+      ci: ["gitlab-ci"],
+    });
+  });
+
+  test("a job of a GitHub workflow covers it", () => {
+    expect(scm([inWorkflow("x")])?.ci).toEqual(["github-actions"]);
+  });
+
+  test("a repository with both names both, once each", () => {
+    expect(scm([job("a", null), inWorkflow("b"), job("c", null)])?.ci).toEqual([
+      "gitlab-ci",
+      "github-actions",
+    ]);
+  });
+
+  test("a pipeline without jobs proves nothing", () => {
+    expect(scm([])).toMatchObject({ covered: false, ci: [] });
+  });
+
+  test("no other layer is proven by the CI", () => {
+    const others = coverage(pipeline([job("x", null)]), []).layers.filter(
+      (entry) => entry.layer !== "scm",
+    );
+    expect(others.filter((entry) => entry.covered || entry.ci.length > 0)).toEqual([]);
   });
 });
 

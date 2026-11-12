@@ -36,7 +36,8 @@ function renderText(result: Coverage, messages: readonly string[]): string {
     const state = entry.covered ? "covered" : "missing";
     const jobs = entry.jobs.length === 0 ? "" : `  ${entry.jobs.join(", ")}`;
     const services = entry.services.map((service) => `  service ${service}`).join("");
-    return `${state}  ${entry.layer.padEnd(26)}${findLayer(entry.layer).name}${jobs}${services}`;
+    const ci = entry.ci.map((system) => `  ci ${system}`).join("");
+    return `${state}  ${entry.layer.padEnd(26)}${findLayer(entry.layer).name}${jobs}${services}${ci}`;
   });
   if (result.partial) {
     lines.push("", "partial: part of the pipeline could not be read, so coverage is a lower bound");
