@@ -13,6 +13,9 @@ export const DEBOUNCE_MS = 40;
 export type DocumentEvent =
   | { kind: "document.changed"; file: string; hash: string }
   | { kind: "document.removed"; file: string }
+  /** The server wrote the file for an operation: the tab that sent `opId` already has the result,
+   *  the others reload. */
+  | { kind: "document.written"; file: string; hash: string; opId: string }
   /** `layout.json` changed, not the pipeline: the screen redraws coverage without touching the
    *  undo history or announcing a modified file. */
   | { kind: "coverage.changed"; file: string }

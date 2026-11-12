@@ -82,6 +82,8 @@ export type StoreResponse = {
   body: OperationBody | ErrorBody;
 };
 
+export type WrittenEvent = { file: string; hash: string; opId: string };
+
 type Loaded = {
   absolute: string;
   text: string;
@@ -107,9 +109,12 @@ export class DocumentStore {
    *  included file would always be missed. */
   private readonly loadedListeners = new Set<() => void>();
 
+  private readonly writtenListeners = new Set<(event: WrittenEvent) => void>();
+
   constructor(
     private readonly root: string,
     private files: readonly WorkspaceFile[],
+    private readonly write: (path: string, text: string) => Promise<void> = writeAtomic,
   ) {
     this.reader = createFileReader(root);
   }
@@ -200,6 +205,15 @@ export class DocumentStore {
     };
   }
 
+  /** Notified after each write of an operation, so that the other tabs learn about it: the watcher
+   *  stays silent on the server's own writes. */
+  onWritten(listener: (event: WrittenEvent) => void): () => void {
+    this.writtenListeners.add(listener);
+    return () => {
+      this.writtenListeners.delete(listener);
+    };
+  }
+
   onLoaded(listener: () => void): () => void {
     this.loadedListeners.add(listener);
     return () => {
@@ -272,6 +286,11 @@ export class DocumentStore {
 
     const response = await this.executeOperation(file, operation);
     this.remember(file, opId, response);
+    if (response.status === 200 && "hash" in response.body) {
+      for (const listener of this.writtenListeners) {
+        listener({ file, hash: response.body.hash, opId });
+      }
+    }
     return response;
   }
 
@@ -364,8 +383,8 @@ export class DocumentStore {
       };
     }
 
-    await writeAtomic(current.absolute, result.value.text);
-
+    // Recorded before the rename: the watcher may see the new text before this write returns, and
+    // must recognise it as the server's own.
     this.loaded.set(file, {
       absolute: current.absolute,
       text: result.value.text,
@@ -378,6 +397,12 @@ export class DocumentStore {
       // against a hash the client never received.
       hash: result.value.hash,
     });
+    try {
+      await this.write(current.absolute, result.value.text);
+    } catch (error) {
+      this.loaded.set(file, current);
+      throw error;
+    }
 
     return {
       status: 200,

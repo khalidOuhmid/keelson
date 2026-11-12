@@ -77,6 +77,9 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
   port = typeof address === "object" && address !== null ? address.port : 0;
 
   const watcher = watchDocuments(root, store, (event) => hub.broadcast(event));
+  const unsubscribeWritten = store.onWritten((written) =>
+    hub.broadcast({ kind: "document.written", ...written }),
+  );
 
   return {
     url: `http://${LOOPBACK}:${port}/?token=${token}`,
@@ -85,6 +88,7 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
     address: () => LOOPBACK,
     async close() {
       watcher.close();
+      unsubscribeWritten();
       hub.close();
       await new Promise<void>((settle) => {
         http.close(() => settle());
