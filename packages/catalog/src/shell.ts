@@ -4,12 +4,21 @@
 
 type Split = { commands: string[]; nested: string[] };
 
+/** A quoted parenthesis does not close the substitution: `$(echo ")"; trivy fs .)`. */
 function closing(text: string, from: number): number {
   let depth = 1;
+  let quote: '"' | "'" | null = null;
   for (let index = from; index < text.length; index += 1) {
-    if (text[index] === "(") {
+    const char = text[index];
+    if (char === "\\" && quote !== "'") {
+      index += 1;
+    } else if (quote !== null) {
+      quote = char === quote ? null : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "(") {
       depth += 1;
-    } else if (text[index] === ")") {
+    } else if (char === ")") {
       depth -= 1;
       if (depth === 0) {
         return index;
@@ -19,11 +28,43 @@ function closing(text: string, from: number): number {
   return text.length;
 }
 
+type Heredoc = { delimiter: string; tabs: boolean; shell: boolean };
+
+const HEREDOC = /^<<(-?)[ \t]*(?:'([^'\n]*)'|"([^"\n]*)"|\\?([^\s;&|<>()'"]+))/;
+
+const SHELL_WORD = /(?:^|\s)(?:\S*\/)?(?:ba|z|da)?sh(?:\s|$)/;
+
+/** The heredoc bodies that start at `from`, one after the other: data for the command that reads
+ *  them, a script for a shell. Returns where the line after the last delimiter starts. */
+function bodies(text: string, from: number, pending: readonly Heredoc[], nested: string[]): number {
+  let index = from;
+  for (const heredoc of pending) {
+    const lines: string[] = [];
+    while (index < text.length) {
+      const end = text.indexOf("\n", index);
+      const stop = end === -1 ? text.length : end;
+      const line = heredoc.tabs
+        ? text.slice(index, stop).replace(/^\t+/, "")
+        : text.slice(index, stop);
+      index = stop + 1;
+      if (line === heredoc.delimiter) {
+        break;
+      }
+      lines.push(line);
+    }
+    if (heredoc.shell) {
+      nested.push(lines.join("\n"));
+    }
+  }
+  return index;
+}
+
 function split(text: string): Split {
   const commands: string[] = [];
   const nested: string[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;
+  const heredocs: Heredoc[] = [];
 
   const flush = (): void => {
     commands.push(current);
@@ -64,6 +105,26 @@ function split(text: string): Split {
     if (char === '"' || char === "'") {
       quote = char;
       current += char;
+      continue;
+    }
+
+    if (char === "<" && next === "<" && text[index + 2] !== "<") {
+      const marker = HEREDOC.exec(text.slice(index, index + 256));
+      if (marker !== null) {
+        heredocs.push({
+          delimiter: marker[2] ?? marker[3] ?? marker[4] ?? "",
+          tabs: marker[1] === "-",
+          shell: SHELL_WORD.test(current),
+        });
+        current += marker[0];
+        index += marker[0].length - 1;
+        continue;
+      }
+    }
+
+    if (char === "\n" && heredocs.length > 0) {
+      flush();
+      index = bodies(text, index + 1, heredocs.splice(0), nested) - 1;
       continue;
     }
 
@@ -128,8 +189,10 @@ const INERT = new Set([
 ]);
 
 const WRAPPERS = new Set([
+  "!",
   "command",
   "do",
+  "elif",
   "else",
   "env",
   "exec",
@@ -138,8 +201,12 @@ const WRAPPERS = new Set([
   "sudo",
   "then",
   "time",
+  "until",
   "while",
 ]);
+
+/** Their words are a list or a pattern, not a command: `for t in trivy grype`. */
+const LISTS = new Set(["case", "for", "select"]);
 
 const INSTALLING =
   /^(apt-get|apt|apk|yum|dnf|brew|pip3?|npm|gem|go|cargo)\s+(-\S+\s+)*(install|add|i)\b/;
@@ -272,7 +339,9 @@ function resolved(raw: string, depth: number): string[] {
   const first = command.split(/\s+/, 1)[0] ?? "";
   // A quoted string containing a space is a sentence, not a path or a URL to detect.
   const words = command.replace(/"[^"]*\s[^"]*"|'[^']*\s[^']*'/g, '""');
-  return INERT.has(first) || first.startsWith("#") || INSTALLING.test(command) ? [] : [words];
+  return INERT.has(first) || LISTS.has(first) || first.startsWith("#") || INSTALLING.test(command)
+    ? []
+    : [words];
 }
 
 export function executedCommands(line: string, depth = 0): string[] {
