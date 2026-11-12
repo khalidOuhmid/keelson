@@ -82,7 +82,7 @@ describe("a file Keelson cannot read faithfully", () => {
       "--rebase",
     ]);
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain("cannot be read");
+    expect(result.stdout).toBe(`✗ ${root}  .gitlab-ci.yml is not a file\n`);
   });
 });
 

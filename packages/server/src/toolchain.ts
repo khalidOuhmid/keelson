@@ -55,7 +55,8 @@ export type PositionsResponse = {
   body: { positions: Positions } | ErrorBody;
 };
 
-function unreadable(): Diagnostic {
+/** What `keelson start` and `keelson validate` both say about a toolchain they cannot read. */
+export function unreadableToolchain(): Diagnostic {
   return {
     code: TOOLCHAIN_INVALID,
     severity: "error",
@@ -118,7 +119,7 @@ export class ToolchainStore {
     const disk = this.read(TOOLCHAIN_FILE);
     const body = await this.body(disk.kind === "text" ? disk.text : "");
     return disk.kind === "unreadable"
-      ? { ...body, diagnostics: [unreadable(), ...body.diagnostics] }
+      ? { ...body, diagnostics: [unreadableToolchain(), ...body.diagnostics] }
       : body;
   }
 

@@ -1,10 +1,16 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
-import { createFileReader, readInsideRoot, readRegularFile } from "@keelson/adapter-gitlab";
+import { createFileReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type { Diagnostic, Pipeline } from "@keelson/core";
-import { mergePipelines, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { adapterFor, detectWorkspace } from "@keelson/server";
+import {
+  INVALID_YAML,
+  mergePipelines,
+  TOOLCHAIN_FILE,
+  TOOLCHAIN_UNKNOWN_JOB,
+  validate,
+} from "@keelson/core";
+import { adapterFor, detectWorkspace, readDisk, unreadableToolchain } from "@keelson/server";
 import {
   analyseToolchain,
   LAYOUT_FILE,
@@ -12,6 +18,7 @@ import {
   parseLayout,
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
+import { readInside, refusalMessage } from "./files.ts";
 
 export const DEFAULT_FILE = ".gitlab-ci.yml";
 
@@ -67,16 +74,39 @@ export function readTargets(
   const targets: Target[] = [];
   for (const path of paths) {
     const file = isAbsolute(path) ? path : resolve(cwd, path);
-    const read = readRegularFile(file);
+    const root = repositoryRoot(file);
+    const read = readInside(root, relativeTo(root, file));
     if (!read.ok) {
-      return {
-        ok: false,
-        message: read.reason === "notFile" ? `"${file}" is not a file` : `file not found: ${file}`,
-      };
+      return { ok: false, message: refusalMessage(read.reason, file) };
     }
     targets.push({ file, text: read.text });
   }
   return { ok: true, targets };
+}
+
+/** A file that did not parse leaves its jobs out, as an unresolved include does: a job the
+ *  toolchain names may be one of them, so its absence is only a warning. */
+function toolchainOf(
+  root: string,
+  pipeline: Pipeline,
+  parsing: readonly Diagnostic[],
+): ToolchainAnalysis {
+  const disk = readDisk(root, TOOLCHAIN_FILE);
+  const analysis = analyseToolchain(
+    disk.kind === "text" ? disk.text : null,
+    pipeline,
+    loadCatalog().tools,
+  );
+  const truncated = parsing.some((entry) => entry.code === INVALID_YAML);
+  const diagnostics = analysis.diagnostics.map((entry) =>
+    truncated && entry.code === TOOLCHAIN_UNKNOWN_JOB
+      ? { ...entry, severity: "warning" as const }
+      : entry,
+  );
+  return {
+    ...analysis,
+    diagnostics: disk.kind === "unreadable" ? [unreadableToolchain(), ...diagnostics] : diagnostics,
+  };
 }
 
 /** What `validate`, `coverage` and `export` know about the files: they must say the same thing. */
@@ -91,11 +121,7 @@ export function analyse(targets: readonly Target[]): Analysis {
   const pipeline = mergePipelines(parsed.map(({ result }) => result.pipeline));
   const parsing = parsed.flatMap(({ result }) => result.diagnostics);
   const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
-  const toolchain = analyseToolchain(
-    readInsideRoot(root, TOOLCHAIN_FILE),
-    pipeline,
-    loadCatalog().tools,
-  );
+  const toolchain = toolchainOf(root, pipeline, parsing);
 
   return {
     root,

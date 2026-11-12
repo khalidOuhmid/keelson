@@ -1,5 +1,5 @@
-import { existsSync, realpathSync, statSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync, statSync } from "node:fs";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { createFileReader, readRegularFile } from "@keelson/adapter-gitlab";
 import type { Operation, OperationError, Result, ToolchainOperation } from "@keelson/core";
 import {
@@ -13,11 +13,12 @@ import {
   TOOLCHAIN_FILE,
 } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { adapterFor, readDisk, writeInsideRoot } from "@keelson/server";
+import { adapterFor, writeInsideRoot } from "@keelson/server";
 import { applyToolchain } from "@keelson/toolchain";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import { hunks, renderUnified } from "./diff.ts";
+import { readInside, refusalMessage } from "./files.ts";
 import type { CliResult } from "./result.ts";
 
 type Options = {
@@ -183,16 +184,6 @@ function insideRoot(root: string, path: string): boolean {
   return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
 }
 
-function escapesRoot(root: string, path: string): boolean {
-  try {
-    const realRoot = realpathSync(root);
-    const real = realpathSync(resolve(root, path));
-    return real !== realRoot && !real.startsWith(`${realRoot}${sep}`);
-  } catch {
-    return false;
-  }
-}
-
 /** A parent that exists but is not a directory: `mkdir` would fail, and the write with it. */
 function blockedParent(root: string, file: string): string | null {
   for (let parent = dirname(file); parent !== "." && parent !== ""; parent = dirname(parent)) {
@@ -207,17 +198,12 @@ function blockedParent(root: string, file: string): string | null {
 type Read = { ok: true; text: string } | { ok: false; message: string };
 
 function readTarget(root: string, file: string, target: Target): Read {
-  const disk = readDisk(root, file);
-  if (disk.kind === "text") {
-    return { ok: true, text: disk.text };
+  const read = readInside(root, file);
+  if (read.ok) {
+    return read;
   }
-  if (disk.kind === "unreadable") {
-    return {
-      ok: false,
-      message: escapesRoot(root, file)
-        ? `${file} is outside the repository`
-        : `${file} cannot be read: it is not a UTF-8 file, or not readable`,
-    };
+  if (read.reason !== "absent") {
+    return { ok: false, message: refusalMessage(read.reason, file) };
   }
   const blocked = blockedParent(root, file);
   if (blocked !== null) {
