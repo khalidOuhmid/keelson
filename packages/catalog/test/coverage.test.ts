@@ -188,6 +188,15 @@ describe("the real catalogue entries", () => {
     ).not.toContain("trivy");
   });
 
+  test("an empty string before a quoted argument does not swallow the words between them", () => {
+    expect(
+      found({
+        image: null,
+        script: ['docker run --entrypoint "" getsentry/sentry-cli:latest sentry-cli x "$SHA"'],
+      }),
+    ).toContain("sentry");
+  });
+
   test("every GitLab snippet image is recognised by its own entry", () => {
     const missed = catalog.tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;
