@@ -181,6 +181,37 @@ describe("needs", () => {
     ).toEqual(["test"]);
   });
 
+  test("adding to an empty needs: writes the need as its value", () => {
+    const text =
+      "jobs:\n  a:\n    needs:\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n";
+    const after = written(text, { kind: "addNeed", id: "a", need: { job: "z" } });
+    expect(after).toBe(
+      "jobs:\n  a:\n    needs: z\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n",
+    );
+    const commented =
+      "jobs:\n  a:\n    needs: # later\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n";
+    expect(written(commented, { kind: "addNeed", id: "a", need: { job: "z" } })).toContain(
+      "    needs: z # later\n",
+    );
+  });
+
+  test("removing from a multi-line flow list keeps its layout", () => {
+    const text =
+      "jobs:\n  a:\n    needs: [\n      b,\n      c,\n      d\n    ]\n    steps:\n      - run: x\n  b:\n    steps:\n      - run: x\n  c:\n    steps:\n      - run: x\n  d:\n    steps:\n      - run: x\n";
+    expect(written(text, { kind: "removeNeed", id: "a", job: "c" })).toContain(
+      "    needs: [\n      b,\n      d\n    ]\n",
+    );
+    expect(written(text, { kind: "removeNeed", id: "a", job: "d" })).toContain(
+      "    needs: [\n      b,\n      c\n    ]\n",
+    );
+    expect(written(text, { kind: "removeNeed", id: "a", job: "b" })).toContain(
+      "    needs: [\n      c,\n      d\n    ]\n",
+    );
+    expect(written(BASE, { kind: "removeNeed", id: "deploy", job: "test" })).toContain(
+      "    needs: [build]\n",
+    );
+  });
+
   test("refusals: already there, absent, cycle, options", () => {
     expect(run(BASE, { kind: "addNeed", id: "test", need: { job: "build" } })).toMatchObject({
       error: { code: "NEED_EXISTS" },
@@ -216,6 +247,20 @@ describe("environment", () => {
     const removed = written(replaced, { kind: "setEnvironment", id: "build", environment: null });
     expect(jobOf(removed, "build")?.environment).toBeNull();
     expect(removed).toBe(BASE);
+  });
+
+  test("replacing a scalar environment keeps the comment of its line", () => {
+    const text = "jobs:\n  a:\n    environment: prod # note\n    steps:\n      - run: x\n";
+    expect(
+      written(text, { kind: "setEnvironment", id: "a", environment: { name: "staging" } }),
+    ).toBe("jobs:\n  a:\n    environment: staging # note\n    steps:\n      - run: x\n");
+    const withUrl = written(text, {
+      kind: "setEnvironment",
+      id: "a",
+      environment: { name: "s", url: "https://u" },
+    });
+    expect(withUrl).toContain("    environment: # note\n      name: s\n      url: https://u\n");
+    expect(jobOf(withUrl, "a")?.environment?.value).toEqual({ name: "s", url: "https://u" });
   });
 
   test("action does not exist here", () => {
