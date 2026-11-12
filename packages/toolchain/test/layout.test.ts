@@ -130,6 +130,32 @@ describe("positions", () => {
     });
   });
 
+  test("clearing drops every saved position and keeps sibling keys", () => {
+    const written = writePositions(
+      '{"version":1,"layers":{"a":["sast"]},"positions":{"a":{"x":1,"y":1},"__proto__":{"x":2,"y":2}}}',
+      {},
+      { clear: true },
+    );
+    expect(JSON.parse(written ?? "")).toEqual({
+      version: 1,
+      layers: { a: ["sast"] },
+      positions: {},
+    });
+  });
+
+  test("clearing then placing keeps only the new positions", () => {
+    const written = writePositions(
+      '{"version":1,"positions":{"a":{"x":1,"y":1}}}',
+      { b: { x: 2, y: 2 } },
+      { clear: true },
+    );
+    expect(JSON.parse(written ?? "").positions).toEqual({ b: { x: 2, y: 2 } });
+  });
+
+  test("clearing does not overwrite an unreadable file", () => {
+    expect(writePositions("{", {}, { clear: true })).toBeNull();
+  });
+
   test("writing creates the missing file", () => {
     expect(JSON.parse(writePositions(null, {}) ?? "")).toEqual({ version: 1, positions: {} });
   });

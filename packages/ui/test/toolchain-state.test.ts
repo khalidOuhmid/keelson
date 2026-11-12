@@ -59,6 +59,11 @@ beforeEach(async () => {
       disk = { ...disk, ...positions };
       return { ok: true, value: { positions: disk } };
     },
+    clearPositions: async () => {
+      saved.push("clear");
+      disk = {};
+      return { ok: true, value: { positions: disk } };
+    },
     newOpId: () => "op",
   });
   await state().load();
@@ -147,6 +152,7 @@ describe("toolchain store", () => {
           settle = resolve;
         }),
       savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     await held.getState().load();
@@ -170,6 +176,7 @@ describe("toolchain store", () => {
           settle = resolve;
         }),
       savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     await echo.getState().load();
@@ -248,6 +255,7 @@ describe("toolchain store", () => {
           settle = resolve;
         }),
       savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     await held.getState().load();
@@ -283,6 +291,7 @@ describe("toolchain store", () => {
         return applied("c");
       },
       savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     const loading = slow.getState().load();
@@ -327,6 +336,7 @@ describe("toolchain store", () => {
             resolve({ ok: true, value: { positions: disk } });
           };
         }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     disk = { "job:b": { x: 0, y: 0 } };
@@ -357,6 +367,7 @@ describe("toolchain store", () => {
             resolve({ ok: true, value: { positions: disk } });
           });
         }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     await dragging.getState().load();
@@ -368,6 +379,58 @@ describe("toolchain store", () => {
     settles[1]?.();
     await second;
     expect(dragging.getState().payload?.positions["job:a"]).toEqual({ x: 2, y: 2 });
+  });
+
+  test("resetting the layout clears every saved position", async () => {
+    await state().move("job:a", { x: 1, y: 2 });
+    await state().resetLayout();
+    expect(saved.at(-1)).toBe("clear");
+    expect(state().payload?.positions).toEqual({});
+  });
+
+  test("a reset forgets a drop whose save is still pending", async () => {
+    let settle: () => void = () => {};
+    const dragging = createToolchainStore({
+      load: async () => ({ ok: true, value: { ...loaded, positions: disk } }),
+      submit: async () => applied("b"),
+      savePositions: (positions) =>
+        new Promise((resolve) => {
+          settle = () => resolve({ ok: true, value: { positions: { ...disk, ...positions } } });
+        }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
+      newOpId: () => "op",
+    });
+    await dragging.getState().load();
+    const moved = dragging.getState().move("job:a", { x: 5, y: 6 });
+    await dragging.getState().resetLayout();
+    expect(dragging.getState().payload?.positions).toEqual({});
+    settle();
+    await moved;
+    expect(dragging.getState().payload?.positions).toEqual({});
+    await dragging.getState().refresh();
+    expect(dragging.getState().payload?.positions).toEqual({});
+  });
+
+  test("a refused reset is shown and the positions are read again", async () => {
+    let reads = 0;
+    const refused = createToolchainStore({
+      load: async () => {
+        reads += 1;
+        return { ok: true, value: { ...loaded, positions: { "job:a": { x: 1, y: 1 } } } };
+      },
+      submit: async () => applied("b"),
+      savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({
+        ok: false,
+        error: { status: 422, code: "INVALID_OPERATION", params: {} } as ApiFailure,
+      }),
+      newOpId: () => "op",
+    });
+    await refused.getState().load();
+    await refused.getState().resetLayout();
+    expect(refused.getState().error?.status).toBe(422);
+    expect(reads).toBe(2);
+    expect(refused.getState().payload?.positions).toEqual({ "job:a": { x: 1, y: 1 } });
   });
 
   test("moving a node sends only that node: the rest is the server's job", async () => {

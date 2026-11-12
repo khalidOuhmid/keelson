@@ -317,6 +317,13 @@ export class KeelsonClient {
     });
   }
 
+  clearPositions(): Promise<ApiResult<{ positions: Positions }>> {
+    return this.call("/api/layout/positions", positionsPayload, {
+      method: "PUT",
+      body: JSON.stringify({ positions: {}, clear: true }),
+    });
+  }
+
   submit(file: string, op: Operation, opId: string): Promise<ApiResult<OperationPayload>> {
     return this.call(`/api/documents/${encodeURIComponent(file)}/operations`, operationPayload, {
       method: "POST",

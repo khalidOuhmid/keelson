@@ -19,6 +19,7 @@ export type ToolchainDependencies = {
   load: () => Promise<ApiResult<ToolchainPayload>>;
   submit: (op: ToolchainOperation, opId: string) => Promise<ApiResult<ToolchainOperationPayload>>;
   savePositions: (positions: Positions) => Promise<ApiResult<{ positions: Positions }>>;
+  clearPositions: () => Promise<ApiResult<{ positions: Positions }>>;
   newOpId: () => string;
 };
 
@@ -40,6 +41,8 @@ export type ToolchainState = {
   /** `toolchain.changed`: a known hash means it is our own write. */
   changed(hash: string): Promise<void>;
   move(node: string, position: Position): Promise<void>;
+  /** Drops every saved position: the nodes go back to their default placement. */
+  resetLayout(): Promise<void>;
   selectService(id: string | null): void;
   dismissError(): void;
   dismissNotice(): void;
@@ -63,6 +66,8 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
   /** The nodes dropped whose position is not saved yet, with the move that placed them. */
   const moving = new Map<string, { position: Position; move: number }>();
   let moves = 0;
+  /** A save answered after a reset was sent says nothing about the disk: the reset comes after it. */
+  let resets = 0;
 
   return createStore<ToolchainState>((set, get) => {
     const placed = (payload: ToolchainPayload): ToolchainPayload =>
@@ -214,14 +219,37 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
         const move = moves;
         moving.set(node, { position, move });
         set({ payload: placed(payload) });
+        const reset = resets;
         const result = await dependencies.savePositions({ [node]: position });
         if (moving.get(node)?.move === move) {
           moving.delete(node);
+        }
+        if (reset !== resets) {
+          return;
         }
         if (result.ok) {
           const current = get().payload;
           if (current !== null) {
             set({ payload: placed({ ...current, positions: result.value.positions }) });
+          }
+          return;
+        }
+        set({ error: result.error });
+        await get().refresh();
+      },
+
+      async resetLayout() {
+        resets += 1;
+        moving.clear();
+        const current = get().payload;
+        if (current !== null) {
+          set({ payload: { ...current, positions: {} } });
+        }
+        const result = await dependencies.clearPositions();
+        if (result.ok) {
+          const latest = get().payload;
+          if (latest !== null) {
+            set({ payload: placed({ ...latest, positions: result.value.positions }) });
           }
           return;
         }

@@ -1,4 +1,4 @@
-import type { Coverage } from "@keelson/catalog";
+import { type Coverage, type LowerBoundCause, lowerBoundNote } from "@keelson/catalog";
 import type { Pipeline, Toolchain } from "@keelson/core";
 import { findLayer, LAYERS } from "@keelson/taxonomy";
 
@@ -76,7 +76,7 @@ const cell = (text: string): string =>
     .replaceAll("|", "\\|")
     .replace(/\s*[\r\n\u2028\u2029]\s*/g, " ");
 
-export function renderCoverageMarkdown(result: Coverage): string {
+export function renderCoverageMarkdown(result: Coverage, cause: LowerBoundCause | null): string {
   const covered = (source: "owasp" | "platform"): number =>
     result.layers.filter((entry) => entry.covered && findLayer(entry.layer).source === source)
       .length;
@@ -96,9 +96,7 @@ export function renderCoverageMarkdown(result: Coverage): string {
     "# Coverage report",
     "",
     `${covered("owasp")} of ${count("owasp")} OWASP layers covered, ${covered("platform")} of ${count("platform")} platform categories seen.`,
-    ...(result.partial
-      ? ["", "Coverage is a lower bound: part of the pipeline could not be read."]
-      : []),
+    ...(result.partial ? ["", lowerBoundNote(cause ?? "unresolvedInclude")] : []),
     "",
     "| Layer | Covered | Jobs | Services |",
     "| --- | --- | --- | --- |",

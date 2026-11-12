@@ -277,6 +277,35 @@ describe("PUT /api/layout/positions", () => {
     expect(readFileSync(disk(".devsecops/layout.json"), "utf8")).toBe("{");
   });
 
+  test("clear: true drops every saved position, the layer overrides stay", async () => {
+    write(
+      ".devsecops/layout.json",
+      '{"version":1,"layers":{"a":["sast"]},"positions":{"human":{"x":1,"y":1}}}',
+    );
+    const response = await harness.api("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions: {}, clear: true }),
+    });
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as Body).positions).toEqual({});
+    expect((await get()).positions).toEqual({});
+    expect(JSON.parse(readFileSync(disk(".devsecops/layout.json"), "utf8")).layers).toEqual({
+      a: ["sast"],
+    });
+  });
+
+  test("a clear that is not a boolean returns 400 and writes nothing", async () => {
+    const text = '{"version":1,"positions":{"human":{"x":1,"y":1}}}';
+    write(".devsecops/layout.json", text);
+    const response = await harness.api("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions: {}, clear: "yes" }),
+    });
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { params: { path: string } }).params.path).toBe("clear");
+    expect(readFileSync(disk(".devsecops/layout.json"), "utf8")).toBe(text);
+  });
+
   test("requires the token, and PUT only", async () => {
     expect((await harness.raw("/api/layout/positions")).status).toBe(403);
     expect((await harness.api("/api/layout/positions")).status).toBe(405);

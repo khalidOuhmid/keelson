@@ -200,9 +200,8 @@ export function createRequestHandler(context: AppContext) {
       if (envelope === ANSWERED) {
         return;
       }
-      const result = await context.toolchain.savePositions(
-        (envelope as { positions?: unknown }).positions,
-      );
+      const { positions, clear } = envelope as { positions?: unknown; clear?: unknown };
+      const result = await context.toolchain.savePositions(positions, clear);
       send(response, result.status, result.body as unknown as Json);
       return;
     }
