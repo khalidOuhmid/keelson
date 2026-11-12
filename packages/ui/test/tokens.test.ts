@@ -419,11 +419,11 @@ describe("the label voice is semibold (The Small-Caps Label Rule)", () => {
   });
 });
 
-describe("the layer emphasis outline", () => {
+describe("the layer emphasis ring", () => {
   test("its width comes from a token, not from a bare Tailwind step", () => {
     const node = readFileSync(join(sourceRoot, "views/pipeline/JobNode.tsx"), "utf8");
-    expect(node).not.toMatch(/\boutline-2\b/);
-    expect(node).toContain("outline-[length:var(--keelson-emphasis-width)]");
+    expect(node).not.toMatch(/\b(outline|ring)-2\b/);
+    expect(node).toContain("ring-[length:var(--keelson-emphasis-width)]");
     const tokens = readFileSync(join(sourceRoot, TOKENS_FILE), "utf8");
     expect(tokens).toMatch(/--keelson-emphasis-width:\s*2px;/);
   });

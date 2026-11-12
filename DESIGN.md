@@ -518,9 +518,12 @@ have no radius at all: they are full-bleed bands bounded by their hairline.
 
 Every border is one pixel, including the one Tailwind draws for the bare `border` class, which reads
 `--default-border-width` from the token file rather than the framework default. There is no 2px
-border. The two 2px strokes are outlines in `accent`: the focus ring at 2px offset, and the emphasis
-on the job nodes of the chosen layer on the coverage overlay (`--keelson-emphasis-width`), with no offset, drawn outside the node's
-one-pixel border, which keeps its own colour. Dependency edges are curves between
+border. The two 2px strokes are in `accent`: the focus ring, an outline at 2px offset, and the
+emphasis on the job nodes of the chosen layer on the coverage overlay (`--keelson-emphasis-width`),
+a ring with no offset drawn outside the node's one-pixel border, which keeps its own colour. The
+two are separate strokes, never one replacing the other: on an emphasised node the focus ring moves
+out by the emphasis width, so keyboard focus reads as a second ring with a gap, not by colour or a
+shift of the same line. Dependency edges are curves between
 left/right handles and are the one place stroke weight carries meaning: 1.5px
 (`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
 `accent` when the edge touches the selection, dashed at 4px when the dependency is optional or, on the
@@ -593,7 +596,7 @@ border, 4px horizontal padding, transparent fill).
   at rest and `accent` when selected; `surface-3` fill on hover and when selected. Padding 8px 10px.
   Two lines: the job id at 15px semibold `text-primary`, then the stage name in 12px monospace
   `text-muted` followed by its origin badge. On the coverage overlay layer tags replace that second
-  line, and the nodes of the chosen layer take the 2px `accent` outline. It is a `button` with
+  line, and the nodes of the chosen layer take the 2px `accent` ring. It is a `button` with
   `aria-pressed` and an off-screen description naming its stage, dependencies, environment and
   templates, plus its layers on the overlay.
 - **Included job node:** the same geometry and the same button for a job from an included file, one
@@ -849,7 +852,7 @@ the coverage overlay carry no badge; the detail panel keeps it for those jobs.
 - **Don't** use a text character as an icon (The Drawn-Mark Rule).
 - **Don't** add a radius outside 3 / 5 / 8px, and don't give a full-bleed band a radius at all.
 - **Don't** thicken a border to signal importance; move along the border ramp instead. The only 2px
-  strokes are the focus ring and the layer emphasis, both outlines, and the only weighted stroke is
+  strokes are the focus ring and the layer emphasis, an outline and a ring, and the only weighted stroke is
   the dependency edge, whose two weights are tokens.
 - **Don't** introduce a light theme or a second accent hue; `color-scheme: dark` is a commitment and
   the severity and layer-family hues are the only other colours.

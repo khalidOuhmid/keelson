@@ -71,6 +71,50 @@ test.describe("coverage on the real binary", () => {
     }
   });
 
+  test("keyboard focus on an emphasised node adds a second, separate stroke", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await page.getByRole("button", { name: /Static analysis/ }).click();
+      const node = page.locator('[data-job-id="sast"]');
+      await expect(node).toHaveAttribute("data-emphasised", "true");
+
+      const strokes = () =>
+        node.evaluate((element) => {
+          const style = getComputedStyle(element);
+          const spreads = style.boxShadow
+            .replace(/[a-z]+\([^)]*\)/g, "")
+            .split(",")
+            .map((shadow) => Number.parseFloat(shadow.trim().split(/\s+/)[3] ?? "0") || 0);
+          return {
+            outline: style.outlineStyle === "none" ? 0 : Number.parseFloat(style.outlineWidth),
+            offset: Number.parseFloat(style.outlineOffset),
+            ring: Math.max(0, ...spreads),
+          };
+        });
+
+      const rest = await strokes();
+      expect(rest.ring).toBe(2);
+      expect(rest.outline).toBe(0);
+
+      await node.evaluate((element) => element.focus({ focusVisible: true } as FocusOptions));
+      const focused = await strokes();
+      expect(focused.ring).toBe(2);
+      expect(focused.outline).toBe(2);
+      expect(focused.offset).toBeGreaterThan(focused.ring);
+
+      const plain = page.locator('[data-job-id="compile"]');
+      await plain.evaluate((element) => element.focus({ focusVisible: true } as FocusOptions));
+      const offset = await plain.evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).outlineOffset),
+      );
+      expect(focused.offset).toBeGreaterThan(offset);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("from an uncovered layer, the filtered catalogue then the entry", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
