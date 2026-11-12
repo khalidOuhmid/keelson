@@ -13,7 +13,7 @@ import {
   TOOLCHAIN_FILE,
 } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { adapterFor, writeInsideRoot } from "@keelson/server";
+import { adapterFor, withFileLock, writeInsideRoot } from "@keelson/server";
 import { applyToolchain } from "@keelson/toolchain";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
@@ -31,7 +31,10 @@ type Options = {
 };
 
 /** Called between the computation and the write: the window a concurrent write falls into. */
-export type ApplyHooks = { beforeWrite?: (root: string, file: string) => void };
+export type ApplyHooks = {
+  beforeWrite?: (root: string, file: string) => void;
+  lockTimeoutMs?: number;
+};
 
 type Step = { kind: string; baseHash?: string };
 
@@ -255,19 +258,29 @@ async function applyTo(
 
   if (!options.dryRun && session.text !== original.text) {
     hooks.beforeWrite?.(root, main);
-    // DEBT(2026-11-12): a write landing between this re-read and the rename is still lost —
-    // closing it needs a lock shared with `keelson start`, which does not exist yet.
-    const now = readTarget(root, main, target);
-    if (!now.ok || now.text !== original.text) {
-      const error = {
-        code: STALE_DOCUMENT,
-        params: { expected: hashText(now.ok ? now.text : ""), received: hashText(original.text) },
-      } as const;
-      return fail({ ...error, message: renderMessage(error) });
-    }
-    const written = await writeInsideRoot(root, main, session.text).catch(() => false);
-    if (!written) {
-      return fail({ message: `could not write ${main}` });
+    const lockOptions = hooks.lockTimeoutMs === undefined ? {} : { timeoutMs: hooks.lockTimeoutMs };
+    const refused = await withFileLock(
+      root,
+      resolve(root, main),
+      async () => {
+        const now = readTarget(root, main, target);
+        if (!now.ok || now.text !== original.text) {
+          const error = {
+            code: STALE_DOCUMENT,
+            params: {
+              expected: hashText(now.ok ? now.text : ""),
+              received: hashText(original.text),
+            },
+          } as const;
+          return { ...error, message: renderMessage(error) };
+        }
+        const written = await writeInsideRoot(root, main, session.text).catch(() => false);
+        return written ? null : { message: `could not write ${main}` };
+      },
+      lockOptions,
+    ).catch((error: Error) => ({ message: error.message }));
+    if (refused !== null) {
+      return fail(refused);
     }
   }
 

@@ -30,6 +30,7 @@ export type KeelsonServer = {
 export { type Adapter, adapterFor } from "./adapters.ts";
 export { MAX_BODY_BYTES } from "./app.ts";
 export { type Disk, readDisk } from "./disk.ts";
+export { LOCK_STALE_MS, LOCK_TIMEOUT_MS, withFileLock } from "./lock.ts";
 export { createToken, isAllowedHost, LOOPBACK, TOKEN_HEADER, tokensMatch } from "./security.ts";
 export { HEARTBEAT_MS } from "./sse.ts";
 export { DocumentStore, OPID_HISTORY } from "./store.ts";
