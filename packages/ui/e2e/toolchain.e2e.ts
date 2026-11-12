@@ -300,6 +300,84 @@ test.describe("toolchain on the real binary", () => {
     }
   });
 
+  test("opening a service keeps the zoom the user chose", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const graph = page.getByRole("region", { name: "Toolchain graph" });
+      const viewport = graph.locator(".react-flow__viewport");
+      await expect(page.locator("[data-service-id=vault]")).toBeVisible();
+      await graph.getByRole("button", { name: "Zoom Out" }).click();
+      await graph.getByRole("button", { name: "Zoom Out" }).click();
+      await expect.poll(() => viewport.getAttribute("style")).toMatch(/scale\(/);
+      const zoomed = await viewport.getAttribute("style");
+      await page.locator("[data-service-id=vault]").click();
+      await expect(page.getByRole("region", { name: "Service detail" })).toBeVisible();
+      await page.waitForTimeout(300);
+      expect(await viewport.getAttribute("style")).toBe(zoomed);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Fit View brings every node back on the canvas", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const graph = page.getByRole("region", { name: "Toolchain graph" });
+      await graph.getByRole("button", { name: "Zoom In" }).click();
+      await graph.hover();
+      await page.mouse.wheel(2000, 2000);
+      await expect(page.locator("[data-service-id=vault]")).not.toBeInViewport();
+      await graph.getByRole("button", { name: "Fit View" }).click();
+      for (const node of await page.locator(".react-flow__node").all()) {
+        await expect(node).toBeInViewport({ ratio: 1 });
+      }
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("the canvas controls take their colours from the design tokens", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const graph = page.getByRole("region", { name: "Toolchain graph" });
+      await expect(graph.locator(".react-flow")).toHaveClass(/\bdark\b/);
+      const button = graph.getByRole("button", { name: "Fit View" });
+      const colours = await button.evaluate((element) => {
+        const probe = document.createElement("div");
+        probe.style.background = "var(--color-surface-2)";
+        probe.style.color = "var(--color-text-secondary)";
+        probe.style.borderColor = "var(--color-border-default)";
+        document.body.append(probe);
+        const expected = getComputedStyle(probe);
+        const actual = getComputedStyle(element);
+        const result = {
+          background: [actual.backgroundColor, expected.backgroundColor],
+          color: [actual.color, expected.color],
+        };
+        probe.remove();
+        return result;
+      });
+      expect(colours.background[0]).toBe(colours.background[1]);
+      expect(colours.color[0]).toBe(colours.color[1]);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("at 375 px, the service panel fits in the viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson({

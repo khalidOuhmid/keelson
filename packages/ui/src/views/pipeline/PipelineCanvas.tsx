@@ -36,9 +36,17 @@ export type PipelineCanvasProps = {
 /** xyflow's `fitView` only applies on mount. Opening the detail panel takes the panel's width away
  *  from the canvas without refitting it, so the right-hand columns slide under the panel and get
  *  clipped. We refit when the available width changes. */
-export function RefitOnResize({ container }: { container: React.RefObject<HTMLElement | null> }) {
+export function RefitOnResize({
+  container,
+  keepMovedView = false,
+}: {
+  container: React.RefObject<HTMLElement | null>;
+  /** Once the user has panned or zoomed away from the last fit, a resize leaves their view alone. */
+  keepMovedView?: boolean;
+}) {
   const flow = useReactFlow();
   const lastWidth = useRef<number | null>(null);
+  const fitted = useRef<string | null>(null);
 
   useEffect(() => {
     const viewport = container.current;
@@ -52,12 +60,18 @@ export function RefitOnResize({ container }: { container: React.RefObject<HTMLEl
         return;
       }
       lastWidth.current = width;
-      flow.fitView();
+      const view = JSON.stringify(flow.getViewport());
+      if (keepMovedView && fitted.current !== null && fitted.current !== view) {
+        return;
+      }
+      void flow.fitView().then(() => {
+        fitted.current = JSON.stringify(flow.getViewport());
+      });
     });
 
     observer.observe(viewport);
     return () => observer.disconnect();
-  }, [flow, container]);
+  }, [flow, container, keepMovedView]);
 
   return null;
 }
@@ -213,6 +227,7 @@ export function PipelineCanvas({
           edgesFocusable={false}
           panOnScroll
           proOptions={{ hideAttribution: true }}
+          colorMode="dark"
           fitView
           minZoom={0.3}
           maxZoom={1.6}

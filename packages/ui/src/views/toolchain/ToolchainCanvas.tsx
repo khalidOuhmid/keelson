@@ -1,6 +1,7 @@
 import {
   applyNodeChanges,
   Background,
+  Controls,
   type Node,
   type NodeChange,
   ReactFlow,
@@ -86,12 +87,14 @@ export function ToolchainCanvas({
           fitViewOptions={{ minZoom: FIT_MIN_ZOOM }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
+          colorMode="dark"
           fitView
           minZoom={0.3}
           maxZoom={1.6}
         >
           <Background />
-          <RefitOnResize container={container} />
+          <Controls showInteractive={false} position="bottom-right" />
+          <RefitOnResize container={container} keepMovedView />
         </ReactFlow>
       </ReactFlowProvider>
 
