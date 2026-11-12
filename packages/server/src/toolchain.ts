@@ -82,9 +82,10 @@ export class ToolchainStore {
   }
 
   /** A toolchain is repository-wide: its jobs are those of every file in the workspace. */
-  private async pipeline(): Promise<Pipeline> {
+  private async repository(): Promise<{ pipeline: Pipeline; parsing: Diagnostic[] }> {
     const files = this.documents.workspaceFiles().map((entry) => entry.path);
     const pipelines: Pipeline[] = [];
+    const parsing: Diagnostic[] = [];
     for (const file of files) {
       if (this.documents.currentPipeline(file) === undefined) {
         await this.documents.load(file);
@@ -92,17 +93,19 @@ export class ToolchainStore {
       const pipeline = this.documents.currentPipeline(file);
       if (pipeline !== undefined) {
         pipelines.push(pipeline);
+        parsing.push(...(this.documents.currentParsing(file) ?? []));
       }
     }
-    return mergePipelines(pipelines);
+    return { pipeline: mergePipelines(pipelines), parsing };
   }
 
   private async body(text: string): Promise<ToolchainBody> {
-    const pipeline = await this.pipeline();
+    const { pipeline, parsing } = await this.repository();
     const { toolchain, diagnostics, proposed } = analyseToolchain(
       text === "" ? null : text,
       pipeline,
       loadCatalog().tools,
+      parsing,
     );
     const layout = parseLayout(readInsideRoot(this.root, LAYOUT_FILE), pipeline);
     return {
