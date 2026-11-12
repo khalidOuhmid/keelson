@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, existsSync, statSync } from "node:fs";
 import { chmod, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
@@ -53,6 +53,17 @@ export async function writeAtomic(path: string, text: string): Promise<void> {
   }
 
   await syncDirectory(directory);
+}
+
+/** A parent that exists but is not a directory: `mkdir` would fail, and the write with it. */
+export function blockedParent(root: string, file: string): string | null {
+  for (let parent = dirname(file); parent !== "." && parent !== ""; parent = dirname(parent)) {
+    const absolute = resolve(root, parent);
+    if (existsSync(absolute) && !statSync(absolute).isDirectory()) {
+      return parent;
+    }
+  }
+  return null;
 }
 
 /** For the `.devsecops` files, which Keelson creates itself: the directory may be missing, and a

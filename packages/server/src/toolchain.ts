@@ -30,7 +30,7 @@ import {
 } from "@keelson/toolchain";
 import { type Disk, readDisk } from "./disk.ts";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
-import { writeInsideRoot } from "./write.ts";
+import { blockedParent, writeInsideRoot } from "./write.ts";
 
 export type ToolchainBody = {
   text: string;
@@ -168,15 +168,8 @@ export class ToolchainStore {
     }
 
     if (result.value.text !== text) {
-      const written = await writeInsideRoot(this.root, TOOLCHAIN_FILE, result.value.text);
-      if (!written) {
-        return {
-          status: 422,
-          body: {
-            code: INVALID_OPERATION,
-            params: { reason: "outsideRoot", path: TOOLCHAIN_FILE },
-          },
-        };
+      if (!(await writeInsideRoot(this.root, TOOLCHAIN_FILE, result.value.text))) {
+        return { status: 422, body: this.unwritable(TOOLCHAIN_FILE) };
       }
     }
 
@@ -184,6 +177,14 @@ export class ToolchainStore {
       status: 200,
       body: { ...(await this.body(result.value.text)), inverse: result.value.inverse },
     };
+  }
+
+  /** The same refusal as `keelson apply`: a parent that is a regular file is not an escape. */
+  private unwritable(path: string): ErrorBody {
+    const blocked = blockedParent(this.root, path);
+    return blocked === null
+      ? { code: INVALID_OPERATION, params: { reason: "outsideRoot", path } }
+      : { code: INVALID_OPERATION, params: { reason: "notADirectory", path: blocked } };
   }
 
   /** In the same queue as operations: `layout.json` is re-read just before being rewritten. */
@@ -217,10 +218,7 @@ export class ToolchainStore {
       };
     }
     if (!(await writeInsideRoot(this.root, LAYOUT_FILE, text))) {
-      return {
-        status: 422,
-        body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: LAYOUT_FILE } },
-      };
+      return { status: 422, body: this.unwritable(LAYOUT_FILE) };
     }
     return { status: 200, body: { positions: parseLayout(text, emptyPipeline("")).positions } };
   }

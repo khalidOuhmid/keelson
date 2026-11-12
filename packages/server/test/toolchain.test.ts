@@ -260,6 +260,31 @@ describe("what Keelson cannot read, it does not overwrite", () => {
     expect(readFileSync(disk(FILE)).equals(bytes)).toBe(true);
   });
 
+  test("a .devsecops that is a regular file refuses as the CLI does: not a directory", async () => {
+    writeFileSync(disk(".devsecops"), "not a directory\n");
+    const { status, body } = await post({ ...addHarbor, baseHash: hashText("") });
+    expect(status).toBe(422);
+    expect(body).toEqual({
+      code: "INVALID_OPERATION",
+      params: { reason: "notADirectory", path: ".devsecops" },
+    } as unknown as Body);
+    expect(readFileSync(disk(".devsecops"), "utf8")).toBe("not a directory\n");
+  });
+
+  test("positions refuse the same way when .devsecops is a regular file", async () => {
+    writeFileSync(disk(".devsecops"), "not a directory\n");
+    const response = await harness.api("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions: { "job:a": { x: 1, y: 1 } } }),
+    });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      code: "INVALID_OPERATION",
+      params: { reason: "notADirectory", path: ".devsecops" },
+    });
+    expect(readFileSync(disk(".devsecops"), "utf8")).toBe("not a directory\n");
+  });
+
   test("a directory in place of the file refuses, without a 500", async () => {
     mkdirSync(disk(FILE), { recursive: true });
     const { status } = await post({ ...addHarbor, baseHash: hashText("") });
