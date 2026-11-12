@@ -98,6 +98,32 @@ describe("several files", () => {
   });
 });
 
+describe("a workflow created while the server runs", () => {
+  test("arrives as workspace.changed on the stream and in GET /api/workspace", async () => {
+    const stream = await fetch(`http://127.0.0.1:${server.port}/api/events?token=${server.token}`);
+    const reader = stream.body?.getReader();
+    writeFileSync(join(root, ".github/workflows/lint.yml"), CI);
+    let seen = "";
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline && !seen.includes("lint.yml")) {
+      const chunk = await Promise.race([
+        reader?.read(),
+        new Promise<undefined>((settle) => setTimeout(settle, 100)),
+      ]);
+      seen += chunk?.value === undefined ? "" : new TextDecoder().decode(chunk.value);
+    }
+    await reader?.cancel();
+    const files = [
+      { path: ".github/workflows/ci.yml", adapter: "github" },
+      { path: ".github/workflows/lint.yml", adapter: "github" },
+      { path: ".github/workflows/release.yaml", adapter: "github" },
+    ];
+    expect(seen).toContain(`event: workspace.changed\ndata: ${JSON.stringify({ files })}\n\n`);
+    expect(await (await api("/api/workspace")).json()).toEqual({ files });
+    expect((await api(documentPath(".github/workflows/lint.yml"))).status).toBe(200);
+  });
+});
+
 describe("a neighbouring file the parser cannot read", () => {
   test("the healthy document still opens", async () => {
     await server.close();

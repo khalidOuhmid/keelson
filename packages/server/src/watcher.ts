@@ -1,10 +1,12 @@
 import { type FSWatcher, watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { WORKFLOWS_DIR } from "@keelson/adapter-github";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { hashText, TOOLCHAIN_FILE } from "@keelson/core";
 import { LAYOUT_FILE } from "@keelson/toolchain";
 import type { DocumentStore } from "./store.ts";
+import { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
 
 export const DEBOUNCE_MS = 40;
 
@@ -14,7 +16,10 @@ export type DocumentEvent =
   /** `layout.json` changed, not the pipeline: the screen redraws coverage without touching the
    *  undo history or announcing a modified file. */
   | { kind: "coverage.changed"; file: string }
-  | { kind: "toolchain.changed"; hash: string };
+  | { kind: "toolchain.changed"; hash: string }
+  /** A workflow or `.gitlab-ci.yml` appeared or disappeared: `files` is the whole new list, the
+   *  same as `GET /api/workspace`. */
+  | { kind: "workspace.changed"; files: WorkspaceFile[] };
 
 export type Watcher = {
   close(): void;
@@ -41,6 +46,8 @@ export function watchDocuments(
   let closed = false;
   const toolchainHash = (): string => hashText(readInsideRoot(root, TOOLCHAIN_FILE) ?? "");
   let knownToolchain = toolchainHash();
+  const workflowsDirectory = resolve(root, WORKFLOWS_DIR);
+  const githubDirectory = dirname(workflowsDirectory);
 
   const inspectMain = async (file: string): Promise<void> => {
     const absolute = resolve(root, file);
@@ -161,11 +168,24 @@ export function watchDocuments(
         if (filename === null || closed) {
           return;
         }
-        const absolute = resolve(directory, filename.toString());
+        const name = filename.toString();
+        const absolute = resolve(directory, name);
         const entry = tracked.get(absolute);
         if (entry !== undefined) {
           schedule(absolute, entry);
         }
+        if (
+          directory === workflowsDirectory ||
+          absolute === githubDirectory ||
+          absolute === workflowsDirectory ||
+          (directory === root && name === GITLAB_CI_FILE)
+        ) {
+          scheduleWorkspace(absolute === githubDirectory || absolute === workflowsDirectory);
+        }
+      });
+      watcher.on("error", () => {
+        watcher.close();
+        watchers.delete(directory);
       });
       watchers.set(directory, watcher);
     } catch {}
@@ -192,7 +212,58 @@ export function watchDocuments(
     }
   };
 
+  const watchWorkspace = (): void => {
+    for (const directory of [root, githubDirectory, workflowsDirectory]) {
+      watchDirectory(directory);
+    }
+  };
+
+  /** A deleted directory keeps its watcher, now dead: when `.github` or `.github/workflows` itself
+   *  comes and goes, both are watched afresh, so a recreated directory is seen again. */
+  const rescan = (directoriesMoved: boolean): void => {
+    if (directoriesMoved) {
+      for (const directory of [githubDirectory, workflowsDirectory]) {
+        watchers.get(directory)?.close();
+        watchers.delete(directory);
+      }
+    }
+    watchWorkspace();
+    const files = detectWorkspace(root);
+    if (JSON.stringify(files) === JSON.stringify(store.workspaceFiles())) {
+      return;
+    }
+    const kept = new Set(files.map((file) => file.path));
+    const dropped = store.workspaceFiles().filter((file) => !kept.has(file.path));
+    store.setFiles(files);
+    for (const { path } of dropped) {
+      if (store.currentHash(path) !== undefined) {
+        store.forget(path);
+        emit({ kind: "document.removed", file: path });
+      }
+    }
+    sync();
+    emit({ kind: "workspace.changed", files });
+  };
+
+  let workspaceTimer: NodeJS.Timeout | undefined;
+  let workspaceMoved = false;
+  function scheduleWorkspace(directoriesMoved: boolean): void {
+    workspaceMoved ||= directoriesMoved;
+    if (workspaceTimer !== undefined) {
+      clearTimeout(workspaceTimer);
+    }
+    workspaceTimer = setTimeout(() => {
+      workspaceTimer = undefined;
+      const moved = workspaceMoved;
+      workspaceMoved = false;
+      if (!closed) {
+        rescan(moved);
+      }
+    }, DEBOUNCE_MS);
+  }
+
   sync();
+  watchWorkspace();
   const unsubscribe = store.onLoaded(sync);
 
   return {
@@ -203,6 +274,9 @@ export function watchDocuments(
         clearTimeout(timer);
       }
       timers.clear();
+      if (workspaceTimer !== undefined) {
+        clearTimeout(workspaceTimer);
+      }
       for (const watcher of watchers.values()) {
         watcher.close();
       }
