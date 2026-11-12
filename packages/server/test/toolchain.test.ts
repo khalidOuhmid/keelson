@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
+import { createServer } from "../src/index.ts";
 import { DocumentStore } from "../src/store.ts";
 import { type DocumentEvent, watchDocuments } from "../src/watcher.ts";
 import { detectWorkspace } from "../src/workspace.ts";
@@ -114,6 +115,64 @@ describe("GET /api/toolchain", () => {
     symlinkSync(join(outside, "t.yaml"), disk(FILE));
     expect((await get()).text).toBe("");
     rmSync(outside, { recursive: true });
+  });
+});
+
+describe("a toolchain job on a truncated pipeline", () => {
+  const TOOLCHAIN =
+    "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: deploy\n    service: n\n    kind: push\n";
+
+  async function severities(files: Record<string, string>, path: string): Promise<string[]> {
+    const root = mkdtempSync(join(tmpdir(), "keelson-truncated-"));
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(join(root, file, ".."), { recursive: true });
+      writeFileSync(join(root, file), text);
+    }
+    const server = await createServer({ root, port: 0 });
+    try {
+      const response = await fetch(`http://127.0.0.1:${server.port}${path}`, {
+        headers: { "x-keelson-token": server.token },
+      });
+      const body = (await response.json()) as { diagnostics: { code: string; severity: string }[] };
+      return body.diagnostics
+        .filter((entry) => entry.code === "TOOLCHAIN_UNKNOWN_JOB")
+        .map((entry) => entry.severity);
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true });
+    }
+  }
+
+  const truncated = {
+    ".github/workflows/a.yml":
+      "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - run: make\n",
+    ".github/workflows/b.yml": "on: push\njobs:\n  deploy: [\n",
+    ".devsecops/toolchain.yaml": TOOLCHAIN,
+  };
+
+  test("the toolchain API says warning, as keelson validate does", async () => {
+    expect(await severities(truncated, "/api/toolchain")).toEqual(["warning"]);
+  });
+
+  test("the document that did not parse says the same", async () => {
+    expect(await severities(truncated, "/api/documents/.github%2Fworkflows%2Fb.yml")).toEqual([
+      "warning",
+    ]);
+  });
+
+  test("so does a neighbour that parsed", async () => {
+    expect(await severities(truncated, "/api/documents/.github%2Fworkflows%2Fa.yml")).toEqual([
+      "warning",
+    ]);
+  });
+
+  test("it stays an error when every file parsed", async () => {
+    expect(
+      await severities(
+        { ".gitlab-ci.yml": MAIN, ".devsecops/toolchain.yaml": TOOLCHAIN },
+        "/api/toolchain",
+      ),
+    ).toEqual(["error"]);
   });
 });
 
@@ -258,6 +317,31 @@ describe("what Keelson cannot read, it does not overwrite", () => {
     const { status } = await post({ ...addHarbor, baseHash: hashText("") });
     expect(status).toBe(422);
     expect(readFileSync(disk(FILE)).equals(bytes)).toBe(true);
+  });
+
+  test("a .devsecops that is a regular file refuses as the CLI does: not a directory", async () => {
+    writeFileSync(disk(".devsecops"), "not a directory\n");
+    const { status, body } = await post({ ...addHarbor, baseHash: hashText("") });
+    expect(status).toBe(422);
+    expect(body).toEqual({
+      code: "INVALID_OPERATION",
+      params: { reason: "notADirectory", path: ".devsecops" },
+    } as unknown as Body);
+    expect(readFileSync(disk(".devsecops"), "utf8")).toBe("not a directory\n");
+  });
+
+  test("positions refuse the same way when .devsecops is a regular file", async () => {
+    writeFileSync(disk(".devsecops"), "not a directory\n");
+    const response = await harness.api("/api/layout/positions", {
+      method: "PUT",
+      body: JSON.stringify({ positions: { "job:a": { x: 1, y: 1 } } }),
+    });
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      code: "INVALID_OPERATION",
+      params: { reason: "notADirectory", path: ".devsecops" },
+    });
+    expect(readFileSync(disk(".devsecops"), "utf8")).toBe("not a directory\n");
   });
 
   test("a directory in place of the file refuses, without a 500", async () => {

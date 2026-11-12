@@ -224,6 +224,7 @@ export type MessageParams = {
     | { reason: "dynamicExpression"; job: string }
     | { reason: "readsOwnId"; job: string }
     | { reason: "outsideRoot"; path: string }
+    | { reason: "notADirectory"; path: string }
     | { reason: "noRootMap" }
     | { reason: "notUtf8"; file: string }
     | { reason: "wouldBreakYaml"; operation: string }

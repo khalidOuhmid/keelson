@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import { createFileReader, readRegularFile } from "@keelson/adapter-gitlab";
 import type { Operation, OperationError, Result, ToolchainOperation } from "@keelson/core";
 import {
@@ -13,7 +13,7 @@ import {
   TOOLCHAIN_FILE,
 } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { adapterFor, writeInsideRoot } from "@keelson/server";
+import { adapterFor, blockedParent, writeInsideRoot } from "@keelson/server";
 import { applyToolchain } from "@keelson/toolchain";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
@@ -182,17 +182,6 @@ function loadOperations(path: string, target: Target, rebase: boolean): Step[] |
 function insideRoot(root: string, path: string): boolean {
   const rel = relative(root, resolve(root, path));
   return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
-}
-
-/** A parent that exists but is not a directory: `mkdir` would fail, and the write with it. */
-function blockedParent(root: string, file: string): string | null {
-  for (let parent = dirname(file); parent !== "." && parent !== ""; parent = dirname(parent)) {
-    const absolute = resolve(root, parent);
-    if (existsSync(absolute) && !statSync(absolute).isDirectory()) {
-      return parent;
-    }
-  }
-  return null;
 }
 
 type Read = { ok: true; text: string } | { ok: false; message: string };

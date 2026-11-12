@@ -22,18 +22,27 @@ export const OPID_HISTORY = 100;
 
 type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
 
+/** The jobs of the whole workspace, and what parsing its files said: a file that did not parse
+ *  leaves its jobs out of it. */
+type Repository = { pipeline: Pipeline; parsing: readonly Diagnostic[] };
+
 /** What the screen knows about a pipeline, computed in one place on load and after an operation:
  *  the CLI does the same computation, and both must say the same thing. */
 function analyse(
   root: string,
   parsing: readonly Diagnostic[],
   pipeline: Pipeline,
-  repository: Pipeline,
+  repository: Repository,
 ): Analysis {
   const { tools } = loadCatalog();
   // `layout.json` and the toolchain are repository-wide: a job from another workflow is not unknown there.
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository);
-  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), repository, tools);
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository.pipeline);
+  const toolchain = analyseToolchain(
+    readInsideRoot(root, TOOLCHAIN_FILE),
+    repository.pipeline,
+    tools,
+    [...parsing, ...repository.parsing],
+  );
   return {
     diagnostics: [
       ...parsing,
@@ -111,6 +120,7 @@ type Loaded = {
   absolute: string;
   text: string;
   pipeline: Pipeline;
+  parsing: Diagnostic[];
   diagnostics: Diagnostic[];
   hash: string;
   included: Record<string, string>;
@@ -121,7 +131,10 @@ export class DocumentStore {
   private readonly loaded = new Map<string, Loaded>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private readonly seen = new Map<string, Map<string, StoreResponse>>();
-  private readonly neighbours = new Map<string, { text: string; pipeline: Pipeline }>();
+  private readonly neighbours = new Map<
+    string,
+    { text: string; pipeline: Pipeline; parsing: Diagnostic[] }
+  >();
 
   /** One reader per store, hence a single walk of the repository for a glob's candidates, however
    *  many requests there are. */
@@ -157,7 +170,7 @@ export class DocumentStore {
   /** This pipeline, plus those of the workspace's other files as they are on disk. A neighbour the
    *  parser cannot read must not prevent opening this file. Per text: re-reading it for each
    *  document would make opening the repository quadratic. */
-  private repository(file: string, pipeline: Pipeline): Pipeline {
+  private repository(file: string, pipeline: Pipeline): Repository {
     const others = this.files
       .filter((entry) => entry.path !== file)
       .flatMap((entry) => {
@@ -167,20 +180,24 @@ export class DocumentStore {
         }
         const known = this.neighbours.get(entry.path);
         if (known?.text === text) {
-          return [known.pipeline];
+          return [known];
         }
         try {
           const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
           // A workflow depends only on its text; a GitLab file also depends on its includes.
+          const neighbour = { text, pipeline: read.pipeline, parsing: read.diagnostics };
           if (read.pipeline.provider === "github") {
-            this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
+            this.neighbours.set(entry.path, neighbour);
           }
-          return [read.pipeline];
+          return [neighbour];
         } catch {
           return [];
         }
       });
-    return mergePipelines([pipeline, ...others]);
+    return {
+      pipeline: mergePipelines([pipeline, ...others.map((other) => other.pipeline)]),
+      parsing: others.flatMap((other) => other.parsing),
+    };
   }
 
   async load(file: string): Promise<DocumentBody | null> {
@@ -208,6 +225,7 @@ export class DocumentStore {
       absolute,
       text,
       pipeline: parsed.pipeline,
+      parsing: parsed.diagnostics,
       diagnostics,
       hash: parsed.hash,
       included: parsed.included,
@@ -250,6 +268,10 @@ export class DocumentStore {
 
   currentPipeline(file: string): Pipeline | undefined {
     return this.loaded.get(file)?.pipeline;
+  }
+
+  currentParsing(file: string): readonly Diagnostic[] | undefined {
+    return this.loaded.get(file)?.parsing;
   }
 
   currentText(file: string): string | undefined {
@@ -426,6 +448,7 @@ export class DocumentStore {
       absolute: current.absolute,
       text: result.value.text,
       pipeline: result.value.pipeline,
+      parsing: result.value.diagnostics,
       included: result.value.included,
       coverage: covered,
       diagnostics,

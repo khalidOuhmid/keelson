@@ -30,7 +30,7 @@ import {
 } from "@keelson/toolchain";
 import { type Disk, readDisk } from "./disk.ts";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
-import { writeInsideRoot } from "./write.ts";
+import { blockedParent, writeInsideRoot } from "./write.ts";
 
 export type ToolchainBody = {
   text: string;
@@ -82,9 +82,10 @@ export class ToolchainStore {
   }
 
   /** A toolchain is repository-wide: its jobs are those of every file in the workspace. */
-  private async pipeline(): Promise<Pipeline> {
+  private async repository(): Promise<{ pipeline: Pipeline; parsing: Diagnostic[] }> {
     const files = this.documents.workspaceFiles().map((entry) => entry.path);
     const pipelines: Pipeline[] = [];
+    const parsing: Diagnostic[] = [];
     for (const file of files) {
       if (this.documents.currentPipeline(file) === undefined) {
         await this.documents.load(file);
@@ -92,17 +93,19 @@ export class ToolchainStore {
       const pipeline = this.documents.currentPipeline(file);
       if (pipeline !== undefined) {
         pipelines.push(pipeline);
+        parsing.push(...(this.documents.currentParsing(file) ?? []));
       }
     }
-    return mergePipelines(pipelines);
+    return { pipeline: mergePipelines(pipelines), parsing };
   }
 
   private async body(text: string): Promise<ToolchainBody> {
-    const pipeline = await this.pipeline();
+    const { pipeline, parsing } = await this.repository();
     const { toolchain, diagnostics, proposed } = analyseToolchain(
       text === "" ? null : text,
       pipeline,
       loadCatalog().tools,
+      parsing,
     );
     const layout = parseLayout(readInsideRoot(this.root, LAYOUT_FILE), pipeline);
     return {
@@ -168,15 +171,8 @@ export class ToolchainStore {
     }
 
     if (result.value.text !== text) {
-      const written = await writeInsideRoot(this.root, TOOLCHAIN_FILE, result.value.text);
-      if (!written) {
-        return {
-          status: 422,
-          body: {
-            code: INVALID_OPERATION,
-            params: { reason: "outsideRoot", path: TOOLCHAIN_FILE },
-          },
-        };
+      if (!(await writeInsideRoot(this.root, TOOLCHAIN_FILE, result.value.text))) {
+        return { status: 422, body: this.unwritable(TOOLCHAIN_FILE) };
       }
     }
 
@@ -184,6 +180,14 @@ export class ToolchainStore {
       status: 200,
       body: { ...(await this.body(result.value.text)), inverse: result.value.inverse },
     };
+  }
+
+  /** The same refusal as `keelson apply`: a parent that is a regular file is not an escape. */
+  private unwritable(path: string): ErrorBody {
+    const blocked = blockedParent(this.root, path);
+    return blocked === null
+      ? { code: INVALID_OPERATION, params: { reason: "outsideRoot", path } }
+      : { code: INVALID_OPERATION, params: { reason: "notADirectory", path: blocked } };
   }
 
   /** In the same queue as operations: `layout.json` is re-read just before being rewritten. */
@@ -217,10 +221,7 @@ export class ToolchainStore {
       };
     }
     if (!(await writeInsideRoot(this.root, LAYOUT_FILE, text))) {
-      return {
-        status: 422,
-        body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: LAYOUT_FILE } },
-      };
+      return { status: 422, body: this.unwritable(LAYOUT_FILE) };
     }
     return { status: 200, body: { positions: parseLayout(text, emptyPipeline("")).positions } };
   }

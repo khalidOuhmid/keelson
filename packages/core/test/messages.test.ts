@@ -321,6 +321,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: '".devsecops/toolchain.yaml" leads outside the repository, nothing was written',
     },
     {
+      params: { reason: "notADirectory", path: ".devsecops" },
+      text: '".devsecops" is not a directory, nothing was written',
+    },
+    {
       params: { reason: "sharedValue", job: "unit", key: "needs" },
       text: 'the needs of "unit" comes through an anchor or a !reference that Keelson cannot rewrite in place',
     },
