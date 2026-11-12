@@ -8,7 +8,7 @@ verifiedAt: https://github.com/ossf/scorecard
 logo: null
 detect:
   images: ['ossf/scorecard']
-  scripts: ['\bscorecard\s+--repo\b']
+  scripts: ['\bscorecard(?::\S+)?\s+--repo\b']
   actions: ['ossf/scorecard-action']
 snippets:
   gitlab: null

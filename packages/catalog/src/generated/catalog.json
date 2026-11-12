@@ -1403,7 +1403,7 @@
           "ossf/scorecard"
         ],
         "scripts": [
-          "\\bscorecard\\s+--repo\\b"
+          "\\bscorecard(?::\\S+)?\\s+--repo\\b"
         ],
         "actions": [
           "ossf/scorecard-action"
