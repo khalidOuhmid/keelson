@@ -80,6 +80,19 @@ test("after a write, the notice names the line it changed in the file", async ({
   await expect(notice).toHaveText(new RegExp(`Changed line ${line} of \\.gitlab-ci\\.yml\\.`));
 });
 
+test("cancelling an inherited environment writes environment: null and leaves the template", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: /deploy-production/ }).click();
+  await page.getByRole("button", { name: "Cancel inherited environment" }).click();
+
+  await expect(page.getByRole("button", { name: "Cancel inherited environment" })).toHaveCount(0);
+  const text = keelson.read();
+  expect(text.slice(text.indexOf("deploy-production:"))).toContain("environment: null");
+  expect(text).toContain(".deploy-base:\n  stage: deploy\n  environment:\n    name: production");
+});
+
 test("undo restores the original bytes", async ({ page }) => {
   await open(page);
   const original = keelson.read();
