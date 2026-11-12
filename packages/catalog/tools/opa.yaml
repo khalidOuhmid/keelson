@@ -14,11 +14,11 @@ snippets:
     opa:
       stage: test
       image:
-        name: openpolicyagent/opa:latest
+        name: openpolicyagent/opa:latest-debug
         entrypoint: [""]
       script:
         - opa test policy/
   github: |
     - name: Test policies
-      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" openpolicyagent/opa:latest test policy/
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" openpolicyagent/opa:latest opa test policy/
 lastVerified: 2026-11-04

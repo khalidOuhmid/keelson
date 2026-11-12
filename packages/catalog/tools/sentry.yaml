@@ -21,6 +21,6 @@ snippets:
         - sentry-cli releases new --finalize "$CI_COMMIT_SHA"
   github: |
     - name: Create a Sentry release
-      run: sentry-cli releases new --finalize "$GITHUB_SHA"
+      run: docker run --rm -e SENTRY_AUTH_TOKEN -e SENTRY_ORG -e SENTRY_PROJECT --entrypoint "" getsentry/sentry-cli:latest sentry-cli releases new --finalize "$GITHUB_SHA"
 integration: notify
 lastVerified: 2026-11-04

@@ -236,8 +236,8 @@
         ]
       },
       "snippets": {
-        "gitlab": null,
-        "github": "- name: Run Cosign\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/sigstore/cosign/cosign:latest sign $IMAGE\n"
+        "gitlab": "cosign:\n  stage: deploy\n  image:\n    name: ghcr.io/sigstore/cosign/cosign:latest-dev\n    entrypoint: [\"\"]\n  id_tokens:\n    SIGSTORE_ID_TOKEN:\n      aud: sigstore\n  script:\n    - cosign sign --yes $IMAGE\n",
+        "github": "- name: Run Cosign\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/sigstore/cosign/cosign:latest sign --yes $IMAGE\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -315,8 +315,8 @@
         "actions": []
       },
       "snippets": {
-        "gitlab": "dependency-check:\n  stage: test\n  image:\n    name: owasp/dependency-check:latest\n    entrypoint: [\"\"]\n  script:\n    - dependency-check.sh --out report --scan .\n",
-        "github": "- name: Run OWASP Dependency-Check\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" owasp/dependency-check:latest dependency-check.sh --out report --scan .\n"
+        "gitlab": "dependency-check:\n  stage: test\n  image:\n    name: owasp/dependency-check:latest\n    entrypoint: [\"\"]\n  script:\n    - /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .\n",
+        "github": "- name: Run OWASP Dependency-Check\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" owasp/dependency-check:latest /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -657,7 +657,7 @@
         ]
       },
       "snippets": {
-        "gitlab": null,
+        "gitlab": "grype:\n  stage: test\n  image:\n    name: anchore/grype:debug\n    entrypoint: [\"\"]\n  script:\n    - /grype dir:.\n",
         "github": "- name: Run Grype\n  run: docker run --rm -v \"$PWD:/src\" -w /src anchore/grype:latest dir:.\n"
       },
       "lastVerified": "2026-11-04",
@@ -709,8 +709,8 @@
         "actions": []
       },
       "snippets": {
-        "gitlab": "inspec:\n  stage: deploy\n  image:\n    name: chef/inspec:latest\n    entrypoint: [\"\"]\n  script:\n    - inspec exec test.rb\n",
-        "github": "- name: Run Chef InSpec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" chef/inspec:latest inspec exec test.rb\n"
+        "gitlab": "inspec:\n  stage: deploy\n  image:\n    name: chef/inspec:latest\n    entrypoint: [\"\"]\n  script:\n    - inspec exec test.rb --chef-license=accept\n",
+        "github": "- name: Run Chef InSpec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" chef/inspec:latest inspec exec test.rb --chef-license=accept\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -981,8 +981,8 @@
         "actions": []
       },
       "snippets": {
-        "gitlab": "opa:\n  stage: test\n  image:\n    name: openpolicyagent/opa:latest\n    entrypoint: [\"\"]\n  script:\n    - opa test policy/\n",
-        "github": "- name: Test policies\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" openpolicyagent/opa:latest test policy/\n"
+        "gitlab": "opa:\n  stage: test\n  image:\n    name: openpolicyagent/opa:latest-debug\n    entrypoint: [\"\"]\n  script:\n    - opa test policy/\n",
+        "github": "- name: Test policies\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" openpolicyagent/opa:latest opa test policy/\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -1090,8 +1090,8 @@
         ]
       },
       "snippets": {
-        "gitlab": "osv-scanner:\n  stage: test\n  image:\n    name: ghcr.io/google/osv-scanner:latest\n    entrypoint: [\"\"]\n  script:\n    - osv-scanner scan source -r .\n",
-        "github": "- name: Run OSV-Scanner\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/google/osv-scanner:latest osv-scanner scan source -r .\n"
+        "gitlab": "osv-scanner:\n  stage: test\n  image:\n    name: ghcr.io/google/osv-scanner:latest\n    entrypoint: [\"\"]\n  script:\n    - /osv-scanner scan source -r .\n",
+        "github": "- name: Run OSV-Scanner\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/google/osv-scanner:latest /osv-scanner scan source -r .\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -1173,8 +1173,8 @@
         "actions": []
       },
       "snippets": {
-        "gitlab": "prowler:\n  stage: test\n  image:\n    name: prowlercloud/prowler:latest\n    entrypoint: [\"\"]\n  script:\n    - prowler aws\n",
-        "github": "- name: Run Prowler\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" prowlercloud/prowler:latest prowler aws\n"
+        "gitlab": "prowler:\n  stage: test\n  image:\n    name: prowlercloud/prowler:latest\n    entrypoint: [\"\"]\n  script:\n    - /home/prowler/.venv/bin/prowler aws\n",
+        "github": "- name: Run Prowler\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" prowlercloud/prowler:latest /home/prowler/.venv/bin/prowler aws\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -1257,7 +1257,7 @@
       },
       "snippets": {
         "gitlab": null,
-        "github": "- name: Run OpenSSF Scorecard\n  run: docker run --rm -v \"$PWD:/src\" -w /src ghcr.io/ossf/scorecard:latest --repo=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY\n"
+        "github": "- name: Run OpenSSF Scorecard\n  run: docker run --rm -e GITHUB_AUTH_TOKEN ghcr.io/ossf/scorecard:latest --repo=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY\n  env:\n    GITHUB_AUTH_TOKEN: ${{ github.token }}\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -1317,7 +1317,7 @@
       },
       "snippets": {
         "gitlab": "sentry-release:\n  stage: deploy\n  image:\n    name: getsentry/sentry-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - sentry-cli releases new --finalize \"$CI_COMMIT_SHA\"\n",
-        "github": "- name: Create a Sentry release\n  run: sentry-cli releases new --finalize \"$GITHUB_SHA\"\n"
+        "github": "- name: Create a Sentry release\n  run: docker run --rm -e SENTRY_AUTH_TOKEN -e SENTRY_ORG -e SENTRY_PROJECT --entrypoint \"\" getsentry/sentry-cli:latest sentry-cli releases new --finalize \"$GITHUB_SHA\"\n"
       },
       "lastVerified": "2026-11-04",
       "integration": "notify"
@@ -1382,7 +1382,7 @@
       },
       "snippets": {
         "gitlab": "sonarqube:\n  stage: test\n  image:\n    name: sonarsource/sonar-scanner-cli:latest\n    entrypoint: [\"\"]\n  script:\n    - sonar-scanner\n",
-        "github": "- name: Run SonarScanner\n  run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v \"$PWD:/usr/src\" sonarsource/sonar-scanner-cli\n"
+        "github": "- name: Run SonarScanner\n  run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v \"$PWD:/usr/src\" sonarsource/sonar-scanner-cli:latest\n"
       },
       "lastVerified": "2026-11-04",
       "integration": "upload-report"
@@ -1439,7 +1439,7 @@
         ]
       },
       "snippets": {
-        "gitlab": null,
+        "gitlab": "syft:\n  stage: build\n  image:\n    name: anchore/syft:debug\n    entrypoint: [\"\"]\n  script:\n    - /syft dir:. -o cyclonedx-json=sbom.cdx.json\n",
         "github": "- name: Run Syft\n  run: docker run --rm -v \"$PWD:/src\" -w /src anchore/syft:latest dir:. -o cyclonedx-json=sbom.cdx.json\n"
       },
       "lastVerified": "2026-11-04",
@@ -1581,7 +1581,7 @@
       },
       "snippets": {
         "gitlab": "trufflehog:\n  stage: test\n  image:\n    name: trufflesecurity/trufflehog:latest\n    entrypoint: [\"\"]\n  script:\n    - trufflehog git file://. --results=verified,unknown --fail\n",
-        "github": "- name: Run TruffleHog\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" trufflesecurity/trufflehog:latest trufflehog git file://. --results=verified,unknown --fail\n"
+        "github": "- name: Run TruffleHog\n  run: docker run --rm -v \"$PWD:/src\" -w /src trufflesecurity/trufflehog:latest git file://. --results=verified,unknown --fail\n"
       },
       "lastVerified": "2026-11-04",
       "integration": null
@@ -1610,7 +1610,7 @@
       },
       "snippets": {
         "gitlab": "vault:\n  stage: build\n  image:\n    name: hashicorp/vault:latest\n    entrypoint: [\"\"]\n  script:\n    - vault kv get -mount=secret -field=passcode creds\n",
-        "github": "- name: Read a secret from Vault\n  run: vault kv get -mount=secret -field=passcode creds\n"
+        "github": "- name: Read a secret from Vault\n  run: docker run --rm -e VAULT_ADDR -e VAULT_TOKEN --entrypoint \"\" hashicorp/vault:latest vault kv get -mount=secret -field=passcode creds\n"
       },
       "lastVerified": "2026-11-04",
       "integration": "fetch-secret"

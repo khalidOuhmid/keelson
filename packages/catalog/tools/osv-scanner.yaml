@@ -18,8 +18,8 @@ snippets:
         name: ghcr.io/google/osv-scanner:latest
         entrypoint: [""]
       script:
-        - osv-scanner scan source -r .
+        - /osv-scanner scan source -r .
   github: |
     - name: Run OSV-Scanner
-      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/google/osv-scanner:latest osv-scanner scan source -r .
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/google/osv-scanner:latest /osv-scanner scan source -r .
 lastVerified: 2026-11-04

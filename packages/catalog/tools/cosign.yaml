@@ -11,8 +11,18 @@ detect:
   scripts: ['\bcosign\b']
   actions: ['sigstore/cosign-installer']
 snippets:
-  gitlab: null
+  gitlab: |
+    cosign:
+      stage: deploy
+      image:
+        name: ghcr.io/sigstore/cosign/cosign:latest-dev
+        entrypoint: [""]
+      id_tokens:
+        SIGSTORE_ID_TOKEN:
+          aud: sigstore
+      script:
+        - cosign sign --yes $IMAGE
   github: |
     - name: Run Cosign
-      run: docker run --rm -v "$PWD:/src" -w /src ghcr.io/sigstore/cosign/cosign:latest sign $IMAGE
+      run: docker run --rm -v "$PWD:/src" -w /src ghcr.io/sigstore/cosign/cosign:latest sign --yes $IMAGE
 lastVerified: 2026-11-04

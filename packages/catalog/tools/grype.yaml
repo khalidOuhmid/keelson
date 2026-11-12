@@ -11,7 +11,14 @@ detect:
   scripts: ['\bgrype\b']
   actions: ['anchore/scan-action']
 snippets:
-  gitlab: null
+  gitlab: |
+    grype:
+      stage: test
+      image:
+        name: anchore/grype:debug
+        entrypoint: [""]
+      script:
+        - /grype dir:.
   github: |
     - name: Run Grype
       run: docker run --rm -v "$PWD:/src" -w /src anchore/grype:latest dir:.
