@@ -81,7 +81,9 @@ export function renderCoverageMarkdown(result: Coverage): string {
   const rows = result.layers.map((entry) => {
     const { name } = findLayer(entry.layer);
     const jobs = entry.jobs.map(cell).join(", ");
-    const services = entry.services.map(cell).join(", ");
+    const services = [...entry.services, ...entry.ci.map((system) => `ci ${system}`)]
+      .map(cell)
+      .join(", ");
     return `| ${name} | ${entry.covered ? "yes" : "no"} | ${jobs} | ${services} |`;
   });
 

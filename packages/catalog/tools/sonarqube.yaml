@@ -21,6 +21,6 @@ snippets:
         - sonar-scanner
   github: |
     - name: Run SonarScanner
-      run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v "$PWD:/usr/src" sonarsource/sonar-scanner-cli
+      run: docker run --rm -e SONAR_HOST_URL -e SONAR_TOKEN -v "$PWD:/usr/src" sonarsource/sonar-scanner-cli:latest
 integration: upload-report
 lastVerified: 2026-11-04

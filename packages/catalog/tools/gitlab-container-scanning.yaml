@@ -1,0 +1,26 @@
+id: gitlab-container-scanning
+name: 'GitLab Container Scanning'
+kind: job
+layers: [sca, infrastructure]
+license: MIT
+homepage: https://docs.gitlab.com/user/application_security/container_scanning/
+verifiedAt: https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/Container-Scanning.gitlab-ci.yml
+logo: gitlab
+detect:
+  images: ['registry.gitlab.com/security-products/container-scanning']
+  scripts: []
+snippets:
+  gitlab: |
+    container_scanning:
+      stage: test
+      image: registry.gitlab.com/security-products/container-scanning:8
+      variables:
+        GIT_STRATEGY: none
+        CS_IMAGE: $IMAGE
+      script:
+        - gtcs scan
+      artifacts:
+        reports:
+          container_scanning: gl-container-scanning-report.json
+  github: null
+lastVerified: 2026-11-12

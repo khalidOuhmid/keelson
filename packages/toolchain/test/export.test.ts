@@ -131,7 +131,11 @@ describe("coverage report", () => {
   const text = renderCoverageMarkdown(result);
 
   test("states the OWASP and platform counts", () => {
-    expect(text).toContain("3 of 13 OWASP layers covered, 1 of 8 platform categories seen.");
+    expect(text).toContain("3 of 13 OWASP layers covered, 2 of 8 platform categories seen.");
+  });
+
+  test("the CI that proves source control is named with the services", () => {
+    expect(text).toContain("| Source control | yes |  | ci gitlab-ci |");
   });
 
   test("one row per layer, a job pipe escaped", () => {

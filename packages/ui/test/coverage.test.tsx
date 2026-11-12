@@ -23,6 +23,7 @@ function coverage(covered: Partial<Record<LayerId, string[]>>, partial = false):
       covered: covered[id] !== undefined,
       jobs: covered[id] ?? [],
       services: [],
+      ci: [],
     })),
   };
 }
@@ -77,6 +78,19 @@ describe("coverage panel", () => {
     });
     const group = screen.getByRole("group", { name: "Covered layers" });
     expect(group.textContent).toContain("service git");
+  });
+
+  test("source control proven by the CI names it", () => {
+    const covered = coverage({});
+    renderPanel({
+      ...covered,
+      layers: covered.layers.map((entry) =>
+        entry.layer === "scm" ? { ...entry, covered: true, ci: ["gitlab-ci"] } : entry,
+      ),
+    });
+    const group = screen.getByRole("group", { name: "Covered layers" });
+    expect(within(group).getByText("Source control")).toBeDefined();
+    expect(group.textContent).toContain("ci gitlab-ci");
   });
 
   test("several files: the panel says which", () => {

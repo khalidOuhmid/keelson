@@ -35,8 +35,13 @@ test.describe("coverage on the real binary", () => {
 
       await expect(page.getByRole("group", { name: "Stages" })).toHaveCount(0);
       await expect(page.getByTestId("coverage-count")).toHaveText(
-        "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+        "2 of 13 OWASP layers covered, 1 of 8 platform categories seen",
       );
+      await expect(
+        page.getByRole("group", { name: "Covered layers" }).getByRole("button", {
+          name: /Source control/,
+        }),
+      ).toContainText("ci gitlab-ci");
       await expect(page.locator('[data-job-id="secrets"]')).toContainText("Secrets");
       // Detected through an include, on a script line.
       await expect(page.locator('[data-job-id="sast"]')).toContainText("SAST");
@@ -95,13 +100,13 @@ test.describe("coverage on the real binary", () => {
       await page.goto(keelson.url);
       await page.getByRole("button", { name: "Coverage" }).click();
       await expect(page.getByTestId("coverage-count")).toHaveText(
-        "2 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+        "2 of 13 OWASP layers covered, 1 of 8 platform categories seen",
       );
 
       keelson.writeAt(".devsecops/layout.json", '{"version":1,"layers":{"compile":["iast"]}}');
 
       await expect(page.getByTestId("coverage-count")).toHaveText(
-        "3 of 13 OWASP layers covered, 0 of 8 platform categories seen",
+        "3 of 13 OWASP layers covered, 1 of 8 platform categories seen",
         {
           timeout: 10_000,
         },

@@ -21,6 +21,6 @@ snippets:
         - vault kv get -mount=secret -field=passcode creds
   github: |
     - name: Read a secret from Vault
-      run: vault kv get -mount=secret -field=passcode creds
+      run: docker run --rm -e VAULT_ADDR -e VAULT_TOKEN --entrypoint "" hashicorp/vault:latest vault kv get -mount=secret -field=passcode creds
 integration: fetch-secret
 lastVerified: 2026-11-04

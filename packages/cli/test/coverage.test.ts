@@ -151,7 +151,7 @@ describe("keelson coverage", () => {
 });
 
 describe("keelson catalog lint", () => {
-  const NOW = new Date("2026-11-04T00:00:00Z");
+  const NOW = new Date("2026-11-12T00:00:00Z");
 
   test("the bundled catalogue is clean", async () => {
     const result = await run(["catalog", "lint"], { now: NOW, cwd: root });
@@ -221,6 +221,13 @@ describe("the toolchain on the command line", () => {
       "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: build\n    service: n\n    kind: push\n",
     );
     expect((await run(["validate"], { cwd: root })).exitCode).toBe(0);
+  });
+
+  test("coverage --require scm is satisfied by the GitLab CI that runs the pipeline", async () => {
+    const root = repo("version: 1\n");
+    const result = await run(["coverage", "--require", "scm"], { cwd: root });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/^covered {2}scm +Source control {2}ci gitlab-ci$/m);
   });
 
   test("coverage --require scm is satisfied by a declared service, and says so", async () => {

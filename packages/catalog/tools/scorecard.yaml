@@ -14,5 +14,7 @@ snippets:
   gitlab: null
   github: |
     - name: Run OpenSSF Scorecard
-      run: docker run --rm -v "$PWD:/src" -w /src ghcr.io/ossf/scorecard:latest --repo=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY
+      run: docker run --rm -e GITHUB_AUTH_TOKEN ghcr.io/ossf/scorecard:latest --repo=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY
+      env:
+        GITHUB_AUTH_TOKEN: ${{ github.token }}
 lastVerified: 2026-11-04

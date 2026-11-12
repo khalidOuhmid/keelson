@@ -57,12 +57,14 @@ keelson coverage [file] [--require <layers>] [--format text|json]
 ```
 
 Reports, for each of the 13 OWASP DevSecOps layers and 8 platform categories, whether it is covered
-and by which jobs or declared services.
+and by which jobs or declared services. Source control is also covered by the CI that runs the jobs:
+only a forge runs its own CI (`ci gitlab-ci`, `ci github-actions`).
 
 ```text
 covered  secrets                   Secrets in git  gitleaks
 missing  sast                      Static analysis
 covered  supply-chain              Supply chain  sbom
+covered  scm                       Source control  ci gitlab-ci
 ```
 
 `--require` takes a comma-separated list of layer ids and exits `1` if any of them is not covered —
@@ -78,7 +80,10 @@ Layer ids: `secrets`, `sca`, `sast`, `iac`, `supply-chain`, `iast`, `api`, `dast
 `runtime-security`, `policy`.
 
 Detection reads job images, scripts (parsed as a minimal shell, so a tool name inside a quoted string
-or a comment does not count) and GitHub Actions `uses:`. A layer override in
+or a comment does not count) and GitHub Actions `uses:`. In an image, the variables GitLab's Secure
+templates name their analyzers with (`$SECURE_ANALYZERS_PREFIX`, `$CI_TEMPLATE_REGISTRY_HOST`,
+`$CS_ANALYZER_IMAGE`, `$APISEC_IMAGE`, `$DAST_API_IMAGE`) take the templates' defaults; any other
+variable stays unresolved. A layer override in
 [`layout.json`](configuration.md#devsecopslayoutjson) replaces the detection for one job.
 
 ## `keelson export`

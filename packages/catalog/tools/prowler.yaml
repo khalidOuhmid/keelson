@@ -17,8 +17,8 @@ snippets:
         name: prowlercloud/prowler:latest
         entrypoint: [""]
       script:
-        - prowler aws
+        - /home/prowler/.venv/bin/prowler aws
   github: |
     - name: Run Prowler
-      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" prowlercloud/prowler:latest prowler aws
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" prowlercloud/prowler:latest /home/prowler/.venv/bin/prowler aws
 lastVerified: 2026-11-04

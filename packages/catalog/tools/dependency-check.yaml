@@ -17,8 +17,8 @@ snippets:
         name: owasp/dependency-check:latest
         entrypoint: [""]
       script:
-        - dependency-check.sh --out report --scan .
+        - /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .
   github: |
     - name: Run OWASP Dependency-Check
-      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" owasp/dependency-check:latest dependency-check.sh --out report --scan .
+      run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" owasp/dependency-check:latest /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .
 lastVerified: 2026-11-04
