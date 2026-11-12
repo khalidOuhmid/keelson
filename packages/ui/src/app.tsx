@@ -28,7 +28,7 @@ import { JobEditor } from "./editing/JobEditor.tsx";
 import { NewJobForm } from "./editing/NewJobForm.tsx";
 import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
-import { focusWhenDrawn, overlaysCover, useCoveringPanel } from "./focus.ts";
+import { focusWhenDrawn, keepFocusThrough, overlaysCover, useCoveringPanel } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { IncludedFileView } from "./panels/IncludedFileView.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
@@ -685,7 +685,13 @@ export function App({ deps }: AppProps = {}) {
                   disabled={!toolchainEditable}
                   invalid={toolchainInvalid}
                   selectedService={toolchainState.selectedService}
-                  onSubmit={(draft) => toolchainStore.getState().submit(draft)}
+                  onSubmit={async (draft) => {
+                    let written: unknown;
+                    await keepFocusThrough(sidebar.ref.current, async () => {
+                      written = await toolchainStore.getState().submit(draft);
+                    });
+                    return written;
+                  }}
                   onSelectService={(id) => {
                     setSidebarOpen(false);
                     toolchainStore.getState().selectService(id);
@@ -745,7 +751,11 @@ export function App({ deps }: AppProps = {}) {
               tool={state.catalog?.tools.find((tool) => tool.id === selectedService.tool)}
               jobs={state.pipeline?.jobs.map((job) => job.id) ?? []}
               disabled={!toolchainEditable}
-              onSubmit={(draft) => void toolchainStore.getState().submit(draft)}
+              onSubmit={(draft) =>
+                void keepFocusThrough(servicePanel.ref.current, () =>
+                  toolchainStore.getState().submit(draft),
+                )
+              }
               onClose={() => toolchainStore.getState().selectService(null)}
             />
           </aside>

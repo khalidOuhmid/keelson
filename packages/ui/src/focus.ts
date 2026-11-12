@@ -73,6 +73,52 @@ export function focusWhenDrawn(selector: string, frames = 120): void {
   }
 }
 
+const CONTROLS = "a[href], button, input:not([type=hidden]), select, textarea, summary, [tabindex]";
+
+function signature(element: Element): string {
+  const label = element.closest("label")?.textContent ?? "";
+  const name = element.getAttribute("aria-label") ?? (label === "" ? element.textContent : label);
+  return `${element.tagName}:${(name ?? "").trim()}`;
+}
+
+/** A write disables the form, or remounts it with the written values: either way the browser
+ *  drops focus on `<body>`. Once the write settles, the control that submitted it, found again by
+ *  its name, gets focus back — unless the user has moved focus elsewhere in the meantime. */
+export async function keepFocusThrough(
+  container: HTMLElement | null,
+  run: () => Promise<unknown>,
+  frames = 120,
+): Promise<void> {
+  const active = document.activeElement as HTMLElement | null;
+  if (container === null || active === null || !container.contains(active)) {
+    await run();
+    return;
+  }
+  const wanted = signature(active);
+  const index = [...container.querySelectorAll(CONTROLS)].indexOf(active);
+  await run();
+  const restore = (left: number): void => {
+    const current = document.activeElement;
+    const lost =
+      current === null ||
+      current === document.body ||
+      (current === active && (!active.isConnected || active.hasAttribute("disabled")));
+    if (!lost) {
+      return;
+    }
+    const controls = [...container.querySelectorAll<HTMLElement>(CONTROLS)];
+    const target =
+      controls.find((control) => signature(control) === wanted) ??
+      controls[Math.min(index, controls.length - 1)];
+    if (target?.isConnected && !target.hasAttribute("disabled")) {
+      target.focus();
+    } else if (left > 0) {
+      requestAnimationFrame(() => restore(left - 1));
+    }
+  };
+  restore(frames);
+}
+
 /** A side panel that, below `lg`, covers the screen: on open, focus enters it; while it covers,
  *  Tab cycles inside it. From `lg` up it is a column like any other and leaves focus alone. */
 export function useCoveringPanel<T extends HTMLElement>(

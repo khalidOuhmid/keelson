@@ -239,6 +239,67 @@ test.describe("toolchain on the real binary", () => {
     }
   });
 
+  test("Save by the keyboard keeps focus on Save once written", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("textbox", { name: "URL" }).fill("https://vault.example.org");
+      await panel.getByRole("button", { name: "Save" }).focus();
+      await page.keyboard.press("Enter");
+      await expect.poll(() => keelson.readAt(TOOLCHAIN)).toContain("https://vault.example.org");
+      await expect(panel.getByRole("button", { name: "Save" })).toBeEnabled();
+      await expect(panel.getByRole("button", { name: "Save" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Enter in a service field keeps focus on that field once written", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("textbox", { name: "Environment" }).fill("production");
+      await page.keyboard.press("Enter");
+      await expect.poll(() => keelson.readAt(TOOLCHAIN)).toContain("environment: production");
+      await expect(panel.getByRole("textbox", { name: "Environment" })).toBeEnabled();
+      await expect(panel.getByRole("textbox", { name: "Environment" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Add integration by the keyboard keeps focus on it once written", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("button", { name: "Add integration" }).focus();
+      await page.keyboard.press("Enter");
+      await expect(panel.getByRole("button", { name: /^Remove / })).toBeVisible();
+      await expect(panel.getByRole("button", { name: "Add integration" })).toBeEnabled();
+      await expect(panel.getByRole("button", { name: "Add integration" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("at 375 px, the service panel fits in the viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson({
