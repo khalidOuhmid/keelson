@@ -5,6 +5,8 @@ import type { Layout } from "./layout.ts";
 
 export const JOB_NODE_TYPE = "keelsonJob";
 export const COLUMN_NODE_TYPE = "keelsonStageColumn";
+export const TEMPLATE_NODE_TYPE = "keelsonTemplate";
+export const TEMPLATE_COLUMN_TYPE = "keelsonTemplateColumn";
 
 export type NeedSummary = {
   job: string;
@@ -42,9 +44,22 @@ export type ColumnNodeData = {
   jobCount: number;
 };
 
+export type TemplateNodeData = {
+  id: string;
+  file: string;
+};
+
+export type TemplateColumnData = {
+  count: number;
+};
+
+type NodeData = JobNodeData | ColumnNodeData | TemplateNodeData | TemplateColumnData;
+
 export type FlowNode =
   | (Node<JobNodeData, typeof JOB_NODE_TYPE> & { data: JobNodeData })
-  | (Node<ColumnNodeData, typeof COLUMN_NODE_TYPE> & { data: ColumnNodeData });
+  | (Node<ColumnNodeData, typeof COLUMN_NODE_TYPE> & { data: ColumnNodeData })
+  | (Node<TemplateNodeData, typeof TEMPLATE_NODE_TYPE> & { data: TemplateNodeData })
+  | (Node<TemplateColumnData, typeof TEMPLATE_COLUMN_TYPE> & { data: TemplateColumnData });
 
 export type EdgeData = {
   optional: boolean;
@@ -52,7 +67,7 @@ export type EdgeData = {
 };
 
 export type FlowGraph = {
-  nodes: (Node & { data: JobNodeData | ColumnNodeData })[];
+  nodes: (Node & { data: NodeData })[];
   edges: Edge<EdgeData>[];
 };
 
@@ -168,5 +183,62 @@ export function toFlowGraph(
     ];
   });
 
-  return { nodes: [...columnNodes, ...jobNodes], edges };
+  const templateFiles = new Map(pipeline.templates.map((template) => [template.id, template.file]));
+  const first = layout.templates[0];
+  const templateColumn =
+    first === undefined
+      ? []
+      : [
+          {
+            id: "column:templates",
+            type: TEMPLATE_COLUMN_TYPE,
+            position: { x: first.x, y: 0 },
+            data: { count: layout.templates.length } satisfies TemplateColumnData,
+            width: first.width,
+            height: columnHeight,
+            draggable: false,
+            selectable: false,
+            focusable: false,
+            zIndex: COLUMN_Z,
+          },
+        ];
+  const templateNodes = layout.templates.map((template) => ({
+    id: `template:${template.id}`,
+    type: TEMPLATE_NODE_TYPE,
+    position: { x: template.x, y: template.y + headerHeight },
+    data: {
+      id: template.id,
+      file: templateFiles.get(template.id) ?? pipeline.main,
+    } satisfies TemplateNodeData,
+    width: template.width,
+    height: template.height,
+    draggable: false,
+    selectable: false,
+    focusable: false,
+    zIndex: JOB_Z,
+  }));
+
+  const inheritance: Edge<EdgeData>[] = layout.inheritance
+    .filter((edge) => jobs.has(edge.target))
+    .map((edge) => ({
+      id: edge.id,
+      source: `template:${edge.source}`,
+      target: edge.target,
+      selectable: false,
+      data: { optional: false, highlighted: false },
+      ariaLabel: `${edge.target} extends ${edge.source}`,
+      // Dotted, in the quiet border tone: an optional need is dashed, and an inheritance link is
+      // not a dependency.
+      style: {
+        stroke: "var(--color-border-default)",
+        strokeWidth: "var(--keelson-edge-width)",
+        strokeDasharray: "0 var(--keelson-edge-dash)",
+        strokeLinecap: "round",
+      },
+    }));
+
+  return {
+    nodes: [...templateColumn, ...columnNodes, ...templateNodes, ...jobNodes],
+    edges: [...inheritance, ...edges],
+  };
 }

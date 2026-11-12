@@ -239,7 +239,8 @@ test("layout invariants: every job is in the column of the stage it declares", a
 
     for (const node of document.querySelectorAll(".react-flow__node")) {
       const id = node.getAttribute("data-id");
-      if (id === null) {
+      // Templates are not jobs: they hold no stage and sit in their own column.
+      if (id === null || id.startsWith("template:") || id === "column:templates") {
         continue;
       }
       const geometry = read(node);
@@ -452,6 +453,36 @@ test("an opaque block still shows its own bytes after an edit", async ({ page })
   expect(after).toContain("trivy");
   expect(after).not.toContain("deploy-production");
   expect(after).toBe(before);
+});
+
+test("templates are drawn upstream of the stages, linked to the jobs that extend them, and counted apart", async ({
+  page,
+}) => {
+  await open(page);
+  const templates = page.getByRole("group", { name: "Templates" });
+  await expect(templates).toContainText("2 templates");
+  await expect(page.locator("[data-template-id]")).toHaveText([/\.docker/, /\.deploy-base/]);
+
+  const geometry = await page.evaluate(() => {
+    const box = (element: Element | null) => element?.getBoundingClientRect() ?? null;
+    return {
+      template: box(document.querySelector('[data-template-id=".deploy-base"]')),
+      build: box(document.querySelector('[aria-label="Stage build"]')),
+    };
+  });
+  expect(geometry.template?.right ?? 0).toBeLessThanOrEqual(geometry.build?.left ?? 0);
+
+  await expect(page.getByRole("group", { name: "Stage deploy" })).toContainText("1 job");
+  await expect(
+    page.locator("[data-template-id] [data-job-id], [data-job-id][data-template-id]"),
+  ).toHaveCount(0);
+  const labels = await page.evaluate(() =>
+    [...document.querySelectorAll(".react-flow__edge")].map((edge) =>
+      edge.getAttribute("aria-label"),
+    ),
+  );
+  expect(labels).toContain("deploy-production extends .deploy-base");
+  expect(labels).toContain("build-image extends .docker");
 });
 
 test("every edge exposes its dependency as accessible text", async ({ page }) => {

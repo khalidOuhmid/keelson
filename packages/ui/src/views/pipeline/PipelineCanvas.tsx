@@ -6,6 +6,8 @@ import {
   type FlowGraph,
   JOB_NODE_TYPE,
   type LayerOverlay,
+  TEMPLATE_COLUMN_TYPE,
+  TEMPLATE_NODE_TYPE,
   toFlowGraph,
 } from "./graph.ts";
 import { JobNode } from "./JobNode.tsx";
@@ -13,10 +15,13 @@ import { type Layout, layoutPipeline } from "./layout.ts";
 import { readColumnHeaderHeight, readColumnPadding, readLayoutMetrics } from "./metrics.ts";
 import { KEYBOARD_HINT, KEYBOARD_HINT_ID, move, moveForKey, tabStop } from "./navigation.ts";
 import { StageColumnNode } from "./StageColumnNode.tsx";
+import { TemplateColumnNode, TemplateNode } from "./TemplateNode.tsx";
 
 const NODE_TYPES = {
   [JOB_NODE_TYPE]: JobNode,
   [COLUMN_NODE_TYPE]: StageColumnNode,
+  [TEMPLATE_NODE_TYPE]: TemplateNode,
+  [TEMPLATE_COLUMN_TYPE]: TemplateColumnNode,
 };
 
 const EMPTY: FlowGraph = { nodes: [], edges: [] };

@@ -211,6 +211,8 @@ describe("layer labels on a node", () => {
         nodes: [{ id: "scan", x: 0, y: 0, width: 200, height: 64 }],
         columns: [],
         edges: [],
+        templates: [],
+        inheritance: [],
         height: 64,
       },
       PIPELINE,

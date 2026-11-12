@@ -386,3 +386,41 @@ describe("the graph's keyboard model, on the render", () => {
     expect(text).toContain("Shift");
   });
 });
+
+describe("templates on the render", () => {
+  const TEMPLATED: Pipeline = {
+    ...pipeline(
+      [{ name: "build" }, { name: "deploy" }],
+      [
+        { id: "image", stage: "build", extends: [".docker"] },
+        { id: "ship", stage: "deploy", extends: [".deploy-base"] },
+      ],
+    ),
+    templates: [
+      { id: ".docker", range: { start: 0, end: 5 }, file: MAIN },
+      { id: ".deploy-base", range: { start: 6, end: 9 }, file: MAIN },
+    ],
+  };
+
+  test("each template is drawn, apart from the jobs and the stages", async () => {
+    await renderCanvas(TEMPLATED);
+    const column = await screen.findByRole("group", { name: "Templates" });
+    expect(column.textContent).toContain("2 templates");
+    const drawn = [...document.querySelectorAll<HTMLElement>("[data-template-id]")];
+    expect(drawn.map((element) => element.dataset.templateId)).toEqual([".docker", ".deploy-base"]);
+    for (const element of drawn) {
+      expect(element.closest("[data-job-id]")).toBeNull();
+      expect(element.textContent).toContain("template");
+    }
+  });
+
+  test("the stage headers still count only the jobs drawn in their column", async () => {
+    await renderCanvas(TEMPLATED);
+    const headers = await screen.findAllByTestId("stage-column-name");
+    expect(headers.map((element) => element.textContent)).toEqual(["build", "deploy"]);
+    expect((await screen.findByRole("group", { name: "Stage deploy" })).textContent).toContain(
+      "1 job",
+    );
+    expect(document.querySelectorAll("[data-job-id]")).toHaveLength(2);
+  });
+});
