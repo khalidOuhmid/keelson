@@ -14,6 +14,7 @@ import type {
 import type { ServerEvent } from "../src/api/events.ts";
 import { App, type AppDeps } from "../src/app.tsx";
 import { LAYOUT_TOKENS } from "../src/views/pipeline/metrics.ts";
+import { narrowViewport, restoreViewport } from "./support/viewport.ts";
 
 const MAIN = ".gitlab-ci.yml";
 
@@ -693,5 +694,86 @@ describe("landmarks and heading outline", () => {
       "Edit pipeline",
       "Job",
     ]);
+  });
+});
+
+describe("the focus policy across panels", () => {
+  afterEach(restoreViewport);
+
+  test("opening the sidebar overlay moves focus into it, closing it returns to Panel", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    const trigger = screen.getByRole("button", { name: "Panel" });
+    await userEvent.click(trigger);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close panel" })),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Close panel" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Panel" }));
+  });
+
+  test("Escape closes the sidebar overlay and returns focus to Panel", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    await userEvent.click(screen.getByRole("button", { name: "Panel" }));
+    const sidebar = screen.getByRole("complementary", { name: "Edit pipeline" });
+    expect(sidebar.className).not.toContain("max-lg:hidden");
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.getByRole("button", { name: "Panel" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Panel" }));
+  });
+
+  test("below lg, Tab stays inside the sidebar overlay", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    await userEvent.click(screen.getByRole("button", { name: "Panel" }));
+    const sidebar = screen.getByRole("complementary", { name: "Edit pipeline" });
+    for (let step = 0; step < 14; step += 1) {
+      await userEvent.tab();
+      expect(sidebar.contains(document.activeElement)).toBe(true);
+    }
+  });
+
+  test("below lg, the job overlay takes focus on open and keeps Tab inside", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    const overlay = await screen.findByRole("complementary", { name: "Job" });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close job detail" })),
+    );
+    for (let step = 0; step < 20; step += 1) {
+      await userEvent.tab();
+      expect(overlay.contains(document.activeElement)).toBe(true);
+    }
+  });
+
+  test('"See tools" lands focus on the catalogue\'s layer filter, set to that layer', async () => {
+    const uncovered = {
+      ...DOCUMENT,
+      coverage: {
+        jobs: [],
+        partial: false,
+        layers: LAYERS.map((layer) => ({
+          layer: layer.id,
+          covered: false,
+          jobs: [],
+          services: [],
+        })),
+      },
+    };
+    await renderApp(harness({ document: uncovered }));
+    await userEvent.click(screen.getByRole("button", { name: "Coverage" }));
+    const [first] = await screen.findAllByRole("button", { name: "See tools" });
+    await userEvent.click(first as HTMLElement);
+
+    const layer = await screen.findByLabelText("Layer");
+    await waitFor(() => expect(document.activeElement).toBe(layer));
+    expect((layer as HTMLSelectElement).value).not.toBe("any");
   });
 });

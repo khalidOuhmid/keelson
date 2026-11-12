@@ -442,7 +442,9 @@ redeclare. From `lg` up the layout is one desktop composition, and the canvas is
 (`--keelson-canvas-min-width`) so two 352px panels can never crush the graph to zero. Below `lg`, and
 only there (ADR 0008), the job detail panel, the left sidebar and the tool panel leave the row and
 become full-screen overlays; the sidebar opens from a `Panel` button in the header and closes from
-its own `Close panel` button, and the graph keeps the viewport. Focus is not trapped in an overlay.
+its own `Close panel` button or Escape, and the graph keeps the viewport. An overlay covers the
+screen, so it owns focus: opening it moves focus to its first control, Tab cycles inside it, and
+closing it returns focus to the control that opened it (The Covering-Surface Rule).
 The breakpoint changes where these three panels sit, never their content, and the desktop
 composition does not change.
 
@@ -493,6 +495,13 @@ edge, with no shadow.
 **The No-Shadow Rule.** The system has no elevation vocabulary to reach for. Depth is a surface step
 plus a hairline; if a new surface seems to need lifting, it needs the next `surface-*` token, not a
 shadow token invented for it.
+
+**The Covering-Surface Rule.** Whatever covers the rest of the screen owns focus, and only that: the
+confirmation dialog, the job search and, below `lg`, the three overlays. Opening one moves focus
+into it, Tab and Shift+Tab cycle inside it, Escape closes it, and closing it — by button or by
+Escape — returns focus to the control that opened it, or to the graph when that control is gone.
+Only a surface that blocks the page carries `aria-modal`. From `lg` up a side column covers nothing
+and leaves focus where it is. The policy lives in `src/focus.ts`.
 
 **The Inline-Modal Rule.** A dialog is a bordered block in the flow that owns focus, not a floating
 plane. It carries `role="alertdialog"` and `aria-modal`, focus moves into it on open, Escape cancels

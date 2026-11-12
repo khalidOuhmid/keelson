@@ -27,7 +27,7 @@ import { JobEditor } from "./editing/JobEditor.tsx";
 import { NewJobForm } from "./editing/NewJobForm.tsx";
 import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
-import { focusWhenDrawn, overlaysCover, trapTab } from "./focus.ts";
+import { focusWhenDrawn, useCoveringPanel } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
@@ -140,6 +140,14 @@ export function App({ deps }: AppProps = {}) {
   }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarOpenNow = useRef(false);
+  sidebarOpenNow.current = sidebarOpen;
+  const panelTrigger = useRef<HTMLButtonElement | null>(null);
+  const closeSidebar = (): void => {
+    setSidebarOpen(false);
+    panelTrigger.current?.focus();
+  };
+  const sidebar = useCoveringPanel<HTMLElement>(sidebarOpen);
   const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
 
@@ -236,6 +244,11 @@ export function App({ deps }: AppProps = {}) {
   // canvas but can be closed from anywhere, the panel included.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && sidebarOpenNow.current) {
+        setSidebarOpen(false);
+        panelTrigger.current?.focus();
+        return;
+      }
       if (event.key === "Escape") {
         store.getState().selectJob(null);
         toolchainStore.getState().selectService(null);
@@ -293,6 +306,10 @@ export function App({ deps }: AppProps = {}) {
       : (state.pipeline?.jobs.find((job) => job.id === state.selectedJobId) ?? null);
 
   const blocking = state.diagnostics.some(blocksEditing);
+  const jobPanelOpen =
+    selected !== null && state.pipeline !== null && state.view !== "catalog" && !inToolchain;
+  const jobPanel = useCoveringPanel<HTMLElement>(jobPanelOpen);
+  const servicePanel = useCoveringPanel<HTMLElement>(selectedService !== null);
 
   const reading = state.view === "coverage";
   const overlay = useMemo(
@@ -472,6 +489,7 @@ export function App({ deps }: AppProps = {}) {
           ) : null}
           {showSidebar && state.view !== "catalog" ? (
             <button
+              ref={panelTrigger}
               type="button"
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -522,14 +540,12 @@ export function App({ deps }: AppProps = {}) {
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null && state.view !== "catalog" ? (
           <aside
+            ref={sidebar.ref}
+            onKeyDown={sidebar.onKeyDown}
             aria-label={reading ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
             className={`flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:w-full ${sidebarOpen ? "" : "max-lg:hidden"}`}
           >
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              className={`self-end lg:hidden ${BUTTON}`}
-            >
+            <button type="button" onClick={closeSidebar} className={`self-end lg:hidden ${BUTTON}`}>
               Close panel
             </button>
             {inToolchain ? (
@@ -556,6 +572,7 @@ export function App({ deps }: AppProps = {}) {
                 onShowTools={(layer) => {
                   setSidebarOpen(false);
                   store.getState().showTools(layer);
+                  focusWhenDrawn('[aria-label="Tool catalogue"] select');
                 }}
               />
             ) : (
@@ -586,6 +603,8 @@ export function App({ deps }: AppProps = {}) {
 
         {selectedService === null || toolchainPayload === null ? null : (
           <aside
+            ref={servicePanel.ref}
+            onKeyDown={servicePanel.onKeyDown}
             aria-label="Service"
             className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
           >
@@ -602,11 +621,10 @@ export function App({ deps }: AppProps = {}) {
           </aside>
         )}
 
-        {selected === null ||
-        state.pipeline === null ||
-        state.view === "catalog" ||
-        inToolchain ? null : (
+        {!jobPanelOpen || selected === null || state.pipeline === null ? null : (
           <aside
+            ref={jobPanel.ref}
+            onKeyDown={jobPanel.onKeyDown}
             aria-label="Job"
             className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
           >

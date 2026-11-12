@@ -1,3 +1,5 @@
+import { type KeyboardEvent as ReactKeyboardEvent, type RefObject, useEffect, useRef } from "react";
+
 /** The focus policy, in one place.
  *
  *  - A surface that covers the rest of the screen owns focus: the confirmation dialog, the job
@@ -67,4 +69,29 @@ export function focusWhenDrawn(selector: string, frames = 120): void {
   } else if (frames > 0) {
     requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
   }
+}
+
+/** A side panel that, below `lg`, covers the screen: on open, focus enters it; while it covers,
+ *  Tab cycles inside it. From `lg` up it is a column like any other and leaves focus alone. */
+export function useCoveringPanel<T extends HTMLElement>(
+  open: boolean,
+): {
+  ref: RefObject<T | null>;
+  onKeyDown: (event: ReactKeyboardEvent<T>) => void;
+} {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    const panel = ref.current;
+    if (open && panel !== null && overlaysCover() && !panel.contains(document.activeElement)) {
+      focusables(panel)[0]?.focus();
+    }
+  }, [open]);
+  return {
+    ref,
+    onKeyDown: (event) => {
+      if (overlaysCover()) {
+        trapTab(event.currentTarget, event);
+      }
+    },
+  };
 }

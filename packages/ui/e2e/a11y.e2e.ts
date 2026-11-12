@@ -104,6 +104,48 @@ test("every control of the editing surfaces is at least 24 × 24 px", async ({ p
   expect(await smallTargets(page)).toEqual([]);
 });
 
+async function focusedInside(page: Page, selector: string): Promise<boolean> {
+  return page.evaluate(
+    (query) => document.querySelector(query)?.contains(document.activeElement) ?? false,
+    selector,
+  );
+}
+
+test("the delete confirmation keeps Tab inside itself", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "lint" }).click();
+  await page.getByRole("button", { name: "Delete job" }).click();
+  await expect(page.getByRole("button", { name: "Delete lint" })).toBeFocused();
+
+  for (let step = 0; step < 5; step += 1) {
+    await page.keyboard.press("Tab");
+    expect(await focusedInside(page, '[role="alertdialog"]')).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Delete job" })).toBeFocused();
+});
+
+test("below lg, an overlay takes focus, keeps it, and gives it back on close", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await open(page);
+
+  await page.getByRole("button", { name: "Panel" }).click();
+  await expect(page.getByRole("button", { name: "Close panel" })).toBeFocused();
+  for (let step = 0; step < 12; step += 1) {
+    await page.keyboard.press("Tab");
+    expect(await focusedInside(page, 'aside[aria-label="Edit pipeline"]')).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Panel" })).toBeFocused();
+
+  await page.getByRole("button", { name: "lint" }).click();
+  await expect(page.getByRole("button", { name: "Close job detail" })).toBeFocused();
+  for (let step = 0; step < 30; step += 1) {
+    await page.keyboard.press("Tab");
+    expect(await focusedInside(page, 'aside[aria-label="Job"]')).toBe(true);
+  }
+});
+
 test("a wrapped snippet line continues under its content, never at the left edge", async ({
   page,
 }) => {

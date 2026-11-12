@@ -1,8 +1,9 @@
 import type { Tool } from "@keelson/catalog";
 import type { LayerId } from "@keelson/taxonomy";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CatalogPayload } from "../../api/client.ts";
 import { FIELD, GROUP, LABEL } from "../../editing/controls.ts";
+import { useCoveringPanel } from "../../focus.ts";
 import { LayerTags } from "../coverage/LayerTag.tsx";
 import {
   type AdapterFilter,
@@ -31,6 +32,29 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
     left.name.localeCompare(right.name, "en", { sensitivity: "base", numeric: true }),
   );
   const selected: Tool | undefined = catalog.tools.find((tool) => tool.id === selectedId);
+  const panel = useCoveringPanel<HTMLElement>(selected !== undefined);
+  const rows = useRef<HTMLDivElement | null>(null);
+
+  const close = (): void => {
+    const id = selectedId;
+    setSelectedId(null);
+    if (id !== null) {
+      rows.current?.querySelector<HTMLElement>(`[data-tool-id="${CSS.escape(id)}"]`)?.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (selectedId === null) {
+      return;
+    }
+    const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        close();
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  });
 
   return (
     <div className="flex h-full min-h-0 max-lg:flex-col">
@@ -94,7 +118,7 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
         {shown.length === 0 ? (
           <p className="p-3 text-sm text-text-muted">No tool matches these filters.</p>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+          <div ref={rows} className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
             <table className="w-full border-collapse text-left">
               <thead className="sticky top-0 z-10 bg-surface-0 text-2xs font-semibold tracking-label text-text-muted uppercase">
                 <tr className="border-b border-border-subtle">
@@ -116,6 +140,7 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
                       <button
                         type="button"
                         aria-pressed={tool.id === selectedId}
+                        data-tool-id={tool.id}
                         onClick={() => setSelectedId(tool.id)}
                         className="w-full cursor-pointer truncate rounded-sm px-1 py-1 text-left text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:bg-surface-3 aria-pressed:font-semibold"
                       >
@@ -138,6 +163,8 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
 
       {selected === undefined ? null : (
         <aside
+          ref={panel.ref}
+          onKeyDown={panel.onKeyDown}
           aria-label="Tool"
           className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto border-l border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full"
         >
@@ -145,7 +172,7 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
             key={selected.id}
             tool={selected}
             logo={selected.logo === null ? null : (catalog.logos[selected.logo] ?? null)}
-            onClose={() => setSelectedId(null)}
+            onClose={close}
             insertion={insertion}
           />
         </aside>
