@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Job, Pipeline } from "@keelson/core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { JobEditor } from "../../src/editing/JobEditor.tsx";
 import { NewJobForm } from "../../src/editing/NewJobForm.tsx";
@@ -256,6 +256,21 @@ describe("JobEditor — editing disabled", () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} disabled />);
     await userEvent.click(screen.getByRole("button", { name: /delete job/i }));
+    expect(drafts).toEqual([]);
+  });
+
+  test("a submission that bypasses the disabled controls still sends nothing", () => {
+    // `disabled` on every control is the first barrier, and the tests above only reach it. A
+    // form submission is not stopped by a disabled field: a change event and a programmatic
+    // submit reach the handlers directly, so only the second barrier, the editor's own check of
+    // `disabled`, stands between them and an operation.
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} disabled />);
+    const field = screen.getByRole("textbox", { name: /job id/i });
+    fireEvent.change(field, { target: { value: "renamed" } });
+    const form = field.closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
     expect(drafts).toEqual([]);
   });
 });

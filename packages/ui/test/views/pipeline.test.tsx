@@ -266,11 +266,19 @@ describe("selection", () => {
     expect(selected).toEqual(["lint"]);
   });
 
-  test("every node is reachable from the keyboard", async () => {
+  test("every node is in the tab order and takes focus", async () => {
+    // The node is a native button: it is in the tab order unless disabled or given a negative
+    // tabIndex. Tab traversal itself is proven in E2E (`keyboard.e2e.ts`).
     await renderCanvas(SAMPLE);
     for (const id of ["compile", "unit", "lint", "ship"]) {
-      const node = await screen.findByRole("button", { name: new RegExp(id) });
-      expect(node.getAttribute("tabindex")).not.toBe("-1");
+      const node = (await screen.findByRole("button", { name: new RegExp(id) })) as HTMLElement;
+      expect({ id, tabIndex: node.tabIndex, disabled: node.hasAttribute("disabled") }).toEqual({
+        id,
+        tabIndex: 0,
+        disabled: false,
+      });
+      node.focus();
+      expect(document.activeElement).toBe(node);
     }
   });
 });

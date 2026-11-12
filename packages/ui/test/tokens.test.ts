@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isConsumed } from "./consumption.ts";
+import { oklchLuminance } from "./oklch.ts";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceRoot = join(packageRoot, "src");
@@ -89,6 +91,38 @@ describe("no hard-coded design value outside the tokens file", () => {
   });
 });
 
+describe("oklch to WCAG relative luminance", () => {
+  /** The contrast guard used to take `L³` as the luminance. Exact for greys, it is optimistic for
+   *  chromatic colours: the 2026-10-23 audit measured `danger` on `surface-3` at 3.99:1 in Chromium
+   *  where `L³` gave 4.36:1. The conversion is now the exact one: oklch → oklab → linear sRGB. */
+  const ratio = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+  test("white and black are the ends of the scale", () => {
+    expect(oklchLuminance("oklch(1 0 0)")).toBeCloseTo(1, 4);
+    expect(oklchLuminance("oklch(0 0 0)")).toBeCloseTo(0, 6);
+  });
+
+  test("sRGB primaries land on their WCAG coefficients", () => {
+    expect(oklchLuminance("oklch(0.62796 0.25768 29.2339)")).toBeCloseTo(0.2126, 3);
+    expect(oklchLuminance("oklch(0.86644 0.29483 142.4953)")).toBeCloseTo(0.7152, 3);
+    expect(oklchLuminance("oklch(0.45201 0.31321 264.0520)")).toBeCloseTo(0.0722, 3);
+  });
+
+  test("danger on surface-3 measures what Chromium renders, not the L³ estimate", () => {
+    const danger = oklchLuminance("oklch(0.65 0.19 25)");
+    const surface = oklchLuminance("oklch(0.29 0.009 265)");
+    expect(Math.round(ratio(danger, surface) * 100) / 100).toBe(3.99);
+  });
+
+  test("a colour outside the sRGB gamut is clipped, as the browser renders it", () => {
+    expect(oklchLuminance("oklch(0.9 0.4 145)")).toBeLessThanOrEqual(1);
+  });
+
+  test("a value that is not oklch is refused", () => {
+    expect(() => oklchLuminance("#ffffff")).toThrow();
+  });
+});
+
 describe("WCAG 2.1 AA contrast", () => {
   /** `PRODUCT.md` commits to WCAG 2.1 AA without reservation, and the surface brief repeats it.
    *  The 2026-10-22 /impeccable audit pass found two failures: `border-default` outlined every
@@ -102,17 +136,12 @@ describe("WCAG 2.1 AA contrast", () => {
     ].map((match) => [match[1] as string, (match[2] as string).trim()]),
   );
 
-  /** Achromatic oklch: relative luminance tracks L³ closely enough for a ramp guard. */
   function luminance(token: string): number {
     const value = TOKENS.get(token);
     if (value === undefined) {
       throw new Error(`token missing from tokens.css: ${token}`);
     }
-    const lightness = /oklch\(\s*([\d.]+)/.exec(value)?.[1];
-    if (lightness === undefined) {
-      throw new Error(`${token} is not an oklch colour: ${value}`);
-    }
-    return Number(lightness) ** 3;
+    return oklchLuminance(value);
   }
 
   function contrast(foreground: string, background: string): number {
@@ -188,6 +217,52 @@ describe("text size floor", () => {
   }
 });
 
+describe("a token is consumed only by its exact utility class", () => {
+  /** The 2026-10-22 review reintroduced six dead tokens: the guard caught five, and let
+   *  `--duration-base` through because it searched the stem `base` as a word fragment and found
+   *  it in `text-base`. A token is now consumed by its full name, or by a utility class of its own
+   *  family whose name ends exactly on the stem. */
+  test("a stem shared with another family is not a consumer", () => {
+    expect(isConsumed("--duration-base", 'className="text-base"')).toBe(false);
+    expect(isConsumed("--text-base", 'className="duration-base"')).toBe(false);
+    expect(isConsumed("--radius-lg", 'className="text-lg"')).toBe(false);
+    expect(isConsumed("--shadow-md", 'className="rounded-md"')).toBe(false);
+  });
+
+  test("a stem inside a longer class name is not a consumer", () => {
+    expect(isConsumed("--text-sm", 'className="text-small"')).toBe(false);
+    expect(isConsumed("--color-accent", 'className="bg-accent-strong"')).toBe(false);
+    expect(isConsumed("--keelson-node-width", "var(--keelson-node-width-strong)")).toBe(false);
+  });
+
+  test("a stem in prose is not a consumer", () => {
+    expect(isConsumed("--color-accent", "// the accent colour")).toBe(false);
+    expect(isConsumed("--tracking-label", 'aria-label="Job"')).toBe(false);
+  });
+
+  test("each family is consumed by its own utilities", () => {
+    expect(isConsumed("--color-surface-1", 'className="hover:bg-surface-1/50"')).toBe(true);
+    expect(isConsumed("--color-border-subtle", 'className="border-b border-border-subtle"')).toBe(
+      true,
+    );
+    expect(isConsumed("--color-accent", 'className="outline-accent"')).toBe(true);
+    expect(isConsumed("--text-sm", 'className="text-sm"')).toBe(true);
+    expect(isConsumed("--font-weight-semibold", 'className="font-semibold"')).toBe(true);
+    expect(isConsumed("--font-mono", 'className="font-mono"')).toBe(true);
+    expect(isConsumed("--radius-md", 'className="rounded-t-md"')).toBe(true);
+    expect(isConsumed("--duration-fast", 'className="duration-fast"')).toBe(true);
+    expect(isConsumed("--ease-out", 'className="ease-out"')).toBe(true);
+    expect(isConsumed("--tracking-label", 'className="tracking-label"')).toBe(true);
+    expect(isConsumed("--spacing", 'className="gap-2"')).toBe(true);
+    expect(isConsumed("--spacing", 'className="-mt-0.5"')).toBe(true);
+  });
+
+  test("a token is consumed by its full name", () => {
+    expect(isConsumed("--keelson-node-width", "readToken('--keelson-node-width')")).toBe(true);
+    expect(isConsumed("--duration-fast", "transition: opacity var(--duration-fast)")).toBe(true);
+  });
+});
+
 describe("no token promised without a consumer", () => {
   /** `/impeccable document` found eleven tokens defined and never consumed: the file promised a
    *  richer system than what the front end renders. Two of them — the edge widths — were not
@@ -202,33 +277,25 @@ describe("no token promised without a consumer", () => {
     .map((file) => readFileSync(file, "utf8"))
     .join("\n");
 
-  /** Tailwind consumes `--color-surface-1` as `bg-surface-1`, and `--text-sm` as `text-sm`: we
-   *  look for the token's stem as much as its full name. */
   /** Tokens Tailwind reads itself, without any class naming them. List them here rather than
    *  weaken the guard: each entry must say which utility consumes it. */
   const IMPLICIT: Record<string, string> = {
     "--default-border-width": "read by Tailwind for the `border` class",
   };
 
-  function isConsumed(token: string): boolean {
-    if (token in IMPLICIT) {
-      return true;
+  test("a dead token of each family is caught against the real sources", () => {
+    for (const token of [
+      "--duration-base",
+      "--color-ghost",
+      "--text-3xl",
+      "--radius-xl",
+      "--shadow-md",
+      "--font-weight-bold",
+      "--keelson-unused-gap",
+    ]) {
+      expect({ token, consumed: isConsumed(token, consumers) }).toEqual({ token, consumed: false });
     }
-    if (consumers.includes(token)) {
-      return true;
-    }
-    // `--font-weight-semibold` is consumed as `font-semibold`, `--border-width-hairline` as
-    // `border-hairline`: the token family disappears from the utility class.
-    const stems = [
-      token.replace(/^--(color|text|font|radius|duration|shadow|tracking|ease|spacing)-?/, ""),
-      token.replace(/^--(font-weight|border-width|line-height)-/, ""),
-      token.replace(/^--/, ""),
-    ].filter((stem) => stem !== "");
-
-    return stems.some((stem) =>
-      new RegExp(`\\b[\\w-]*${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(consumers),
-    );
-  }
+  });
 
   test("the token list is read", () => {
     expect(declared.length).toBeGreaterThan(20);
@@ -242,7 +309,10 @@ describe("no token promised without a consumer", () => {
 
   for (const token of declared.filter((name) => !name.includes("--line-height"))) {
     test(`${token} is consumed`, () => {
-      expect({ token, consumed: isConsumed(token) }).toEqual({ token, consumed: true });
+      expect({ token, consumed: token in IMPLICIT || isConsumed(token, consumers) }).toEqual({
+        token,
+        consumed: true,
+      });
     });
   }
 });
