@@ -46,6 +46,40 @@ describe("reading toolchain.yaml", () => {
     expect(toolchain.dismissed).toEqual([{ job: "scan", tool: "sentry", kind: "notify" }]);
   });
 
+  test("a service id is the key's text: `007` and `0x10` stay as written", () => {
+    const { toolchain, diagnostics } = parseToolchain(
+      "version: 1\nservices:\n  007:\n    tool: x\n  0x10:\n    tool: y\n  7:\n    tool: z\n",
+    );
+    expect(diagnostics).toEqual([]);
+    expect(toolchain.services.map((service) => service.id)).toEqual(["007", "0x10", "7"]);
+  });
+
+  test("services keep file order, integer keys included", () => {
+    const { toolchain } = parseToolchain(
+      "version: 1\nservices:\n  b:\n    tool: x\n  8080:\n    tool: y\n",
+    );
+    expect(toolchain.services.map((service) => service.id)).toEqual(["b", "8080"]);
+  });
+
+  test('`~` and `"null"` are two keys: `~` is reported as unusable, not as a duplicate', () => {
+    const { diagnostics } = parseToolchain(
+      'version: 1\nservices:\n  ~:\n    tool: x\n  "null":\n    tool: y\n',
+    );
+    expect(diagnostics[0]?.params).toEqual({ detail: "services: ~ is not a usable service id" });
+  });
+
+  test("a quoted key and the same plain text are the same id", () => {
+    const { diagnostics } = parseToolchain(
+      'version: 1\nservices:\n  null:\n    tool: x\n  "null":\n    tool: y\n',
+    );
+    expect(JSON.stringify(diagnostics[0]?.params)).toContain("Map keys must be unique");
+  });
+
+  test("an invalid service is reported under its written id", () => {
+    const { diagnostics } = parseToolchain("version: 1\nservices:\n  007:\n    url: x\n");
+    expect(JSON.stringify(diagnostics[0]?.params)).toContain('"detail":"services.007.tool: ');
+  });
+
   test("an empty section equals a missing section", () => {
     expect(parseToolchain("version: 1\nservices:\nintegrations: []\n").diagnostics).toEqual([]);
   });
