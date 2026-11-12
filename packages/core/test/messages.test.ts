@@ -272,7 +272,7 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     { params: { reason: "schema", path: "", detail: "Invalid input" }, text: "Invalid input" },
     {
       params: { reason: "flowStyleJob", job: "unit" },
-      text: 'job "unit" is written in flow style, in-place editing is not supported',
+      text: 'job "unit" sits in a top-level map written in flow style, in-place editing is not supported',
     },
     {
       params: { reason: "jobWithoutScript" },

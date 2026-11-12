@@ -175,13 +175,93 @@ function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target
     return fail(JOB_NOT_FOUND, { job: id });
   }
 
-  if (map.flow === true) {
-    // DEBT(2026-10-20): jobs written in flow style ({ … }) are not editable
-    // — patching in place would assume a line-based rendering. See specs/gaps.md (2026-10-20), milestone to be defined.
+  if (root.flow === true) {
     return fail(INVALID_OPERATION, { reason: "flowStyleJob", job: id });
   }
 
   return ok({ pair, map });
+}
+
+function isFlowJob(target: Target): boolean {
+  return target.map.flow === true;
+}
+
+/** A pair of a flow map, from its key to the end of its value, separators excluded. */
+function flowPairSpan(pair: Pair<unknown, unknown>): SourceRange | null {
+  const key = nodeRange(pair.key as AnyNode);
+  if (key === undefined) {
+    return null;
+  }
+  return { start: key[0], end: nodeRange(pair.value as AnyNode)?.[1] ?? key[1] };
+}
+
+/** A new entry goes last in a flow map: after every merge key, where Psych lets it win. */
+function flowInsertion(target: Target, entry: string): Splice | null {
+  const last = localPairs(target.map).at(-1);
+  if (last === undefined) {
+    const open = nodeRange(target.map)?.[0];
+    return open === undefined ? null : { start: open + 1, end: open + 1, text: entry };
+  }
+  const end = flowPairSpan(last)?.end;
+  return end === undefined ? null : { start: end, end, text: `, ${entry}` };
+}
+
+/** Removes a pair of a flow map with one of its separators. A comment between two entries stays:
+ *  only the separator is taken with the pair then. */
+function flowRemoval(text: string, target: Target, pair: Pair<unknown, unknown>): Splice | null {
+  const pairs = localPairs(target.map);
+  const position = pairs.indexOf(pair);
+  const span = flowPairSpan(pair);
+  if (span === null || position === -1) {
+    return null;
+  }
+  const next = pairs[position + 1];
+  const nextStart = next === undefined ? undefined : flowPairSpan(next)?.start;
+  if (nextStart !== undefined) {
+    const gap = text.slice(span.end, nextStart);
+    if (!gap.includes("#")) {
+      return { start: span.start, end: nextStart, text: "" };
+    }
+    const comma = gap.indexOf(",");
+    const spaces = /^[ \t]*/.exec(gap.slice(comma + 1))?.[0].length ?? 0;
+    return comma === -1
+      ? null
+      : { start: span.start, end: span.end + comma + 1 + spaces, text: "" };
+  }
+  const previous = pairs[position - 1];
+  const previousEnd = previous === undefined ? undefined : flowPairSpan(previous)?.end;
+  if (previousEnd !== undefined && !text.slice(previousEnd, span.start).includes("#")) {
+    return { start: previousEnd, end: span.end, text: "" };
+  }
+  const ownLine = lineStart(text, span.start);
+  if (previousEnd !== undefined && linePrefix(text, span.start).trim() === "" && ownLine > 0) {
+    const eol = text[ownLine - 2] === "\r" ? 2 : 1;
+    return { start: ownLine - eol, end: span.end, text: "" };
+  }
+  return { ...span, text: "" };
+}
+
+function flowEntry(
+  splice: Splice | null,
+  reason: "needsKey" | "environmentKey" | "stageKey",
+): Planned {
+  return splice === null ? fail(RANGE_OUT_OF_BOUNDS, { reason }) : ok([splice]);
+}
+
+function renderFlowNeeds(needs: readonly Need[]): string {
+  return `needs: [${needs.map(renderFlowNeed).join(", ")}]`;
+}
+
+function renderFlowEnvironment(environment: EnvironmentInput): string {
+  if (environment.url === undefined && environment.action === undefined) {
+    return `environment: ${scalarText(environment.name)}`;
+  }
+  const fields = [
+    `name: ${scalarText(environment.name)}`,
+    ...(environment.url === undefined ? [] : [`url: ${scalarText(environment.url)}`]),
+    ...(environment.action === undefined ? [] : [`action: ${scalarText(environment.action)}`]),
+  ];
+  return `environment: { ${fields.join(", ")} }`;
 }
 
 /** After the job's key, and after its last merge key: Psych lets a later write win, so an
@@ -472,6 +552,12 @@ function planSetJobStage(
     return ok([{ start: keyStart, end, text: `stage: ${scalarText(operation.stage)}` }]);
   }
 
+  if (isFlowJob(located.value)) {
+    return flowEntry(
+      flowInsertion(located.value, `stage: ${scalarText(operation.stage)}`),
+      "stageKey",
+    );
+  }
   const at = overrideInsertAt(geometry, located.value);
   return ok([
     {
@@ -533,6 +619,12 @@ function planAddNeed(
     if (rewritesUnmodelled(pipeline, operation.id)) {
       return unmodelledRefusal(operation.id);
     }
+    if (isFlowJob(located.value)) {
+      return flowEntry(
+        flowInsertion(located.value, renderFlowNeeds([...current, added])),
+        "needsKey",
+      );
+    }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
       {
@@ -568,6 +660,10 @@ function planAddNeed(
   }
 
   if (last === undefined) {
+    if (isFlowJob(located.value)) {
+      const span = flowPairSpan(local);
+      return flowEntry(span && { ...span, text: renderFlowNeeds([added]) }, "needsKey");
+    }
     const range = pairLineRange(text, local);
     return range === null
       ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
@@ -629,6 +725,9 @@ function planRemoveNeed(
   }
 
   if (local === undefined) {
+    if (isFlowJob(located.value)) {
+      return flowEntry(flowInsertion(located.value, renderFlowNeeds(remaining)), "needsKey");
+    }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
       {
@@ -645,6 +744,9 @@ function planRemoveNeed(
   if (remaining.length === 0) {
     if (seqItems(local.value as AnyNode).some(anchored)) {
       return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
+    }
+    if (isFlowJob(located.value)) {
+      return flowEntry(flowRemoval(geometry.text, located.value, local), "needsKey");
     }
     const range = pairLineRange(geometry.text, local);
     return range === null
@@ -699,8 +801,20 @@ function planSetEnvironment(
   const local = localPair(located.value.map, "environment");
   const inherited = pipeline.jobs.find((job) => job.id === operation.id)?.environment ?? null;
 
+  const flow = isFlowJob(located.value);
   if (operation.environment === null) {
     const cancel = (pad: string) => `${pad}environment: null${geometry.eol}`;
+    if (local !== undefined && flow) {
+      const removal = flowRemoval(geometry.text, located.value, local);
+      const span = flowPairSpan(local);
+      if (removal === null || span === null) {
+        return fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" });
+      }
+      const removed = applySplices(geometry.text, [removal]).text;
+      const resurfaces =
+        geometry.reparse(removed).jobs.find((job) => job.id === operation.id)?.environment !== null;
+      return ok([resurfaces ? { ...span, text: "environment: null" } : removal]);
+    }
     if (local !== undefined) {
       const range = pairLineRange(geometry.text, local);
       const keyStart = nodeRange(local.key as AnyNode)?.[0];
@@ -716,6 +830,9 @@ function planSetEnvironment(
     }
     if (inherited !== null) {
       // GitLab: “to exclude a key from the extended content, assign it to null”.
+      if (flow) {
+        return flowEntry(flowInsertion(located.value, "environment: null"), "environmentKey");
+      }
       const at = overrideInsertAt(geometry, located.value);
       return ok([{ start: at, end: at, text: cancel(geometry.indent) }]);
     }
@@ -723,6 +840,15 @@ function planSetEnvironment(
   }
 
   const environment = operation.environment;
+
+  if (flow) {
+    const span = local === undefined ? null : flowPairSpan(local);
+    const entry = renderFlowEnvironment(environment);
+    return flowEntry(
+      local === undefined ? flowInsertion(located.value, entry) : span && { ...span, text: entry },
+      "environmentKey",
+    );
+  }
 
   if (local !== undefined) {
     const range = pairLineRange(geometry.text, local);

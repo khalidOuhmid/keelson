@@ -112,7 +112,7 @@ export const EN: Catalogue = {
     // `detail` comes from zod, in English. `path` locates it in the received operation.
     schema: (p) => (p.path === "" ? p.detail : `${p.path}: ${p.detail}`),
     flowStyleJob: (p) =>
-      `job ${quoted(p.job)} is written in flow style, in-place editing is not supported`,
+      `job ${quoted(p.job)} sits in a top-level map written in flow style, in-place editing is not supported`,
     jobWithoutScript: () => "an added job must have at least one script line",
     sharedValue: (p) =>
       `the ${p.key} of ${quoted(p.job)} comes through an anchor or a !reference that Keelson cannot rewrite in place`,
