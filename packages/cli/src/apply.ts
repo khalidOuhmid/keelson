@@ -13,12 +13,18 @@ import {
   TOOLCHAIN_FILE,
 } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
-import { adapterFor, blockedParent, withFileLock, writeInsideRoot } from "@keelson/server";
+import {
+  adapterFor,
+  blockedParent,
+  isNestedWorkflow,
+  withFileLock,
+  writeInsideRoot,
+} from "@keelson/server";
 import { applyToolchain } from "@keelson/toolchain";
 import { DEFAULT_FILE } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
 import { hunks, renderUnified } from "./diff.ts";
-import { readInside, refusalMessage } from "./files.ts";
+import { nestedWorkflowMessage, readInside, refusalMessage } from "./files.ts";
 import type { CliResult } from "./result.ts";
 
 type Options = {
@@ -140,10 +146,14 @@ function parseArguments(argv: readonly string[]): Options | CliResult {
     return usage("expected an operations file: keelson apply <ops.json> [<repo-dir>...]");
   }
 
+  const file = parsed.values.file ?? DEFAULT_FILE;
+  if (isNestedWorkflow(file)) {
+    return usage(nestedWorkflowMessage(file));
+  }
   return {
     operations,
     repositories,
-    file: parsed.values.file ?? DEFAULT_FILE,
+    file,
     rebase: parsed.values.rebase ?? false,
     dryRun: parsed.values["dry-run"] ?? false,
     json: parsed.values.json ?? false,
@@ -202,7 +212,13 @@ function readTarget(root: string, file: string, target: Target): Read {
     return { ok: false, message: `${blocked} is not a directory` };
   }
   return target.whenAbsent === null
-    ? { ok: false, message: `file not found: ${file}` }
+    ? {
+        ok: false,
+        message:
+          file === DEFAULT_FILE
+            ? `file not found: ${file} (for a workflow, pass --file .github/workflows/<name>.yml)`
+            : `file not found: ${file}`,
+      }
     : { ok: true, text: target.whenAbsent };
 }
 

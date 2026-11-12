@@ -9,6 +9,7 @@ logo: owasp
 detect:
   images: ['owasp/dependency-check']
   scripts: ['\bdependency-check(\.sh)?\b']
+  actions: ['dependency-check/Dependency-Check_Action']
 snippets:
   gitlab: |
     dependency-check:
@@ -21,4 +22,4 @@ snippets:
   github: |
     - name: Run OWASP Dependency-Check
       run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" owasp/dependency-check:latest /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .
-lastVerified: 2026-11-04
+lastVerified: 2026-11-12

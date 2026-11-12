@@ -239,9 +239,11 @@ export function App({ deps }: AppProps = {}) {
         void toolchainStore.getState().changed(event.hash);
         return;
       }
+      const elsewhere = event.kind !== "workspace.changed" && event.file !== store.getState().file;
       void store.getState().serverEvent(event);
-      // `layout.json` may have changed: positions written by someone else arrive here.
-      if (event.kind === "coverage.changed") {
+      // `layout.json` may have changed: positions written by someone else arrive here. A file that
+      // is not open never moves `state.hash`, yet its jobs are the toolchain's too.
+      if (event.kind === "coverage.changed" || event.kind === "workspace.changed" || elsewhere) {
         void toolchainStore.getState().refresh();
       }
     });

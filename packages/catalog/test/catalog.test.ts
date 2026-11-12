@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { apply as applyGithub, parse as parseGithub } from "@keelson/adapter-github";
 import { parse as parseGitlab } from "@keelson/adapter-gitlab";
 import { LAYERS } from "@keelson/taxonomy";
 import * as icons from "simple-icons";
@@ -137,6 +138,26 @@ describe("snippets", () => {
   /** The invariant that ties both halves of an entry together: the proposed snippet must be
    *  recognised by the same tool's detection. Otherwise inserting a tool would leave its layer
    *  uncovered. */
+  test("every GitHub snippet, inserted as a job, is detected as its own tool", () => {
+    for (const tool of tools.filter((entry) => entry.snippets.github !== null)) {
+      const base = parseGithub("on: push\n", { file: ".github/workflows/ci.yml" });
+      const inserted = applyGithub(base.document, {
+        v: 1,
+        baseHash: base.hash,
+        kind: "addSnippet",
+        id: "added",
+        stage: "",
+        snippet: tool.snippets.github ?? "",
+      });
+      const job = inserted.ok ? inserted.value.pipeline.jobs[0] : undefined;
+      const detected = job === undefined ? [] : detectTools(job.signals, tools).map((d) => d.tool);
+      expect({ tool: tool.id, found: detected.includes(tool.id) }).toEqual({
+        tool: tool.id,
+        found: true,
+      });
+    }
+  });
+
   test("every GitLab snippet parses and is detected as its own tool", () => {
     for (const tool of tools.filter((entry) => entry.snippets.gitlab !== null)) {
       const parsed = parseGitlab(tool.snippets.gitlab ?? "");

@@ -188,6 +188,15 @@ describe("the real catalogue entries", () => {
     ).not.toContain("trivy");
   });
 
+  test("an empty string before a quoted argument does not swallow the words between them", () => {
+    expect(
+      found({
+        image: null,
+        script: ['docker run --entrypoint "" getsentry/sentry-cli:latest sentry-cli x "$SHA"'],
+      }),
+    ).toContain("sentry");
+  });
+
   test("every GitLab snippet image is recognised by its own entry", () => {
     const missed = catalog.tools.flatMap((tool) => {
       const snippet = tool.snippets.gitlab;
@@ -395,6 +404,13 @@ describe("GitHub actions", () => {
     expect(found({ image: null, actions: ["github/codeql-action/analyze@v3"] })).toContain(
       "codeql",
     );
+  });
+
+  test.each([
+    ["securego/gosec@v2", "gosec"],
+    ["dependency-check/Dependency-Check_Action@main", "dependency-check"],
+  ])("the official action %s is detected as %s", (action, id) => {
+    expect(found({ image: null, actions: [action] })).toEqual([id]);
   });
 
   test("a docker:// counts as an image, even behind a container", () => {

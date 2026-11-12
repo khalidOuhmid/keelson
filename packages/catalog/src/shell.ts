@@ -338,7 +338,9 @@ function resolved(raw: string, depth: number): string[] {
 
   const first = command.split(/\s+/, 1)[0] ?? "";
   // A quoted string containing a space is a sentence, not a path or a URL to detect.
-  const words = command.replace(/"[^"]*\s[^"]*"|'[^']*\s[^']*'/g, '""');
+  const words = command.replace(/"[^"]*"|'[^']*'/g, (quoted) =>
+    /\s/.test(quoted) ? '""' : quoted,
+  );
   return INERT.has(first) || LISTS.has(first) || first.startsWith("#") || INSTALLING.test(command)
     ? []
     : [words];

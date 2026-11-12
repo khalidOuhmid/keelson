@@ -52,3 +52,7 @@ export function refusalMessage(reason: Refusal, file: string): string {
       return `${file} cannot be read: it is not a UTF-8 file, or not readable`;
   }
 }
+
+export function nestedWorkflowMessage(file: string): string {
+  return `${file} is not a workflow GitHub runs: workflows sit directly in .github/workflows`;
+}

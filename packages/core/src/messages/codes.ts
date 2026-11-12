@@ -2,6 +2,7 @@ export const INVALID_YAML = "INVALID_YAML";
 export const INCLUDE_UNRESOLVED = "INCLUDE_UNRESOLVED";
 export const WORKFLOW_UNRESOLVED = "WORKFLOW_UNRESOLVED";
 export const WORKFLOW_CALL_INVALID = "WORKFLOW_CALL_INVALID";
+export const WORKFLOW_JOB_INVALID = "WORKFLOW_JOB_INVALID";
 export const INCLUDE_NOT_FOUND = "INCLUDE_NOT_FOUND";
 export const INCLUDE_CYCLE = "INCLUDE_CYCLE";
 export const INCLUDE_LIMIT_EXCEEDED = "INCLUDE_LIMIT_EXCEEDED";
@@ -37,6 +38,7 @@ export const DIAGNOSTIC_CODES = [
   INCLUDE_UNRESOLVED,
   WORKFLOW_UNRESOLVED,
   WORKFLOW_CALL_INVALID,
+  WORKFLOW_JOB_INVALID,
   INCLUDE_NOT_FOUND,
   INCLUDE_CYCLE,
   INCLUDE_LIMIT_EXCEEDED,
@@ -162,6 +164,7 @@ export type MessageParams = {
     | { reason: "cycle"; job: string; trail: string[] }
     | { reason: "depth"; job: string; path: string; limit: number }
     | { reason: "limit"; job: string; path: string; limit: number };
+  WORKFLOW_JOB_INVALID: { reason: "notMap"; job: string } | { reason: "needs"; job: string };
   INCLUDE_NOT_FOUND:
     | { reason: "missing"; path: string }
     | { reason: "notYaml"; path: string }

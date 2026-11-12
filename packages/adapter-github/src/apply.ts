@@ -564,6 +564,14 @@ function planAddNeed(operation: AddNeedOperation, geometry: Geometry): Planned {
     const [start, end] = rangeOf(value);
     return ok([{ start, end, text: `[${scalar(value.value)}, ${scalar(job)}]` }]);
   }
+  if (value === null || (isScalar(value) && value.value === null && value.anchor === undefined)) {
+    const [start, end] = rangeOf(value);
+    if (end > start) {
+      return ok([{ start, end, text: scalar(job) }]);
+    }
+    const at = text.indexOf(":", rangeOf(pair.key)[1]) + 1;
+    return ok([{ start: at, end: at, text: ` ${scalar(job)}` }]);
+  }
   if (!isSeq(value) || value.anchor !== undefined) {
     return shared(operation.id, "needs");
   }
@@ -589,6 +597,30 @@ function planAddNeed(operation: AddNeedOperation, geometry: Geometry): Planned {
   const at = lineEnd(text, contentEnd(text, last));
   const tail = at === text.length && !text.endsWith("\n") ? eol : "";
   return ok([{ start: at, end: at, text: `${tail}${prefix}${scalar(job)}${eol}` }]);
+}
+
+/** Removes the item and one separator, so a list written over several lines keeps its layout. A
+ *  repeated item falls back to rewriting the list. */
+function removeFlowItem(items: readonly unknown[], job: string, list: Node): Planned | null {
+  const matches = items.filter((entry) => isScalar(entry) && entry.value === job);
+  if (matches.length !== 1) {
+    const [start, end] = rangeOf(list);
+    const rest = items.flatMap((entry) =>
+      isScalar(entry) && typeof entry.value === "string" && entry.value !== job
+        ? [entry.value]
+        : [],
+    );
+    return ok([{ start, end, text: `[${rest.map(scalar).join(", ")}]` }]);
+  }
+  const index = items.indexOf(matches[0]);
+  const next = items[index + 1];
+  const previous = items[index - 1];
+  if (next !== undefined) {
+    return ok([{ start: rangeOf(matches[0])[0], end: rangeOf(next)[0], text: "" }]);
+  }
+  return previous === undefined
+    ? null
+    : ok([{ start: rangeOf(previous)[1], end: rangeOf(matches[0])[1], text: "" }]);
 }
 
 function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Planned {
@@ -625,8 +657,7 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
     return shared(operation.id, "needs");
   }
   if (value.flow === true) {
-    const [start, end] = rangeOf(value);
-    return ok([{ start, end, text: `[${remaining.map(scalar).join(", ")}]` }]);
+    return removeFlowItem(value.items, operation.job, value) ?? shared(operation.id, "needs");
   }
   const item = value.items.find((entry) => isScalar(entry) && entry.value === operation.job);
   if (item === undefined) {
@@ -639,6 +670,12 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
       text: "",
     },
   ]);
+}
+
+/** The `# …` that ends the line after `offset`, with the spaces before it. */
+function trailingComment(text: string, offset: number): string {
+  const rest = text.slice(offset, lineEnd(text, offset)).replace(/\r?\n$/, "");
+  return /^\s+#/.test(rest) ? rest.trimEnd() : "";
 }
 
 function planSetEnvironment(operation: SetEnvironmentOperation, geometry: Geometry): Planned {
@@ -668,7 +705,10 @@ function planSetEnvironment(operation: SetEnvironmentOperation, geometry: Geomet
   }
   const indent = column(text, rangeOf(first.key)[0]);
   if (pair !== undefined) {
-    return ok([{ ...pairSpan(text, pair), text: indented(lines, indent, eol) }]);
+    const span = pairSpan(text, pair);
+    const kept = isScalar(pair.value) ? trailingComment(text, rangeOf(pair.value)[1]) : "";
+    const [head = "", ...rest] = lines;
+    return ok([{ ...span, text: indented([`${head}${kept}`, ...rest], indent, eol) }]);
   }
   const at = lineEnd(text, contentEnd(text, map));
   const tail = at === text.length && !text.endsWith("\n") ? eol : "";
@@ -935,6 +975,12 @@ export function apply(
     pipeline: before.pipeline,
     values: readValues(document.yaml),
   };
+  if (isAlias(jobsPair(geometry)?.value) && op.kind !== "splice") {
+    return err({
+      code: INVALID_OPERATION,
+      params: { reason: "sharedValue", job: "jobs", key: "jobs" },
+    });
+  }
   const planned = planFor(op, geometry);
   if (!planned.ok) {
     return planned;

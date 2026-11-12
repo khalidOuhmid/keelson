@@ -35,6 +35,12 @@ export const EN: Catalogue = {
     limit: (p) =>
       `job ${quoted(p.job)} calls ${quoted(p.path)} beyond ${p.limit} unique reusable workflows, which GitHub refuses`,
   },
+  WORKFLOW_JOB_INVALID: {
+    notMap: (p) =>
+      `job ${quoted(p.job)} is not a map of keys, so GitHub refuses the workflow and Keelson does not show it`,
+    needs: (p) =>
+      `the needs of job ${quoted(p.job)} are neither a job name nor a list of job names, so GitHub refuses the workflow`,
+  },
   INCLUDE_NOT_FOUND: {
     missing: (p) => `included file ${quoted(p.path)} does not exist`,
     notYaml: (p) => `included file ${quoted(p.path)} is not a .yml or .yaml file`,

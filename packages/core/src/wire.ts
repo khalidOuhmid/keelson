@@ -31,6 +31,7 @@ export const PARAMS_SCHEMAS = {
     reason("depth", { job: text, path: text, limit: count }),
     reason("limit", { job: text, path: text, limit: count }),
   ),
+  WORKFLOW_JOB_INVALID: reasons(reason("notMap", { job: text }), reason("needs", { job: text })),
   INCLUDE_NOT_FOUND: reasons(
     reason("missing", { path: text }),
     reason("notYaml", { path: text }),
