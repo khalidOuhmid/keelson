@@ -266,8 +266,9 @@ an exception: an exception can only signal a Keelson bug.
 | `readsOwnId` | `job` | GitHub Actions, `renameJob` only: the job reads its own id at run time — `github.job` in an expression or `GITHUB_JOB` in a value — and its old name appears as a word in its own values, as in `test "$GITHUB_JOB" = build` or `if: github.job == 'build'`. A shell script cannot read `needs` or `jobs` except through an expression, which the two reasons above already read: this is the one way a script names a job outside `${{ }}`. Reading the id without naming the job, as in a cache key, blocks nothing. |
 | `notForProvider` | `operation` | GitHub Actions: the operation is meaningless, for lack of stages or need options. |
 | `invalidLayout` | — | **Server**: `layout.json` is not readable. Keelson does not overwrite what it does not understand. |
-| `outsideRoot` | `path` | **Server**: `.devsecops` leads outside the repository. Nothing is written. |
+| `outsideRoot` | `path` | **Server**: `.devsecops`, or the target of a linked main document, leads outside the repository. Nothing is written. |
 | `noRootMap` | — | The file has no YAML map at its root, and the operation is not a `splice`. |
+| `notUtf8` | `file` | **Server**: the document's bytes are not valid UTF-8. Decoding would replace them, and writing back the decoded text would change bytes outside the touched range: the operation and its preview are refused. A literal U+FFFD in a valid UTF-8 file is not refused. |
 | `wouldBreakYaml` | `operation` | The resulting text would be invalid YAML; nothing was written. |
 | `unreadableBody` | — | **Server**: the request body is not readable JSON. |
 | `missingOpId` | — | **Server**: `opId` missing or empty. |

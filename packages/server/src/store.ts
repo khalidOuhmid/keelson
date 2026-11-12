@@ -1,3 +1,5 @@
+import { readFile, realpath } from "node:fs/promises";
+import { sep } from "node:path";
 import { createFileReader, type IncludeReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type {
@@ -10,7 +12,7 @@ import type {
   SpliceOperation,
 } from "@keelson/core";
 import { mergePipelines, parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
+import { INVALID_OPERATION, NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { adapterFor } from "./adapters.ts";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
@@ -82,6 +84,29 @@ export type StoreResponse = {
   body: OperationBody | ErrorBody;
 };
 
+export type WrittenEvent = { file: string; hash: string; opId: string };
+
+const STRICT_UTF8 = new TextDecoder("utf-8", { fatal: true });
+
+/** Where a write must go: the target of an internal link, never the link itself, which a `rename`
+ *  would replace with a regular file. `null` if the target leaves the root. */
+async function writeTarget(root: string, absolute: string): Promise<string | null> {
+  const realRoot = await realpath(root);
+  const target = await realpath(absolute).catch(() => absolute);
+  return target.startsWith(`${realRoot}${sep}`) ? target : null;
+}
+
+/** The decoder replaces invalid bytes: writing the decoded text back would change bytes outside
+ *  the touched range. */
+async function isUtf8(path: string): Promise<boolean> {
+  try {
+    STRICT_UTF8.decode(await readFile(path));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 type Loaded = {
   absolute: string;
   text: string;
@@ -107,9 +132,12 @@ export class DocumentStore {
    *  included file would always be missed. */
   private readonly loadedListeners = new Set<() => void>();
 
+  private readonly writtenListeners = new Set<(event: WrittenEvent) => void>();
+
   constructor(
     private readonly root: string,
     private files: readonly WorkspaceFile[],
+    private readonly write: (path: string, text: string) => Promise<void> = writeAtomic,
   ) {
     this.reader = createFileReader(root);
   }
@@ -200,6 +228,15 @@ export class DocumentStore {
     };
   }
 
+  /** Notified after each write of an operation, so that the other tabs learn about it: the watcher
+   *  stays silent on the server's own writes. */
+  onWritten(listener: (event: WrittenEvent) => void): () => void {
+    this.writtenListeners.add(listener);
+    return () => {
+      this.writtenListeners.delete(listener);
+    };
+  }
+
   onLoaded(listener: () => void): () => void {
     this.loadedListeners.add(listener);
     return () => {
@@ -272,6 +309,11 @@ export class DocumentStore {
 
     const response = await this.executeOperation(file, operation);
     this.remember(file, opId, response);
+    if (response.status === 200 && "hash" in response.body) {
+      for (const listener of this.writtenListeners) {
+        listener({ file, hash: response.body.hash, opId });
+      }
+    }
     return response;
   }
 
@@ -329,6 +371,20 @@ export class DocumentStore {
       };
     }
 
+    const target = await writeTarget(this.root, current.absolute);
+    if (target === null) {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: file } },
+      };
+    }
+    if (!(await isUtf8(target))) {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "notUtf8", file } },
+      };
+    }
+
     const adapter = adapterFor(file);
     const parsed = adapter.parse(current.text, { file, read: this.reader });
     const result = adapter.apply(parsed, validated.value);
@@ -364,8 +420,8 @@ export class DocumentStore {
       };
     }
 
-    await writeAtomic(current.absolute, result.value.text);
-
+    // Recorded before the rename: the watcher may see the new text before this write returns, and
+    // must recognise it as the server's own.
     this.loaded.set(file, {
       absolute: current.absolute,
       text: result.value.text,
@@ -378,6 +434,12 @@ export class DocumentStore {
       // against a hash the client never received.
       hash: result.value.hash,
     });
+    try {
+      await this.write(target, result.value.text);
+    } catch (error) {
+      this.loaded.set(file, current);
+      throw error;
+    }
 
     return {
       status: 200,

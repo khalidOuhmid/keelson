@@ -326,6 +326,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
     { params: { reason: "noRootMap" }, text: "this file has no YAML map at its root" },
     {
+      params: { reason: "notUtf8", file: ".gitlab-ci.yml" },
+      text: '".gitlab-ci.yml" is not UTF-8 text, Keelson does not rewrite it',
+    },
+    {
       params: { reason: "wouldBreakYaml", operation: "renameJob" },
       text: "operation renameJob would produce invalid YAML, nothing was written",
     },

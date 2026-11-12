@@ -132,6 +132,7 @@ export const EN: Catalogue = {
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,
     noRootMap: () => "this file has no YAML map at its root",
+    notUtf8: (p) => `${quoted(p.file)} is not UTF-8 text, Keelson does not rewrite it`,
     wouldBreakYaml: (p) =>
       `operation ${p.operation} would produce invalid YAML, nothing was written`,
     unreadableBody: () => "request body is not readable JSON",

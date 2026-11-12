@@ -5,12 +5,18 @@ import { createFileReader } from "@keelson/adapter-gitlab";
 
 export type AdapterName = "gitlab" | "github";
 
+/** `DocumentStore` reads a main file through the include reader, which only opens YAML: an
+ *  adapter for another format needs its own reader before this type can widen. */
+export type YamlPath = `${string}.yml` | `${string}.yaml`;
+
 export type WorkspaceFile = {
-  path: string;
+  path: YamlPath;
   adapter: AdapterName;
 };
 
 export const GITLAB_CI_FILE = ".gitlab-ci.yml";
+
+const isYamlPath = (path: string): path is YamlPath => /\.ya?ml$/.test(path);
 
 export function detectWorkspace(root: string): WorkspaceFile[] {
   const reader = createFileReader(root);
@@ -24,8 +30,8 @@ export function detectWorkspace(root: string): WorkspaceFile[] {
     names = [];
   }
   const github = names
-    .filter((name) => /\.ya?ml$/.test(name))
     .map((name) => `${WORKFLOWS_DIR}/${name}`)
+    .filter(isYamlPath)
     .filter((path) => reader.read(path) !== null)
     .map((path): WorkspaceFile => ({ path, adapter: "github" }));
 

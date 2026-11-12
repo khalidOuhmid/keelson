@@ -225,6 +225,7 @@ export type MessageParams = {
     | { reason: "readsOwnId"; job: string }
     | { reason: "outsideRoot"; path: string }
     | { reason: "noRootMap" }
+    | { reason: "notUtf8"; file: string }
     | { reason: "wouldBreakYaml"; operation: string }
     | { reason: "unreadableBody" }
     | { reason: "missingOpId" }
