@@ -44,7 +44,7 @@ const GITLAB: Adapter = {
 };
 
 const GITHUB: Adapter = {
-  parse: (text, { file }) => parseGithub(text, { file }),
+  parse: (text, options) => parseGithub(text, options),
   apply: (parsed, operation) => applyGithub(parsed.document as never, operation),
 };
 

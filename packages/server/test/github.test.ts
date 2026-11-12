@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
 import { createServer, type KeelsonServer } from "../src/index.ts";
+import { DocumentStore } from "../src/store.ts";
+import { type DocumentEvent, watchDocuments } from "../src/watcher.ts";
 import { detectWorkspace } from "../src/workspace.ts";
 
 const CI =
@@ -158,5 +160,57 @@ describe("GitHub documents", () => {
     );
     const body = (await (await api("/api/toolchain")).json()) as { diagnostics: unknown[] };
     expect(body.diagnostics).toEqual([]);
+  });
+});
+
+describe("a local reusable workflow", () => {
+  const CALLER =
+    "on: push\njobs:\n  scans:\n    uses: ./.github/workflows/scans.yml\n  deploy:\n    needs: scans\n    runs-on: x\n    steps:\n      - run: ./deploy\n";
+  const SCANS =
+    "on: workflow_call\njobs:\n  leaks:\n    runs-on: x\n    steps:\n      - run: gitleaks detect\n";
+
+  test("is read through the bounded reader: the calling job covers what it runs", async () => {
+    writeFileSync(join(root, ".github/workflows/caller.yml"), CALLER);
+    writeFileSync(join(root, ".github/workflows/scans.yml"), SCANS);
+    await server.close();
+    server = await createServer({ root, port: 0 });
+    const body = (await (await api(documentPath(".github/workflows/caller.yml"))).json()) as {
+      pipeline: { files: string[]; unresolved: unknown[] };
+      coverage: { jobs: { job: string; layers: string[] }[] };
+      included: Record<string, string>;
+    };
+    expect(body.coverage.jobs.find((entry) => entry.job === "scans")?.layers).toContain("secrets");
+    expect(body.pipeline.files).toEqual([
+      ".github/workflows/caller.yml",
+      ".github/workflows/scans.yml",
+    ]);
+    expect(body.pipeline.unresolved).toEqual([]);
+    expect(body.included).toEqual({ ".github/workflows/scans.yml": SCANS });
+  });
+
+  test("a called workflow that is also a workspace file reloads its caller and itself", async () => {
+    writeFileSync(join(root, ".github/workflows/caller.yml"), CALLER);
+    writeFileSync(join(root, ".github/workflows/scans.yml"), SCANS);
+    const store = new DocumentStore(root, detectWorkspace(root));
+    await store.load(".github/workflows/caller.yml");
+    await store.load(".github/workflows/scans.yml");
+    const events: DocumentEvent[] = [];
+    const watcher = watchDocuments(root, store, (event) => events.push(event));
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      writeFileSync(join(root, ".github/workflows/scans.yml"), SCANS.replace("gitleaks", "trivy"));
+      const deadline = Date.now() + 2500;
+      while (Date.now() < deadline && events.length < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      expect(events.map((event) => ("file" in event ? event.file : "")).sort()).toEqual([
+        ".github/workflows/caller.yml",
+        ".github/workflows/scans.yml",
+      ]);
+      const caller = await store.load(".github/workflows/caller.yml");
+      expect(caller?.pipeline.jobs[0]?.signals.script).toEqual(["trivy detect"]);
+    } finally {
+      watcher.close();
+    }
   });
 });

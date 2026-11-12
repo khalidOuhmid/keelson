@@ -85,3 +85,28 @@ describe("the CLI on GitHub Actions", () => {
     rmSync(empty, { recursive: true });
   });
 });
+
+describe("a workflow calling a local reusable workflow", () => {
+  test("coverage of the caller alone counts the called jobs, and validate locates errors in it", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "keelson-reuse-"));
+    mkdirSync(join(repo, ".git"));
+    mkdirSync(join(repo, ".github/workflows"), { recursive: true });
+    writeFileSync(
+      join(repo, ".github/workflows/ci.yml"),
+      "on: push\njobs:\n  scans:\n    uses: ./.github/workflows/scans.yml\n",
+    );
+    writeFileSync(
+      join(repo, ".github/workflows/scans.yml"),
+      "on: workflow_call\njobs:\n  leaks:\n    steps:\n      - run: gitleaks detect\n  next:\n    uses: ./.github/workflows/gone.yml\n",
+    );
+    const coverage = await run(["coverage", ".github/workflows/ci.yml", "--require", "secrets"], {
+      cwd: repo,
+    });
+    expect(coverage.exitCode).toBe(0);
+    const validate = await run(["validate", ".github/workflows/ci.yml"], { cwd: repo });
+    expect(validate.exitCode).toBe(1);
+    expect(validate.stdout).toContain(".github/workflows/scans.yml:6");
+    expect(validate.stdout).toContain("WORKFLOW_CALL_INVALID");
+    rmSync(repo, { recursive: true });
+  });
+});

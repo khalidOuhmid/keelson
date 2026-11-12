@@ -441,6 +441,39 @@ function citesJob(
       });
 }
 
+function stringsIn(value: unknown, found: string[], seen: Set<unknown>): void {
+  if (typeof value === "string") {
+    found.push(value);
+  } else if (typeof value === "object" && value !== null && !seen.has(value)) {
+    seen.add(value);
+    for (const [name, entry] of Object.entries(value)) {
+      found.push(name);
+      stringsIn(entry, found, seen);
+    }
+  }
+}
+
+const READS_OWN_ID = /(?<![\w.-])github\s*(?:\.\s*job(?![\w-])|\[\s*['"]job['"]\s*\])/i;
+const GITHUB_JOB = /(?<![\w-])GITHUB_JOB(?!\w)/;
+
+/** `github.job` and `GITHUB_JOB` hold the running job's id: a value comparing it with the old name,
+ *  in an expression or in a shell script, turns false once the job is renamed. Naming the job is
+ *  what counts, since the literal sits outside any `needs` or `jobs` path. */
+function readsOwnId(values: unknown, id: string): Planned | null {
+  const job = (values as { jobs?: Record<string, unknown> } | null)?.jobs?.[id];
+  const strings: string[] = [];
+  stringsIn(job, strings, new Set());
+  const expressions: string[] = [];
+  expressionsIn(job, expressions, new Set());
+  const reads =
+    strings.some((value) => GITHUB_JOB.test(value)) ||
+    expressions.some((value) => READS_OWN_ID.test(value));
+  const name = new RegExp(`(?<![\\w-])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+  return reads && strings.some((value) => name.test(value))
+    ? refuse({ code: INVALID_OPERATION, params: { reason: "readsOwnId", job: id } })
+    : null;
+}
+
 function readValues(document: Document.Parsed): unknown {
   try {
     return document.toJS({ mapAsMap: false });
@@ -482,7 +515,7 @@ function planRename(from: string, to: string, geometry: Geometry): Planned {
   if (refused !== null) {
     return refuse(refused);
   }
-  const cited = citesJob(geometry.values, from);
+  const cited = citesJob(geometry.values, from) ?? readsOwnId(geometry.values, from);
   if (cited !== null) {
     return cited;
   }
@@ -806,13 +839,19 @@ function danglingAliases(text: string): number {
   return count;
 }
 
+/** Every re-read goes through here: without the reader, the re-read IR would lose the jobs of the
+ *  local workflows it calls. */
+function reparse(document: GithubDocument, text: string) {
+  return parse(text, { file: document.file, read: document.read });
+}
+
 function finish(
   document: GithubDocument,
   text: string,
   touched: SourceRange[],
   inverse: { start: number; end: number; text: string },
 ): Result<ApplyOk, OperationError> {
-  const after = parse(text, { file: document.file });
+  const after = reparse(document, text);
   return ok({
     text,
     document: after.document,
@@ -821,7 +860,7 @@ function finish(
     hash: after.hash,
     inverse: { v: 1, baseHash: after.hash, kind: "splice", ...inverse },
     touched,
-    included: {},
+    included: after.included,
   });
 }
 
@@ -880,7 +919,7 @@ export function apply(
   }
 
   const { text } = document;
-  const before = parse(text, { file: document.file });
+  const before = reparse(document, text);
   const root = document.yaml.contents;
   if (root !== null && !isMap(root) && op.kind !== "splice") {
     return err({ code: INVALID_OPERATION, params: { reason: "noRootMap" } });
@@ -903,7 +942,7 @@ export function apply(
 
   const spliced = applySplices(text, planned.value);
   if (op.kind !== "splice") {
-    const after = parse(spliced.text, { file: document.file });
+    const after = reparse(document, spliced.text);
     const broke =
       after.diagnostics.some((entry) => entry.code === INVALID_YAML) &&
       !before.diagnostics.some((entry) => entry.code === INVALID_YAML);

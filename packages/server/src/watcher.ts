@@ -37,7 +37,9 @@ export function watchDocuments(
 ): Watcher {
   const watchers = new Map<string, FSWatcher>();
   const timers = new Map<string, NodeJS.Timeout>();
-  const tracked = new Map<string, Tracked>();
+  /** A file may concern several documents: a GitHub workflow is a document of its own and a
+   *  workflow that others call. */
+  const tracked = new Map<string, Map<string, Tracked>>();
   let closed = false;
   const toolchainHash = (): string => hashText(readInsideRoot(root, TOOLCHAIN_FILE) ?? "");
   let knownToolchain = toolchainHash();
@@ -125,15 +127,19 @@ export function watchDocuments(
     }
   };
 
+  /** A companion file is repository-wide: `reloadCoverage` already reloads every document, once. */
+  const slot = (entry: Tracked): string => (entry.companion ? "" : entry.main);
+
   const schedule = (absolute: string, entry: Tracked): void => {
-    const existing = timers.get(absolute);
+    const key = `${absolute}\u0000${slot(entry)}`;
+    const existing = timers.get(key);
     if (existing !== undefined) {
       clearTimeout(existing);
     }
     timers.set(
-      absolute,
+      key,
       setTimeout(() => {
-        timers.delete(absolute);
+        timers.delete(key);
         if (closed) {
           return;
         }
@@ -162,8 +168,7 @@ export function watchDocuments(
           return;
         }
         const absolute = resolve(directory, filename.toString());
-        const entry = tracked.get(absolute);
-        if (entry !== undefined) {
+        for (const entry of tracked.get(absolute)?.values() ?? []) {
           schedule(absolute, entry);
         }
       });
@@ -186,7 +191,10 @@ export function watchDocuments(
       const companions = [dirname(LAYOUT_FILE), LAYOUT_FILE, TOOLCHAIN_FILE];
       for (const file of [main, ...store.includedFiles(main), ...companions]) {
         const absolute = resolve(root, file);
-        tracked.set(absolute, { file, main, companion: companions.includes(file) });
+        const entries = tracked.get(absolute) ?? new Map<string, Tracked>();
+        tracked.set(absolute, entries);
+        const entry = { file, main, companion: companions.includes(file) };
+        entries.set(slot(entry), entry);
         watchDirectory(dirname(absolute));
       }
     }

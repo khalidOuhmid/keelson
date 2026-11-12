@@ -54,7 +54,8 @@ export type Stage = {
 export type JobSignals = {
   image: string | null;
   script: string[];
-  /** The GitHub actions (`owner/repo@ref`) of the job's steps. Absent elsewhere. */
+  /** The GitHub actions (`owner/repo@ref`) of the job's steps, and `docker://<image>` for each
+   *  further container it runs: a matrix `container`, a job of a called workflow. Absent elsewhere. */
   actions?: string[];
 };
 
