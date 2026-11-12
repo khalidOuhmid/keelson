@@ -8,6 +8,6 @@ Documentation, specs and code comments are written in English.
 - [gaps.md](gaps.md) — findings outside any milestone: the backlog after v0.1.0
 - [diagnostics.md](diagnostics.md) — public error codes and the shape of their `params`
 - [export.md](export.md) — export formats
-- [adr/](adr/) — architecture decisions 0001 to 0013
+- [adr/](adr/) — architecture decisions 0001 to 0014
 - [milestones/](milestones/) — scoping per milestone (L0, L1 and L7 have none: see progress.md)
 - [autopilot.md](autopilot.md) — brief of the autonomous agent that delivered L3 to L8 (archived)
