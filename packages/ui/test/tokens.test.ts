@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isConsumed } from "./consumption.ts";
 import { oklchLuminance } from "./oklch.ts";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -216,6 +217,52 @@ describe("text size floor", () => {
   }
 });
 
+describe("a token is consumed only by its exact utility class", () => {
+  /** The 2026-10-22 review reintroduced six dead tokens: the guard caught five, and let
+   *  `--duration-base` through because it searched the stem `base` as a word fragment and found
+   *  it in `text-base`. A token is now consumed by its full name, or by a utility class of its own
+   *  family whose name ends exactly on the stem. */
+  test("a stem shared with another family is not a consumer", () => {
+    expect(isConsumed("--duration-base", 'className="text-base"')).toBe(false);
+    expect(isConsumed("--text-base", 'className="duration-base"')).toBe(false);
+    expect(isConsumed("--radius-lg", 'className="text-lg"')).toBe(false);
+    expect(isConsumed("--shadow-md", 'className="rounded-md"')).toBe(false);
+  });
+
+  test("a stem inside a longer class name is not a consumer", () => {
+    expect(isConsumed("--text-sm", 'className="text-small"')).toBe(false);
+    expect(isConsumed("--color-accent", 'className="bg-accent-strong"')).toBe(false);
+    expect(isConsumed("--keelson-node-width", "var(--keelson-node-width-strong)")).toBe(false);
+  });
+
+  test("a stem in prose is not a consumer", () => {
+    expect(isConsumed("--color-accent", "// the accent colour")).toBe(false);
+    expect(isConsumed("--tracking-label", 'aria-label="Job"')).toBe(false);
+  });
+
+  test("each family is consumed by its own utilities", () => {
+    expect(isConsumed("--color-surface-1", 'className="hover:bg-surface-1/50"')).toBe(true);
+    expect(isConsumed("--color-border-subtle", 'className="border-b border-border-subtle"')).toBe(
+      true,
+    );
+    expect(isConsumed("--color-accent", 'className="outline-accent"')).toBe(true);
+    expect(isConsumed("--text-sm", 'className="text-sm"')).toBe(true);
+    expect(isConsumed("--font-weight-semibold", 'className="font-semibold"')).toBe(true);
+    expect(isConsumed("--font-mono", 'className="font-mono"')).toBe(true);
+    expect(isConsumed("--radius-md", 'className="rounded-t-md"')).toBe(true);
+    expect(isConsumed("--duration-fast", 'className="duration-fast"')).toBe(true);
+    expect(isConsumed("--ease-out", 'className="ease-out"')).toBe(true);
+    expect(isConsumed("--tracking-label", 'className="tracking-label"')).toBe(true);
+    expect(isConsumed("--spacing", 'className="gap-2"')).toBe(true);
+    expect(isConsumed("--spacing", 'className="-mt-0.5"')).toBe(true);
+  });
+
+  test("a token is consumed by its full name", () => {
+    expect(isConsumed("--keelson-node-width", "readToken('--keelson-node-width')")).toBe(true);
+    expect(isConsumed("--duration-fast", "transition: opacity var(--duration-fast)")).toBe(true);
+  });
+});
+
 describe("no token promised without a consumer", () => {
   /** `/impeccable document` found eleven tokens defined and never consumed: the file promised a
    *  richer system than what the front end renders. Two of them — the edge widths — were not
@@ -230,33 +277,25 @@ describe("no token promised without a consumer", () => {
     .map((file) => readFileSync(file, "utf8"))
     .join("\n");
 
-  /** Tailwind consumes `--color-surface-1` as `bg-surface-1`, and `--text-sm` as `text-sm`: we
-   *  look for the token's stem as much as its full name. */
   /** Tokens Tailwind reads itself, without any class naming them. List them here rather than
    *  weaken the guard: each entry must say which utility consumes it. */
   const IMPLICIT: Record<string, string> = {
     "--default-border-width": "read by Tailwind for the `border` class",
   };
 
-  function isConsumed(token: string): boolean {
-    if (token in IMPLICIT) {
-      return true;
+  test("a dead token of each family is caught against the real sources", () => {
+    for (const token of [
+      "--duration-base",
+      "--color-ghost",
+      "--text-3xl",
+      "--radius-xl",
+      "--shadow-md",
+      "--font-weight-bold",
+      "--keelson-unused-gap",
+    ]) {
+      expect({ token, consumed: isConsumed(token, consumers) }).toEqual({ token, consumed: false });
     }
-    if (consumers.includes(token)) {
-      return true;
-    }
-    // `--font-weight-semibold` is consumed as `font-semibold`, `--border-width-hairline` as
-    // `border-hairline`: the token family disappears from the utility class.
-    const stems = [
-      token.replace(/^--(color|text|font|radius|duration|shadow|tracking|ease|spacing)-?/, ""),
-      token.replace(/^--(font-weight|border-width|line-height)-/, ""),
-      token.replace(/^--/, ""),
-    ].filter((stem) => stem !== "");
-
-    return stems.some((stem) =>
-      new RegExp(`\\b[\\w-]*${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(consumers),
-    );
-  }
+  });
 
   test("the token list is read", () => {
     expect(declared.length).toBeGreaterThan(20);
@@ -270,7 +309,10 @@ describe("no token promised without a consumer", () => {
 
   for (const token of declared.filter((name) => !name.includes("--line-height"))) {
     test(`${token} is consumed`, () => {
-      expect({ token, consumed: isConsumed(token) }).toEqual({ token, consumed: true });
+      expect({ token, consumed: token in IMPLICIT || isConsumed(token, consumers) }).toEqual({
+        token,
+        consumed: true,
+      });
     });
   }
 });
