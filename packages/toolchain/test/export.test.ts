@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { coverage, loadCatalog } from "@keelson/catalog";
+import { coverage, loadCatalog, lowerBoundNote } from "@keelson/catalog";
 import { emptyPipeline, type Job, type Pipeline, type Toolchain } from "@keelson/core";
 import { renderCoverageMarkdown, renderMermaid } from "../src/index.ts";
 
@@ -128,7 +128,7 @@ describe("needs across files", () => {
 describe("coverage report", () => {
   const { tools } = loadCatalog();
   const result = coverage(PIPELINE, tools, {}, [], TOOLCHAIN.services);
-  const text = renderCoverageMarkdown(result);
+  const text = renderCoverageMarkdown(result, null);
 
   test("states the OWASP and platform counts", () => {
     expect(text).toContain("3 of 13 OWASP layers covered, 2 of 8 platform categories seen.");
@@ -155,14 +155,21 @@ describe("coverage report", () => {
       [],
       [{ id: "nex\nus", tool: "nexus", url: null, environment: "prod" }],
     );
-    const lines = renderCoverageMarkdown(broken).split("\n");
+    const lines = renderCoverageMarkdown(broken, null).split("\n");
     expect(lines.filter((line) => line.startsWith("| "))).toHaveLength(23);
     expect(lines.every((line) => line === "" || /^[#|C0-9]/.test(line))).toBe(true);
     expect(lines.join("\n")).toContain("scan \\| x \\| next");
     expect(lines.join("\n")).toContain("nex us");
   });
 
-  test("a partial pipeline states the lower bound", () => {
-    expect(renderCoverageMarkdown({ ...result, partial: true })).toContain("lower bound");
+  test("a partial pipeline states the shared lower-bound sentence for its cause", () => {
+    for (const cause of ["invalidYaml", "unresolvedInclude", "unresolvedWorkflow"] as const) {
+      const lines = renderCoverageMarkdown({ ...result, partial: true }, cause).split("\n");
+      expect(lines).toContain(lowerBoundNote(cause));
+    }
+  });
+
+  test("a complete pipeline states no lower bound", () => {
+    expect(renderCoverageMarkdown(result, null)).not.toContain("lower bound");
   });
 });
