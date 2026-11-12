@@ -1,13 +1,17 @@
-import type { Coverage, LayerCoverage } from "@keelson/catalog";
+import {
+  type Coverage,
+  type LayerCoverage,
+  type LowerBoundCause,
+  lowerBoundNote,
+} from "@keelson/catalog";
 import { findLayer, guidelineUrl, type LayerId, type LayerSource } from "@keelson/taxonomy";
 import { SECTION_HEADING } from "../../editing/controls.ts";
 import { LayerTag } from "./LayerTag.tsx";
 
-export const LOWER_BOUND_NOTE =
-  "Coverage is a lower bound: part of the pipeline could not be read, and a layer listed as uncovered may be covered by what Keelson cannot read.";
-
 export type CoveragePanelProps = {
   coverage: Coverage;
+  /** Why coverage is partial, when it is. */
+  cause: LowerBoundCause | null;
   selected: LayerId | null;
   onSelect: (layer: LayerId) => void;
   onShowTools: (layer: LayerId) => void;
@@ -56,6 +60,7 @@ function Uncovered({
 
 export function CoveragePanel({
   coverage,
+  cause,
   selected,
   onSelect,
   onShowTools,
@@ -85,7 +90,7 @@ export function CoveragePanel({
 
       {coverage.partial ? (
         <p data-testid="coverage-lower-bound" className="text-sm text-text-secondary">
-          {LOWER_BOUND_NOTE}
+          {lowerBoundNote(cause ?? "unresolvedInclude")}
         </p>
       ) : null}
 

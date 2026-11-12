@@ -64,6 +64,35 @@ test("adding a need writes the file and appears in the panel", async ({ page }) 
   expect(keelson.read()).toMatch(/lint:[\s\S]*needs:[\s\S]*build-image/);
 });
 
+test("after a write, the notice names the line it changed in the file", async ({ page }) => {
+  await open(page);
+  await page.getByRole("textbox", { name: "New stage name" }).fill("verify");
+  await page.getByRole("button", { name: "Add stage" }).click();
+
+  const notice = page.getByRole("status").filter({ hasText: "Changed line" });
+  await expect(notice).toBeVisible();
+  const line =
+    keelson
+      .read()
+      .split("\n")
+      .findIndex((entry) => entry.includes("verify")) + 1;
+  expect(line).toBeGreaterThan(0);
+  await expect(notice).toHaveText(new RegExp(`Changed line ${line} of \\.gitlab-ci\\.yml\\.`));
+});
+
+test("cancelling an inherited environment writes environment: null and leaves the template", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: /deploy-production/ }).click();
+  await page.getByRole("button", { name: "Cancel inherited environment" }).click();
+
+  await expect(page.getByRole("button", { name: "Cancel inherited environment" })).toHaveCount(0);
+  const text = keelson.read();
+  expect(text.slice(text.indexOf("deploy-production:"))).toContain("environment: null");
+  expect(text).toContain(".deploy-base:\n  stage: deploy\n  environment:\n    name: production");
+});
+
 test("undo restores the original bytes", async ({ page }) => {
   await open(page);
   const original = keelson.read();
@@ -75,6 +104,8 @@ test("undo restores the original bytes", async ({ page }) => {
   expect(keelson.read()).not.toBe(original);
 
   await page.getByRole("button", { name: "Undo" }).click();
+  // Undo is disabled as soon as the write leaves: only Redo says that it landed.
+  await expect(page.getByRole("button", { name: "Redo" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
 
   expect(keelson.read()).toBe(original);
@@ -208,7 +239,8 @@ test("layout invariants: every job is in the column of the stage it declares", a
 
     for (const node of document.querySelectorAll(".react-flow__node")) {
       const id = node.getAttribute("data-id");
-      if (id === null) {
+      // Templates are not jobs: they hold no stage and sit in their own column.
+      if (id === null || id.startsWith("template:") || id === "column:templates") {
         continue;
       }
       const geometry = read(node);
@@ -421,6 +453,36 @@ test("an opaque block still shows its own bytes after an edit", async ({ page })
   expect(after).toContain("trivy");
   expect(after).not.toContain("deploy-production");
   expect(after).toBe(before);
+});
+
+test("templates are drawn upstream of the stages, linked to the jobs that extend them, and counted apart", async ({
+  page,
+}) => {
+  await open(page);
+  const templates = page.getByRole("group", { name: "Templates" });
+  await expect(templates).toContainText("2 templates");
+  await expect(page.locator("[data-template-id]")).toHaveText([/\.docker/, /\.deploy-base/]);
+
+  const geometry = await page.evaluate(() => {
+    const box = (element: Element | null) => element?.getBoundingClientRect() ?? null;
+    return {
+      template: box(document.querySelector('[data-template-id=".deploy-base"]')),
+      build: box(document.querySelector('[aria-label="Stage build"]')),
+    };
+  });
+  expect(geometry.template?.right ?? 0).toBeLessThanOrEqual(geometry.build?.left ?? 0);
+
+  await expect(page.getByRole("group", { name: "Stage deploy" })).toContainText("1 job");
+  await expect(
+    page.locator("[data-template-id] [data-job-id], [data-job-id][data-template-id]"),
+  ).toHaveCount(0);
+  const labels = await page.evaluate(() =>
+    [...document.querySelectorAll(".react-flow__edge")].map((edge) =>
+      edge.getAttribute("aria-label"),
+    ),
+  );
+  expect(labels).toContain("deploy-production extends .deploy-base");
+  expect(labels).toContain("build-image extends .docker");
 });
 
 test("every edge exposes its dependency as accessible text", async ({ page }) => {

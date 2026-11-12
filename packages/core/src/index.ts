@@ -12,3 +12,4 @@ export * from "./operations.ts";
 export * from "./result.ts";
 export * from "./toolchain.ts";
 export * from "./validate.ts";
+export * from "./wire.ts";

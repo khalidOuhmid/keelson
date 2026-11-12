@@ -24,6 +24,9 @@ export type DiagnosticsPanelProps = {
   /** The partial-pipeline bar already states the info items: repeating them here would announce
    *  the same fact twice. Filtered on severity, not on a code. */
   omitInfo?: boolean;
+  /** Opens an included file for reading, when its text is at hand. */
+  onReadFile?: ((file: string, trigger: HTMLElement) => void) | undefined;
+  readable?: (file: string) => boolean;
 };
 
 export function DiagnosticsPanel({
@@ -31,6 +34,8 @@ export function DiagnosticsPanel({
   onSelectRange,
   main,
   omitInfo = false,
+  onReadFile,
+  readable = () => false,
 }: DiagnosticsPanelProps) {
   const shown = omitInfo
     ? diagnostics.filter((diagnostic) => diagnostic.severity !== "info")
@@ -56,9 +61,21 @@ export function DiagnosticsPanel({
           {sorted.map((diagnostic, index) => (
             <li
               key={`${diagnostic.code}-${diagnostic.range?.start ?? index}`}
-              className="border-b border-border-subtle last:border-b-0"
+              className="flex items-start border-b border-border-subtle last:border-b-0"
             >
               <Row diagnostic={diagnostic} onSelectRange={onSelectRange} main={main} />
+              {onReadFile === undefined ||
+              diagnostic.file === main ||
+              !readable(diagnostic.file) ? null : (
+                <button
+                  type="button"
+                  aria-label={`Read ${diagnostic.file}`}
+                  onClick={(event) => onReadFile(diagnostic.file, event.currentTarget)}
+                  className="mx-3 my-2 inline-flex min-h-6 shrink-0 cursor-pointer items-center text-xs text-accent underline underline-offset-2"
+                >
+                  Read file
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -113,7 +130,7 @@ function Row({
   onSelectRange: (file: string, range: SourceRange | null) => void;
   main: string;
 }) {
-  const shared = "flex w-full items-start gap-2 px-3 py-2 text-left";
+  const shared = "flex min-w-0 flex-1 items-start gap-2 px-3 py-2 text-left";
 
   if (diagnostic.range === null) {
     return (

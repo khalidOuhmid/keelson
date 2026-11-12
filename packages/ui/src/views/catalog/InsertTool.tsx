@@ -1,11 +1,10 @@
 import type { Tool } from "@keelson/catalog";
-import type { Pipeline } from "@keelson/core";
+import { type DiffRow, diffRows, type Pipeline, visibleRows } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
 import type { LayerId } from "@keelson/taxonomy";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ApiFailure, ApiResult, OperationPayload } from "../../api/client.ts";
 import { BUTTON, FIELD, GROUP, LABEL, SECTION_HEADING } from "../../editing/controls.ts";
-import { type DiffRow, diffRows, visibleRows } from "../../editing/diff.ts";
 import type { Draft } from "../../state/store.ts";
 import { LayerTags } from "../coverage/LayerTag.tsx";
 

@@ -370,6 +370,8 @@ test("undo and redo work with keyboard shortcuts", async ({ page }) => {
   await page.getByRole("region", { name: "Pipeline graph" }).click();
   await page.keyboard.press("Control+z");
   await expect.poll(() => keelson.read()).toBe(original);
+  // The disk changes before the response arrives: Redo exists only once it has.
+  await expect(page.getByRole("button", { name: "Redo" })).toBeEnabled();
 
   await page.keyboard.press("Control+Shift+z");
   await expect.poll(() => keelson.read()).not.toBe(original);

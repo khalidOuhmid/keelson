@@ -3,6 +3,7 @@ import type { Tool } from "@keelson/catalog";
 import { LAYERS } from "@keelson/taxonomy";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { focusWhenDrawn } from "../src/focus.ts";
 import { CatalogView } from "../src/views/catalog/CatalogView.tsx";
 import { narrowViewport, restoreViewport } from "./support/viewport.ts";
 
@@ -77,5 +78,40 @@ describe("the catalogue entry", () => {
     renderCatalog();
     await userEvent.click(screen.getByRole("button", { name: "Alpha" }));
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Alpha" }));
+  });
+});
+
+describe("focusing what was just drawn", () => {
+  test("a graph node is focused without scrolling: the graph pans to it, the browser must not", () => {
+    render(
+      <div className="react-flow">
+        <button type="button" data-job-id="gitleaks">
+          gitleaks
+        </button>
+      </div>,
+    );
+    const node = screen.getByRole("button", { name: "gitleaks" });
+    const options: (FocusOptions | undefined)[] = [];
+    const focus = node.focus.bind(node);
+    node.focus = (given?: FocusOptions) => {
+      options.push(given);
+      focus(given);
+    };
+    focusWhenDrawn('[data-job-id="gitleaks"]');
+    expect(document.activeElement).toBe(node);
+    expect(options).toEqual([{ preventScroll: true }]);
+  });
+
+  test("a field outside the graph is scrolled into view as usual", () => {
+    render(<select aria-label="Layer" />);
+    const field = screen.getByRole("combobox", { name: "Layer" });
+    const options: (FocusOptions | undefined)[] = [];
+    const focus = field.focus.bind(field);
+    field.focus = (given?: FocusOptions) => {
+      options.push(given);
+      focus(given);
+    };
+    focusWhenDrawn('[aria-label="Layer"]');
+    expect(options).toEqual([undefined]);
   });
 });

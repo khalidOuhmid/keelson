@@ -35,8 +35,45 @@ export type Layout = {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
   columns: LayoutColumn[];
+  /** The hidden jobs values are inherited from, in a column upstream of the stages: they are not
+   *  jobs, so no stage column holds them. */
+  templates: LayoutNode[];
+  /** Template to job, one per `extends` entry that names a drawn template. */
+  inheritance: LayoutEdge[];
   height: number;
 };
+
+function placeTemplates(
+  pipeline: Pipeline,
+  metrics: LayoutMetrics,
+): Pick<Layout, "templates" | "inheritance"> {
+  const x = -(metrics.nodeWidth + metrics.columnGap);
+  const templates = pipeline.templates.map((template, index) => ({
+    id: template.id,
+    x,
+    y: index * (metrics.nodeHeight + metrics.rowGap),
+    width: metrics.nodeWidth,
+    height: metrics.nodeHeight,
+  }));
+  const drawn = new Set(templates.map((template) => template.id));
+  const inheritance = pipeline.jobs
+    .flatMap((job) =>
+      [...new Set(job.extends)]
+        .filter((template) => drawn.has(template))
+        .map((template) => ({
+          id: `${template}=>${job.id}`,
+          source: template,
+          target: job.id,
+          optional: false,
+        })),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id));
+  return { templates, inheritance };
+}
+
+function tallest(nodes: readonly LayoutNode[]): number {
+  return nodes.reduce((height, node) => Math.max(height, node.y + node.height), 0);
+}
 
 type Partitioned = {
   name: string;
@@ -95,6 +132,8 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
     }
   }
 
+  const inherited = placeTemplates(pipeline, metrics);
+
   if (pipeline.jobs.length === 0) {
     return {
       nodes: [],
@@ -104,7 +143,8 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
         x: index * (metrics.nodeWidth + metrics.columnGap),
         width: metrics.nodeWidth,
       })),
-      height: 0,
+      ...inherited,
+      height: tallest(inherited.templates),
     };
   }
 
@@ -183,6 +223,7 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
     nodes,
     edges: [...edges].sort((left, right) => left.id.localeCompare(right.id)),
     columns: laidColumns,
-    height: nodes.reduce((tallest, node) => Math.max(tallest, node.y + node.height), 0),
+    ...inherited,
+    height: Math.max(tallest(nodes), tallest(inherited.templates)),
   };
 }

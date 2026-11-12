@@ -67,6 +67,8 @@ describe("an included job in the Pipeline view", () => {
       ],
       height: 160,
       edges: [],
+      templates: [],
+      inheritance: [],
     };
     const graph = toFlowGraph(layout, pipeline(), null);
     const found = graph.nodes.find((node) => node.id === id);

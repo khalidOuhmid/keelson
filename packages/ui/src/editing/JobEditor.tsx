@@ -1,5 +1,5 @@
 import type { Job, Pipeline } from "@keelson/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { trapTab } from "../focus.ts";
 import type { Draft } from "../state/store.ts";
 import { BUTTON, DANGER_BUTTON, FIELD, GROUP, LABEL } from "./controls.ts";
@@ -18,6 +18,26 @@ export type JobEditorProps = {
   onSubmit: (draft: Draft) => void;
   disabled?: boolean;
 };
+
+/** GitLab drops an inherited key the job sets to `null`: removing the key alone would let the
+ *  inherited environment resurface. */
+function inheritanceSource(job: Job): string | null {
+  const origin = job.environment?.origin;
+  switch (origin?.kind) {
+    case "extends":
+      return origin.template;
+    case "include":
+      return origin.file;
+    case "anchor":
+      return `&${origin.name}`;
+    case "reference":
+      return `[${origin.path.join(", ")}]`;
+    case "default":
+      return "default";
+    default:
+      return null;
+  }
+}
 
 export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEditorProps) {
   const needs = job.needs?.value ?? [];
@@ -69,6 +89,8 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
     deleteTrigger.current?.focus();
   };
   const [environmentName, setEnvironmentName] = useState(job.environment?.value.name ?? "");
+  const cancelHelp = useId();
+  const inheritedFrom = inheritanceSource(job);
   const [environmentUrl, setEnvironmentUrl] = useState(job.environment?.value.url ?? "");
 
   const guard = (draft: Draft): void => {
@@ -242,7 +264,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         >
           Set environment
         </button>
-        {job.environment === null ? null : (
+        {job.environment === null ? null : inheritedFrom === null ? (
           <button
             type="button"
             className={BUTTON}
@@ -251,6 +273,23 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
           >
             Remove environment
           </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={BUTTON}
+              disabled={disabled}
+              aria-describedby={cancelHelp}
+              onClick={() => guard(setEnvironment(job.id, null))}
+            >
+              Cancel inherited environment
+            </button>
+            <p id={cancelHelp} className="text-xs text-text-secondary">
+              Writes <code className="font-mono">environment: null</code> in this job, which cancels
+              the environment inherited from <span className="font-mono">{inheritedFrom}</span>.{" "}
+              <span className="font-mono">{inheritedFrom}</span> is not touched.
+            </p>
+          </>
         )}
       </div>
 

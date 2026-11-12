@@ -332,13 +332,14 @@ describe("`border-subtle` is never a component boundary", () => {
    *  a shape, and closing a shape is the job of `border-default`. */
   const EDGE = /border-(?:[btlr])\b/;
 
-  /** The only exception, named rather than left to the luck of matching. A stage column is a
-   *  **backdrop**, not a component: it must recede behind the job cards it holds, and giving it
-   *  `border-default` would make the container compete with its content. The real rule is
-   *  therefore "a component boundary must be legible", and a column is not one.
+  /** The only exceptions, named rather than left to the luck of matching. A stage column, and the
+   *  template column upstream of it, is a **backdrop**, not a component: it must recede behind the
+   *  cards it holds, and giving it `border-default` would make the container compete with its
+   *  content. The real rule is therefore "a component boundary must be legible", and a column is
+   *  not one. The template card itself closes its shape with `border-strong`.
    *
    *  A named exception can be reviewed; a pattern widened to let it through cannot. */
-  const BACKDROPS = ["views/pipeline/StageColumnNode.tsx"];
+  const BACKDROPS = ["views/pipeline/StageColumnNode.tsx", "views/pipeline/TemplateNode.tsx"];
 
   function offendingLines(): { file: string; line: number; text: string }[] {
     const found: { file: string; line: number; text: string }[] = [];

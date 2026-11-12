@@ -11,7 +11,11 @@ test("desktop and mobile screenshots", async ({ browser }) => {
     const page = await browser.newPage({ viewport: size });
     await page.goto(keelson.url);
     await expect(page.getByRole("region", { name: "Pipeline graph" })).toBeVisible();
-    await page.getByRole("button", { name: /deploy-production/ }).click();
+    // At 390 px the graph is wider than the canvas at its lowest zoom: the job is opened the way
+    // a phone user reaches a job off screen, by name.
+    await page.getByRole("button", { name: "Find job" }).click();
+    await page.keyboard.type("deploy-production");
+    await page.keyboard.press("Enter");
     await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
     await page.waitForTimeout(600);
     await page.screenshot({

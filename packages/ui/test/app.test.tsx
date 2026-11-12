@@ -563,6 +563,195 @@ describe("banners and in-flight operation, on the render", () => {
   });
 });
 
+describe("Undo while an operation is in flight", () => {
+  test("Undo and Redo are disabled until the response arrives", async () => {
+    const h = harness();
+    await renderApp(h);
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    const undo = await screen.findByRole("button", { name: "Undo" });
+    await waitFor(() => expect((undo as HTMLButtonElement).disabled).toBe(false));
+
+    let release: () => void = () => {};
+    const original = h.deps.client.submit;
+    h.deps.client.submit = async (file, op, opId) => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return original(file, op, opId);
+    };
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "publish");
+    const clicked = userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    await screen.findByTestId("pending-indicator");
+    expect((screen.getByRole("button", { name: "Undo" }) as HTMLButtonElement).disabled).toBe(true);
+
+    release();
+    await clicked;
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: "Undo" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+  });
+});
+
+describe("the file picker follows the workspace", () => {
+  const WORKFLOW = ".github/workflows/ci.yml";
+
+  test("a workflow created while Keelson runs appears in the picker, and leaves it when removed", async () => {
+    const h = harness();
+    await renderApp(h);
+    expect(screen.queryByLabelText("Pipeline file")).toBeNull();
+
+    h.emit({
+      kind: "workspace.changed",
+      files: [
+        { path: MAIN, adapter: "gitlab" },
+        { path: WORKFLOW, adapter: "github" },
+      ],
+    });
+    const picker = await screen.findByLabelText("Pipeline file");
+    expect([...picker.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      MAIN,
+      "ci.yml",
+    ]);
+
+    h.emit({ kind: "workspace.changed", files: [{ path: MAIN, adapter: "gitlab" }] });
+    await new Promise((settle) => setTimeout(settle, 20));
+    expect(screen.queryByLabelText("Pipeline file")).toBeNull();
+  });
+});
+
+describe("what was just written", () => {
+  test("the notice names the lines the write changed", async () => {
+    const h = harness();
+    h.queueSubmit({
+      ok: true,
+      value: {
+        text: DOCUMENT_TEXT,
+        pipeline: pipeline(),
+        diagnostics: [],
+        hash: NEXT,
+        included: {},
+        coverage: NO_COVERAGE,
+        inverse: { v: 1, baseHash: NEXT, kind: "splice", start: 0, end: 0, text: "" },
+        touched: [{ start: 18, end: 27 }],
+      },
+    });
+    await renderApp(h);
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    const notice = await screen.findByText("Changed line 3 of .gitlab-ci.yml.");
+    expect(notice.closest("[role=status]")).not.toBeNull();
+  });
+});
+
+describe("reading an included file", () => {
+  const INCLUDED = "ci/jobs.yml";
+  const INCLUDED_TEXT = "sast:\n  stage: test\n  image: semgrep/semgrep\n";
+
+  function withInclude(): DocumentPayload {
+    const base = pipeline();
+    return {
+      ...DOCUMENT,
+      pipeline: {
+        ...base,
+        files: [INCLUDED, MAIN],
+        jobs: [
+          ...base.jobs,
+          {
+            id: "sast",
+            stage: { value: "test", origin: { kind: "include", file: INCLUDED } },
+            needs: null,
+            environment: null,
+            extends: [],
+            opaque: [],
+            signals: { image: "semgrep/semgrep", script: [] },
+            range: { start: 0, end: INCLUDED_TEXT.length },
+            file: INCLUDED,
+          },
+        ],
+      },
+      included: { [INCLUDED]: INCLUDED_TEXT },
+      diagnostics: [
+        {
+          code: "JOB_WITHOUT_SCRIPT",
+          severity: "warning",
+          params: { job: "sast" },
+          range: { start: 0, end: 5 },
+          file: INCLUDED,
+        },
+      ],
+    };
+  }
+
+  test("a diagnostic from an included file opens that file, read-only, and Close returns focus", async () => {
+    await renderApp(harness({ document: withInclude() }));
+    const diagnostics = screen.getByRole("region", { name: "Diagnostics" });
+    const read = within(diagnostics).getByRole("button", { name: `Read ${INCLUDED}` });
+    await userEvent.click(read);
+
+    const viewer = await screen.findByRole("complementary", { name: `Included file ${INCLUDED}` });
+    expect(viewer.textContent).toContain("image: semgrep/semgrep");
+    expect(viewer.textContent).toContain("Read-only");
+    expect(viewer.contains(document.activeElement)).toBe(true);
+
+    await userEvent.click(within(viewer).getByRole("button", { name: "Close file" }));
+    expect(screen.queryByRole("complementary", { name: `Included file ${INCLUDED}` })).toBeNull();
+    expect(document.activeElement).toBe(read);
+  });
+
+  test("an included job's detail opens its file, and Escape closes it", async () => {
+    await renderApp(harness({ document: withInclude() }));
+    await userEvent.click(screen.getByRole("button", { name: /sast/ }));
+    const panel = await screen.findByRole("complementary", { name: "Job" });
+    await userEvent.click(within(panel).getByRole("button", { name: `Read ${INCLUDED}` }));
+
+    const viewer = await screen.findByRole("complementary", { name: `Included file ${INCLUDED}` });
+    expect(viewer.textContent).toContain("stage: test");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("complementary", { name: `Included file ${INCLUDED}` })).toBeNull();
+  });
+
+  test("a diagnostic of the main file offers no file to read", async () => {
+    await renderApp(
+      harness({
+        document: {
+          ...DOCUMENT,
+          diagnostics: [
+            {
+              code: "JOB_WITHOUT_SCRIPT",
+              severity: "warning",
+              params: { job: "compile" },
+              range: { start: 0, end: 5 },
+              file: MAIN,
+            },
+          ],
+        },
+      }),
+    );
+    const diagnostics = screen.getByRole("region", { name: "Diagnostics" });
+    expect(within(diagnostics).queryByRole("button", { name: /^Read / })).toBeNull();
+  });
+});
+
+describe("a write from another tab", () => {
+  test("another tab's write reloads the screen and says so; this tab's own does not", async () => {
+    const h = harness();
+    await renderApp(h);
+    await userEvent.type(screen.getByRole("textbox", { name: /new stage name/i }), "verify");
+    await userEvent.click(screen.getByRole("button", { name: /add stage/i }));
+    await waitFor(() => expect(h.submitted).toHaveLength(1));
+
+    h.emit({ kind: "document.written", file: MAIN, hash: "c".repeat(64), opId: "op-1" });
+    await new Promise((settle) => setTimeout(settle, 20));
+    expect(screen.queryByText(/another keelson tab wrote the file/i)).toBeNull();
+
+    h.emit({ kind: "document.written", file: MAIN, hash: "c".repeat(64), opId: "elsewhere" });
+    expect(await screen.findByText(/another keelson tab wrote the file/i)).toBeDefined();
+  });
+});
+
 describe("closing the detail panel from the keyboard", () => {
   /** Found by /impeccable critique on 2026-10-22: `onSelectJob(null)` could only be reached by a
    *  mouse click on the canvas background. No keyboard user could close the panel, and fifteen

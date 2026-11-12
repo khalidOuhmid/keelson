@@ -8,6 +8,9 @@ export {
   type JobCoverage,
   type LayerCoverage,
   type LayerOverrides,
+  type LowerBoundCause,
+  lowerBoundCause,
+  lowerBoundNote,
 } from "./coverage.ts";
 export {
   type DetectedIntegration,
@@ -18,3 +21,4 @@ export {
 export { isOpenSource } from "./licenses.ts";
 export { lintCatalog, STALE_AFTER_MONTHS, type ToolFile } from "./lint.ts";
 export { type ParsedTool, parseTool, type Tool, toolSchema } from "./schema.ts";
+export { coverageSchema } from "./wire.ts";

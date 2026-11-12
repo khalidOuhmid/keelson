@@ -98,3 +98,35 @@ export function coverage(
     partial: isPartial(pipeline) || parsing.some((entry) => entry.code === INVALID_YAML),
   };
 }
+
+export type LowerBoundCause = "invalidYaml" | "unresolvedInclude" | "unresolvedWorkflow";
+
+/** Unreadable YAML first: it hides more than an include does, and it is what the user must fix. */
+export function lowerBoundCause(
+  pipeline: Pipeline,
+  parsing: readonly Diagnostic[],
+): LowerBoundCause | null {
+  if (parsing.some((entry) => entry.code === INVALID_YAML)) {
+    return "invalidYaml";
+  }
+  if (pipeline.unresolved.length === 0) {
+    return null;
+  }
+  return pipeline.unresolved.every((entry) => entry.form === "workflow")
+    ? "unresolvedWorkflow"
+    : "unresolvedInclude";
+}
+
+const LOWER_BOUND: Record<LowerBoundCause, string> = {
+  invalidYaml:
+    "part of the pipeline is not valid YAML, so a layer listed as uncovered may be covered by what Keelson cannot read",
+  unresolvedInclude:
+    "an include could not be resolved, so a layer listed as uncovered may be covered by the jobs it holds",
+  unresolvedWorkflow:
+    "a called workflow could not be read, so a layer listed as uncovered may be covered by its jobs",
+};
+
+/** The one wording of the lower bound, for the CLI and the UI alike. */
+export function lowerBoundNote(cause: LowerBoundCause): string {
+  return `Coverage is a lower bound: ${LOWER_BOUND[cause]}.`;
+}

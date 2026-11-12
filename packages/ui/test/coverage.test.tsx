@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import type { Coverage, Tool } from "@keelson/catalog";
+import { type Coverage, type LowerBoundCause, lowerBoundNote, type Tool } from "@keelson/catalog";
 import type { Job, Pipeline } from "@keelson/core";
 import { findLayer, GUIDELINE_COMMIT, LAYERS, type LayerId } from "@keelson/taxonomy";
 import { cleanup, render, screen, within } from "@testing-library/react";
@@ -8,7 +8,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { DiagnosticsPanel } from "../src/panels/DiagnosticsPanel.tsx";
 import { CatalogView } from "../src/views/catalog/CatalogView.tsx";
 import { filterTools } from "../src/views/catalog/filter.ts";
-import { CoveragePanel, LOWER_BOUND_NOTE } from "../src/views/coverage/CoveragePanel.tsx";
+import { CoveragePanel } from "../src/views/coverage/CoveragePanel.tsx";
 import { type JobNodeData, toFlowGraph } from "../src/views/pipeline/graph.ts";
 import { JobNode, type JobNodeProps } from "../src/views/pipeline/JobNode.tsx";
 
@@ -47,12 +47,17 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
 }
 
 describe("coverage panel", () => {
-  function renderPanel(value: Coverage, selected: LayerId | null = null) {
+  function renderPanel(
+    value: Coverage,
+    selected: LayerId | null = null,
+    cause: LowerBoundCause | null = value.partial ? "unresolvedInclude" : null,
+  ) {
     const onSelect = mock((_layer: LayerId) => undefined);
     const onShowTools = mock((_layer: LayerId) => undefined);
     render(
       <CoveragePanel
         coverage={value}
+        cause={cause}
         selected={selected}
         onSelect={onSelect}
         onShowTools={onShowTools}
@@ -97,6 +102,7 @@ describe("coverage panel", () => {
     render(
       <CoveragePanel
         coverage={coverage({})}
+        cause={null}
         selected={null}
         onSelect={() => undefined}
         onShowTools={() => undefined}
@@ -156,9 +162,18 @@ describe("coverage panel", () => {
     expect(within(platform).getByText("Source control")).toBeDefined();
   });
 
-  test("a partial pipeline makes coverage a lower bound, on screen", () => {
+  test("a partial pipeline makes coverage a lower bound, on screen, in the CLI's words", () => {
     renderPanel(coverage({}, true));
-    expect(screen.getByTestId("coverage-lower-bound").textContent).toBe(LOWER_BOUND_NOTE);
+    expect(screen.getByTestId("coverage-lower-bound").textContent).toBe(
+      lowerBoundNote("unresolvedInclude"),
+    );
+  });
+
+  test("the note names the real cause: invalid YAML is not an include", () => {
+    renderPanel(coverage({}, true), null, "invalidYaml");
+    const note = screen.getByTestId("coverage-lower-bound").textContent ?? "";
+    expect(note).toContain("not valid YAML");
+    expect(note).not.toContain("include");
   });
 
   test("a complete pipeline does not say so", () => {
@@ -196,6 +211,8 @@ describe("layer labels on a node", () => {
         nodes: [{ id: "scan", x: 0, y: 0, width: 200, height: 64 }],
         columns: [],
         edges: [],
+        templates: [],
+        inheritance: [],
         height: 64,
       },
       PIPELINE,
@@ -363,6 +380,25 @@ describe("catalogue", () => {
     expect(card.textContent).toContain("script: x");
     expect(card.textContent).toContain("No GitHub Actions snippet.");
     expect(card.querySelector('svg path[d="M0 0h24v24H0z"]')).not.toBeNull();
+  });
+
+  test("a tool with no snippet for the open file's CI says so in the list", () => {
+    render(
+      <CatalogView
+        catalog={{
+          layers: [...LAYERS],
+          tools: [
+            tool("kubescape", { name: "Kubescape", snippets: { gitlab: null, github: null } }),
+            tool("trivy", { name: "Trivy" }),
+          ],
+          logos: {},
+        }}
+        initialLayer={null}
+      />,
+    );
+    const rowOf = (name: string) => screen.getByRole("button", { name }).closest("tr");
+    expect(rowOf("Kubescape")?.textContent).toContain("No GitLab CI snippet");
+    expect(rowOf("Trivy")?.textContent).not.toContain("snippet");
   });
 
   test("the entry says whether the tool runs as a job or as a service", async () => {

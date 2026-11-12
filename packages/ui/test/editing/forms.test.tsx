@@ -224,6 +224,51 @@ describe("JobEditor — environment", () => {
     expect(drafts).toEqual([{ kind: "setEnvironment", id: "unit", environment: null }]);
   });
 
+  test("an inherited environment is cancelled, not removed, and the help says what is written", async () => {
+    const { drafts, submit } = collector();
+    render(
+      <JobEditor
+        job={job({
+          environment: {
+            value: { name: "production" },
+            origin: { kind: "extends", template: ".deploy-base" },
+          },
+        })}
+        pipeline={PIPELINE}
+        onSubmit={submit}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /remove environment/i })).toBeNull();
+    const cancel = screen.getByRole("button", { name: "Cancel inherited environment" });
+    expect(cancel.getAttribute("aria-describedby")).not.toBeNull();
+    const help = document.getElementById(cancel.getAttribute("aria-describedby") ?? "");
+    expect(help?.textContent).toBe(
+      "Writes environment: null in this job, which cancels the environment inherited from .deploy-base. .deploy-base is not touched.",
+    );
+    await userEvent.click(cancel);
+    expect(drafts).toEqual([{ kind: "setEnvironment", id: "unit", environment: null }]);
+  });
+
+  test("an environment from an included file is cancelled the same way, naming that file", () => {
+    render(
+      <JobEditor
+        job={job({
+          environment: {
+            value: { name: "production" },
+            origin: { kind: "include", file: "ci/deploy.yml" },
+          },
+        })}
+        pipeline={PIPELINE}
+        onSubmit={() => {}}
+      />,
+    );
+    const cancel = screen.getByRole("button", { name: "Cancel inherited environment" });
+    const help = document.getElementById(cancel.getAttribute("aria-describedby") ?? "");
+    expect(help?.textContent).toBe(
+      "Writes environment: null in this job, which cancels the environment inherited from ci/deploy.yml. ci/deploy.yml is not touched.",
+    );
+  });
+
   test("the remove button is absent when there is no environment", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => {}} />);
     expect(screen.queryByRole("button", { name: /remove environment/i })).toBeNull();

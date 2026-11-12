@@ -6,6 +6,8 @@ import {
   type FlowGraph,
   JOB_NODE_TYPE,
   type LayerOverlay,
+  TEMPLATE_COLUMN_TYPE,
+  TEMPLATE_NODE_TYPE,
   toFlowGraph,
 } from "./graph.ts";
 import { JobNode } from "./JobNode.tsx";
@@ -13,10 +15,13 @@ import { type Layout, layoutPipeline } from "./layout.ts";
 import { readColumnHeaderHeight, readColumnPadding, readLayoutMetrics } from "./metrics.ts";
 import { KEYBOARD_HINT, KEYBOARD_HINT_ID, move, moveForKey, tabStop } from "./navigation.ts";
 import { StageColumnNode } from "./StageColumnNode.tsx";
+import { TemplateColumnNode, TemplateNode } from "./TemplateNode.tsx";
 
 const NODE_TYPES = {
   [JOB_NODE_TYPE]: JobNode,
   [COLUMN_NODE_TYPE]: StageColumnNode,
+  [TEMPLATE_NODE_TYPE]: TemplateNode,
+  [TEMPLATE_COLUMN_TYPE]: TemplateColumnNode,
 };
 
 const EMPTY: FlowGraph = { nodes: [], edges: [] };
@@ -58,7 +63,8 @@ export function RefitOnResize({ container }: { container: React.RefObject<HTMLEl
 }
 
 /** Keyboard focus can land on a node the viewport does not show: the graph pans to it, at the
- *  current zoom. */
+ *  current zoom. A node focused before it is measured — a job just inserted — waits for its
+ *  measure and for the initial fit that follows it, which would otherwise leave it off the canvas. */
 export function RevealFocused({ container }: { container: React.RefObject<HTMLElement | null> }) {
   const flow = useReactFlow();
 
@@ -67,31 +73,45 @@ export function RevealFocused({ container }: { container: React.RefObject<HTMLEl
     if (viewport === null) {
       return;
     }
-    const reveal = (event: FocusEvent): void => {
-      const id = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-job-id]")
-        ?.dataset.jobId;
-      const node = id === undefined ? undefined : flow.getNode(id);
-      if (node === undefined) {
+    let frame = 0;
+    const reveal = (id: string, frames: number, settled: boolean): void => {
+      const node = flow.getInternalNode(id);
+      const width = node?.measured.width;
+      const height = node?.measured.height;
+      if (node === undefined || width === undefined || height === undefined || !settled) {
+        if (frames > 0) {
+          frame = requestAnimationFrame(() => reveal(id, frames - 1, width !== undefined));
+        }
         return;
       }
       // Measured in flow coordinates: the browser's own focus scrolling moves the DOM box without
       // moving the viewport, so a DOM rectangle read here would lie.
       const { x, y, zoom } = flow.getViewport();
-      const width = node.width ?? 0;
-      const height = node.height ?? 0;
-      const left = node.position.x * zoom + x;
-      const top = node.position.y * zoom + y;
+      const { x: nodeX, y: nodeY } = node.internals.positionAbsolute;
+      const left = nodeX * zoom + x;
+      const top = nodeY * zoom + y;
       const inside =
         left >= 0 &&
         top >= 0 &&
         left + width * zoom <= viewport.clientWidth &&
         top + height * zoom <= viewport.clientHeight;
       if (!inside) {
-        void flow.setCenter(node.position.x + width / 2, node.position.y + height / 2, { zoom });
+        void flow.setCenter(nodeX + width / 2, nodeY + height / 2, { zoom });
       }
     };
-    viewport.addEventListener("focusin", reveal);
-    return () => viewport.removeEventListener("focusin", reveal);
+    const onFocus = (event: FocusEvent): void => {
+      const id = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-job-id]")
+        ?.dataset.jobId;
+      if (id !== undefined) {
+        cancelAnimationFrame(frame);
+        reveal(id, 120, flow.getInternalNode(id)?.measured.width !== undefined);
+      }
+    };
+    viewport.addEventListener("focusin", onFocus);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener("focusin", onFocus);
+    };
   }, [flow, container]);
 
   return null;
