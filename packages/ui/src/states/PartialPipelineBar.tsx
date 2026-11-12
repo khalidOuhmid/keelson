@@ -72,11 +72,13 @@ export function PartialPipelineBar({ pipeline }: PartialPipelineBarProps) {
 function Body({ entry }: { entry: UnresolvedInclude }) {
   return (
     <>
-      <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase">
+      <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase">
         {entry.form}
       </span>
       <span className="font-mono text-xs break-all text-text-secondary">{entry.detail}</span>
-      <span className="text-2xs tracking-label text-text-muted uppercase">declared in</span>
+      <span className="text-2xs font-semibold tracking-label text-text-muted uppercase">
+        declared in
+      </span>
       <span className="font-mono text-xs text-text-muted">{entry.from}</span>
     </>
   );

@@ -442,7 +442,9 @@ redeclare. From `lg` up the layout is one desktop composition, and the canvas is
 (`--keelson-canvas-min-width`) so two 352px panels can never crush the graph to zero. Below `lg`, and
 only there (ADR 0008), the job detail panel, the left sidebar and the tool panel leave the row and
 become full-screen overlays; the sidebar opens from a `Panel` button in the header and closes from
-its own `Close panel` button, and the graph keeps the viewport. Focus is not trapped in an overlay.
+its own `Close panel` button or Escape, and the graph keeps the viewport. An overlay covers the
+screen, so it owns focus: opening it moves focus to its first control, Tab cycles inside it, and
+closing it returns focus to the control that opened it (The Covering-Surface Rule).
 The breakpoint changes where these three panels sit, never their content, and the desktop
 composition does not change.
 
@@ -494,6 +496,13 @@ edge, with no shadow.
 plus a hairline; if a new surface seems to need lifting, it needs the next `surface-*` token, not a
 shadow token invented for it.
 
+**The Covering-Surface Rule.** Whatever covers the rest of the screen owns focus, and only that: the
+confirmation dialog and, below `lg`, the three overlays. Opening one moves focus
+into it, Tab and Shift+Tab cycle inside it, Escape closes it, and closing it — by button or by
+Escape — returns focus to the control that opened it, or to the graph when that control is gone.
+Only a surface that blocks the page carries `aria-modal`. From `lg` up a side column covers nothing
+and leaves focus where it is. The policy lives in `src/focus.ts`.
+
 **The Inline-Modal Rule.** A dialog is a bordered block in the flow that owns focus, not a floating
 plane. It carries `role="alertdialog"` and `aria-modal`, focus moves into it on open, Escape cancels
 it without disturbing the panel behind it, and focus returns to the control that opened it.
@@ -510,7 +519,7 @@ have no radius at all: they are full-bleed bands bounded by their hairline.
 Every border is one pixel, including the one Tailwind draws for the bare `border` class, which reads
 `--default-border-width` from the token file rather than the framework default. There is no 2px
 border. The two 2px strokes are outlines in `accent`: the focus ring at 2px offset, and the emphasis
-on the job nodes of the chosen layer on the coverage overlay, with no offset, drawn outside the node's
+on the job nodes of the chosen layer on the coverage overlay (`--keelson-emphasis-width`), with no offset, drawn outside the node's
 one-pixel border, which keeps its own colour. Dependency edges are curves between
 left/right handles and are the one place stroke weight carries meaning: 1.5px
 (`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
@@ -554,6 +563,9 @@ Ghost by default. There is no filled button anywhere in the product.
   confirm button).
 - **Icon button:** the stage reorder pair is the same button with an SVG arrow in place of the label
   and an `aria-label`; it never shrinks below the standard padding.
+- **Target size:** every button, every standalone text link and every checkbox row is at least
+  24 × 24px (`min-h-6 min-w-6`), the WCAG 2.2 target-size floor, even though the commitment in
+  `PRODUCT.md` is 2.1 AA. A checkbox keeps its native size; its whole label row is the target.
 - **Current view:** the view switcher's button for the open view carries `aria-current="page"`, an
   `accent` border, the `surface-3` fill and a semibold `text-primary` label.
 - **Text link:** no border and no fill, underlined at a 2px offset. `accent` for "See tools" and
@@ -605,6 +617,13 @@ border, 4px horizontal padding, transparent fill).
   `max-w-prose`, heading at 19px semibold. The alert tone swaps the `border-default` outline for
   `warning-muted` (or `danger-muted` for an unparseable document) and adds `role="alert"`.
 
+**The One-Stop Graph Rule.** The pipeline graph is a single tab stop (roving tabindex): the selected
+job, else the last focused one, else the first. Up and Down move within a stage, Left and Right
+cross to the nearest job of the neighbouring stage, Shift+Left and Shift+Right follow a dependency to
+a job it needs or a job that needs it, Home and End reach the ends, Enter opens the job. A job
+reached off-screen is panned into view at the current zoom. Edges are never tab stops. Every node
+points to the instructions through `aria-describedby`, after its own description.
+
 **The Read-Only Object Rule.** A job Keelson will never write stays an object. It steps down one
 plane and loses its hover, but it keeps its `border-default` boundary, says `read-only` in words,
 and gets no editor.
@@ -625,7 +644,8 @@ and gets no editor.
 The header is an identity-and-state bar of at least 44px holding the product's one navigation group:
 the product name at 13px semibold, the open file path beside it in 12px monospace `text-muted`
 truncating from the end, a tag counting the included files when there are any, and on the right the
-write indicator, the `Panel` button below `lg`, the `Views` navigation of four ghost buttons
+write indicator, the `Panel` button below `lg`, on the Pipeline and Coverage views the `Find job`
+ghost button (Ctrl+K, Cmd+K or `/` outside a field), the `Views` navigation of four ghost buttons
 (Pipeline, Toolchain, Coverage, Catalog), and on the Pipeline and Toolchain views the undo/redo ghost pair with their shortcuts
 in the `title` attribute. It is underlined by a hairline and sits on the floor colour.
 
@@ -674,9 +694,31 @@ fill, 3px radius and `border-subtle` outline, and the editor theme neutralises e
 would otherwise impose. The tool panel's CI snippets render in the same viewer. Its highlight style
 maps every tag to a token: keys in `accent`, keywords in
 `text-primary`, strings, numbers and booleans in `text-secondary`, comments and meta in `text-muted`
-and italic. Lines wrap, gutters are hidden, and the view is read-only with no focus outline of its
+and italic. Lines wrap with a hanging indent — a continuation starts two columns past its own line's
+indentation, so it never reads as a new key — gutters are hidden, and the view is read-only with no focus outline of its
 own. When the range cannot be read back from the file, the block is replaced by an explicit
 "Content unavailable" notice on `surface-2` stating that the block is still on disk and untouched.
+
+### Job Table
+
+The graph's text equivalent, chosen from a `Display` pair of ghost toggle buttons (`Graph`, `Table`,
+the pressed one styled like the current view) in a hairline-ruled row above the canvas on the
+Pipeline and Coverage views. The table lists every job in stage order then file order, under the
+catalogue's column-heading voice: the job id as a pressed-state button in 12px monospace, the stage
+and the needs in 12px monospace `text-secondary` ("None" in sans `text-muted` when there are none),
+and on the Coverage view every layer tag, the chosen layer first. It does not zoom: on a forty-job
+pipeline, where `fitView` takes node text below the 11px floor, it is the legible way to read the
+pipeline. A row opens its job like a node does, and closing the panel returns focus to the row.
+
+### Job Search
+
+A `surface-1` band under the header, in the flow like the partial pipeline bar and ruled by the same
+hairline, capped at one third of the viewport. It holds a combobox in the field style, named "Find a
+job", above a listbox of job ids in 12px monospace with their stage in 11px monospace `text-muted`.
+Prefix matches come first, then inner matches, each in file order. Up and Down move the active
+option (`surface-3` fill, `text-primary`), Enter or a click opens the job — its detail panel, and
+focus on its node — and Escape closes the band and returns focus to `Find job`. It covers nothing,
+so it does not trap focus. When nothing matches, one `role="status"` sentence says so.
 
 ### Partial Pipeline Bar
 

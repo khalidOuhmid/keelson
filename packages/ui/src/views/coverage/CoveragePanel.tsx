@@ -35,7 +35,7 @@ function Uncovered({
         <button
           type="button"
           onClick={() => onShowTools(layer.id)}
-          className="cursor-pointer text-accent underline underline-offset-2"
+          className="inline-flex min-h-6 cursor-pointer items-center text-accent underline underline-offset-2"
         >
           See tools
         </button>
@@ -44,7 +44,7 @@ function Uncovered({
             href={guideline}
             target="_blank"
             rel="noreferrer"
-            className="text-text-secondary underline underline-offset-2"
+            className="inline-flex min-h-6 items-center text-text-secondary underline underline-offset-2"
           >
             OWASP guideline
           </a>

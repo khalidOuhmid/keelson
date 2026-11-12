@@ -70,7 +70,7 @@ export function ToolCard({ tool, logo, onClose, insertion }: ToolCardProps) {
               href={tool.verifiedAt}
               target="_blank"
               rel="noreferrer"
-              className="underline underline-offset-2"
+              className="inline-flex min-h-6 items-center underline underline-offset-2"
             >
               {tool.lastVerified}
             </a>
@@ -82,7 +82,7 @@ export function ToolCard({ tool, logo, onClose, insertion }: ToolCardProps) {
         href={tool.homepage}
         target="_blank"
         rel="noreferrer"
-        className="text-sm text-accent underline underline-offset-2"
+        className="inline-flex min-h-6 items-center text-sm text-accent underline underline-offset-2"
       >
         Homepage
       </a>

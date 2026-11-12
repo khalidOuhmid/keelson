@@ -27,6 +27,8 @@ export type JobNodeData = {
   layers: readonly LayerId[] | null;
   /** The job carries the layer chosen in the panel. */
   emphasised: boolean;
+  /** The graph's one tab stop (roving tabindex): every other job is reached with the arrows. */
+  tabStop?: boolean;
 };
 
 export type LayerOverlay = {
@@ -64,6 +66,7 @@ export function toFlowGraph(
   headerHeight = 0,
   columnPadding = 0,
   overlay: LayerOverlay | null = null,
+  tabStop: string | null = null,
 ): FlowGraph {
   const positions = new Map(layout.nodes.map((node) => [node.id, node]));
   const jobs = new Map(pipeline.jobs.map((job) => [job.id, job]));
@@ -122,6 +125,7 @@ export function toFlowGraph(
           emphasised:
             overlay?.selected != null &&
             (overlay.jobs.get(job.id) ?? []).includes(overlay.selected),
+          tabStop: job.id === tabStop,
         } satisfies JobNodeData,
         width: placed.width,
         height: placed.height,

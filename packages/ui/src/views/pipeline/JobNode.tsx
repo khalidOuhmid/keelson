@@ -2,6 +2,7 @@ import { findLayer } from "@keelson/taxonomy";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
 import { LayerTags } from "../coverage/LayerTag.tsx";
 import type { JobNodeData, NeedSummary } from "./graph.ts";
+import { KEYBOARD_HINT_ID } from "./navigation.ts";
 import { OriginBadge } from "./OriginBadge.tsx";
 
 export const READ_ONLY_TAG = "read-only";
@@ -54,12 +55,13 @@ export function JobNode({ data }: JobNodeProps) {
       <button
         type="button"
         aria-pressed={data.selected}
-        aria-describedby={descriptionId}
+        aria-describedby={`${descriptionId} ${KEYBOARD_HINT_ID}`}
+        tabIndex={data.tabStop === true ? 0 : -1}
         data-job-id={data.id}
         data-selected={data.selected}
         data-included={data.included}
         data-emphasised={data.emphasised}
-        className={`group flex h-full w-full cursor-pointer flex-col justify-center gap-0.5 rounded-md border px-2.5 py-2 text-left transition-colors duration-fast ease-out data-[emphasised=true]:outline-2 data-[emphasised=true]:outline-accent data-[selected=true]:border-accent data-[selected=true]:bg-surface-3 ${surface}`}
+        className={`group flex h-full w-full cursor-pointer flex-col justify-center gap-0.5 rounded-md border px-2.5 py-2 text-left transition-colors duration-fast ease-out data-[emphasised=true]:outline-[length:var(--keelson-emphasis-width)] data-[emphasised=true]:outline-accent data-[selected=true]:border-accent data-[selected=true]:bg-surface-3 ${surface}`}
       >
         <span className="flex items-center gap-1.5 overflow-hidden">
           <span className="truncate text-base font-semibold text-text-primary">{data.id}</span>
@@ -87,7 +89,7 @@ export function JobNode({ data }: JobNodeProps) {
 
 export function ReadOnlyTag() {
   return (
-    <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-normal tracking-label text-text-muted uppercase">
+    <span className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase">
       {READ_ONLY_TAG}
     </span>
   );

@@ -27,6 +27,7 @@ import { JobEditor } from "./editing/JobEditor.tsx";
 import { NewJobForm } from "./editing/NewJobForm.tsx";
 import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
+import { focusWhenDrawn, overlaysCover, useCoveringPanel } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
@@ -39,7 +40,9 @@ import { NoticeBar } from "./states/NoticeBar.tsx";
 import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
 import { CatalogView } from "./views/catalog/CatalogView.tsx";
 import { CoveragePanel } from "./views/coverage/CoveragePanel.tsx";
+import { JobSearch } from "./views/pipeline/JobSearch.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
+import { PipelineTable } from "./views/pipeline/PipelineTable.tsx";
 import { ServicePanel } from "./views/toolchain/ServicePanel.tsx";
 import { ToolchainCanvas } from "./views/toolchain/ToolchainCanvas.tsx";
 import { ToolchainPanel } from "./views/toolchain/ToolchainPanel.tsx";
@@ -76,16 +79,6 @@ export type AppDeps = {
   newOpId?: () => string;
 };
 
-/** Graph layout is asynchronous: the node does not exist yet on the next render. */
-function focusWhenDrawn(selector: string, frames = 120): void {
-  const found = document.querySelector<HTMLElement>(selector);
-  if (found !== null) {
-    found.focus();
-  } else if (frames > 0) {
-    requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
-  }
-}
-
 function browserDeps(): AppDeps {
   const token = readToken(browserLocation()) ?? "";
   return { client: new KeelsonClient({ token }) };
@@ -110,6 +103,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   );
 }
+
+const DISPLAYS = [
+  { display: "graph", label: "Graph" },
+  { display: "table", label: "Table" },
+] as const;
+
+type Display = (typeof DISPLAYS)[number]["display"];
 
 export function App({ deps }: AppProps = {}) {
   const resolved = useMemo(() => deps ?? browserDeps(), [deps]);
@@ -149,6 +149,17 @@ export function App({ deps }: AppProps = {}) {
   }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarOpenNow = useRef(false);
+  sidebarOpenNow.current = sidebarOpen;
+  const panelTrigger = useRef<HTMLButtonElement | null>(null);
+  const closeSidebar = (): void => {
+    setSidebarOpen(false);
+    panelTrigger.current?.focus();
+  };
+  const sidebar = useCoveringPanel<HTMLElement>(sidebarOpen);
+  const [display, setDisplay] = useState<Display>("graph");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchTrigger = useRef<HTMLButtonElement | null>(null);
   const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
   const loaded = useRef(false);
 
@@ -216,15 +227,22 @@ export function App({ deps }: AppProps = {}) {
   }, [resolved, store, toolchainStore]);
 
   // When the detail panel goes away — Escape, close button or confirmed deletion — focus returns
-  // to the graph rather than falling back to <body>.
-  const hadSelection = useRef(false);
+  // to the job's node, or to the graph once the job is gone, never to <body>.
+  const lastSelection = useRef<string | null>(null);
   useEffect(() => {
-    const open = state.selectedJobId !== null;
-    if (hadSelection.current && !open) {
-      document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]')?.focus();
+    const previous = lastSelection.current;
+    if (previous !== null && state.selectedJobId === null) {
+      const remains = store.getState().pipeline?.jobs.some((job) => job.id === previous) ?? false;
+      (
+        (remains
+          ? document.querySelector<HTMLElement>(`[data-job-id="${CSS.escape(previous)}"]`)
+          : null) ??
+        document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]') ??
+        document.querySelector<HTMLElement>('[aria-label="Display"] [aria-pressed="true"]')
+      )?.focus();
     }
-    hadSelection.current = open;
-  }, [state.selectedJobId]);
+    lastSelection.current = state.selectedJobId;
+  }, [state.selectedJobId, store]);
 
   const serviceOpen =
     state.view === "toolchain" &&
@@ -245,6 +263,11 @@ export function App({ deps }: AppProps = {}) {
   // canvas but can be closed from anywhere, the panel included.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && sidebarOpenNow.current) {
+        setSidebarOpen(false);
+        panelTrigger.current?.focus();
+        return;
+      }
       if (event.key === "Escape") {
         store.getState().selectJob(null);
         toolchainStore.getState().selectService(null);
@@ -302,6 +325,37 @@ export function App({ deps }: AppProps = {}) {
       : (state.pipeline?.jobs.find((job) => job.id === state.selectedJobId) ?? null);
 
   const blocking = state.diagnostics.some(blocksEditing);
+  const searchable =
+    state.status === "ready" &&
+    !blocking &&
+    state.pipeline !== null &&
+    (state.view === "pipeline" || state.view === "coverage");
+  const searchableNow = useRef(false);
+  searchableNow.current = searchable;
+
+  useEffect(() => {
+    const handle = (event: KeyboardEvent): void => {
+      if (!searchableNow.current) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const typing =
+        (target?.matches("input, select, textarea") ?? false) || target?.isContentEditable === true;
+      const shortcut =
+        ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") ||
+        (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey);
+      if (shortcut) {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, []);
+  const jobPanelOpen =
+    selected !== null && state.pipeline !== null && state.view !== "catalog" && !inToolchain;
+  const jobPanel = useCoveringPanel<HTMLElement>(jobPanelOpen);
+  const servicePanel = useCoveringPanel<HTMLElement>(selectedService !== null);
 
   const reading = state.view === "coverage";
   const overlay = useMemo(
@@ -384,13 +438,45 @@ export function App({ deps }: AppProps = {}) {
         />
       );
     }
+    const shown = state.pipeline ?? emptyPipeline(state.file ?? "");
     return (
-      <PipelineCanvas
-        pipeline={state.pipeline ?? emptyPipeline(state.file ?? "")}
-        selectedJobId={state.selectedJobId}
-        onSelectJob={(id) => store.getState().selectJob(id)}
-        overlay={overlay}
-      />
+      <div className="flex h-full flex-col">
+        {/* biome-ignore lint/a11y/useSemanticElements: a pair of toggle buttons, not a form */}
+        <div
+          role="group"
+          aria-label="Display"
+          className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-3 py-1.5"
+        >
+          {DISPLAYS.map((entry) => (
+            <button
+              key={entry.display}
+              type="button"
+              aria-pressed={display === entry.display}
+              onClick={() => setDisplay(entry.display)}
+              className={`${BUTTON} aria-pressed:border-accent aria-pressed:bg-surface-3 aria-pressed:font-semibold aria-pressed:text-text-primary`}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1">
+          {display === "graph" ? (
+            <PipelineCanvas
+              pipeline={shown}
+              selectedJobId={state.selectedJobId}
+              onSelectJob={(id) => store.getState().selectJob(id)}
+              overlay={overlay}
+            />
+          ) : (
+            <PipelineTable
+              pipeline={shown}
+              selectedJobId={state.selectedJobId}
+              onSelectJob={(id) => store.getState().selectJob(id)}
+              overlay={overlay}
+            />
+          )}
+        </div>
+      </div>
     );
   })();
 
@@ -418,8 +504,8 @@ export function App({ deps }: AppProps = {}) {
       />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
-        <span className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
-          <span className="text-sm font-semibold text-text-primary">Keelson</span>
+        <div className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
+          <h1 className="text-sm font-semibold text-text-primary">Keelson</h1>
           {state.file === null ? null : files.length > 1 ? (
             <select
               aria-label="Pipeline file"
@@ -462,18 +548,18 @@ export function App({ deps }: AppProps = {}) {
             <span
               data-testid="included-files-tag"
               title={`Resolved includes: ${resolvedIncludes.join(", ")}`}
-              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               {includedCount === 1 ? "1 included file" : `${includedCount} included files`}
             </span>
           )}
-        </span>
+        </div>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {state.pending || toolchainState.pending ? (
             <span
               data-testid="pending-indicator"
               role="status"
-              className="flex items-center gap-1.5 text-2xs tracking-label text-text-muted uppercase"
+              className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               <span aria-hidden="true" className="size-1.5 rounded-sm bg-accent" />
               Writing
@@ -481,6 +567,7 @@ export function App({ deps }: AppProps = {}) {
           ) : null}
           {showSidebar && state.view !== "catalog" ? (
             <button
+              ref={panelTrigger}
               type="button"
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -489,6 +576,19 @@ export function App({ deps }: AppProps = {}) {
               {inToolchain && (toolchainPayload?.proposed.length ?? 0) > 0
                 ? `Panel, ${toolchainPayload?.proposed.length} proposed`
                 : "Panel"}
+            </button>
+          ) : null}
+          {searchable ? (
+            <button
+              ref={searchTrigger}
+              type="button"
+              aria-expanded={searchOpen}
+              aria-keyshortcuts="Control+K Meta+K /"
+              title="Find job (Ctrl+K or /)"
+              onClick={() => setSearchOpen(true)}
+              className={BUTTON}
+            >
+              Find job
             </button>
           ) : null}
           <nav aria-label="Views" className="flex items-center gap-1">
@@ -526,19 +626,34 @@ export function App({ deps }: AppProps = {}) {
         </span>
       </header>
 
+      {searchOpen && searchable && state.pipeline !== null ? (
+        <JobSearch
+          jobs={state.pipeline.jobs}
+          onClose={() => {
+            setSearchOpen(false);
+            searchTrigger.current?.focus();
+          }}
+          onPick={(id) => {
+            setSearchOpen(false);
+            store.getState().selectJob(id);
+            if (!overlaysCover()) {
+              focusWhenDrawn(`[data-job-id="${CSS.escape(id)}"]`);
+            }
+          }}
+        />
+      ) : null}
+
       {state.pipeline === null ? null : <PartialPipelineBar pipeline={state.pipeline} />}
 
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null && state.view !== "catalog" ? (
           <aside
+            ref={sidebar.ref}
+            onKeyDown={sidebar.onKeyDown}
             aria-label={reading ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
             className={`flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:w-full ${sidebarOpen ? "" : "max-lg:hidden"}`}
           >
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              className={`self-end lg:hidden ${BUTTON}`}
-            >
+            <button type="button" onClick={closeSidebar} className={`self-end lg:hidden ${BUTTON}`}>
               Close panel
             </button>
             {inToolchain ? (
@@ -565,6 +680,7 @@ export function App({ deps }: AppProps = {}) {
                 onShowTools={(layer) => {
                   setSidebarOpen(false);
                   store.getState().showTools(layer);
+                  focusWhenDrawn('[aria-label="Tool catalogue"] select');
                 }}
               />
             ) : (
@@ -595,6 +711,8 @@ export function App({ deps }: AppProps = {}) {
 
         {selectedService === null || toolchainPayload === null ? null : (
           <aside
+            ref={servicePanel.ref}
+            onKeyDown={servicePanel.onKeyDown}
             aria-label="Service"
             className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
           >
@@ -611,11 +729,13 @@ export function App({ deps }: AppProps = {}) {
           </aside>
         )}
 
-        {selected === null ||
-        state.pipeline === null ||
-        state.view === "catalog" ||
-        inToolchain ? null : (
-          <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1">
+        {!jobPanelOpen || selected === null || state.pipeline === null ? null : (
+          <aside
+            ref={jobPanel.ref}
+            onKeyDown={jobPanel.onKeyDown}
+            aria-label="Job"
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
+          >
             <JobDetailPanel
               job={selected}
               textOf={(file) => state.textOf(file)}

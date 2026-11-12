@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Coverage } from "@keelson/catalog";
 import type { Operation, Pipeline } from "@keelson/core";
-import { LAYERS } from "@keelson/taxonomy";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { findLayer, LAYERS } from "@keelson/taxonomy";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   ApiResult,
@@ -14,6 +14,7 @@ import type {
 import type { ServerEvent } from "../src/api/events.ts";
 import { App, type AppDeps } from "../src/app.tsx";
 import { LAYOUT_TOKENS } from "../src/views/pipeline/metrics.ts";
+import { narrowViewport, restoreViewport } from "./support/viewport.ts";
 
 const MAIN = ".gitlab-ci.yml";
 
@@ -606,16 +607,28 @@ describe("the sidebar is grouped", () => {
 
 describe("focus never falls onto the document body", () => {
   /** Independent review: after Escape as after a confirmed deletion, `document.activeElement` was
-   *  `<body>`. When the detail panel disappears, focus returns to the graph. */
-  test("closing the panel returns focus to the graph", async () => {
+   *  `<body>`. When the detail panel disappears, focus returns to the job's node, the control
+   *  that opened it, so the arrows carry on from there. */
+  test("closing the panel returns focus to the node of the job it showed", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     await screen.findByRole("region", { name: /job detail/i });
 
     await userEvent.click(screen.getByRole("button", { name: "Close job detail" }));
 
+    await waitFor(() => expect((document.activeElement as HTMLElement).dataset.jobId).toBe("unit"));
+  });
+
+  test("Escape from inside the panel also returns focus to the node", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /compile/ }));
+    await screen.findByRole("region", { name: /job detail/i });
+    screen.getByRole("button", { name: "Close job detail" }).focus();
+
+    await userEvent.keyboard("{Escape}");
+
     await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole("region", { name: "Pipeline graph" })),
+      expect((document.activeElement as HTMLElement).dataset.jobId).toBe("compile"),
     );
   });
 });
@@ -673,5 +686,245 @@ describe("Escape in the confirmation does not reach the panel", () => {
 
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByRole("region", { name: /job detail/i })).toBeDefined();
+  });
+});
+
+describe("landmarks and heading outline", () => {
+  test("the product name is the page's one level-1 heading", async () => {
+    await renderApp(harness());
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings.map((heading) => heading.textContent)).toEqual(["Keelson"]);
+  });
+
+  test("every complementary landmark has an accessible name, the job column included", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    await screen.findByRole("region", { name: /job detail/i });
+
+    const asides = [...document.querySelectorAll("aside")];
+    expect(asides.map((aside) => aside.getAttribute("aria-label"))).toEqual([
+      "Edit pipeline",
+      "Job",
+    ]);
+  });
+});
+
+describe("the focus policy across panels", () => {
+  afterEach(restoreViewport);
+
+  test("opening the sidebar overlay moves focus into it, closing it returns to Panel", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    const trigger = screen.getByRole("button", { name: "Panel" });
+    await userEvent.click(trigger);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close panel" })),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Close panel" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Panel" }));
+  });
+
+  test("Escape closes the sidebar overlay and returns focus to Panel", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    await userEvent.click(screen.getByRole("button", { name: "Panel" }));
+    const sidebar = screen.getByRole("complementary", { name: "Edit pipeline" });
+    expect(sidebar.className).not.toContain("max-lg:hidden");
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.getByRole("button", { name: "Panel" }).getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Panel" }));
+  });
+
+  test("below lg, Tab stays inside the sidebar overlay", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    await userEvent.click(screen.getByRole("button", { name: "Panel" }));
+    const sidebar = screen.getByRole("complementary", { name: "Edit pipeline" });
+    for (let step = 0; step < 14; step += 1) {
+      await userEvent.tab();
+      expect(sidebar.contains(document.activeElement)).toBe(true);
+    }
+  });
+
+  test("below lg, the job overlay takes focus on open and keeps Tab inside", async () => {
+    narrowViewport();
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
+    const overlay = await screen.findByRole("complementary", { name: "Job" });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close job detail" })),
+    );
+    for (let step = 0; step < 20; step += 1) {
+      await userEvent.tab();
+      expect(overlay.contains(document.activeElement)).toBe(true);
+    }
+  });
+
+  test('"See tools" lands focus on the catalogue\'s layer filter, set to that layer', async () => {
+    const uncovered = {
+      ...DOCUMENT,
+      coverage: {
+        jobs: [],
+        partial: false,
+        layers: LAYERS.map((layer) => ({
+          layer: layer.id,
+          covered: false,
+          jobs: [],
+          services: [],
+        })),
+      },
+    };
+    await renderApp(harness({ document: uncovered }));
+    await userEvent.click(screen.getByRole("button", { name: "Coverage" }));
+    const [first] = await screen.findAllByRole("button", { name: "See tools" });
+    await userEvent.click(first as HTMLElement);
+
+    const layer = await screen.findByLabelText("Layer");
+    await waitFor(() => expect(document.activeElement).toBe(layer));
+    expect((layer as HTMLSelectElement).value).not.toBe("any");
+  });
+});
+
+describe("finding a job by name", () => {
+  test("Ctrl+K opens the search with its field focused, Escape gives focus back", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    const trigger = screen.getByRole("button", { name: "Find job" });
+    trigger.focus();
+
+    await userEvent.keyboard("{Control>}k{/Control}");
+    const field = await screen.findByRole("combobox", { name: "Find a job" });
+    expect(document.activeElement).toBe(field);
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("combobox", { name: "Find a job" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  test("typing narrows the list, prefix matches first, and says when nothing matches", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: "Find job" }));
+
+    await userEvent.keyboard("i");
+    const options = () =>
+      within(screen.getByRole("listbox", { name: "Jobs" }))
+        .queryAllByRole("option")
+        .map((option) => option.getAttribute("data-job"));
+    expect(options()).toEqual(["compile", "unit"]);
+    await userEvent.keyboard("{Backspace}un");
+    expect(options()).toEqual(["unit"]);
+    await userEvent.keyboard("zz");
+    expect(options()).toEqual([]);
+    expect(screen.getByRole("status").textContent).toBe("No job matches unzz.");
+  });
+
+  test("the arrows move the active option, Enter opens that job and focuses its node", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: "Find job" }));
+    const field = screen.getByRole("combobox", { name: "Find a job" });
+
+    expect(
+      document.getElementById(field.getAttribute("aria-activedescendant") ?? "")?.dataset.job,
+    ).toBe("compile");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(
+      document.getElementById(field.getAttribute("aria-activedescendant") ?? "")?.dataset.job,
+    ).toBe("unit");
+    await userEvent.keyboard("{Enter}");
+
+    expect(await screen.findByRole("region", { name: /job detail/i })).toBeDefined();
+    expect(screen.getByRole("region", { name: /job detail/i }).textContent).toContain("unit");
+    expect(screen.queryByRole("combobox", { name: "Find a job" })).toBeNull();
+    await waitFor(() => expect((document.activeElement as HTMLElement).dataset.jobId).toBe("unit"));
+  });
+
+  test("a click on an option opens that job", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: "Find job" }));
+    await userEvent.click(screen.getByRole("option", { name: /compile/ }));
+    expect(screen.getByRole("region", { name: /job detail/i }).textContent).toContain("compile");
+  });
+
+  test("the slash key opens it too, but not while typing in a field", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    screen.getByRole("textbox", { name: "New stage name" }).focus();
+    await userEvent.keyboard("/");
+    expect(screen.queryByRole("combobox", { name: "Find a job" })).toBeNull();
+
+    screen.getByRole("button", { name: "Find job" }).focus();
+    await userEvent.keyboard("/");
+    expect(screen.getByRole("combobox", { name: "Find a job" })).toBeDefined();
+  });
+});
+
+describe("the table display, legible at any zoom", () => {
+  test("Table replaces the graph with one row per job, in stage order, and back", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    const display = screen.getByRole("group", { name: "Display" });
+    expect(
+      within(display).getByRole("button", { name: "Graph" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    await userEvent.click(within(display).getByRole("button", { name: "Table" }));
+
+    const table = screen.getByRole("table", { name: "Pipeline jobs" });
+    expect(screen.queryByRole("region", { name: "Pipeline graph" })).toBeNull();
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows.map((row) => within(row).getAllByRole("cell")[0]?.textContent)).toEqual([
+      "compile",
+      "unit",
+    ]);
+    expect(within(rows[1] as HTMLElement).getAllByRole("cell")[1]?.textContent).toBe("test");
+    expect(within(rows[1] as HTMLElement).getAllByRole("cell")[2]?.textContent).toBe("compile");
+    expect(within(rows[0] as HTMLElement).getAllByRole("cell")[2]?.textContent).toBe("None");
+
+    await userEvent.click(within(display).getByRole("button", { name: "Graph" }));
+    expect(await screen.findByRole("region", { name: "Pipeline graph" })).toBeDefined();
+  });
+
+  test("a row opens its job, and closing the panel returns focus to that row", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    await userEvent.click(screen.getByRole("button", { name: "Table" }));
+
+    const row = screen.getByRole("button", { name: "unit" });
+    await userEvent.click(row);
+    expect(row.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("region", { name: /job detail/i }).textContent).toContain("unit");
+
+    await userEvent.click(screen.getByRole("button", { name: "Close job detail" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "unit" })),
+    );
+  });
+
+  test("on the Coverage view, each row lists its layers", async () => {
+    const covered = {
+      ...DOCUMENT,
+      coverage: {
+        jobs: [{ job: "unit", layers: ["sast" as const], tools: [], overridden: false }],
+        partial: false,
+        layers: [],
+      },
+    };
+    await renderApp(harness({ document: covered }));
+    await userEvent.click(screen.getByRole("button", { name: "Coverage" }));
+    await userEvent.click(screen.getByRole("button", { name: "Table" }));
+
+    const table = screen.getByRole("table", { name: "Pipeline jobs" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Job", "Stage", "Needs", "Layers"]);
+    const unit = within(table).getAllByRole("row")[2] as HTMLElement;
+    expect(within(unit).getAllByRole("cell")[3]?.textContent).toContain(findLayer("sast").short);
   });
 });

@@ -107,7 +107,7 @@ describe("an included job in the Pipeline view", () => {
     expect(screen.getByText("read-only")).toBeDefined();
     const button = screen.getByRole("button", { name: /sast/ });
     expect(button.getAttribute("data-included")).toBe("true");
-    const described = button.getAttribute("aria-describedby") ?? "";
+    const described = button.getAttribute("aria-describedby")?.split(" ")[0] ?? "";
     expect(document.getElementById(described)?.textContent).toContain(
       `From included file ${INCLUDED}. Read-only.`,
     );
@@ -254,6 +254,12 @@ describe("the partial pipeline indicator", () => {
   function renderBar(unresolved: UnresolvedInclude[]) {
     return render(<PartialPipelineBar pipeline={pipeline({ unresolved })} />);
   }
+
+  test("its disclosure chevron takes the rotation class passed to the icon", () => {
+    renderBar([remote]);
+    const chevron = document.querySelector("summary svg");
+    expect(chevron?.getAttribute("class")).toContain("group-open:rotate-90");
+  });
 
   test("absent when every include is resolved", () => {
     const { container } = renderBar([]);

@@ -26,7 +26,7 @@ export function StageColumnNode({ data }: StageColumnNodeProps) {
           {data.implicit ? (
             <span
               title="This stage is not declared in the file; GitLab implies it."
-              className="rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+              className="rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               implicit
             </span>

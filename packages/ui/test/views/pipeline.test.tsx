@@ -15,9 +15,14 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
+/** The node's own description: the first of its `aria-describedby` ids, before the graph's shared
+ *  keyboard instructions. */
+function ownDescriptionId(element: HTMLElement): string {
+  return element.getAttribute("aria-describedby")?.split(" ")[0] ?? "";
+}
+
 function descriptionOf(element: HTMLElement): string {
-  const id = element.getAttribute("aria-describedby");
-  return id === null ? "" : (document.getElementById(id)?.textContent ?? "");
+  return document.getElementById(ownDescriptionId(element))?.textContent ?? "";
 }
 
 function need(job: string, optional = false): Need {
@@ -183,7 +188,7 @@ describe("job nodes", () => {
   test("the element describing the node is visually hidden but present in the DOM", async () => {
     await renderCanvas(SAMPLE);
     const node = await screen.findByRole("button", { name: /ship/ });
-    const target = document.getElementById(node.getAttribute("aria-describedby") ?? "");
+    const target = document.getElementById(ownDescriptionId(node));
     expect(target).not.toBeNull();
     expect(target?.className).toContain("sr-only");
   });
@@ -266,20 +271,17 @@ describe("selection", () => {
     expect(selected).toEqual(["lint"]);
   });
 
-  test("every node is in the tab order and takes focus", async () => {
-    // The node is a native button: it is in the tab order unless disabled or given a negative
-    // tabIndex. Tab traversal itself is proven in E2E (`keyboard.e2e.ts`).
+  test("every node is reachable from the keyboard, from the graph's one tab stop", async () => {
     await renderCanvas(SAMPLE);
-    for (const id of ["compile", "unit", "lint", "ship"]) {
-      const node = (await screen.findByRole("button", { name: new RegExp(id) })) as HTMLElement;
-      expect({ id, tabIndex: node.tabIndex, disabled: node.hasAttribute("disabled") }).toEqual({
-        id,
-        tabIndex: 0,
-        disabled: false,
-      });
-      node.focus();
-      expect(document.activeElement).toBe(node);
+    await screen.findByRole("button", { name: /ship/ });
+    await userEvent.tab();
+    const reached = new Set<string>();
+    for (const key of ["{ArrowDown}", "{ArrowRight}", "{ArrowDown}", "{ArrowUp}", "{ArrowRight}"]) {
+      reached.add((document.activeElement as HTMLElement).dataset.jobId ?? "");
+      await userEvent.keyboard(key);
     }
+    reached.add((document.activeElement as HTMLElement).dataset.jobId ?? "");
+    expect(reached).toEqual(new Set(["compile", "unit", "lint", "ship"]));
   });
 });
 
@@ -292,5 +294,95 @@ describe("empty pipeline", () => {
   test("a pipeline with no stages or jobs still renders without error", async () => {
     await renderCanvas(pipeline([], []));
     expect(await screen.findByRole("region", { name: /pipeline/i })).toBeDefined();
+  });
+});
+
+describe("the graph's keyboard model, on the render", () => {
+  const node = (id: string) => document.querySelector<HTMLElement>(`[data-job-id="${id}"]`);
+  const focused = () => (document.activeElement as HTMLElement | null)?.dataset.jobId;
+
+  async function drawn(value: Pipeline, selectedJobId: string | null = null) {
+    await renderCanvas(value, { selectedJobId });
+    await screen.findByRole("button", { name: /ship/ });
+  }
+
+  test("the graph is one tab stop: the first job, or the selected one", async () => {
+    await drawn(SAMPLE);
+    const stops = [...document.querySelectorAll<HTMLElement>("[data-job-id]")].filter(
+      (element) => element.tabIndex === 0,
+    );
+    expect(stops.map((element) => element.dataset.jobId)).toEqual(["compile"]);
+
+    cleanup();
+    await drawn(SAMPLE, "lint");
+    expect(node("lint")?.tabIndex).toBe(0);
+    expect(node("compile")?.tabIndex).toBe(-1);
+  });
+
+  test("Tab enters the graph on its one stop and leaves it at the next press", async () => {
+    await drawn(SAMPLE);
+    await userEvent.tab();
+    expect(focused()).toBe("compile");
+    await userEvent.tab();
+    expect(focused()).toBeUndefined();
+  });
+
+  test("arrows move within a stage and across stages, Home and End reach the ends", async () => {
+    await drawn(SAMPLE);
+    node("compile")?.focus();
+
+    await userEvent.keyboard("{ArrowRight}");
+    expect(["unit", "lint"]).toContain(focused() ?? "");
+    const first = focused();
+    await userEvent.keyboard("{ArrowDown}");
+    const second = focused();
+    expect(new Set([first, second])).toEqual(new Set(["unit", "lint"]));
+    await userEvent.keyboard("{ArrowDown}");
+    expect(focused()).toBe(second);
+    await userEvent.keyboard("{ArrowUp}");
+    expect(focused()).toBe(first);
+
+    await userEvent.keyboard("{ArrowRight}");
+    expect(focused()).toBe("ship");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(focused()).toBe("ship");
+    await userEvent.keyboard("{Home}");
+    expect(focused()).toBe("compile");
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(focused()).toBe("compile");
+    await userEvent.keyboard("{End}");
+    expect(focused()).toBe("ship");
+  });
+
+  test("Shift with an arrow follows a dependency edge", async () => {
+    await drawn(SAMPLE);
+    node("ship")?.focus();
+
+    await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+    expect(focused()).toBe("unit");
+    await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+    expect(focused()).toBe("compile");
+    await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+    expect(focused()).toBe("compile");
+    await userEvent.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(focused()).toBe("unit");
+    await userEvent.keyboard("{Shift>}{ArrowRight}{/Shift}");
+    expect(focused()).toBe("ship");
+  });
+
+  test("the tab stop follows the last focused job", async () => {
+    await drawn(SAMPLE);
+    node("compile")?.focus();
+    await userEvent.keyboard("{End}");
+    expect(node("ship")?.tabIndex).toBe(0);
+    expect(node("compile")?.tabIndex).toBe(-1);
+  });
+
+  test("every job node points to the keyboard instructions", async () => {
+    await drawn(SAMPLE);
+    const ids = node("unit")?.getAttribute("aria-describedby")?.split(" ") ?? [];
+    const text = ids.map((id) => document.getElementById(id)?.textContent ?? "").join(" ");
+    expect(text).toContain("Arrow keys move between jobs");
+    expect(text).toContain("Shift");
   });
 });

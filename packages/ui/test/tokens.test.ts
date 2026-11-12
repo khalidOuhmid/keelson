@@ -382,3 +382,48 @@ describe("`border-subtle` is never a component boundary", () => {
     expect(EDGE.test('className="border-b border-border-subtle"')).toBe(true);
   });
 });
+
+describe("the label voice is semibold (The Small-Caps Label Rule)", () => {
+  /** Uppercase is the label voice and nothing else, and the label voice is 11px semibold. The
+   *  `polish` pass of 2026-11-04 found "Writing" and every tag rendered in regular weight. Two
+   *  named exceptions keep their documented weight: layer tags (regular, `DESIGN.md` § Chips) and
+   *  the Keelson half of the origin badge, whose 500 weight sits on its parent element. */
+  const EXCEPTIONS = ["views/coverage/LayerTag.tsx", "views/pipeline/OriginBadge.tsx"];
+
+  function offendingLines(): { file: string; line: number; text: string }[] {
+    const found: { file: string; line: number; text: string }[] = [];
+    for (const path of sourceFiles(sourceRoot)) {
+      const name = relative(sourceRoot, path).split(/[\\/]/).join("/");
+      if (EXCEPTIONS.includes(name)) {
+        continue;
+      }
+      for (const [index, text] of readFileSync(path, "utf8").split("\n").entries()) {
+        if (/\buppercase\b/.test(text) && !/\bfont-semibold\b/.test(text)) {
+          found.push({ file: name, line: index + 1, text: text.trim() });
+        }
+      }
+    }
+    return found;
+  }
+
+  test("every uppercase class list also sets the semibold weight", () => {
+    expect(offendingLines()).toEqual([]);
+  });
+
+  test("every exception still sets uppercase, at its own weight", () => {
+    for (const name of EXCEPTIONS) {
+      const text = readFileSync(join(sourceRoot, name), "utf8");
+      expect({ name, uses: /\buppercase\b/.test(text) }).toEqual({ name, uses: true });
+    }
+  });
+});
+
+describe("the layer emphasis outline", () => {
+  test("its width comes from a token, not from a bare Tailwind step", () => {
+    const node = readFileSync(join(sourceRoot, "views/pipeline/JobNode.tsx"), "utf8");
+    expect(node).not.toMatch(/\boutline-2\b/);
+    expect(node).toContain("outline-[length:var(--keelson-emphasis-width)]");
+    const tokens = readFileSync(join(sourceRoot, TOKENS_FILE), "utf8");
+    expect(tokens).toMatch(/--keelson-emphasis-width:\s*2px;/);
+  });
+});

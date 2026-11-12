@@ -1,5 +1,6 @@
 import type { Job, Pipeline } from "@keelson/core";
 import { useEffect, useRef, useState } from "react";
+import { trapTab } from "../focus.ts";
 import type { Draft } from "../state/store.ts";
 import { BUTTON, DANGER_BUTTON, FIELD, GROUP, LABEL } from "./controls.ts";
 import {
@@ -176,7 +177,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         </label>
 
         {github ? null : (
-          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <label className="flex min-h-6 items-center gap-1.5 text-xs text-text-secondary">
             <input
               type="checkbox"
               checked={optional}
@@ -188,7 +189,7 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
         )}
 
         {github ? null : (
-          <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+          <label className="flex min-h-6 items-center gap-1.5 text-xs text-text-secondary">
             <input
               type="checkbox"
               checked={artifacts}
@@ -274,7 +275,9 @@ export function JobEditor({ job, pipeline, onSubmit, disabled = false }: JobEdit
             if (event.key === "Escape") {
               event.stopPropagation();
               cancelDelete();
+              return;
             }
+            trapTab(event.currentTarget, event);
           }}
           className={`${GROUP} rounded-md border border-border-default bg-surface-2 p-2.5`}
         >

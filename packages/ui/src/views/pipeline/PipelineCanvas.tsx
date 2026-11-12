@@ -11,6 +11,7 @@ import {
 import { JobNode } from "./JobNode.tsx";
 import { type Layout, layoutPipeline } from "./layout.ts";
 import { readColumnHeaderHeight, readColumnPadding, readLayoutMetrics } from "./metrics.ts";
+import { KEYBOARD_HINT, KEYBOARD_HINT_ID, move, moveForKey, tabStop } from "./navigation.ts";
 import { StageColumnNode } from "./StageColumnNode.tsx";
 
 const NODE_TYPES = {
@@ -56,6 +57,46 @@ export function RefitOnResize({ container }: { container: React.RefObject<HTMLEl
   return null;
 }
 
+/** Keyboard focus can land on a node the viewport does not show: the graph pans to it, at the
+ *  current zoom. */
+export function RevealFocused({ container }: { container: React.RefObject<HTMLElement | null> }) {
+  const flow = useReactFlow();
+
+  useEffect(() => {
+    const viewport = container.current;
+    if (viewport === null) {
+      return;
+    }
+    const reveal = (event: FocusEvent): void => {
+      const id = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-job-id]")
+        ?.dataset.jobId;
+      const node = id === undefined ? undefined : flow.getNode(id);
+      if (node === undefined) {
+        return;
+      }
+      // Measured in flow coordinates: the browser's own focus scrolling moves the DOM box without
+      // moving the viewport, so a DOM rectangle read here would lie.
+      const { x, y, zoom } = flow.getViewport();
+      const width = node.width ?? 0;
+      const height = node.height ?? 0;
+      const left = node.position.x * zoom + x;
+      const top = node.position.y * zoom + y;
+      const inside =
+        left >= 0 &&
+        top >= 0 &&
+        left + width * zoom <= viewport.clientWidth &&
+        top + height * zoom <= viewport.clientHeight;
+      if (!inside) {
+        void flow.setCenter(node.position.x + width / 2, node.position.y + height / 2, { zoom });
+      }
+    };
+    viewport.addEventListener("focusin", reveal);
+    return () => viewport.removeEventListener("focusin", reveal);
+  }, [flow, container]);
+
+  return null;
+}
+
 export function PipelineCanvas({
   pipeline,
   selectedJobId,
@@ -64,6 +105,7 @@ export function PipelineCanvas({
 }: PipelineCanvasProps) {
   const [layout, setLayout] = useState<Layout | null>(null);
   const container = useRef<HTMLElement | null>(null);
+  const [active, setActive] = useState<string | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -77,6 +119,8 @@ export function PipelineCanvas({
     };
   }, [pipeline]);
 
+  const stop = layout === null ? null : tabStop(layout, [active, selectedJobId]);
+
   const graph = useMemo(
     () =>
       layout === null
@@ -88,8 +132,9 @@ export function PipelineCanvas({
             readColumnHeaderHeight(),
             readColumnPadding(),
             overlay,
+            stop,
           ),
-    [layout, pipeline, selectedJobId, overlay],
+    [layout, pipeline, selectedJobId, overlay, stop],
   );
 
   const hasJobs = pipeline.jobs.length > 0;
@@ -106,15 +151,35 @@ export function PipelineCanvas({
         const node = target.closest<HTMLElement>("[data-job-id]");
         onSelectJob(node?.dataset.jobId ?? null);
       }}
+      onFocus={(event) => {
+        const id = (event.target as HTMLElement).closest<HTMLElement>("[data-job-id]")?.dataset
+          .jobId;
+        if (id !== undefined) {
+          setActive(id);
+        }
+      }}
       onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") {
+        const target = event.target as HTMLElement;
+        const id = target.closest<HTMLElement>("[data-job-id]")?.dataset.jobId;
+        if (id === undefined) {
           return;
         }
-        const target = event.target as HTMLElement;
-        const node = target.closest<HTMLElement>("[data-job-id]");
-        if (node?.dataset.jobId !== undefined) {
+        if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelectJob(node.dataset.jobId);
+          onSelectJob(id);
+          return;
+        }
+        const direction = moveForKey(event.key, event.shiftKey);
+        if (direction === null || layout === null || event.altKey || event.metaKey) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const next = move(layout, pipeline, id, direction);
+        if (next !== null) {
+          container.current
+            ?.querySelector<HTMLElement>(`[data-job-id="${CSS.escape(next)}"]`)
+            ?.focus({ preventScroll: true });
         }
       }}
     >
@@ -134,8 +199,13 @@ export function PipelineCanvas({
         >
           <Background />
           <RefitOnResize container={container} />
+          <RevealFocused container={container} />
         </ReactFlow>
       </ReactFlowProvider>
+
+      <p id={KEYBOARD_HINT_ID} className="sr-only">
+        {KEYBOARD_HINT}
+      </p>
 
       {layout !== null && !hasJobs ? (
         <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-text-muted">

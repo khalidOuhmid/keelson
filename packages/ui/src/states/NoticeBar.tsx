@@ -43,7 +43,7 @@ export function NoticeBar({ notice, onDismiss }: NoticeBarProps) {
       <button
         type="button"
         onClick={onDismiss}
-        className="shrink-0 cursor-pointer rounded-sm border border-border-default px-1.5 text-2xs tracking-label text-text-secondary uppercase transition-colors duration-fast ease-out hover:bg-surface-3"
+        className="shrink-0 cursor-pointer rounded-sm border border-border-default px-1.5 text-2xs font-semibold tracking-label text-text-secondary uppercase transition-colors duration-fast ease-out hover:bg-surface-3"
       >
         Dismiss
       </button>
