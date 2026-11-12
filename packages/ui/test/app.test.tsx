@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Coverage } from "@keelson/catalog";
 import type { Operation, Pipeline } from "@keelson/core";
-import { LAYERS } from "@keelson/taxonomy";
+import { findLayer, LAYERS } from "@keelson/taxonomy";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
@@ -860,5 +860,71 @@ describe("finding a job by name", () => {
     screen.getByRole("button", { name: "Find job" }).focus();
     await userEvent.keyboard("/");
     expect(screen.getByRole("combobox", { name: "Find a job" })).toBeDefined();
+  });
+});
+
+describe("the table display, legible at any zoom", () => {
+  test("Table replaces the graph with one row per job, in stage order, and back", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    const display = screen.getByRole("group", { name: "Display" });
+    expect(
+      within(display).getByRole("button", { name: "Graph" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    await userEvent.click(within(display).getByRole("button", { name: "Table" }));
+
+    const table = screen.getByRole("table", { name: "Pipeline jobs" });
+    expect(screen.queryByRole("region", { name: "Pipeline graph" })).toBeNull();
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows.map((row) => within(row).getAllByRole("cell")[0]?.textContent)).toEqual([
+      "compile",
+      "unit",
+    ]);
+    expect(within(rows[1] as HTMLElement).getAllByRole("cell")[1]?.textContent).toBe("test");
+    expect(within(rows[1] as HTMLElement).getAllByRole("cell")[2]?.textContent).toBe("compile");
+    expect(within(rows[0] as HTMLElement).getAllByRole("cell")[2]?.textContent).toBe("None");
+
+    await userEvent.click(within(display).getByRole("button", { name: "Graph" }));
+    expect(await screen.findByRole("region", { name: "Pipeline graph" })).toBeDefined();
+  });
+
+  test("a row opens its job, and closing the panel returns focus to that row", async () => {
+    await renderApp(harness());
+    await screen.findByRole("button", { name: /compile/ });
+    await userEvent.click(screen.getByRole("button", { name: "Table" }));
+
+    const row = screen.getByRole("button", { name: "unit" });
+    await userEvent.click(row);
+    expect(row.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("region", { name: /job detail/i }).textContent).toContain("unit");
+
+    await userEvent.click(screen.getByRole("button", { name: "Close job detail" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "unit" })),
+    );
+  });
+
+  test("on the Coverage view, each row lists its layers", async () => {
+    const covered = {
+      ...DOCUMENT,
+      coverage: {
+        jobs: [{ job: "unit", layers: ["sast" as const], tools: [], overridden: false }],
+        partial: false,
+        layers: [],
+      },
+    };
+    await renderApp(harness({ document: covered }));
+    await userEvent.click(screen.getByRole("button", { name: "Coverage" }));
+    await userEvent.click(screen.getByRole("button", { name: "Table" }));
+
+    const table = screen.getByRole("table", { name: "Pipeline jobs" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Job", "Stage", "Needs", "Layers"]);
+    const unit = within(table).getAllByRole("row")[2] as HTMLElement;
+    expect(within(unit).getAllByRole("cell")[3]?.textContent).toContain(findLayer("sast").short);
   });
 });

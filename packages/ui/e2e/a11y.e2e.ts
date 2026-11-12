@@ -146,6 +146,45 @@ test("below lg, an overlay takes focus, keeps it, and gives it back on close", a
   }
 });
 
+/** The smallest font size as rendered: the computed size times the element's on-screen scale, so
+ *  that the graph's zoom transform counts. */
+async function smallestText(page: Page, selector: string): Promise<number> {
+  return page.evaluate((query) => {
+    const sizes = [...document.querySelectorAll<HTMLElement>(query)]
+      .filter((element) => element.offsetWidth > 0)
+      .map(
+        (element) =>
+          Number.parseFloat(getComputedStyle(element).fontSize) *
+          (element.getBoundingClientRect().width / element.offsetWidth),
+      );
+    return Math.min(...sizes);
+  }, selector);
+}
+
+for (const width of [375, 1280]) {
+  test(`at ${width} px, the table display keeps every job and layer at the ramp's size`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await open(page);
+    await page.getByRole("button", { name: "Coverage", exact: true }).click();
+    expect(
+      await smallestText(page, ".react-flow [data-job-id] span, .react-flow [data-family]"),
+    ).toBeLessThan(11);
+
+    await page.getByRole("button", { name: "Table", exact: true }).click();
+    const table = page.getByRole("table", { name: "Pipeline jobs" });
+    await expect(table).toBeVisible();
+    await expect(table.getByRole("button")).toHaveCount(6);
+    expect(
+      await smallestText(page, "table [data-job-id], table td, table [data-family]"),
+    ).toBeGreaterThanOrEqual(11);
+
+    await table.getByRole("button", { name: "container-scan" }).click();
+    await expect(page.getByRole("region", { name: "Job detail" })).toContainText("container-scan");
+  });
+}
+
 test("a wrapped snippet line continues under its content, never at the left edge", async ({
   page,
 }) => {

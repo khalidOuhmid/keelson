@@ -42,6 +42,7 @@ import { CatalogView } from "./views/catalog/CatalogView.tsx";
 import { CoveragePanel } from "./views/coverage/CoveragePanel.tsx";
 import { JobSearch } from "./views/pipeline/JobSearch.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
+import { PipelineTable } from "./views/pipeline/PipelineTable.tsx";
 import { ServicePanel } from "./views/toolchain/ServicePanel.tsx";
 import { ToolchainCanvas } from "./views/toolchain/ToolchainCanvas.tsx";
 import { ToolchainPanel } from "./views/toolchain/ToolchainPanel.tsx";
@@ -103,6 +104,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const DISPLAYS = [
+  { display: "graph", label: "Graph" },
+  { display: "table", label: "Table" },
+] as const;
+
+type Display = (typeof DISPLAYS)[number]["display"];
+
 export function App({ deps }: AppProps = {}) {
   const resolved = useMemo(() => deps ?? browserDeps(), [deps]);
   const store = useMemo<KeelsonStore>(
@@ -149,6 +157,7 @@ export function App({ deps }: AppProps = {}) {
     panelTrigger.current?.focus();
   };
   const sidebar = useCoveringPanel<HTMLElement>(sidebarOpen);
+  const [display, setDisplay] = useState<Display>("graph");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchTrigger = useRef<HTMLButtonElement | null>(null);
   const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
@@ -227,7 +236,9 @@ export function App({ deps }: AppProps = {}) {
       (
         (remains
           ? document.querySelector<HTMLElement>(`[data-job-id="${CSS.escape(previous)}"]`)
-          : null) ?? document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]')
+          : null) ??
+        document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]') ??
+        document.querySelector<HTMLElement>('[aria-label="Display"] [aria-pressed="true"]')
       )?.focus();
     }
     lastSelection.current = state.selectedJobId;
@@ -427,13 +438,45 @@ export function App({ deps }: AppProps = {}) {
         />
       );
     }
+    const shown = state.pipeline ?? emptyPipeline(state.file ?? "");
     return (
-      <PipelineCanvas
-        pipeline={state.pipeline ?? emptyPipeline(state.file ?? "")}
-        selectedJobId={state.selectedJobId}
-        onSelectJob={(id) => store.getState().selectJob(id)}
-        overlay={overlay}
-      />
+      <div className="flex h-full flex-col">
+        {/* biome-ignore lint/a11y/useSemanticElements: a pair of toggle buttons, not a form */}
+        <div
+          role="group"
+          aria-label="Display"
+          className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-3 py-1.5"
+        >
+          {DISPLAYS.map((entry) => (
+            <button
+              key={entry.display}
+              type="button"
+              aria-pressed={display === entry.display}
+              onClick={() => setDisplay(entry.display)}
+              className={`${BUTTON} aria-pressed:border-accent aria-pressed:bg-surface-3 aria-pressed:font-semibold aria-pressed:text-text-primary`}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1">
+          {display === "graph" ? (
+            <PipelineCanvas
+              pipeline={shown}
+              selectedJobId={state.selectedJobId}
+              onSelectJob={(id) => store.getState().selectJob(id)}
+              overlay={overlay}
+            />
+          ) : (
+            <PipelineTable
+              pipeline={shown}
+              selectedJobId={state.selectedJobId}
+              onSelectJob={(id) => store.getState().selectJob(id)}
+              overlay={overlay}
+            />
+          )}
+        </div>
+      </div>
     );
   })();
 

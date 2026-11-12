@@ -699,6 +699,17 @@ indentation, so it never reads as a new key — gutters are hidden, and the view
 own. When the range cannot be read back from the file, the block is replaced by an explicit
 "Content unavailable" notice on `surface-2` stating that the block is still on disk and untouched.
 
+### Job Table
+
+The graph's text equivalent, chosen from a `Display` pair of ghost toggle buttons (`Graph`, `Table`,
+the pressed one styled like the current view) in a hairline-ruled row above the canvas on the
+Pipeline and Coverage views. The table lists every job in stage order then file order, under the
+catalogue's column-heading voice: the job id as a pressed-state button in 12px monospace, the stage
+and the needs in 12px monospace `text-secondary` ("None" in sans `text-muted` when there are none),
+and on the Coverage view every layer tag, the chosen layer first. It does not zoom: on a forty-job
+pipeline, where `fitView` takes node text below the 11px floor, it is the legible way to read the
+pipeline. A row opens its job like a node does, and closing the panel returns focus to the row.
+
 ### Job Search
 
 A `surface-1` band under the header, in the flow like the partial pipeline bar and ruled by the same
