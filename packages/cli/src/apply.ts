@@ -7,8 +7,8 @@ import {
   readInsideRoot,
   readRegularFile,
 } from "@keelson/adapter-gitlab";
-import type { Operation, OperationError } from "@keelson/core";
-import { parseOperation } from "@keelson/core";
+import type { Operation, OperationError, Unanchored } from "@keelson/core";
+import { parseOperation, parseRebasableOperation } from "@keelson/core";
 import { renderMessage } from "@keelson/core/messages";
 import { writeInsideRoot } from "@keelson/server";
 import { DEFAULT_FILE } from "./analysis.ts";
@@ -76,8 +76,8 @@ function parseArguments(argv: readonly string[]): Options | CliResult {
 }
 
 /** Every operation is validated before the first repository is touched: a half-valid file is
- *  applied nowhere. */
-function loadOperations(path: string): Operation[] | CliResult {
+ *  applied nowhere. Under `--rebase` the anchor is each repository's text, so it may be left out. */
+function loadOperations(path: string, rebase: boolean): Unanchored<Operation>[] | CliResult {
   const read = readRegularFile(path);
   if (!read.ok) {
     return usage(read.reason === "notFile" ? `"${path}" is not a file` : `file not found: ${path}`);
@@ -96,9 +96,9 @@ function loadOperations(path: string): Operation[] | CliResult {
     return usage("the operations file contains no operation");
   }
 
-  const operations: Operation[] = [];
+  const operations: Unanchored<Operation>[] = [];
   for (const [index, candidate] of list.entries()) {
-    const validated = parseOperation(candidate);
+    const validated = rebase ? parseRebasableOperation(candidate) : parseOperation(candidate);
     if (!validated.ok) {
       const where = Array.isArray(input) ? `operations[${index}]` : "operation";
       return usage(`${where}: ${renderMessage(validated.error)}`);
@@ -125,7 +125,7 @@ function exists(path: string): boolean {
 async function applyTo(
   label: string,
   root: string,
-  operations: readonly Operation[],
+  operations: readonly Unanchored<Operation>[],
   options: Options,
 ): Promise<Outcome> {
   const fail = (error: Failure): Outcome => ({ repo: label, ok: false, error });
@@ -150,7 +150,9 @@ async function applyTo(
   let document = parse(original, { file: main, read: createFileReader(root) }).document;
 
   for (const [index, operation] of operations.entries()) {
-    const anchored = options.rebase ? { ...operation, baseHash: document.hash } : operation;
+    const anchored = (
+      options.rebase ? { ...operation, baseHash: document.hash } : operation
+    ) as Operation;
     const result = apply(document, anchored);
     if (!result.ok) {
       return fail({
@@ -235,7 +237,7 @@ export async function applyCommand(argv: readonly string[], cwd: string): Promis
     return options;
   }
 
-  const operations = loadOperations(resolve(cwd, options.operations));
+  const operations = loadOperations(resolve(cwd, options.operations), options.rebase);
   if ("exitCode" in operations) {
     return operations;
   }

@@ -188,6 +188,39 @@ describe("--rebase and the fleet", () => {
     expect(read(second)).toContain("lint:\n  stage: test\n");
   });
 
+  test("under --rebase, an operation may leave out its baseHash", async () => {
+    const first = repository(BASE);
+    const second = repository(OTHER);
+    const ops = [
+      { v: 1, kind: "addStage", name: "deploy" },
+      { v: 1, kind: "addJob", job: { id: "ship", stage: "deploy", script: ["./ship"] } },
+    ];
+    const result = await run(["apply", opsFile(ops), first, second, "--rebase"]);
+
+    expect(result.exitCode).toBe(0);
+    for (const root of [first, second]) {
+      expect(read(root)).toContain("ship:\n  stage: deploy\n");
+    }
+  });
+
+  test("without --rebase, a missing baseHash is a usage error before any repository", async () => {
+    const root = repository(BASE);
+    const result = await run(["apply", opsFile({ v: 1, kind: "addStage", name: "deploy" }), root]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toStartWith("keelson apply: operation: ");
+    expect(result.stderr).toContain("baseHash");
+    expect(read(root)).toBe(BASE);
+  });
+
+  test("under --rebase, a malformed baseHash is still refused", async () => {
+    const root = repository(BASE);
+    const ops = { v: 1, baseHash: "nope", kind: "addStage", name: "deploy" };
+    const result = await run(["apply", opsFile(ops), root, "--rebase"]);
+    expect(result.exitCode).toBe(2);
+    expect(read(root)).toBe(BASE);
+  });
+
   test("without --rebase, the repository whose text differs is stale and the others are written", async () => {
     const first = repository(BASE);
     const second = repository(OTHER);

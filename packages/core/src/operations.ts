@@ -55,9 +55,11 @@ export function isLegalJobName(name: string): boolean {
   return name !== "" && !name.startsWith(".") && !RESERVED_JOB_NAMES.includes(name as never);
 }
 
+export const baseHashSchema = z.string().regex(/^[0-9a-f]{64}$/);
+
 const base = {
   v: z.literal(OPERATION_VERSION),
-  baseHash: z.string().regex(/^[0-9a-f]{64}$/),
+  baseHash: baseHashSchema,
 };
 
 const offset = z.number().int().min(0);
@@ -201,8 +203,30 @@ export type AddSnippetOperation = z.infer<typeof addSnippetSchema>;
 export type CompositeOperation = z.infer<typeof compositeSchema>;
 export type Operation = z.infer<typeof operationSchema>;
 
+/** An operation whose anchor may be left out: the caller anchors it on the text it applies it
+ *  to, as `keelson apply --rebase` does. The server never accepts one. */
+export type Unanchored<T> = T extends unknown ? Omit<T, "baseHash"> & { baseHash?: string } : never;
+
+/** The same union, each member with an optional `baseHash`: everything else stays checked. */
+export function withOptionalAnchor<T>(schema: {
+  options: readonly z.ZodObject[];
+}): z.ZodType<Unanchored<T>> {
+  const options = schema.options.map((option) =>
+    option.extend({ baseHash: baseHashSchema.optional() }),
+  );
+  return z.discriminatedUnion("kind", options as never) as unknown as z.ZodType<Unanchored<T>>;
+}
+
+const rebasableOperationSchema = withOptionalAnchor<Operation>(operationSchema);
+
 export function parseOperation(input: unknown): Result<Operation, OperationError> {
   return validatedOperation(input, operationSchema);
+}
+
+export function parseRebasableOperation(
+  input: unknown,
+): Result<Unanchored<Operation>, OperationError> {
+  return validatedOperation(input, rebasableOperationSchema);
 }
 
 /** The check shared by both operation families: CI operations and toolchain operations. */

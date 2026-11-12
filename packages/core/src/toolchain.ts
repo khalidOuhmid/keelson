@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { type OperationError, spliceSchema, validatedOperation } from "./operations.ts";
+import {
+  baseHashSchema,
+  type OperationError,
+  spliceSchema,
+  type Unanchored,
+  validatedOperation,
+  withOptionalAnchor,
+} from "./operations.ts";
 import type { Result } from "./result.ts";
 
 export const TOOLCHAIN_FILE = ".devsecops/toolchain.yaml";
@@ -40,7 +47,7 @@ export function isLegalServiceId(id: string): boolean {
 
 const base = {
   v: z.literal(1),
-  baseHash: z.string().regex(/^[0-9a-f]{64}$/),
+  baseHash: baseHashSchema,
 };
 const text = z.string().min(1);
 const kind = z.enum(INTEGRATION_KINDS);
@@ -97,6 +104,14 @@ const schemas = [
 export const toolchainOperationSchema = z.discriminatedUnion("kind", [...schemas]);
 
 export type ToolchainOperation = z.infer<typeof toolchainOperationSchema>;
+
+const rebasableToolchainSchema = withOptionalAnchor<ToolchainOperation>(toolchainOperationSchema);
+
+export function parseRebasableToolchainOperation(
+  input: unknown,
+): Result<Unanchored<ToolchainOperation>, OperationError> {
+  return validatedOperation(input, rebasableToolchainSchema);
+}
 
 export function parseToolchainOperation(
   input: unknown,
