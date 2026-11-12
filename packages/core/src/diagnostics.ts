@@ -54,6 +54,7 @@ export {
   UNKNOWN_STAGE,
   VALUE_CYCLE,
   WORKFLOW_CALL_INVALID,
+  WORKFLOW_JOB_INVALID,
   WORKFLOW_UNRESOLVED,
 } from "./messages/codes.ts";
 

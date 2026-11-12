@@ -1,6 +1,12 @@
 import type { Diagnostic, Environment, Job, OpaqueBlock, Pipeline, Stage } from "@keelson/core";
-import { emptyPipeline, hashText, INVALID_YAML, JOB_WITHOUT_SCRIPT } from "@keelson/core";
-import { type Document, isMap, isScalar, parseDocument } from "yaml";
+import {
+  emptyPipeline,
+  hashText,
+  INVALID_YAML,
+  JOB_WITHOUT_SCRIPT,
+  WORKFLOW_JOB_INVALID,
+} from "@keelson/core";
+import { type Document, isAlias, isMap, isScalar, parseDocument } from "yaml";
 import {
   createResolution,
   isRecord,
@@ -56,26 +62,69 @@ function environmentOf(value: unknown): Environment | null {
   return null;
 }
 
-/** A job sits one level above its highest dependency. A cycle stops at its first visit: `validate`
- *  reports it, and the view must still render. */
+/** The jobs of each needs cycle, found by Tarjan's algorithm: they share one level, so a cycle reads
+ *  as such and never as a job needing a later one. */
+function componentsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, string[]> {
+  const index = new Map<string, number>();
+  const low = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const component = new Map<string, string[]>();
+  const visit = (id: string): void => {
+    index.set(id, index.size);
+    low.set(id, index.get(id) as number);
+    stack.push(id);
+    onStack.add(id);
+    for (const target of (needs.get(id) ?? []).filter((name) => needs.has(name))) {
+      if (!index.has(target)) {
+        visit(target);
+        low.set(id, Math.min(low.get(id) as number, low.get(target) as number));
+      } else if (onStack.has(target)) {
+        low.set(id, Math.min(low.get(id) as number, index.get(target) as number));
+      }
+    }
+    if (low.get(id) === index.get(id)) {
+      const members: string[] = [];
+      let member: string | undefined;
+      do {
+        member = stack.pop() as string;
+        onStack.delete(member);
+        members.push(member);
+      } while (member !== id);
+      for (const entry of members) {
+        component.set(entry, members);
+      }
+    }
+  };
+  for (const id of needs.keys()) {
+    if (!index.has(id)) {
+      visit(id);
+    }
+  }
+  return component;
+}
+
+/** A job sits one level above its highest dependency outside its own cycle. */
 function levelsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, number> {
+  const components = componentsOf(needs);
   const levels = new Map<string, number>();
-  const visiting = new Set<string>();
   const level = (id: string): number => {
     const known = levels.get(id);
     if (known !== undefined) {
       return known;
     }
-    if (visiting.has(id)) {
-      return 0;
-    }
-    visiting.add(id);
+    const members = components.get(id) ?? [id];
     const deepest = Math.max(
       0,
-      ...(needs.get(id) ?? []).filter((target) => needs.has(target)).map(level),
+      ...members.flatMap((member) =>
+        (needs.get(member) ?? [])
+          .filter((target) => needs.has(target) && !members.includes(target))
+          .map(level),
+      ),
     );
-    visiting.delete(id);
-    levels.set(id, deepest + 1);
+    for (const member of members) {
+      levels.set(member, deepest + 1);
+    }
     return deepest + 1;
   };
   for (const id of needs.keys()) {
@@ -83,6 +132,12 @@ function levelsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, nu
   }
   return levels;
 }
+
+const wellFormedNeeds = (value: unknown): boolean =>
+  value === undefined ||
+  value === null ||
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every((item) => typeof item === "string"));
 
 export function parse(text: string, options: ParseOptions = {}): ParseResult {
   const file = options.file ?? `${WORKFLOWS_DIR}/workflow.yml`;
@@ -124,9 +179,8 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       : [],
   );
 
-  const jobsNode = root.items.find(
-    (pair) => isScalar(pair.key) && pair.key.value === "jobs",
-  )?.value;
+  const written = root.items.find((pair) => isScalar(pair.key) && pair.key.value === "jobs")?.value;
+  const jobsNode = isAlias(written) ? written.resolve(yaml) : written;
   const jobsRaw = isRecord(raw.jobs) ? raw.jobs : {};
   const pairs = isMap(jobsNode) ? jobsNode.items : [];
 
@@ -142,11 +196,27 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
   for (const pair of pairs) {
     const id = String((pair.key as { value?: unknown }).value);
     const job = jobsRaw[id];
+    const range = pairRange(pair);
     if (!isRecord(job)) {
+      diagnostics.push({
+        code: WORKFLOW_JOB_INVALID,
+        severity: "error",
+        params: { reason: "notMap", job: id },
+        range,
+        file,
+      });
       continue;
     }
+    if (!wellFormedNeeds(job.needs)) {
+      diagnostics.push({
+        code: WORKFLOW_JOB_INVALID,
+        severity: "error",
+        params: { reason: "needs", job: id },
+        range,
+        file,
+      });
+    }
 
-    const range = pairRange(pair);
     const body = pair.value;
     const opaque = (isMap(body) ? body.items : []).flatMap((entry): OpaqueBlock[] => {
       const key = isScalar(entry.key) ? String(entry.key.value) : "";

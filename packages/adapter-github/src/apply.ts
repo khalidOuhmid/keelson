@@ -975,6 +975,12 @@ export function apply(
     pipeline: before.pipeline,
     values: readValues(document.yaml),
   };
+  if (isAlias(jobsPair(geometry)?.value) && op.kind !== "splice") {
+    return err({
+      code: INVALID_OPERATION,
+      params: { reason: "sharedValue", job: "jobs", key: "jobs" },
+    });
+  }
   const planned = planFor(op, geometry);
   if (!planned.ok) {
     return planned;

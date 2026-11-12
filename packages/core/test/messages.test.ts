@@ -169,6 +169,16 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'job "call" calls the reusable workflow "o/r/.github/workflows/x.yml@v1", which Keelson does not read, so its jobs are not shown',
     },
   ],
+  WORKFLOW_JOB_INVALID: [
+    {
+      params: { reason: "notMap", job: "scan" },
+      text: 'job "scan" is not a map of keys, so GitHub refuses the workflow and Keelson does not show it',
+    },
+    {
+      params: { reason: "needs", job: "scan" },
+      text: 'the needs of job "scan" are neither a job name nor a list of job names, so GitHub refuses the workflow',
+    },
+  ],
   WORKFLOW_CALL_INVALID: [
     {
       params: { reason: "missing", job: "scans", path: ".github/workflows/scans.yml" },

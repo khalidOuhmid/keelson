@@ -303,6 +303,14 @@ describe("safeguards", () => {
     });
   });
 
+  test("jobs written through an alias are shared: every edit is refused as such", () => {
+    const text = "x-jobs: &j\n  a:\n    steps:\n      - run: x\njobs: *j\n";
+    const sharedJobs = { error: { params: { reason: "sharedValue", job: "jobs", key: "jobs" } } };
+    expect(run(text, { kind: "addJob", job: newJob })).toMatchObject(sharedJobs);
+    expect(run(text, { kind: "removeJob", id: "a" })).toMatchObject(sharedJobs);
+    expect(run(text, { kind: "addNeed", id: "a", need: { job: "z" } })).toMatchObject(sharedJobs);
+  });
+
   test("a shape the patch cannot write is refused, not written", () => {
     const text = "jobs:\n  a: &a\n    steps:\n      - run: x\n  b: *a\n";
     expect(run(text, { kind: "addNeed", id: "a", need: { job: "z" } }).ok).toBe(false);

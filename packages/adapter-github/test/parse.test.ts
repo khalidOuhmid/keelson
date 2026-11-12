@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isPartial } from "@keelson/core";
+import { isPartial, validate } from "@keelson/core";
 import { parse } from "../src/index.ts";
 
 const FILE = ".github/workflows/ci.yml";
@@ -118,6 +118,51 @@ describe("reading a workflow", () => {
       { file: FILE },
     );
     expect(pipeline.jobs).toHaveLength(2);
+  });
+
+  test("a cycle is drawn on one level and never reported as a later stage", () => {
+    const { pipeline } = parse(
+      "jobs:\n  a:\n    needs: b\n    steps: [{run: x}]\n  b:\n    needs: a\n    steps: [{run: x}]\n  c:\n    needs: a\n    steps: [{run: x}]\n",
+      { file: FILE },
+    );
+    const levels = Object.fromEntries(pipeline.jobs.map((entry) => [entry.id, entry.stage.value]));
+    expect(levels).toEqual({ a: "level 1", b: "level 1", c: "level 2" });
+    expect(validate(pipeline).map((entry) => entry.code)).toEqual(["NEEDS_CYCLE"]);
+  });
+
+  test("an empty or non-map job is reported, not dropped in silence", () => {
+    const { diagnostics, pipeline } = parse("jobs:\n  a:\n  b: 3\n  c:\n    steps: [{run: x}]\n", {
+      file: FILE,
+    });
+    expect(pipeline.jobs.map((entry) => entry.id)).toEqual(["c"]);
+    expect(
+      diagnostics.map((entry) => [entry.code, entry.severity, entry.params, entry.file]),
+    ).toEqual([
+      ["WORKFLOW_JOB_INVALID", "error", { reason: "notMap", job: "a" }, FILE],
+      ["WORKFLOW_JOB_INVALID", "error", { reason: "notMap", job: "b" }, FILE],
+    ]);
+  });
+
+  test("needs written as a map, or with a non-string item, is reported", () => {
+    const { diagnostics } = parse(
+      "jobs:\n  a:\n    needs: {job: b}\n    steps: [{run: x}]\n  b:\n    needs: [a, {x: 1}]\n    steps: [{run: x}]\n",
+      { file: FILE },
+    );
+    expect(diagnostics.map((entry) => [entry.code, entry.params])).toEqual([
+      ["WORKFLOW_JOB_INVALID", { reason: "needs", job: "a" }],
+      ["WORKFLOW_JOB_INVALID", { reason: "needs", job: "b" }],
+    ]);
+  });
+
+  test("a jobs map written through an alias is read", () => {
+    const text =
+      "x-jobs: &j\n  a:\n    steps: [{run: trivy fs .}]\n  b:\n    needs: a\n    steps: [{run: x}]\non: push\njobs: *j\n";
+    const { pipeline, diagnostics } = parse(text, { file: FILE });
+    expect(pipeline.jobs.map((entry) => [entry.id, entry.needs?.value.map((n) => n.job)])).toEqual([
+      ["a", undefined],
+      ["b", ["a"]],
+    ]);
+    expect(diagnostics).toEqual([]);
   });
 
   test.each([
