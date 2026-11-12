@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type {
@@ -7,6 +8,7 @@ import type {
   Pipeline,
   SpliceOperation,
   Toolchain,
+  ToolchainOperation,
 } from "@keelson/core";
 import {
   emptyPipeline,
@@ -29,6 +31,7 @@ import {
   writePositions,
 } from "@keelson/toolchain";
 import { type Disk, readDisk } from "./disk.ts";
+import { withFileLock } from "./lock.ts";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
 import { writeInsideRoot } from "./write.ts";
 
@@ -152,6 +155,12 @@ export class ToolchainStore {
       return { status: 400, body: validated.error };
     }
 
+    return withFileLock(this.root, join(this.root, TOOLCHAIN_FILE), () =>
+      this.applyOnDisk(validated.value),
+    );
+  }
+
+  private async applyOnDisk(operation: ToolchainOperation): Promise<ToolchainResponse> {
     const disk = this.read(TOOLCHAIN_FILE);
     if (disk.kind === "unreadable") {
       return {
@@ -160,7 +169,7 @@ export class ToolchainStore {
       };
     }
     const text = disk.kind === "text" ? disk.text : "";
-    const result = applyToolchain(text, validated.value);
+    const result = applyToolchain(text, operation);
     if (!result.ok) {
       return result.error.code === STALE_DOCUMENT
         ? { status: 409, body: { ...result.error, hash: hashText(text) } }

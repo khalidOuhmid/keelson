@@ -15,6 +15,7 @@ import { mergePipelines, parseOperation, TOOLCHAIN_FILE, validate } from "@keels
 import { INVALID_OPERATION, NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { adapterFor } from "./adapters.ts";
+import { withFileLock } from "./lock.ts";
 import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
@@ -327,13 +328,23 @@ export class DocumentStore {
     operation: Operation,
     write = true,
   ): Promise<StoreResponse> {
-    if (this.absolute(file) === null) {
+    const absolute = this.absolute(file);
+    if (absolute === null) {
       return {
         status: 404,
         body: { code: NOT_FOUND, params: { reason: "unknownFile", file } },
       };
     }
+    return write
+      ? withFileLock(this.root, absolute, () => this.compute(file, operation, true))
+      : this.compute(file, operation, false);
+  }
 
+  private async compute(
+    file: string,
+    operation: Operation,
+    write: boolean,
+  ): Promise<StoreResponse> {
     const validated = parseOperation(operation);
     if (!validated.ok) {
       return { status: 400, body: validated.error };
