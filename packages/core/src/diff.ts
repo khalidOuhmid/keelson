@@ -1,4 +1,3 @@
-// DEBT(2026-11-12): packages/ui/src/editing/diff.ts is still a copy of this module — the UI switches to it with the Impeccable workflow, outside the CLI pass.
 export type DiffRow = { kind: "same" | "add" | "remove"; text: string };
 
 export type VisibleRow = DiffRow | { kind: "gap"; text: "" };

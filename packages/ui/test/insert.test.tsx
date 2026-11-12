@@ -5,7 +5,6 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import type { ApiFailure, ApiResult, OperationPayload } from "../src/api/client.ts";
-import { diffRows, visibleRows } from "../src/editing/diff.ts";
 import { InsertTool, type InsertToolProps } from "../src/views/catalog/InsertTool.tsx";
 
 const SNIPPET = "trivy:\n  stage: test\n  script:\n    - trivy fs .\n";
@@ -56,34 +55,6 @@ function setup(preview = mock(async () => payload()), pipeline = PIPELINE, disab
 }
 
 afterEach(cleanup);
-
-describe("line diff", () => {
-  test("common lines stay, the others are marked", () => {
-    expect(diffRows("a\nb\nc\n", "a\nx\nc\n")).toEqual([
-      { kind: "same", text: "a" },
-      { kind: "remove", text: "b" },
-      { kind: "add", text: "x" },
-      { kind: "same", text: "c" },
-    ]);
-  });
-
-  test("two distant regions stay two regions", () => {
-    const middle = Array.from({ length: 20 }, (_, index) => `l${index}`).join("\n");
-    const rows = diffRows(`a\n${middle}\nz\n`, `A\n${middle}\nZ\n`);
-    expect(rows.filter((row) => row.kind !== "same")).toHaveLength(4);
-    const visible = visibleRows(rows, 2);
-    expect(visible.some((row) => row.kind === "gap")).toBe(true);
-    expect(visible.filter((row) => row.kind === "same")).toHaveLength(4);
-  });
-
-  test("a huge file does not block: the whole middle changes", () => {
-    const left = Array.from({ length: 5000 }, (_, index) => `a${index}`).join("\n");
-    const right = Array.from({ length: 5000 }, (_, index) => `b${index}`).join("\n");
-    const started = performance.now();
-    expect(diffRows(left, right).length).toBe(10000);
-    expect(performance.now() - started).toBeLessThan(1000);
-  });
-});
 
 describe("insertion from the catalogue entry", () => {
   test("nothing is sent before opening", () => {
