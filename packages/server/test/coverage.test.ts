@@ -182,7 +182,7 @@ describe("layout.json and the main file change together", () => {
   });
 });
 
-describe("a file the parser cannot read", () => {
+describe("a self-referencing file", () => {
   test("leaves no unhandled rejection in the watcher", async () => {
     const rejections: unknown[] = [];
     const record = (reason: unknown) => rejections.push(reason);
@@ -232,7 +232,7 @@ describe("re-reading the disk before writing", () => {
   });
 });
 
-describe("after a file the parser cannot read", () => {
+describe("after a self-referencing file", () => {
   const BROKEN = "job:\n  script: &s [a, *s]\n";
   let watcher: Watcher;
 
@@ -256,11 +256,21 @@ describe("after a file the parser cannot read", () => {
     expect(readFileSync(join(root, ".gitlab-ci.yml"), "utf8")).toBe(BROKEN);
   });
 
-  test("restoring the same text is announced", async () => {
+  test("the self-referencing text is announced with its diagnostic, then the restore", async () => {
     const events: DocumentEvent[] = [];
     await broken(events);
+    expect(events).toEqual([
+      { kind: "document.changed", file: ".gitlab-ci.yml", hash: hashText(BROKEN) },
+    ]);
+    const loaded = await store.load(".gitlab-ci.yml");
+    expect(loaded?.diagnostics.map((entry) => entry.code)).toContain("VALUE_CYCLE");
+
     writeFileSync(join(root, ".gitlab-ci.yml"), MAIN);
-    expect(await waitForEvent(events)).toEqual({
+    const deadline = Date.now() + 2500;
+    while (events.length < 2 && Date.now() < deadline) {
+      await new Promise((settle) => setTimeout(settle, 25));
+    }
+    expect(events[1]).toEqual({
       kind: "document.changed",
       file: ".gitlab-ci.yml",
       hash: hashText(MAIN),

@@ -109,9 +109,10 @@ describe("a verification date in the future", () => {
     expect(codes(VALID)).toEqual([]);
     const ahead = VALID.replace("lastVerified: 2026-11-04", "lastVerified: 2026-11-05");
     const found = lintCatalog([{ file: "f.yaml", text: ahead }], {}, NOW);
-    expect(found.map((entry) => [entry.code, entry.severity, entry.params])).toEqual([
-      ["CATALOG_FUTURE_VERIFIED", "error", { tool: "outil", lastVerified: "2026-11-05" }],
-    ]);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.code).toBe("CATALOG_FUTURE_VERIFIED");
+    expect(found[0]?.severity).toBe("error");
+    expect(found[0]?.params as unknown).toEqual({ tool: "outil", lastVerified: "2026-11-05" });
   });
 });
 
