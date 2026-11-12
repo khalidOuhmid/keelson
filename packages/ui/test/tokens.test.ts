@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { oklchLuminance } from "./oklch.ts";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceRoot = join(packageRoot, "src");
@@ -89,6 +90,38 @@ describe("no hard-coded design value outside the tokens file", () => {
   });
 });
 
+describe("oklch to WCAG relative luminance", () => {
+  /** The contrast guard used to take `L³` as the luminance. Exact for greys, it is optimistic for
+   *  chromatic colours: the 2026-10-23 audit measured `danger` on `surface-3` at 3.99:1 in Chromium
+   *  where `L³` gave 4.36:1. The conversion is now the exact one: oklch → oklab → linear sRGB. */
+  const ratio = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+  test("white and black are the ends of the scale", () => {
+    expect(oklchLuminance("oklch(1 0 0)")).toBeCloseTo(1, 4);
+    expect(oklchLuminance("oklch(0 0 0)")).toBeCloseTo(0, 6);
+  });
+
+  test("sRGB primaries land on their WCAG coefficients", () => {
+    expect(oklchLuminance("oklch(0.62796 0.25768 29.2339)")).toBeCloseTo(0.2126, 3);
+    expect(oklchLuminance("oklch(0.86644 0.29483 142.4953)")).toBeCloseTo(0.7152, 3);
+    expect(oklchLuminance("oklch(0.45201 0.31321 264.0520)")).toBeCloseTo(0.0722, 3);
+  });
+
+  test("danger on surface-3 measures what Chromium renders, not the L³ estimate", () => {
+    const danger = oklchLuminance("oklch(0.65 0.19 25)");
+    const surface = oklchLuminance("oklch(0.29 0.009 265)");
+    expect(Math.round(ratio(danger, surface) * 100) / 100).toBe(3.99);
+  });
+
+  test("a colour outside the sRGB gamut is clipped, as the browser renders it", () => {
+    expect(oklchLuminance("oklch(0.9 0.4 145)")).toBeLessThanOrEqual(1);
+  });
+
+  test("a value that is not oklch is refused", () => {
+    expect(() => oklchLuminance("#ffffff")).toThrow();
+  });
+});
+
 describe("WCAG 2.1 AA contrast", () => {
   /** `PRODUCT.md` commits to WCAG 2.1 AA without reservation, and the surface brief repeats it.
    *  The 2026-10-22 /impeccable audit pass found two failures: `border-default` outlined every
@@ -102,17 +135,12 @@ describe("WCAG 2.1 AA contrast", () => {
     ].map((match) => [match[1] as string, (match[2] as string).trim()]),
   );
 
-  /** Achromatic oklch: relative luminance tracks L³ closely enough for a ramp guard. */
   function luminance(token: string): number {
     const value = TOKENS.get(token);
     if (value === undefined) {
       throw new Error(`token missing from tokens.css: ${token}`);
     }
-    const lightness = /oklch\(\s*([\d.]+)/.exec(value)?.[1];
-    if (lightness === undefined) {
-      throw new Error(`${token} is not an oklch colour: ${value}`);
-    }
-    return Number(lightness) ** 3;
+    return oklchLuminance(value);
   }
 
   function contrast(foreground: string, background: string): number {
