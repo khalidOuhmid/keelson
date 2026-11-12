@@ -6,25 +6,21 @@ import {
   TOOLCHAIN_FILE,
   TOOLCHAIN_INVALID,
 } from "@keelson/core";
-import { isMap, isScalar, parseDocument } from "yaml";
+import { type Document, isMap, isScalar, type Node, parseDocument } from "yaml";
 import { z } from "zod";
 
 const name = z.string().min(1);
 const kind = z.enum(INTEGRATION_KINDS);
 
+const service = z.strictObject({
+  tool: name,
+  url: name.nullable().optional(),
+  environment: name.nullable().optional(),
+});
+
 const schema = z.strictObject({
   version: z.literal(1),
-  services: z
-    .record(
-      z.string(),
-      z.strictObject({
-        tool: name,
-        url: name.nullable().optional(),
-        environment: name.nullable().optional(),
-      }),
-    )
-    .nullable()
-    .optional(),
+  services: z.record(z.string(), z.unknown()).nullable().optional(),
   integrations: z
     .array(z.strictObject({ job: name, service: name, kind }))
     .nullable()
@@ -36,6 +32,14 @@ const schema = z.strictObject({
 });
 
 export type ParsedToolchain = { toolchain: Toolchain; diagnostics: Diagnostic[] };
+
+/** The key as written: `toJS` reads `007:` as 7 and `0x10:` as 16; a quoted key keeps its value. */
+export function keyText(key: unknown): string {
+  if (isScalar(key)) {
+    return key.type === "PLAIN" && typeof key.source === "string" ? key.source : String(key.value);
+  }
+  return String(key);
+}
 
 function invalid(detail: string): ParsedToolchain {
   return {
@@ -52,6 +56,16 @@ function invalid(detail: string): ParsedToolchain {
   };
 }
 
+function issueText(error: z.ZodError, prefix: readonly string[]): string {
+  const issue = error.issues[0];
+  const path = [...prefix, ...(issue?.path ?? []).map(String)].join(".");
+  return `${path === "" ? "" : `${path}: `}${issue?.message ?? "invalid"}`;
+}
+
+function serviceValue(document: Document, node: Node | null): unknown {
+  return node === null ? null : node.toJS(document, { mapAsMap: false });
+}
+
 /** A null `text` means the file does not exist, which is the normal case. An invalid file yields an
  *  empty toolchain: no operation will edit it, and the diagnostic says why. */
 export function parseToolchain(text: string | null): ParsedToolchain {
@@ -59,7 +73,9 @@ export function parseToolchain(text: string | null): ParsedToolchain {
     return { toolchain: emptyToolchain(), diagnostics: [] };
   }
 
-  const document = parseDocument(text);
+  const document = parseDocument(text, {
+    uniqueKeys: (left, right) => keyText(left) === keyText(right),
+  });
   const failure = document.errors[0];
   if (failure !== undefined) {
     return invalid(failure.message);
@@ -68,46 +84,47 @@ export function parseToolchain(text: string | null): ParsedToolchain {
     return { toolchain: emptyToolchain(), diagnostics: [] };
   }
 
-  // `toJS` does not return a `__proto__` key: it is visible on the document.
+  // `toJS` drops a `__proto__` key and merges `7:` with `007:`: services are read from the pairs.
   const services = isMap(document.contents) ? document.contents.get("services", true) : null;
-  const illegal = isMap(services)
-    ? services.items.find(
-        (pair) => !isScalar(pair.key) || !isLegalServiceId(String(pair.key.value)),
-      )
-    : undefined;
+  const pairs = isMap(services) ? services.items : [];
+  const illegal = pairs.find((pair) => !isScalar(pair.key) || !isLegalServiceId(keyText(pair.key)));
   if (illegal !== undefined) {
-    return invalid(`services: ${String(illegal.key)} is not a usable service id`);
+    return invalid(`services: ${keyText(illegal.key)} is not a usable service id`);
   }
-  // `8080:` and `"8080":` are two keys for `yaml`, and a single one once in an object.
-  const keys = isMap(services) ? services.items.map((pair) => String(pair.key)) : [];
-  const repeated = keys.find((key, position) => keys.indexOf(key) !== position);
-  if (repeated !== undefined) {
-    return invalid(`services: ${repeated} is declared twice`);
-  }
+  const keys = pairs.map((pair) => keyText(pair.key));
 
   // `toJS` throws on an alias without an anchor: `parseDocument` does not see it as an error.
   let raw: unknown;
+  let values: unknown[];
   try {
     raw = document.toJS({ mapAsMap: false });
+    values = pairs.map((pair) => serviceValue(document, pair.value as Node | null));
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "unreadable YAML");
   }
 
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const path = issue?.path.join(".") ?? "";
-    return invalid(`${path === "" ? "" : `${path}: `}${issue?.message ?? "invalid"}`);
+    return invalid(issueText(parsed.error, []));
+  }
+
+  const read: Toolchain["services"] = [];
+  for (const [position, id] of keys.entries()) {
+    const checked = service.safeParse(values[position]);
+    if (!checked.success) {
+      return invalid(issueText(checked.error, ["services", id]));
+    }
+    read.push({
+      id,
+      tool: checked.data.tool,
+      url: checked.data.url ?? null,
+      environment: checked.data.environment ?? null,
+    });
   }
 
   return {
     toolchain: {
-      services: Object.entries(parsed.data.services ?? {}).map(([id, service]) => ({
-        id,
-        tool: service.tool,
-        url: service.url ?? null,
-        environment: service.environment ?? null,
-      })),
+      services: read,
       integrations: parsed.data.integrations ?? [],
       dismissed: parsed.data.dismissed ?? [],
     },

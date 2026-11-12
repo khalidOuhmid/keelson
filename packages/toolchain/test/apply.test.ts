@@ -259,6 +259,28 @@ describe("refusals", () => {
     });
   });
 
+  test("removing from a one-line flow section is refused: the line and its comment stay", () => {
+    const result = run("version: 1\nservices: {a: {tool: x}} # keep me\n", {
+      kind: "removeService",
+      id: "a",
+    });
+    expect(result.ok ? null : result.error).toEqual({
+      code: "INVALID_OPERATION",
+      params: { reason: "flowStyleToolchain", section: "services" },
+    });
+  });
+
+  test("a service is found by the key's text: `007` is not `7`", () => {
+    const text = "version: 1\nservices:\n  007:\n    tool: x\n  7:\n    tool: y\n";
+    expect(edited(text, { kind: "updateService", id: "007", url: "u" })).toBe(
+      "version: 1\nservices:\n  007:\n    tool: x\n    url: u\n  7:\n    tool: y\n",
+    );
+    expect(edited(text, { kind: "removeService", id: "007" })).toBe(
+      "version: 1\nservices:\n  7:\n    tool: y\n",
+    );
+    expect(code("version: 1\nservices:\n  007:\n    tool: x\n", { ...add, id: "7" })).toBeNull();
+  });
+
   test("a flow service is not rewritten", () => {
     const text = "version: 1\nservices:\n  a: {tool: x}\n";
     expect(code(text, { kind: "updateService", id: "a", url: "u" })).toBe("INVALID_OPERATION");
