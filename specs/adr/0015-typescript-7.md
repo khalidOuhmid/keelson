@@ -1,4 +1,4 @@
-# ADR 0014 — TypeScript 7 is kept, not pinned back to 5.9
+# ADR 0015 — TypeScript 7 is kept, not pinned back to 5.9
 
 **Status**: accepted, 2026-11-12.
 
