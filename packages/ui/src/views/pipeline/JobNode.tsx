@@ -2,6 +2,7 @@ import { findLayer } from "@keelson/taxonomy";
 import { Handle, type NodeProps, Position } from "@xyflow/react";
 import { LayerTags } from "../coverage/LayerTag.tsx";
 import type { JobNodeData, NeedSummary } from "./graph.ts";
+import { KEYBOARD_HINT_ID } from "./navigation.ts";
 import { OriginBadge } from "./OriginBadge.tsx";
 
 export const READ_ONLY_TAG = "read-only";
@@ -54,7 +55,8 @@ export function JobNode({ data }: JobNodeProps) {
       <button
         type="button"
         aria-pressed={data.selected}
-        aria-describedby={descriptionId}
+        aria-describedby={`${descriptionId} ${KEYBOARD_HINT_ID}`}
+        tabIndex={data.tabStop === true ? 0 : -1}
         data-job-id={data.id}
         data-selected={data.selected}
         data-included={data.included}

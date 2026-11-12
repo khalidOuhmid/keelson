@@ -607,16 +607,28 @@ describe("the sidebar is grouped", () => {
 
 describe("focus never falls onto the document body", () => {
   /** Independent review: after Escape as after a confirmed deletion, `document.activeElement` was
-   *  `<body>`. When the detail panel disappears, focus returns to the graph. */
-  test("closing the panel returns focus to the graph", async () => {
+   *  `<body>`. When the detail panel disappears, focus returns to the job's node, the control
+   *  that opened it, so the arrows carry on from there. */
+  test("closing the panel returns focus to the node of the job it showed", async () => {
     await renderApp(harness());
     await userEvent.click(await screen.findByRole("button", { name: /unit/ }));
     await screen.findByRole("region", { name: /job detail/i });
 
     await userEvent.click(screen.getByRole("button", { name: "Close job detail" }));
 
+    await waitFor(() => expect((document.activeElement as HTMLElement).dataset.jobId).toBe("unit"));
+  });
+
+  test("Escape from inside the panel also returns focus to the node", async () => {
+    await renderApp(harness());
+    await userEvent.click(await screen.findByRole("button", { name: /compile/ }));
+    await screen.findByRole("region", { name: /job detail/i });
+    screen.getByRole("button", { name: "Close job detail" }).focus();
+
+    await userEvent.keyboard("{Escape}");
+
     await waitFor(() =>
-      expect(document.activeElement).toBe(screen.getByRole("region", { name: "Pipeline graph" })),
+      expect((document.activeElement as HTMLElement).dataset.jobId).toBe("compile"),
     );
   });
 });

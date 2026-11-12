@@ -211,7 +211,9 @@ describe("layer labels on a node", () => {
 
   test("the screen reader hears the full layer names", () => {
     const button = node({ jobs: new Map([["scan", ["sast", "sca"]]]), selected: null });
-    const description = document.getElementById(button.getAttribute("aria-describedby") ?? "");
+    const description = document.getElementById(
+      button.getAttribute("aria-describedby")?.split(" ")[0] ?? "",
+    );
     expect(description?.textContent).toContain(
       "Layers: Static analysis, Software composition analysis.",
     );

@@ -215,15 +215,20 @@ export function App({ deps }: AppProps = {}) {
   }, [resolved, store, toolchainStore]);
 
   // When the detail panel goes away — Escape, close button or confirmed deletion — focus returns
-  // to the graph rather than falling back to <body>.
-  const hadSelection = useRef(false);
+  // to the job's node, or to the graph once the job is gone, never to <body>.
+  const lastSelection = useRef<string | null>(null);
   useEffect(() => {
-    const open = state.selectedJobId !== null;
-    if (hadSelection.current && !open) {
-      document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]')?.focus();
+    const previous = lastSelection.current;
+    if (previous !== null && state.selectedJobId === null) {
+      const remains = store.getState().pipeline?.jobs.some((job) => job.id === previous) ?? false;
+      (
+        (remains
+          ? document.querySelector<HTMLElement>(`[data-job-id="${CSS.escape(previous)}"]`)
+          : null) ?? document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]')
+      )?.focus();
     }
-    hadSelection.current = open;
-  }, [state.selectedJobId]);
+    lastSelection.current = state.selectedJobId;
+  }, [state.selectedJobId, store]);
 
   const serviceOpen =
     state.view === "toolchain" &&

@@ -107,7 +107,7 @@ describe("an included job in the Pipeline view", () => {
     expect(screen.getByText("read-only")).toBeDefined();
     const button = screen.getByRole("button", { name: /sast/ });
     expect(button.getAttribute("data-included")).toBe("true");
-    const described = button.getAttribute("aria-describedby") ?? "";
+    const described = button.getAttribute("aria-describedby")?.split(" ")[0] ?? "";
     expect(document.getElementById(described)?.textContent).toContain(
       `From included file ${INCLUDED}. Read-only.`,
     );

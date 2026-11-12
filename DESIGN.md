@@ -617,6 +617,13 @@ border, 4px horizontal padding, transparent fill).
   `max-w-prose`, heading at 19px semibold. The alert tone swaps the `border-default` outline for
   `warning-muted` (or `danger-muted` for an unparseable document) and adds `role="alert"`.
 
+**The One-Stop Graph Rule.** The pipeline graph is a single tab stop (roving tabindex): the selected
+job, else the last focused one, else the first. Up and Down move within a stage, Left and Right
+cross to the nearest job of the neighbouring stage, Shift+Left and Shift+Right follow a dependency to
+a job it needs or a job that needs it, Home and End reach the ends, Enter opens the job. A job
+reached off-screen is panned into view at the current zoom. Edges are never tab stops. Every node
+points to the instructions through `aria-describedby`, after its own description.
+
 **The Read-Only Object Rule.** A job Keelson will never write stays an object. It steps down one
 plane and loses its hover, but it keeps its `border-default` boundary, says `read-only` in words,
 and gets no editor.

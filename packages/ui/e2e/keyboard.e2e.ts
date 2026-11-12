@@ -69,10 +69,82 @@ async function tabUntil(page: Page, matcher: RegExp, limit = 80): Promise<void> 
   throw new Error(`no focusable element matches ${matcher}`);
 }
 
+async function focusedJob(page: Page): Promise<string | undefined> {
+  return page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.jobId);
+}
+
+/** The graph is one tab stop (the first job); the arrows reach the others. */
+async function reachLint(page: Page): Promise<void> {
+  await tabUntil(page, /^build-image/);
+  await page.keyboard.press("ArrowRight");
+  for (const key of ["ArrowDown", "ArrowUp"]) {
+    if ((await focusedJob(page)) === "lint") {
+      return;
+    }
+    await page.keyboard.press(key);
+  }
+  expect(await focusedJob(page)).toBe("lint");
+}
+
+test("the graph is a single tab stop, traversed with the arrows", async ({ page }) => {
+  await open(page);
+
+  await tabUntil(page, /^build-image/);
+  await page.keyboard.press("Tab");
+  expect(await focusedJob(page)).toBeUndefined();
+  await page.keyboard.press("Shift+Tab");
+  expect(await focusedJob(page)).toBe("build-image");
+
+  await page.keyboard.press("End");
+  expect(await focusedJob(page)).toBe("deploy-production");
+  await page.keyboard.press("Shift+ArrowLeft");
+  expect(await focusedJob(page)).toBe("unit-tests");
+  await page.keyboard.press("Shift+ArrowLeft");
+  expect(await focusedJob(page)).toBe("build-image");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  expect(["secret-detection", "container-scan"]).toContain(await focusedJob(page));
+  await page.keyboard.press("Home");
+  expect(await focusedJob(page)).toBe("build-image");
+});
+
+test("a job reached with the keyboard is panned into view", async ({ page }) => {
+  await open(page);
+  const graph = page.getByRole("region", { name: "Pipeline graph" });
+  const box = await graph.boundingBox();
+  if (box === null) {
+    throw new Error("no graph");
+  }
+  await page.mouse.move(box.x + 40, box.y + box.height / 2);
+  for (let step = 0; step < 6; step += 1) {
+    await page.keyboard.down("Control");
+    await page.mouse.wheel(0, -400);
+    await page.keyboard.up("Control");
+  }
+  await tabUntil(page, /^build-image/);
+  await page.keyboard.press("End");
+  expect(await focusedJob(page)).toBe("deploy-production");
+
+  await expect
+    .poll(async () => {
+      const node = await page.locator('[data-job-id="deploy-production"]').boundingBox();
+      const shown = await graph.boundingBox();
+      return (
+        node !== null &&
+        shown !== null &&
+        node.x >= shown.x &&
+        node.x + node.width <= shown.x + shown.width &&
+        node.y >= shown.y &&
+        node.y + node.height <= shown.y + shown.height
+      );
+    })
+    .toBe(true);
+});
+
 test("a job can be selected from the keyboard, without a mouse", async ({ page }) => {
   await open(page);
 
-  await tabUntil(page, /^lint/);
+  await reachLint(page);
   await page.keyboard.press("Enter");
 
   await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
@@ -82,7 +154,7 @@ test("a job can be selected from the keyboard, without a mouse", async ({ page }
 test("changing a job's stage works from the keyboard", async ({ page }) => {
   await open(page);
 
-  await tabUntil(page, /^lint/);
+  await reachLint(page);
   await page.keyboard.press("Enter");
 
   const stage = page.getByRole("combobox", { name: "Stage", exact: true });
@@ -111,7 +183,7 @@ test("changing a job's stage works from the keyboard", async ({ page }) => {
 test("adding a need works from the keyboard", async ({ page }) => {
   await open(page);
 
-  await tabUntil(page, /^lint/);
+  await reachLint(page);
   await page.keyboard.press("Enter");
 
   await page.getByRole("combobox", { name: "Add a need" }).focus();
