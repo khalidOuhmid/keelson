@@ -25,6 +25,36 @@ const REQUIRED = [
   "falco",
 ];
 
+describe("tools without an image", () => {
+  const docs = readFileSync(join(import.meta.dir, "..", "..", "..", "docs", "configuration.md"), {
+    encoding: "utf8",
+  });
+  const listed = /Today: ((?:`[\w-]+`(?:,\s+|\s+and\s+)?)+)\./.exec(docs)?.[1] ?? "";
+
+  test("are named in the configuration docs, which say detection by image is impossible", () => {
+    const imageless = tools
+      .filter((tool) => tool.kind === "job" && tool.detect.images.length === 0)
+      .map((tool) => tool.id)
+      .sort();
+    expect([...listed.matchAll(/`([\w-]+)`/g)].map((match) => match[1]).sort()).toEqual(imageless);
+    const prose = docs.replace(/\s+/g, " ");
+    expect(prose).toContain("cannot be detected by its image");
+    expect(prose).toContain("assumes the tool is already installed");
+  });
+
+  test("have GitLab snippets that set no image, as the docs say", () => {
+    const withImage = tools
+      .filter((tool) => tool.detect.images.length === 0 && tool.snippets.gitlab !== null)
+      .filter((tool) =>
+        Object.values(parseYaml(tool.snippets.gitlab ?? "") as Record<string, object>).some(
+          (job) => "image" in job,
+        ),
+      )
+      .map((tool) => tool.id);
+    expect(withImage).toEqual([]);
+  });
+});
+
 describe("the bundled catalogue", () => {
   /** The JSON is committed: without this test, an entry changed without `catalog:build` would
    *  leave the binary serving the old version. */

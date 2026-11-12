@@ -48,6 +48,58 @@ describe("diffRows", () => {
     expect(rows.filter((row) => row.kind !== "same")).toEqual([{ kind: "add", text: "new" }]);
   });
 
+  test("a huge file with two distant changes marks only those, and stays fast", () => {
+    const lines = Array.from({ length: 5000 }, (_, index) => `l${index}`);
+    const changed = [
+      ...lines.slice(0, 10),
+      "stage",
+      ...lines.slice(10, 4990),
+      "job",
+      ...lines.slice(4991),
+    ];
+    const started = performance.now();
+    const rows = diffRows(lines.join("\n"), changed.join("\n"));
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(rows.filter((row) => row.kind !== "same")).toEqual([
+      { kind: "add", text: "stage" },
+      { kind: "remove", text: "l4990" },
+      { kind: "add", text: "job" },
+    ]);
+  });
+
+  test("property: on large texts too, each side is rebuilt and a few edits stay a few rows", () => {
+    const lines = fc.array(fc.constantFrom("a", "b", "c", "d", ""), {
+      minLength: 2100,
+      maxLength: 2300,
+    });
+    const edit = fc.record({ at: fc.nat(), remove: fc.nat(3), insert: fc.array(fc.string()) });
+    const edited = fc.tuple(lines, fc.array(edit, { maxLength: 40 })).map(([base, edits]) => {
+      const changed: string[] = [...base];
+      let budget = 0;
+      for (const { at, remove, insert } of edits) {
+        const removed = changed.splice(at % (changed.length + 1), remove, ...insert);
+        budget += removed.length + insert.length;
+      }
+      return { before: base.join("\n"), after: changed.join("\n"), budget };
+    });
+    const unrelated = fc
+      .tuple(lines, lines)
+      .map(([a, b]) => ({ before: a.join("\n"), after: b.join("\n"), budget: Infinity }));
+    fc.assert(
+      fc.property(fc.oneof(edited, unrelated), ({ before, after, budget }) => {
+        const rows = diffRows(before, after);
+        const linesOf = (value: string) => {
+          const split = value.split("\n");
+          return split.at(-1) === "" ? split.slice(0, -1) : split;
+        };
+        expect(side(rows, "remove")).toEqual(linesOf(before));
+        expect(side(rows, "add")).toEqual(linesOf(after));
+        expect(rows.filter((row) => row.kind !== "same").length).toBeLessThanOrEqual(budget);
+      }),
+      { numRuns: Math.min(runs, 50) },
+    );
+  });
+
   test("property: each side is rebuilt from its rows, in order", () => {
     const text = fc
       .array(fc.constantFrom("a", "b", "c", "d", ""), { maxLength: 30 })

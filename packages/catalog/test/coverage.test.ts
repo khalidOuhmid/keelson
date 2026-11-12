@@ -409,6 +409,8 @@ describe("shell splitting on hostile input", () => {
     ["nested sh -c", "bash -c ".repeat(5000)],
     ["nested kubectl exec", "kubectl exec a -- ".repeat(5000)],
     ["a huge line", "a ".repeat(500000)],
+    ["many heredocs", "cat <<a ".repeat(5000) + "\nx\n".repeat(5000)],
+    ["quoted parentheses", `$(${'")" '.repeat(20000)}`],
   ])("%s does not crash and stays fast", (_label, line) => {
     const started = performance.now();
     expect(() => detectTools({ image: null, script: [line] }, catalog.tools)).not.toThrow();
@@ -528,6 +530,39 @@ describe("detection shell splitting", () => {
     ["env A=1 trivy fs .", "trivy"],
   ])("%s names %s", (line, tool) => {
     expect(found(line)).toContain(tool);
+  });
+});
+
+describe("detection shell splitting, quotes and heredocs", () => {
+  const catalog = loadCatalog();
+  const found = (line: string) =>
+    detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
+
+  test.each([
+    ['echo $(echo ")"; trivy fs .)'],
+    ["echo $(echo ')'; trivy fs .)"],
+    ['echo "$(printf "%s" "(")" && trivy fs .'],
+    ["cat <<EOF > a.txt\nit's ok\nEOF\necho 'x'; trivy fs ."],
+    ["cat <<-'EOF'\n\tit's ok\n\tEOF\ntrivy fs ."],
+    ["bash <<EOF\ntrivy fs .\nEOF"],
+    ["! trivy fs ."],
+    ["elif trivy fs .; then"],
+    ["until trivy fs .; do sleep 1; done"],
+    ["for t in a b; do trivy fs .; done"],
+  ])("%s runs the tool", (line) => {
+    expect(found(line)).toContain("trivy");
+  });
+
+  test.each([
+    ["for t in trivy grype; do echo $t; done"],
+    ["for t in trivy grype\ndo\n  echo $t\ndone"],
+    ["if true; then echo; elif grep -q trivy f; then echo; fi"],
+    ["! grep -q trivy f"],
+    ["case $T in trivy) echo t ;; esac"],
+    ["cat <<EOF\nrun trivy fs . now\nEOF"],
+    ["cat << 'EOF' > notes.md\ngitleaks detect, it's fine\nEOF"],
+  ])("%s runs nothing", (line) => {
+    expect(found(line)).toEqual([]);
   });
 });
 

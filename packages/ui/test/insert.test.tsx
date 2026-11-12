@@ -255,6 +255,29 @@ describe("insertion from the catalogue entry", () => {
     expect(figure?.querySelector("del")?.textContent).toContain("removed");
   });
 
+  test("on a 5000-line file, a stage at the top and a job at the bottom are the only changes shown", async () => {
+    const body = Array.from({ length: 5000 }, (_, index) => `# line ${index}`);
+    const before = `stages:\n  - build\n${body.join("\n")}\n`;
+    const after = `stages:\n  - build\n  - test\n${body.join("\n")}\ntrivy:\n  stage: test\n`;
+    const onInsert = mock(async () => null);
+    render(
+      <Harness
+        tool={TOOL}
+        pipeline={PIPELINE}
+        text={before}
+        disabled={false}
+        preview={mock(async () => payload(after))}
+        onInsert={onInsert}
+      />,
+    );
+    await open();
+    await screen.findByText("Changes to .gitlab-ci.yml");
+    const figure = document.querySelector("figure");
+    expect(figure?.querySelectorAll("del")).toHaveLength(0);
+    expect(figure?.querySelectorAll("ins")).toHaveLength(3);
+    expect(screen.getByText("3 lines added, 0 lines removed.")).toBeDefined();
+  });
+
   test("disabled editing disables the button", () => {
     setup(undefined, PIPELINE, true);
     expect(

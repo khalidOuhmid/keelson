@@ -54,7 +54,8 @@ exhaustiveness of the rendering branches is checked at compile time.
 | `NEED_LATER_STAGE` | warning | `validate` | `{ job, stage, need, needStage }` | A job needs a job in a later stage. Not evaluated when the job's own stage is unknown. |
 | `LAYOUT_INVALID` | warning | `parseLayout` | `{ detail }` | `.devsecops/layout.json` is not valid JSON or does not follow its schema. It is then ignored: detection applies. |
 | `LAYOUT_UNKNOWN_LAYER` | warning | `parseLayout` | `{ job, layer }` | An override names a layer absent from the taxonomy. That layer is ignored; the others apply. |
-| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from the pipeline. |
+| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from the pipeline. On a partial pipeline it is `LAYOUT_UNREAD_JOB` instead. |
+| `LAYOUT_UNREAD_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from a partial pipeline (an unresolved include, a CI file that did not parse): the job may be in the part Keelson could not read, so the override is kept. |
 | `COVERAGE_LAYER_MISSING` | error | `keelson coverage` | `{ layer, name }` | A layer required by `--require` is not covered. |
 | `CATALOG_INVALID_TOOL` | error | `catalog lint` | `{ detail }` | A catalogue entry does not follow the schema. `detail` comes from zod or `yaml`. |
 | `CATALOG_DUPLICATE_TOOL` | error | `catalog lint` | `{ tool }` | Two catalogue entries share the same identifier. |

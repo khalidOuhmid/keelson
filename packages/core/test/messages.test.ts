@@ -130,6 +130,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   LAYOUT_UNKNOWN_JOB: [
     { params: { job: "unit" }, text: 'layout.json names job "unit", which does not exist' },
   ],
+  LAYOUT_UNREAD_JOB: [
+    {
+      params: { job: "unit" },
+      text: 'layout.json names job "unit", absent from the part of the pipeline Keelson could read: its override is kept',
+    },
+  ],
   COVERAGE_LAYER_MISSING: [
     {
       params: { layer: "sast", name: "Static analysis" },

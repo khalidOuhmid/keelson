@@ -69,7 +69,12 @@ export function renderMermaid(pipeline: Pipeline, toolchain: Toolchain): string 
   return `${["flowchart LR", ...stages, ...services, ...needs, ...integrations].join("\n")}\n`;
 }
 
-const cell = (text: string): string => text.replaceAll("\\", "\\\\").replaceAll("|", "\\|");
+/** A line break would end the row: it becomes a space, like the Mermaid labels. */
+const cell = (text: string): string =>
+  text
+    .replaceAll("\\", "\\\\")
+    .replaceAll("|", "\\|")
+    .replace(/\s*[\r\n\u2028\u2029]\s*/g, " ");
 
 export function renderCoverageMarkdown(result: Coverage): string {
   const covered = (source: "owasp" | "platform"): number =>
