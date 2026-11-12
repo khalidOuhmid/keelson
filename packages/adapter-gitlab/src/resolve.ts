@@ -596,22 +596,41 @@ function inheritedKeys(
   // GitLab deep-merges `inherit` across `extends`: the closest `default` wins, even if a closer
   // `inherit` only mentions `variables`. Within one definition, merge keys are shallow, which
   // `lastWrite` reads.
-  const value = sources
+  const layers = sources.flatMap((source) => {
+    if (source.document === null) {
+      return [];
+    }
+    const entry = lastWrite(source.map, "inherit", source.document)?.node;
+    return entry === undefined ? [] : dereference(entry, source.file, context, "inherit").layers;
+  });
+  const written = layers
     .toReversed()
-    .map((source) => {
-      if (source.document === null) {
-        return undefined;
-      }
-      const entry = lastWrite(source.map, "inherit", source.document)?.node;
-      const map =
-        entry === undefined ? null : dereference(entry, source.file, context, "inherit").node;
-      return isMap(map) ? lastWrite(map, "default", source.document)?.node : undefined;
+    .map((layer) => {
+      const document = documentOf(context, layer.file);
+      const entry =
+        isMap(layer.node) && document !== null
+          ? lastWrite(layer.node, "default", document)?.node
+          : undefined;
+      return entry === undefined ? undefined : { node: entry, file: layer.file };
     })
     .find((entry) => entry !== undefined);
+  if (written === undefined) {
+    return null;
+  }
+  const { node: value, file } = dereference(written.node, written.file, context, "inherit");
   if (isScalar(value) && value.value === false) {
     return new Set();
   }
-  return isSeq(value) ? new Set(stringsOf(value)) : null;
+  const document = documentOf(context, file);
+  if (!isSeq(value) || document === null) {
+    return null;
+  }
+  return new Set(
+    value.items.flatMap((item) => {
+      const name = isAlias(item) ? item.resolve(document) : item;
+      return isScalar(name) && typeof name.value === "string" ? [name.value] : [];
+    }),
+  );
 }
 
 /** What applies under every job of a file: `default:`, and the deprecated but valid global keys.
