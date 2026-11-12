@@ -23,6 +23,8 @@ export type JobDetailPanelProps = {
   derivedStages?: boolean;
   /** On the Coverage view: what decided this job's layers. */
   coverage?: JobCoverage | null;
+  /** Opens the job's included file for reading. Absent: the file cannot be shown. */
+  onReadFile?: ((file: string, trigger: HTMLElement) => void) | undefined;
   onClose: () => void;
 };
 
@@ -68,6 +70,7 @@ export function JobDetailPanel({
   main,
   derivedStages = false,
   coverage = null,
+  onReadFile,
   onClose,
 }: JobDetailPanelProps) {
   const needs = job.needs?.value ?? [];
@@ -108,6 +111,16 @@ export function JobDetailPanel({
       {included ? (
         <Field label="Source file" testId="job-source-file">
           <span className="font-mono break-all">{job.file}</span>
+          {onReadFile === undefined ? null : (
+            <button
+              type="button"
+              aria-label={`Read ${job.file}`}
+              onClick={(event) => onReadFile(job.file, event.currentTarget)}
+              className="inline-flex min-h-6 shrink-0 cursor-pointer items-center text-xs text-accent underline underline-offset-2"
+            >
+              Read file
+            </button>
+          )}
         </Field>
       ) : null}
 

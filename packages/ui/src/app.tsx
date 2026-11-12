@@ -30,6 +30,7 @@ import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
 import { focusWhenDrawn, overlaysCover, useCoveringPanel } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
+import { IncludedFileView } from "./panels/IncludedFileView.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
 import { createToolchainStore, type ToolchainStore } from "./state/toolchain.ts";
@@ -160,6 +161,18 @@ export function App({ deps }: AppProps = {}) {
   const sidebar = useCoveringPanel<HTMLElement>(sidebarOpen);
   const [display, setDisplay] = useState<Display>("graph");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [reading, setReading] = useState<string | null>(null);
+  const readingNow = useRef<string | null>(null);
+  readingNow.current = reading;
+  const readTrigger = useRef<HTMLElement | null>(null);
+  const readFile = (file: string, trigger: HTMLElement): void => {
+    readTrigger.current = trigger;
+    setReading(file);
+  };
+  const closeFile = (): void => {
+    setReading(null);
+    readTrigger.current?.focus();
+  };
   const searchTrigger = useRef<HTMLButtonElement | null>(null);
   const loaded = useRef(false);
 
@@ -263,6 +276,11 @@ export function App({ deps }: AppProps = {}) {
   // canvas but can be closed from anywhere, the panel included.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && readingNow.current !== null) {
+        setReading(null);
+        readTrigger.current?.focus();
+        return;
+      }
       if (event.key === "Escape" && sidebarOpenNow.current) {
         setSidebarOpen(false);
         panelTrigger.current?.focus();
@@ -356,17 +374,19 @@ export function App({ deps }: AppProps = {}) {
     selected !== null && state.pipeline !== null && state.view !== "catalog" && !inToolchain;
   const jobPanel = useCoveringPanel<HTMLElement>(jobPanelOpen);
   const servicePanel = useCoveringPanel<HTMLElement>(selectedService !== null);
+  const readingText = reading === null ? undefined : state.included[reading];
+  const filePanel = useCoveringPanel<HTMLElement>(readingText !== undefined);
 
-  const reading = state.view === "coverage";
+  const readingCoverage = state.view === "coverage";
   const overlay = useMemo(
     () =>
-      reading
+      readingCoverage
         ? {
             jobs: new Map(state.coverage?.jobs.map((job) => [job.job, job.layers]) ?? []),
             selected: state.selectedLayer,
           }
         : null,
-    [reading, state.coverage, state.selectedLayer],
+    [readingCoverage, state.coverage, state.selectedLayer],
   );
 
   const files = state.files;
@@ -651,7 +671,7 @@ export function App({ deps }: AppProps = {}) {
           <aside
             ref={sidebar.ref}
             onKeyDown={sidebar.onKeyDown}
-            aria-label={reading ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
+            aria-label={readingCoverage ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
             className={`flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:w-full ${sidebarOpen ? "" : "max-lg:hidden"}`}
           >
             <button type="button" onClick={closeSidebar} className={`self-end lg:hidden ${BUTTON}`}>
@@ -672,7 +692,7 @@ export function App({ deps }: AppProps = {}) {
                   }}
                 />
               )
-            ) : reading && state.coverage !== null ? (
+            ) : readingCoverage && state.coverage !== null ? (
               <CoveragePanel
                 coverage={state.coverage}
                 cause={lowerBoundCause(state.pipeline, state.diagnostics)}
@@ -731,6 +751,17 @@ export function App({ deps }: AppProps = {}) {
           </aside>
         )}
 
+        {readingText === undefined || reading === null ? null : (
+          <aside
+            ref={filePanel.ref}
+            onKeyDown={filePanel.onKeyDown}
+            aria-label={`Included file ${reading}`}
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto border-l border-border-subtle bg-surface-1 max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:w-full"
+          >
+            <IncludedFileView file={reading} text={readingText} onClose={closeFile} />
+          </aside>
+        )}
+
         {!jobPanelOpen || selected === null || state.pipeline === null ? null : (
           <aside
             ref={jobPanel.ref}
@@ -744,13 +775,14 @@ export function App({ deps }: AppProps = {}) {
               main={state.pipeline.main}
               derivedStages={state.pipeline.provider === "github"}
               coverage={
-                reading
+                readingCoverage
                   ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)
                   : null
               }
+              onReadFile={state.included[selected.file] === undefined ? undefined : readFile}
               onClose={() => store.getState().selectJob(null)}
             />
-            {reading || selected.file !== state.pipeline.main ? null : (
+            {readingCoverage || selected.file !== state.pipeline.main ? null : (
               <div className="border-l border-border-subtle bg-surface-1 p-3">
                 <JobEditor
                   key={selected.id}
@@ -771,6 +803,8 @@ export function App({ deps }: AppProps = {}) {
           main={state.pipeline?.main ?? state.file ?? ""}
           omitInfo={state.pipeline !== null && isPartial(state.pipeline)}
           onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
+          readable={(file) => state.included[file] !== undefined}
+          onReadFile={readFile}
         />
       </div>
     </div>
