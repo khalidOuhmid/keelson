@@ -462,7 +462,7 @@ export function App({ deps }: AppProps = {}) {
             <span
               data-testid="included-files-tag"
               title={`Resolved includes: ${resolvedIncludes.join(", ")}`}
-              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               {includedCount === 1 ? "1 included file" : `${includedCount} included files`}
             </span>
@@ -473,7 +473,7 @@ export function App({ deps }: AppProps = {}) {
             <span
               data-testid="pending-indicator"
               role="status"
-              className="flex items-center gap-1.5 text-2xs tracking-label text-text-muted uppercase"
+              className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               <span aria-hidden="true" className="size-1.5 rounded-sm bg-accent" />
               Writing

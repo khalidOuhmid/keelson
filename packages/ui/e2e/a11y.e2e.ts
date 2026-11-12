@@ -103,3 +103,55 @@ test("every control of the editing surfaces is at least 24 × 24 px", async ({ p
   await expect(page.getByRole("region", { name: "Tool detail" })).toBeVisible();
   expect(await smallTargets(page)).toEqual([]);
 });
+
+test("a wrapped snippet line continues under its content, never at the left edge", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await open(page);
+  await page.getByRole("button", { name: "Catalog", exact: true }).click();
+  await page
+    .getByRole("region", { name: "Tool catalogue" })
+    .getByRole("button", { name: "Bandit" })
+    .click();
+  const detail = page.getByRole("region", { name: "Tool detail" });
+  await expect(detail.locator(".cm-line").first()).toBeVisible();
+  const offenders = await page.evaluate(() => {
+    const result = { wrapped: 0, bad: [] as string[] };
+    for (const line of document.querySelectorAll<HTMLElement>(
+      '[aria-label="Tool detail"] .cm-line',
+    )) {
+      const text = line.textContent ?? "";
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      const boxes: { top: number; left: number; blank: boolean }[] = [];
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        const value = node.textContent ?? "";
+        for (let offset = 0; offset < value.length; offset += 1) {
+          const range = document.createRange();
+          range.setStart(node, offset);
+          range.setEnd(node, offset + 1);
+          const box = range.getBoundingClientRect();
+          boxes.push({
+            top: Math.round(box.top),
+            left: box.left,
+            blank: /\s/.test(value[offset] ?? ""),
+          });
+        }
+      }
+      const firstTop = boxes[0]?.top;
+      const content = boxes.find((box) => !box.blank);
+      const continuation = boxes.filter((box) => box.top !== firstTop && !box.blank);
+      if (content === undefined || continuation.length === 0) {
+        continue;
+      }
+      result.wrapped += 1;
+      const start = Math.min(...continuation.map((box) => box.left));
+      if (start < content.left) {
+        result.bad.push(text);
+      }
+    }
+    return result;
+  });
+  expect(offenders.bad).toEqual([]);
+  expect(offenders.wrapped).toBeGreaterThan(0);
+});

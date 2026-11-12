@@ -81,7 +81,7 @@ function Body({ diagnostic, main }: { diagnostic: Diagnostic; main: string }) {
             return <Icon />;
           })()}
         </span>
-        <span className="text-2xs tracking-label text-text-muted uppercase">
+        <span className="text-2xs font-semibold tracking-label text-text-muted uppercase">
           {diagnostic.severity}
         </span>
       </span>

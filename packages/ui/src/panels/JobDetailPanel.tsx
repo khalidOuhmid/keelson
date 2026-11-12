@@ -205,7 +205,9 @@ export function JobDetailPanel({
             >
               <header className="flex items-baseline justify-between gap-2">
                 <span className="font-mono text-xs text-text-secondary">{block.key}</span>
-                <span className="text-2xs tracking-label text-text-muted uppercase">read-only</span>
+                <span className="text-2xs font-semibold tracking-label text-text-muted uppercase">
+                  read-only
+                </span>
               </header>
               <OpaqueContent blockKey={block.key} source={sliceOpaque(textOf(block.file), block)} />
             </div>
@@ -218,7 +220,7 @@ export function JobDetailPanel({
 
 function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase">
+    <span className="rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase">
       {children}
     </span>
   );

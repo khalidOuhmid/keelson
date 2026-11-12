@@ -510,7 +510,7 @@ have no radius at all: they are full-bleed bands bounded by their hairline.
 Every border is one pixel, including the one Tailwind draws for the bare `border` class, which reads
 `--default-border-width` from the token file rather than the framework default. There is no 2px
 border. The two 2px strokes are outlines in `accent`: the focus ring at 2px offset, and the emphasis
-on the job nodes of the chosen layer on the coverage overlay, with no offset, drawn outside the node's
+on the job nodes of the chosen layer on the coverage overlay (`--keelson-emphasis-width`), with no offset, drawn outside the node's
 one-pixel border, which keeps its own colour. Dependency edges are curves between
 left/right handles and are the one place stroke weight carries meaning: 1.5px
 (`--keelson-edge-width`) in `border-strong` normally, 2.5px (`--keelson-edge-width-strong`) in
@@ -677,7 +677,8 @@ fill, 3px radius and `border-subtle` outline, and the editor theme neutralises e
 would otherwise impose. The tool panel's CI snippets render in the same viewer. Its highlight style
 maps every tag to a token: keys in `accent`, keywords in
 `text-primary`, strings, numbers and booleans in `text-secondary`, comments and meta in `text-muted`
-and italic. Lines wrap, gutters are hidden, and the view is read-only with no focus outline of its
+and italic. Lines wrap with a hanging indent — a continuation starts two columns past its own line's
+indentation, so it never reads as a new key — gutters are hidden, and the view is read-only with no focus outline of its
 own. When the range cannot be read back from the file, the block is replaced by an explicit
 "Content unavailable" notice on `surface-2` stating that the block is still on disk and untouched.
 
