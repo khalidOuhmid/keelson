@@ -25,7 +25,27 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
     layer: initialLayer ?? "any",
     license: "any",
     adapter: "any",
+    query: "",
   });
+  const search = useRef<HTMLInputElement | null>(null);
+
+  // The command palette's shortcuts, here: the catalogue's search is its way of finding a thing.
+  useEffect(() => {
+    const handle = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        (target?.matches("input, select, textarea") ?? false) || target?.isContentEditable === true;
+      const shortcut =
+        ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") ||
+        (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey);
+      if (shortcut) {
+        event.preventDefault();
+        search.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const shown = filterTools(catalog.tools, filter).sort((left, right) =>
@@ -60,7 +80,22 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
   return (
     <div className="flex h-full min-h-0 max-lg:flex-col">
       <section aria-label="Tool catalogue" className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <form className="flex shrink-0 flex-wrap gap-2 border-b border-border-subtle p-3">
+        <form
+          className="flex shrink-0 flex-wrap gap-2 border-b border-border-subtle p-3"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <label className={`${GROUP} min-w-40 flex-1`}>
+            <span className={LABEL}>Search</span>
+            <input
+              ref={search}
+              type="search"
+              className={FIELD}
+              value={filter.query}
+              placeholder="Name, layer or license"
+              aria-keyshortcuts="Control+K Meta+K /"
+              onChange={(event) => setFilter({ ...filter, query: event.target.value })}
+            />
+          </label>
           <label className={`${GROUP} min-w-40 flex-1`}>
             <span className={LABEL}>Layer</span>
             <select

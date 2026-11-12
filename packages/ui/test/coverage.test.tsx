@@ -350,6 +350,27 @@ describe("catalogue", () => {
     expect(ids({ ...all, layer: "sast", adapter: "gitlab", license: "open" })).toEqual(["a"]);
   });
 
+  test("the search matches a name, a layer or a licence, in any case", () => {
+    const all = { layer: "any", license: "any", adapter: "any" } as const;
+    expect(ids({ ...all, query: "" })).toEqual(["a", "b", "c"]);
+    expect(ids({ ...all, query: "  " })).toEqual(["a", "b", "c"]);
+    expect(ids({ ...all, query: "b" })).toContain("b");
+    expect(ids({ ...all, query: "mit" })).toEqual(["a"]);
+    expect(ids({ ...all, query: "busl" })).toEqual(["c"]);
+    expect(ids({ ...all, query: "dynamic" })).toEqual(["b"]);
+    expect(ids({ ...all, query: "sca" })).toEqual(["c"]);
+    expect(ids({ ...all, query: "zzz" })).toEqual([]);
+    expect(ids({ ...all, layer: "sast", query: "busl" })).toEqual(["c"]);
+  });
+
+  test("typing in the search narrows the rows on screen, and the count follows", async () => {
+    renderCatalog();
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search" }), "busl");
+    expect(screen.getByTestId("catalog-count").textContent).toBe("1 of 3 tools");
+    expect(screen.queryByRole("button", { name: /^A/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^C/ })).toBeDefined();
+  });
+
   test("the layer filter applies on screen, and the count follows", async () => {
     renderCatalog();
     expect(screen.getByTestId("catalog-count").textContent).toBe("3 of 3 tools");

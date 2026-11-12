@@ -115,6 +115,26 @@ test.describe("coverage on the real binary", () => {
     }
   });
 
+  test("in the catalogue, Ctrl+K goes to the search, which finds a tool by name", async ({
+    page,
+  }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Catalog" }).click();
+      const catalogue = page.getByRole("region", { name: "Tool catalogue" });
+      const search = catalogue.getByRole("searchbox", { name: "Search" });
+      await expect(search).toBeVisible();
+      await page.keyboard.press("Control+k");
+      await expect(search).toBeFocused();
+      await page.keyboard.type("gitleaks");
+      await expect(catalogue.getByRole("button", { name: "Gitleaks", exact: true })).toBeVisible();
+      await expect(page.getByTestId("catalog-count")).toHaveText(/^1 of \d+ tools$/);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("from an uncovered layer, the filtered catalogue then the entry", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
