@@ -1837,7 +1837,9 @@
           "zaproxy/zap-weekly",
           "zaproxy/zaproxy",
           "owasp/zap2docker-stable",
-          "owasp/zap2docker-weekly"
+          "owasp/zap2docker-weekly",
+          "owasp/zap2docker-live",
+          "owasp/zap2docker-bare"
         ],
         "scripts": [
           "\\bzap-(baseline|full-scan|api-scan)\\.py\\b"

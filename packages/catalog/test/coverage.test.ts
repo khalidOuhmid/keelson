@@ -161,6 +161,8 @@ describe("the real catalogue entries", () => {
     "zaproxy/zap-weekly",
     "ghcr.io/zaproxy/zaproxy:stable",
     "owasp/zap2docker-stable",
+    "owasp/zap2docker-live",
+    "owasp/zap2docker-bare:latest",
   ])("official image %s is ZAP", (image) => {
     expect(found({ image, script: [] })).toContain("zap");
   });
