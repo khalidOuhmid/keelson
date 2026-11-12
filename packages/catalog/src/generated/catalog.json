@@ -312,13 +312,15 @@
         "scripts": [
           "\\bdependency-check(\\.sh)?\\b"
         ],
-        "actions": []
+        "actions": [
+          "dependency-check/Dependency-Check_Action"
+        ]
       },
       "snippets": {
         "gitlab": "dependency-check:\n  stage: test\n  image:\n    name: owasp/dependency-check:latest\n    entrypoint: [\"\"]\n  script:\n    - /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .\n",
         "github": "- name: Run OWASP Dependency-Check\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" owasp/dependency-check:latest /usr/share/dependency-check/bin/dependency-check.sh --out report --scan .\n"
       },
-      "lastVerified": "2026-11-04",
+      "lastVerified": "2026-11-12",
       "integration": null
     },
     {
@@ -750,13 +752,15 @@
         "scripts": [
           "\\bgosec\\b"
         ],
-        "actions": []
+        "actions": [
+          "securego/gosec"
+        ]
       },
       "snippets": {
         "gitlab": "gosec:\n  stage: test\n  image:\n    name: ghcr.io/securego/gosec:latest\n    entrypoint: [\"\"]\n  script:\n    - gosec ./...\n",
         "github": "- name: Run gosec\n  run: docker run --rm -v \"$PWD:/src\" -w /src --entrypoint \"\" ghcr.io/securego/gosec:latest gosec ./...\n"
       },
-      "lastVerified": "2026-11-04",
+      "lastVerified": "2026-11-12",
       "integration": null
     },
     {

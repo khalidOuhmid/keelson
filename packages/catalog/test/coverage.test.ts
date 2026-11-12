@@ -406,6 +406,13 @@ describe("GitHub actions", () => {
     );
   });
 
+  test.each([
+    ["securego/gosec@v2", "gosec"],
+    ["dependency-check/Dependency-Check_Action@main", "dependency-check"],
+  ])("the official action %s is detected as %s", (action, id) => {
+    expect(found({ image: null, actions: [action] })).toEqual([id]);
+  });
+
   test("a docker:// counts as an image, even behind a container", () => {
     expect(found({ image: "node:20", actions: ["docker://aquasec/trivy"] })).toContain("trivy");
   });
