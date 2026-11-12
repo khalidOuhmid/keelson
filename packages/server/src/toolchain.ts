@@ -33,6 +33,7 @@ import {
 import { type Disk, readDisk } from "./disk.ts";
 import { withFileLock } from "./lock.ts";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
+import { unreadableWorkspaceFiles } from "./workspace.ts";
 import { blockedParent, writeInsideRoot } from "./write.ts";
 
 export type ToolchainBody = {
@@ -99,7 +100,10 @@ export class ToolchainStore {
         parsing.push(...(this.documents.currentParsing(file) ?? []));
       }
     }
-    return { pipeline: mergePipelines(pipelines), parsing };
+    return {
+      pipeline: mergePipelines(pipelines),
+      parsing: [...parsing, ...unreadableWorkspaceFiles(this.root)],
+    };
   }
 
   private async body(text: string): Promise<ToolchainBody> {

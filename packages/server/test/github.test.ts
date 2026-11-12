@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
-import { createServer, type KeelsonServer } from "../src/index.ts";
+import { adapterFor, createServer, isNestedWorkflow, type KeelsonServer } from "../src/index.ts";
 import { DocumentStore } from "../src/store.ts";
 import { type DocumentEvent, watchDocuments } from "../src/watcher.ts";
 import { detectWorkspace } from "../src/workspace.ts";
@@ -39,6 +39,29 @@ beforeEach(async () => {
 afterEach(async () => {
   await server.close();
   rmSync(root, { recursive: true });
+});
+
+describe("a workflow in a subdirectory, which GitHub ignores", () => {
+  test("is never read as GitLab CI", () => {
+    const text = "a:\n  script: trivy fs .\n";
+    for (const file of [".github/workflows/sub/x.yml", "/repo/.github/workflows/a/b/x.yaml"]) {
+      expect({ file, nested: isNestedWorkflow(file) }).toEqual({ file, nested: true });
+      expect(
+        adapterFor(file).parse(text, { file, read: { read: () => null, candidates: () => [] } })
+          .pipeline.provider,
+      ).toBe("github");
+    }
+    expect(isNestedWorkflow(".github/workflows/x.yml")).toBe(false);
+    expect(isNestedWorkflow("ci/workflows/x.yml")).toBe(false);
+  });
+
+  test("is not in the workspace", () => {
+    mkdirSync(join(root, ".github/workflows/sub"));
+    writeFileSync(join(root, ".github/workflows/sub/x.yml"), CI);
+    expect(detectWorkspace(root).map((file) => file.path)).not.toContain(
+      ".github/workflows/sub/x.yml",
+    );
+  });
 });
 
 describe("workspace GitHub Actions", () => {
@@ -132,6 +155,48 @@ describe("a neighbouring file the parser cannot read", () => {
     writeFileSync(join(root, ".gitlab-ci.yml"), "job:\n  script: &s [x, *s]\n");
     server = await createServer({ root, port: 0 });
     expect((await api(documentPath(".github/workflows/ci.yml"))).status).toBe(200);
+  });
+
+  const TOOLCHAIN =
+    "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: job\n    service: n\n    kind: push\n";
+  const unknownJob = (diagnostics: { code: string; severity: string }[]) =>
+    diagnostics.filter((entry) => entry.code === "TOOLCHAIN_UNKNOWN_JOB").map((e) => e.severity);
+
+  test("an unreadable one may hold the job an integration names: a warning, not an error", async () => {
+    await server.close();
+    writeFileSync(join(root, ".gitlab-ci.yml"), Buffer.from([0x6a, 0x3a, 0xff, 0x0a]));
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(join(root, ".devsecops/toolchain.yaml"), TOOLCHAIN);
+    server = await createServer({ root, port: 0 });
+    const document = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      diagnostics: { code: string; severity: string }[];
+    };
+    expect(unknownJob(document.diagnostics)).toEqual(["warning"]);
+    const toolchain = await api("/api/toolchain");
+    expect(toolchain.status).toBe(200);
+    const body = (await toolchain.json()) as { diagnostics: { code: string; severity: string }[] };
+    expect(unknownJob(body.diagnostics)).toEqual(["warning"]);
+  });
+
+  test("so is a neighbour that became unreadable after the server started", async () => {
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(
+      join(root, ".devsecops/toolchain.yaml"),
+      TOOLCHAIN.replace("job: job", "job: publish"),
+    );
+    writeFileSync(join(root, ".github/workflows/release.yaml"), Buffer.from([0xff, 0xfe, 0x00]));
+    const document = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      diagnostics: { code: string; severity: string }[];
+    };
+    expect(unknownJob(document.diagnostics)).toEqual(["warning"]);
+    const body = (await (await api("/api/toolchain")).json()) as {
+      diagnostics: { code: string; severity: string }[];
+    };
+    expect(unknownJob(body.diagnostics)).toEqual(["warning"]);
+    const repository = (await (await api("/api/coverage")).json()) as {
+      coverage: { partial: boolean };
+    };
+    expect(repository.coverage.partial).toBe(true);
   });
 });
 

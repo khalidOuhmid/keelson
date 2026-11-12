@@ -16,7 +16,7 @@ import { INVALID_OPERATION, NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/mess
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { adapterFor } from "./adapters.ts";
 import { withFileLock } from "./lock.ts";
-import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
+import { resolveWorkspaceFile, unreadableWorkspaceFiles, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
 export const OPID_HISTORY = 100;
@@ -178,7 +178,10 @@ export class DocumentStore {
       .flatMap((entry) => this.parsedOnDisk(entry.path));
     return {
       pipeline: mergePipelines([pipeline, ...others.map((other) => other.pipeline)]),
-      parsing: others.flatMap((other) => other.parsing),
+      parsing: [
+        ...others.flatMap((other) => other.parsing),
+        ...unreadableWorkspaceFiles(this.root).filter((entry) => entry.file !== file),
+      ],
     };
   }
 
@@ -208,10 +211,13 @@ export class DocumentStore {
 
   /** Every CI file of the workspace together, as `keelson coverage` without arguments sees them. */
   repositoryCoverage(): { files: string[]; coverage: Coverage } {
-    // DEBT(2026-11-12): a file the parser throws on or cannot read is left out without making the coverage partial — the CLI stops on it instead; gap 44 removes the throws.
+    // DEBT(2026-11-12): a file the parser throws on is left out without making the coverage partial — the CLI stops on it instead; gap 44 removes the throws.
     const parsed = this.files.flatMap((entry) => this.parsedOnDisk(entry.path));
     const pipeline = mergePipelines(parsed.map((entry) => entry.pipeline));
-    const parsing = parsed.flatMap((entry) => entry.parsing);
+    const parsing = [
+      ...parsed.flatMap((entry) => entry.parsing),
+      ...unreadableWorkspaceFiles(this.root),
+    ];
     const { tools } = loadCatalog();
     const layout = parseLayout(readInsideRoot(this.root, LAYOUT_FILE), pipeline);
     const toolchain = analyseToolchain(
