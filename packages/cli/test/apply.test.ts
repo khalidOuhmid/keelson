@@ -245,7 +245,7 @@ describe("--rebase and the fleet", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe(
-      `✗ ${missing}  file not found: .gitlab-ci.yml\n✓ ${ok}  1 operation(s) applied\n`,
+      `✗ ${missing}  file not found: .gitlab-ci.yml (for a workflow, pass --file .github/workflows/<name>.yml)\n✓ ${ok}  1 operation(s) applied\n`,
     );
     expect(read(ok)).toBe(WITH_DEPLOY);
   });
@@ -382,7 +382,10 @@ describe("--json", () => {
           ok: false,
           applied: 0,
           written: false,
-          error: { message: "file not found: .gitlab-ci.yml" },
+          error: {
+            message:
+              "file not found: .gitlab-ci.yml (for a workflow, pass --file .github/workflows/<name>.yml)",
+          },
         },
       ],
     });

@@ -1,10 +1,17 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { WORKFLOWS_DIR } from "@keelson/adapter-github";
 import { createFileReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type { Diagnostic, Pipeline } from "@keelson/core";
 import { mergePipelines, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { adapterFor, detectWorkspace, readDisk, unreadableToolchain } from "@keelson/server";
+import {
+  adapterFor,
+  detectWorkspace,
+  isNestedWorkflow,
+  readDisk,
+  unreadableToolchain,
+} from "@keelson/server";
 import {
   analyseToolchain,
   LAYOUT_FILE,
@@ -12,9 +19,11 @@ import {
   parseLayout,
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
-import { readInside, refusalMessage } from "./files.ts";
+import { nestedWorkflowMessage, readInside, refusalMessage } from "./files.ts";
 
 export const DEFAULT_FILE = ".gitlab-ci.yml";
+
+const NO_CI_FILE = `file not found: neither ${DEFAULT_FILE} nor a workflow in ${WORKFLOWS_DIR}`;
 
 /** The root from which GitLab resolves `include: local`. We walk up to the first directory that
  *  contains a `.git`, because that is the repository root GitLab uses. Without a repository — an
@@ -69,9 +78,19 @@ export function readTargets(
   for (const path of paths) {
     const file = isAbsolute(path) ? path : resolve(cwd, path);
     const root = repositoryRoot(file);
-    const read = readInside(root, relativeTo(root, file));
+    const relative = relativeTo(root, file);
+    if (isNestedWorkflow(file)) {
+      return { ok: false, message: nestedWorkflowMessage(path) };
+    }
+    const read = readInside(root, relative);
     if (!read.ok) {
-      return { ok: false, message: refusalMessage(read.reason, file) };
+      return {
+        ok: false,
+        message:
+          named === undefined && read.reason === "absent"
+            ? NO_CI_FILE
+            : refusalMessage(read.reason, file),
+      };
     }
     targets.push({ file, text: read.text });
   }
