@@ -238,6 +238,20 @@ describe("event subscription", () => {
     expect(await screen.findByText(/changed on disk/i)).toBeDefined();
   });
 
+  test("a change to a workflow that is not open refreshes the toolchain view", async () => {
+    const h = harness();
+    let proposed: ToolchainPayload["proposed"] = [];
+    h.deps.client.toolchain = async () => ({ ok: true, value: { ...TOOLCHAIN, proposed } });
+    await renderApp(h);
+    await userEvent.click(screen.getByRole("button", { name: "Toolchain" }));
+    expect(await screen.findByText("Nothing to confirm.")).toBeDefined();
+    proposed = [{ job: "publish", tool: "nexus", kind: "push", services: [] }];
+    h.emit({ kind: "document.changed", file: ".github/workflows/release.yml", hash: NEXT });
+    await waitFor(() => expect(screen.queryByText("Nothing to confirm.") === null).toBe(true));
+    expect(document.body.textContent).toContain("publish push nexus");
+    expect(screen.queryByText(/changed on disk/i)).toBeNull();
+  });
+
   test("a document.removed shows the deleted state", async () => {
     const h = harness();
     await renderApp(h);
