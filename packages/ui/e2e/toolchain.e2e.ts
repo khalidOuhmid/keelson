@@ -378,6 +378,77 @@ test.describe("toolchain on the real binary", () => {
     }
   });
 
+  test("at 375 px, the toolchain overlays keep Tab inside them", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    const inside = (selector: string) =>
+      page.evaluate(
+        (query) => document.querySelector(query)?.contains(document.activeElement),
+        selector,
+      );
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.getByRole("button", { name: /^Panel/ }).click();
+      await expect(page.getByRole("button", { name: "Close panel" })).toBeFocused();
+      for (let step = 0; step < 16; step += 1) {
+        await page.keyboard.press("Tab");
+        expect(await inside('aside[aria-label="Toolchain"]')).toBe(true);
+      }
+      await page.getByRole("button", { name: "Close panel" }).click();
+
+      await page.locator("[data-service-id=vault]").click();
+      await expect(page.getByRole("region", { name: "Service detail" })).toBeVisible();
+      for (let step = 0; step < 16; step += 1) {
+        await page.keyboard.press("Tab");
+        expect(await inside('aside[aria-label="Service"]')).toBe(true);
+      }
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("at 375 px, New service is collapsed until asked for", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.getByRole("button", { name: /^Panel/ }).click();
+      const toggle = page.getByRole("button", { name: "New service" });
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(page.getByRole("textbox", { name: "Name" })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Add a service for deploy, HashiCorp Vault" }).click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByRole("textbox", { name: "Name" })).toBeFocused();
+
+      await toggle.click();
+      await expect(page.getByRole("textbox", { name: "Name" })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("from lg up, New service is open", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.getByRole("button", { name: "New service" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      await expect(page.getByRole("textbox", { name: "Name" })).toBeVisible();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("at 375 px, the service panel fits in the viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const keelson = await startKeelson({
