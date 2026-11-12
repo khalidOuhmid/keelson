@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import type { Coverage } from "../src/coverage.ts";
 import { coverageSchema } from "../src/wire.ts";
 
-const COVERAGE = {
+const COVERAGE: Coverage = {
   jobs: [{ job: "sast", layers: ["sast"], tools: ["semgrep"], overridden: false }],
   layers: [{ layer: "sast", covered: true, jobs: ["sast"], services: [], ci: ["gitlab-ci"] }],
   partial: false,
