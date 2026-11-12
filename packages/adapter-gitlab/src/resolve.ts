@@ -567,7 +567,7 @@ function scriptLines(
   key: string,
   path: Set<Node> = new Set(),
 ): string[] {
-  const { node: target } = dereference(node, file, context, key);
+  const { node: target, file: owner } = dereference(node, file, context, key);
   if (isScalar(target)) {
     return typeof target.value === "string" ? [target.value] : [];
   }
@@ -580,7 +580,7 @@ function scriptLines(
   }
   path.add(target);
   const lines = target.items.flatMap((item) =>
-    scriptLines(item as AnyNode, file, context, key, path),
+    scriptLines(item as AnyNode, owner, context, key, path),
   );
   path.delete(target);
   return lines;
@@ -652,12 +652,14 @@ export function defaultSources(root: YAMLMap, file: string, context: ResolveCont
 /** `extends` merges maps: `image: { entrypoint }` keeps the template's `name`. A scalar stops the
  *  walk up, and so does a written `name`. */
 function imageOf(found: readonly Match[], context: ResolveContext): string | null {
-  for (const source of found.toReversed()) {
-    const image = dereference(source.node, source.file, context, "image").node;
-    const document = documentOf(context, source.file);
+  const layers = found.flatMap(
+    (source) => dereference(source.node, source.file, context, "image").layers,
+  );
+  for (const { node: image, file } of layers.toReversed()) {
+    const document = documentOf(context, file);
     const named =
       isMap(image) && document !== null
-        ? dereference(entryAt(image, "name", document), source.file, context, "image").node
+        ? dereference(entryAt(image, "name", document), file, context, "image").node
         : image;
     if (isScalar(named) && named.value !== null) {
       return typeof named.value === "string" ? named.value : null;

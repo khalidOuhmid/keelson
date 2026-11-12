@@ -51,6 +51,22 @@ describe("signals of a job", () => {
     ).toEqual(["one", "two", "three"]);
   });
 
+  test("a script !reference to an included file reads that file's aliases", () => {
+    expect(
+      signals("include: ci/s.yml\n\njob:\n  script: !reference [.s, script]\n", {
+        "ci/s.yml": "a: &a one\n.s:\n  script:\n    - *a\n    - two\n",
+      })?.script,
+    ).toEqual(["one", "two"]);
+  });
+
+  test("an image !reference to an included map reads that file's merge key", () => {
+    expect(
+      signals("include: ci/i.yml\n\njob:\n  image: !reference [.t, image]\n  script: y\n", {
+        "ci/i.yml": ".n: &n\n  name: a/b\n.t:\n  image:\n    <<: *n\n",
+      })?.image,
+    ).toBe("a/b");
+  });
+
   test("a job with neither image nor script returns empty, not an error", () => {
     expect(signals("job:\n  stage: test\n")).toEqual({ image: null, script: [] });
   });
