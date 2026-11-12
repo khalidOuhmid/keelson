@@ -380,6 +380,25 @@ describe("catalogue", () => {
     expect(card.querySelector('svg path[d="M0 0h24v24H0z"]')).not.toBeNull();
   });
 
+  test("a tool with no snippet for the open file's CI says so in the list", () => {
+    render(
+      <CatalogView
+        catalog={{
+          layers: [...LAYERS],
+          tools: [
+            tool("kubescape", { name: "Kubescape", snippets: { gitlab: null, github: null } }),
+            tool("trivy", { name: "Trivy" }),
+          ],
+          logos: {},
+        }}
+        initialLayer={null}
+      />,
+    );
+    const rowOf = (name: string) => screen.getByRole("button", { name }).closest("tr");
+    expect(rowOf("Kubescape")?.textContent).toContain("No GitLab CI snippet");
+    expect(rowOf("Trivy")?.textContent).not.toContain("snippet");
+  });
+
   test("the entry says whether the tool runs as a job or as a service", async () => {
     render(
       <CatalogView

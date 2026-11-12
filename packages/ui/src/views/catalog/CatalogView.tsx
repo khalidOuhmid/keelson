@@ -32,6 +32,7 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
     left.name.localeCompare(right.name, "en", { sensitivity: "base", numeric: true }),
   );
   const selected: Tool | undefined = catalog.tools.find((tool) => tool.id === selectedId);
+  const github = insertion?.pipeline.provider === "github";
   const panel = useCoveringPanel<HTMLElement>(selected !== undefined);
   const rows = useRef<HTMLDivElement | null>(null);
 
@@ -137,15 +138,22 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
                 {shown.map((tool) => (
                   <tr key={tool.id} className="border-b border-border-subtle">
                     <td className="max-w-0 w-1/2 py-1">
-                      <button
-                        type="button"
-                        aria-pressed={tool.id === selectedId}
-                        data-tool-id={tool.id}
-                        onClick={() => setSelectedId(tool.id)}
-                        className="w-full cursor-pointer truncate rounded-sm px-1 py-1 text-left text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:bg-surface-3 aria-pressed:font-semibold"
-                      >
-                        {tool.name}
-                      </button>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <button
+                          type="button"
+                          aria-pressed={tool.id === selectedId}
+                          data-tool-id={tool.id}
+                          onClick={() => setSelectedId(tool.id)}
+                          className="min-w-0 flex-1 cursor-pointer truncate rounded-sm px-1 py-1 text-left text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:bg-surface-3 aria-pressed:font-semibold"
+                        >
+                          {tool.name}
+                        </button>
+                        {(github ? tool.snippets.github : tool.snippets.gitlab) === null ? (
+                          <span className="shrink-0 text-2xs text-text-muted">
+                            No {github ? "GitHub Actions" : "GitLab CI"} snippet
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                     <td className="px-2 py-1">
                       <span className="flex flex-wrap items-center gap-1">
