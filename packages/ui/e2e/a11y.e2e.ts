@@ -152,11 +152,14 @@ async function smallestText(page: Page, selector: string): Promise<number> {
   return page.evaluate((query) => {
     const sizes = [...document.querySelectorAll<HTMLElement>(query)]
       .filter((element) => element.offsetWidth > 0)
-      .map(
-        (element) =>
-          Number.parseFloat(getComputedStyle(element).fontSize) *
-          (element.getBoundingClientRect().width / element.offsetWidth),
-      );
+      .map((element) => {
+        let scale = 1;
+        for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+          const transform = getComputedStyle(node).transform;
+          if (transform !== "none") scale *= new DOMMatrix(transform).a;
+        }
+        return Number.parseFloat(getComputedStyle(element).fontSize) * scale;
+      });
     return Math.min(...sizes);
   }, selector);
 }
