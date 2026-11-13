@@ -1,8 +1,8 @@
 # Milestone tracking
 
-Status: ALL MILESTONES OF THE PLAN DELIVERED (2026-11-11), under review in PR #1
+Status: ALL MILESTONES DELIVERED (2026-11-11); completion pass done (2026-11-13), every planned gap closed or dated
 Current milestone: none — follow-up in `specs/gaps.md`
-Next action: merge PR #1 into `main`, `NPM_TOKEN` secret, then tag `v0.1.0`.
+Next action: merge the completion PR, add the `NPM_TOKEN` secret, then tag `v0.1.0`.
 Blocker: none
 
 Milestones are developed on `milestone/<id>-<slug>` branches from now on; the branches listed below
@@ -22,8 +22,16 @@ keep their historical `lot/<id>-<slug>` names.
 | L6 — GitHub Actions adapter | DONE | `lot/l6-github` merged into `claude/wonderful-edison-vituwb` |
 | L7 — open-source packaging | DONE | branch `claude/wonderful-edison-vituwb` |
 | L8 — fleet | DONE | merged into `claude/wonderful-edison-vituwb` |
+| Completion pass — closing `specs/gaps.md` | DONE | branch `claude/wonderful-edison-vituwb` |
 
 ## Log
+
+### 2026-11-13 — completion pass
+
+Every gap of `specs/gaps.md` written before 2026-11-12 now carries a dated **CLOSED** or **PARTLY
+CLOSED** note naming the test that proves it. Six findings of the pass itself are recorded as new
+rows dated 2026-11-13. Verification: `bun run check` (four chmod tests fail only when run as
+root), `bun run e2e` 118 passed, property tests at 500 runs.
 
 ### 2026-10-21 — L2 — tracking created, then steps 4 and 5
 
