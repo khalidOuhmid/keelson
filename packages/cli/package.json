@@ -31,7 +31,7 @@
     ".": "./src/index.ts"
   },
   "bin": {
-    "keelson": "./dist/keelson.js"
+    "keelson": "dist/keelson.js"
   },
   "files": [
     "dist",
