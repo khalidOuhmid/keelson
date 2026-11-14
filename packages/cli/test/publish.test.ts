@@ -98,7 +98,7 @@ describe("the keelson npm package is publishable", () => {
   });
 
   test("the binary points at the Node bundle, and the repository is named", () => {
-    expect(manifest.bin).toEqual({ keelson: "./dist/keelson.js" });
+    expect(manifest.bin).toEqual({ keelson: "dist/keelson.js" });
     expect(manifest.repository?.url).toContain("github.com/khalidOuhmid/keelson");
     expect(manifest.description).toMatch(/^[\x20-\x7e]+$/);
   });
