@@ -14,7 +14,7 @@ snippets:
   gitlab: null
   github: |
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
     - name: Analyze
-      uses: github/codeql-action/analyze@v3
-lastVerified: 2026-11-04
+      uses: github/codeql-action/analyze@v4
+lastVerified: 2026-11-14

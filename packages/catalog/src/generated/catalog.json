@@ -155,9 +155,9 @@
       },
       "snippets": {
         "gitlab": null,
-        "github": "- name: Initialize CodeQL\n  uses: github/codeql-action/init@v3\n- name: Analyze\n  uses: github/codeql-action/analyze@v3\n"
+        "github": "- name: Initialize CodeQL\n  uses: github/codeql-action/init@v4\n- name: Analyze\n  uses: github/codeql-action/analyze@v4\n"
       },
-      "lastVerified": "2026-11-04",
+      "lastVerified": "2026-11-14",
       "integration": null
     },
     {
