@@ -2,6 +2,8 @@ export const PACKAGE_NAME = "@keelson/taxonomy";
 
 export {
   findLayer,
+  GUIDELINE_COMMIT,
+  guidelineUrl,
   isLayerId,
   LAYER_IDS,
   LAYERS,

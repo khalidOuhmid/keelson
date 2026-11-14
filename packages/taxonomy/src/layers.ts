@@ -44,6 +44,15 @@ export type Layer = {
 
 const PROCESS = "current-version/2-Process";
 
+/** Every cited section was checked to exist at this commit on 2026-11-11. */
+export const GUIDELINE_COMMIT = "cd44d9778b68fe0122b7692df5942c948b2a87f9";
+
+export function guidelineUrl(layer: Layer): string | null {
+  return layer.guideline === null
+    ? null
+    : `https://github.com/OWASP/DevSecOpsGuideline/blob/${GUIDELINE_COMMIT}/${layer.guideline}`;
+}
+
 export const LAYERS: readonly Layer[] = [
   {
     id: "secrets",

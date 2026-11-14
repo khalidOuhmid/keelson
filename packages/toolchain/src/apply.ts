@@ -38,7 +38,7 @@ import {
   type YAMLSeq,
 } from "yaml";
 import { expectedToolchain } from "./model.ts";
-import { parseToolchain } from "./parse.ts";
+import { keyText, parseToolchain } from "./parse.ts";
 
 export type ToolchainResult = {
   text: string;
@@ -120,7 +120,7 @@ function hasAnchor(node: Node | null): boolean {
 }
 
 function pairOf(map: YAMLMap, key: string): Pair | undefined {
-  return map.items.find((pair) => isScalar(pair.key) && String(pair.key.value) === key);
+  return map.items.find((pair) => isScalar(pair.key) && keyText(pair.key) === key);
 }
 
 /** `stringify` folds long strings and lets `---` through: only what reads back identically is kept
@@ -351,9 +351,13 @@ function planned(
   current: Toolchain,
   operation: Exclude<ToolchainOperation, SpliceOperation>,
 ): Edit | null | Refusal {
-  const pairOfService = (id: string): Pair | undefined => {
+  const servicesSection = (): YAMLMap | undefined => {
     const section = editing.root === null ? undefined : pairOf(editing.root, "services");
-    return isMap(section?.value) ? pairOf(section.value, id) : undefined;
+    return isMap(section?.value) ? section.value : undefined;
+  };
+  const pairOfService = (id: string): Pair | undefined => {
+    const section = servicesSection();
+    return section === undefined ? undefined : pairOf(section, id);
   };
   const mapIndent = (collection: YAMLMap | YAMLSeq): number =>
     column(editing.text, rangeOf((collection as YAMLMap).items[0]?.key as Node)[0]);
@@ -439,6 +443,9 @@ function planned(
       if (pair === undefined) {
         return refuse({ code: SERVICE_NOT_FOUND, params: { service: operation.id } });
       }
+      if (servicesSection()?.flow === true) {
+        return flow("services");
+      }
       const jobs = current.integrations
         .filter((entry) => entry.service === operation.id)
         .map((entry) => entry.job)
@@ -491,14 +498,9 @@ function planned(
   }
 }
 
-/** Without service order: `toJS` puts integer keys first, whatever the file says. */
+/** Services in file order: an edit must not move one. */
 function sameModel(left: Toolchain, right: Toolchain): boolean {
-  const sorted = (model: Toolchain) =>
-    JSON.stringify({
-      ...model,
-      services: [...model.services].sort((a, b) => (a.id < b.id ? -1 : 1)),
-    });
-  return sorted(left) === sorted(right);
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function finish(text: string, edit: Edit | null): ToolchainResult {

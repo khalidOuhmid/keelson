@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { lowerBoundNote } from "@keelson/catalog";
 import { run } from "../src/run.ts";
 
 let root: string;
@@ -28,6 +29,18 @@ describe("keelson export", () => {
     const result = await run(["export"], { cwd: root });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("# Coverage report");
+  });
+
+  test("the Markdown report names the cause of the lower bound", async () => {
+    const broken = mkdtempSync(join(tmpdir(), "keelson-export-broken-"));
+    try {
+      mkdirSync(join(broken, ".git"));
+      writeFileSync(join(broken, ".gitlab-ci.yml"), "a:\n  - x\n bad: [1,\n");
+      const result = await run(["export"], { cwd: broken });
+      expect(result.stdout.split("\n")).toContain(lowerBoundNote("invalidYaml"));
+    } finally {
+      rmSync(broken, { recursive: true });
+    }
   });
 
   test("JSON: the full model", async () => {

@@ -1,4 +1,4 @@
-import { coverage, loadCatalog } from "@keelson/catalog";
+import { coverage, loadCatalog, lowerBoundCause } from "@keelson/catalog";
 import { renderCoverageMarkdown, renderMermaid } from "@keelson/toolchain";
 import { analyse, readTargets } from "./analysis.ts";
 import { parseCommandArgs } from "./args.ts";
@@ -47,7 +47,7 @@ export function exportCommand(argv: readonly string[], cwd: string): CliResult {
     format === "mermaid"
       ? renderMermaid(pipeline, toolchain)
       : format === "markdown"
-        ? renderCoverageMarkdown(result)
+        ? renderCoverageMarkdown(result, lowerBoundCause(pipeline, parsing))
         : `${JSON.stringify(
             { pipeline, coverage: result, toolchain, diagnostics: analysis.diagnostics },
             null,

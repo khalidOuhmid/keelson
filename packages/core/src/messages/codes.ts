@@ -1,11 +1,15 @@
 export const INVALID_YAML = "INVALID_YAML";
 export const INCLUDE_UNRESOLVED = "INCLUDE_UNRESOLVED";
 export const WORKFLOW_UNRESOLVED = "WORKFLOW_UNRESOLVED";
+export const WORKFLOW_CALL_INVALID = "WORKFLOW_CALL_INVALID";
+export const WORKFLOW_JOB_INVALID = "WORKFLOW_JOB_INVALID";
 export const INCLUDE_NOT_FOUND = "INCLUDE_NOT_FOUND";
 export const INCLUDE_CYCLE = "INCLUDE_CYCLE";
 export const INCLUDE_LIMIT_EXCEEDED = "INCLUDE_LIMIT_EXCEEDED";
 export const EXTENDS_TARGET_NOT_FOUND = "EXTENDS_TARGET_NOT_FOUND";
 export const EXTENDS_CYCLE = "EXTENDS_CYCLE";
+export const EXTENDS_DEPTH_EXCEEDED = "EXTENDS_DEPTH_EXCEEDED";
+export const VALUE_CYCLE = "VALUE_CYCLE";
 export const JOB_WITHOUT_SCRIPT = "JOB_WITHOUT_SCRIPT";
 export const UNKNOWN_NEED = "UNKNOWN_NEED";
 export const NEEDS_CYCLE = "NEEDS_CYCLE";
@@ -14,27 +18,34 @@ export const NEED_LATER_STAGE = "NEED_LATER_STAGE";
 export const LAYOUT_INVALID = "LAYOUT_INVALID";
 export const LAYOUT_UNKNOWN_LAYER = "LAYOUT_UNKNOWN_LAYER";
 export const LAYOUT_UNKNOWN_JOB = "LAYOUT_UNKNOWN_JOB";
+export const LAYOUT_UNREAD_JOB = "LAYOUT_UNREAD_JOB";
 export const COVERAGE_LAYER_MISSING = "COVERAGE_LAYER_MISSING";
 export const CATALOG_INVALID_TOOL = "CATALOG_INVALID_TOOL";
 export const CATALOG_DUPLICATE_TOOL = "CATALOG_DUPLICATE_TOOL";
 export const CATALOG_UNKNOWN_LOGO = "CATALOG_UNKNOWN_LOGO";
 export const CATALOG_MISSING_SNIPPET = "CATALOG_MISSING_SNIPPET";
 export const CATALOG_STALE_TOOL = "CATALOG_STALE_TOOL";
+export const CATALOG_FUTURE_VERIFIED = "CATALOG_FUTURE_VERIFIED";
 export const TOOLCHAIN_INVALID = "TOOLCHAIN_INVALID";
 export const TOOLCHAIN_UNKNOWN_TOOL = "TOOLCHAIN_UNKNOWN_TOOL";
 export const TOOLCHAIN_UNKNOWN_SERVICE = "TOOLCHAIN_UNKNOWN_SERVICE";
 export const TOOLCHAIN_UNKNOWN_JOB = "TOOLCHAIN_UNKNOWN_JOB";
 export const TOOLCHAIN_DUPLICATE_INTEGRATION = "TOOLCHAIN_DUPLICATE_INTEGRATION";
+export const TOOLCHAIN_JOB_TOOL_AS_SERVICE = "TOOLCHAIN_JOB_TOOL_AS_SERVICE";
 
 export const DIAGNOSTIC_CODES = [
   INVALID_YAML,
   INCLUDE_UNRESOLVED,
   WORKFLOW_UNRESOLVED,
+  WORKFLOW_CALL_INVALID,
+  WORKFLOW_JOB_INVALID,
   INCLUDE_NOT_FOUND,
   INCLUDE_CYCLE,
   INCLUDE_LIMIT_EXCEEDED,
   EXTENDS_TARGET_NOT_FOUND,
   EXTENDS_CYCLE,
+  EXTENDS_DEPTH_EXCEEDED,
+  VALUE_CYCLE,
   JOB_WITHOUT_SCRIPT,
   UNKNOWN_NEED,
   NEEDS_CYCLE,
@@ -43,17 +54,20 @@ export const DIAGNOSTIC_CODES = [
   LAYOUT_INVALID,
   LAYOUT_UNKNOWN_LAYER,
   LAYOUT_UNKNOWN_JOB,
+  LAYOUT_UNREAD_JOB,
   COVERAGE_LAYER_MISSING,
   CATALOG_INVALID_TOOL,
   CATALOG_DUPLICATE_TOOL,
   CATALOG_UNKNOWN_LOGO,
   CATALOG_MISSING_SNIPPET,
   CATALOG_STALE_TOOL,
+  CATALOG_FUTURE_VERIFIED,
   TOOLCHAIN_INVALID,
   TOOLCHAIN_UNKNOWN_TOOL,
   TOOLCHAIN_UNKNOWN_SERVICE,
   TOOLCHAIN_UNKNOWN_JOB,
   TOOLCHAIN_DUPLICATE_INTEGRATION,
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE,
 ] as const;
 
 export const STALE_DOCUMENT = "STALE_DOCUMENT";
@@ -143,6 +157,14 @@ export type MessageParams = {
     detail: string;
   };
   WORKFLOW_UNRESOLVED: { job: string; target: string };
+  WORKFLOW_CALL_INVALID:
+    | { reason: "missing"; job: string; path: string }
+    | { reason: "outsideRoot"; job: string; path: string }
+    | { reason: "notInWorkflows"; job: string; path: string }
+    | { reason: "cycle"; job: string; trail: string[] }
+    | { reason: "depth"; job: string; path: string; limit: number }
+    | { reason: "limit"; job: string; path: string; limit: number };
+  WORKFLOW_JOB_INVALID: { reason: "notMap"; job: string } | { reason: "needs"; job: string };
   INCLUDE_NOT_FOUND:
     | { reason: "missing"; path: string }
     | { reason: "notYaml"; path: string }
@@ -152,6 +174,8 @@ export type MessageParams = {
   INCLUDE_LIMIT_EXCEEDED: { limit: number };
   EXTENDS_TARGET_NOT_FOUND: { template: string };
   EXTENDS_CYCLE: { trail: readonly string[] };
+  EXTENDS_DEPTH_EXCEEDED: { job: string; limit: number };
+  VALUE_CYCLE: { job: string; key: string };
   JOB_WITHOUT_SCRIPT: { job: string };
   UNKNOWN_NEED: { job: string; need: string };
   NEEDS_CYCLE: { cycle: readonly string[] };
@@ -160,17 +184,20 @@ export type MessageParams = {
   LAYOUT_INVALID: { detail: string };
   LAYOUT_UNKNOWN_LAYER: { job: string; layer: string };
   LAYOUT_UNKNOWN_JOB: { job: string };
+  LAYOUT_UNREAD_JOB: { job: string };
   COVERAGE_LAYER_MISSING: { layer: string; name: string };
   CATALOG_INVALID_TOOL: { detail: string };
   CATALOG_DUPLICATE_TOOL: { tool: string };
   CATALOG_UNKNOWN_LOGO: { tool: string; logo: string };
   CATALOG_MISSING_SNIPPET: { tool: string };
   CATALOG_STALE_TOOL: { tool: string; lastVerified: string };
+  CATALOG_FUTURE_VERIFIED: { tool: string; lastVerified: string };
   TOOLCHAIN_INVALID: { detail: string };
   TOOLCHAIN_UNKNOWN_TOOL: { service: string; tool: string };
   TOOLCHAIN_UNKNOWN_SERVICE: { job: string; service: string };
   TOOLCHAIN_UNKNOWN_JOB: { job: string };
   TOOLCHAIN_DUPLICATE_INTEGRATION: { job: string; service: string; kind: string };
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE: { service: string; tool: string };
 
   STALE_DOCUMENT: { expected: string; received: string };
   JOB_NOT_FOUND: { job: string };
@@ -193,7 +220,6 @@ export type MessageParams = {
     | { reason: "schema"; path: string; detail: string }
     | { reason: "flowStyleJob"; job: string }
     | { reason: "jobWithoutScript" }
-    | { reason: "inheritedEnvironment"; job: string; origin: string }
     | { reason: "sharedValue"; job: string; key: string }
     | { reason: "flowStyleToolchain"; section: string }
     | { reason: "invalidToolchain" }
@@ -202,8 +228,11 @@ export type MessageParams = {
     | { reason: "notForProvider"; operation: string }
     | { reason: "citedInExpression"; job: string }
     | { reason: "dynamicExpression"; job: string }
+    | { reason: "readsOwnId"; job: string }
     | { reason: "outsideRoot"; path: string }
+    | { reason: "notADirectory"; path: string }
     | { reason: "noRootMap" }
+    | { reason: "notUtf8"; file: string }
     | { reason: "wouldBreakYaml"; operation: string }
     | { reason: "unreadableBody" }
     | { reason: "missingOpId" }

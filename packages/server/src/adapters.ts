@@ -44,11 +44,25 @@ const GITLAB: Adapter = {
 };
 
 const GITHUB: Adapter = {
-  parse: (text, { file }) => parseGithub(text, { file }),
+  parse: (text, options) => parseGithub(text, options),
   apply: (parsed, operation) => applyGithub(parsed.document as never, operation),
 };
 
+const directoryOf = (file: string): string =>
+  file.replaceAll("\\", "/").split("/").slice(0, -1).join("/");
+
+const underWorkflows = (directory: string): boolean =>
+  directory === WORKFLOWS_DIR || directory.endsWith(`/${WORKFLOWS_DIR}`);
+
+/** A file below `.github/workflows/<dir>/`: GitHub ignores it, and it is not GitLab CI either. */
+export function isNestedWorkflow(file: string): boolean {
+  const directory = directoryOf(file);
+  return (
+    !underWorkflows(directory) &&
+    (directory.startsWith(`${WORKFLOWS_DIR}/`) || directory.includes(`/${WORKFLOWS_DIR}/`))
+  );
+}
+
 export function adapterFor(file: string): Adapter {
-  const directory = file.replaceAll("\\", "/").split("/").slice(0, -1).join("/");
-  return directory === WORKFLOWS_DIR || directory.endsWith(`/${WORKFLOWS_DIR}`) ? GITHUB : GITLAB;
+  return underWorkflows(directoryOf(file)) || isNestedWorkflow(file) ? GITHUB : GITLAB;
 }

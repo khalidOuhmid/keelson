@@ -1,4 +1,4 @@
-import { type Dirent, readdirSync, realpathSync } from "node:fs";
+import { type Dirent, existsSync, readdirSync, realpathSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { readRegularFile } from "./files.ts";
 import type { IncludeReader } from "./includes.ts";
@@ -57,8 +57,11 @@ function walk(root: string): string[] {
  *
  *  `candidates()` is memoised and only computed on the first wildcard: a repository without a
  *  wildcard `include` never pays for the walk. */
-/** The real path of `path` if it stays under `root`, otherwise `null`. */
-function boundary(root: string): (path: string) => string | null {
+type Located = { inside: true; real: string } | { inside: false; exists: boolean };
+
+/** Where `path` resolves: under `root`, or outside it — and then whether something exists there,
+ *  so that a link leaving the root is not reported as a missing file. */
+function boundary(root: string): (path: string) => Located {
   const absoluteRoot = resolve(root);
   const prefix = absoluteRoot.endsWith(sep) ? absoluteRoot : absoluteRoot + sep;
   /** The resolved root: the root itself may be reached through a link — a test folder under
@@ -74,7 +77,7 @@ function boundary(root: string): (path: string) => string | null {
     const absolute = resolve(absoluteRoot, path);
     // First check, lexical, after the one in `normaliseIncludePath`.
     if (!absolute.startsWith(prefix)) {
-      return null;
+      return { inside: false, exists: existsSync(absolute) };
     }
 
     // Second check, **on the real path**. Lexical checks do not see symbolic links:
@@ -82,9 +85,9 @@ function boundary(root: string): (path: string) => string | null {
     // payload sent to the browser. Found by the independent review of 2026-10-23.
     try {
       const real = realpathSync(absolute);
-      return real.startsWith(realPrefix) ? real : null;
+      return real.startsWith(realPrefix) ? { inside: true, real } : { inside: false, exists: true };
     } catch {
-      return null;
+      return { inside: false, exists: false };
     }
   };
 }
@@ -93,12 +96,12 @@ function boundary(root: string): (path: string) => string | null {
  *  boundary: a `JSON.parse` error message quotes the text read, so a link to an outside file
  *  would leak it through a diagnostic. */
 export function readInsideRoot(root: string, path: string): string | null {
-  const real = boundary(root)(path);
-  if (real === null) {
+  const located = boundary(root)(path);
+  if (!located.inside) {
     return null;
   }
   try {
-    return textOf(real);
+    return textOf(located.real);
   } catch {
     return null;
   }
@@ -111,17 +114,24 @@ export function createFileReader(root: string): IncludeReader {
 
   return {
     read(path) {
-      const real = realInside(path);
-      if (real === null || !YAML_EXTENSIONS.some((extension) => real.endsWith(extension))) {
+      const located = realInside(path);
+      if (
+        !located.inside ||
+        !YAML_EXTENSIONS.some((extension) => located.real.endsWith(extension))
+      ) {
         return null;
       }
 
       // Regular files only: reading a FIFO blocks forever, and would freeze the server.
       try {
-        return textOf(real);
+        return textOf(located.real);
       } catch {
         return null;
       }
+    },
+    outsideRoot(path) {
+      const located = realInside(path);
+      return !located.inside && located.exists;
     },
     candidates() {
       listed ??= walk(absoluteRoot);

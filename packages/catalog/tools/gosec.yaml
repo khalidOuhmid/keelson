@@ -9,6 +9,7 @@ logo: null
 detect:
   images: ['securego/gosec']
   scripts: ['\bgosec\b']
+  actions: ['securego/gosec']
 snippets:
   gitlab: |
     gosec:
@@ -21,4 +22,4 @@ snippets:
   github: |
     - name: Run gosec
       run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" ghcr.io/securego/gosec:latest gosec ./...
-lastVerified: 2026-11-04
+lastVerified: 2026-11-12

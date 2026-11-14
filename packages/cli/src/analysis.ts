@@ -1,10 +1,17 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
-import { createFileReader, readInsideRoot, readRegularFile } from "@keelson/adapter-gitlab";
+import { WORKFLOWS_DIR } from "@keelson/adapter-github";
+import { createFileReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
 import type { Diagnostic, Pipeline } from "@keelson/core";
 import { mergePipelines, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { adapterFor, detectWorkspace } from "@keelson/server";
+import {
+  adapterFor,
+  detectWorkspace,
+  isNestedWorkflow,
+  readDisk,
+  unreadableToolchain,
+} from "@keelson/server";
 import {
   analyseToolchain,
   LAYOUT_FILE,
@@ -12,8 +19,11 @@ import {
   parseLayout,
   type ToolchainAnalysis,
 } from "@keelson/toolchain";
+import { nestedWorkflowMessage, readInside, refusalMessage } from "./files.ts";
 
 export const DEFAULT_FILE = ".gitlab-ci.yml";
+
+const NO_CI_FILE = `file not found: neither ${DEFAULT_FILE} nor a workflow in ${WORKFLOWS_DIR}`;
 
 /** The root from which GitLab resolves `include: local`. We walk up to the first directory that
  *  contains a `.git`, because that is the repository root GitLab uses. Without a repository — an
@@ -67,16 +77,41 @@ export function readTargets(
   const targets: Target[] = [];
   for (const path of paths) {
     const file = isAbsolute(path) ? path : resolve(cwd, path);
-    const read = readRegularFile(file);
+    const root = repositoryRoot(file);
+    const relative = relativeTo(root, file);
+    if (isNestedWorkflow(file)) {
+      return { ok: false, message: nestedWorkflowMessage(path) };
+    }
+    const read = readInside(root, relative);
     if (!read.ok) {
       return {
         ok: false,
-        message: read.reason === "notFile" ? `"${file}" is not a file` : `file not found: ${file}`,
+        message:
+          named === undefined && read.reason === "absent"
+            ? NO_CI_FILE
+            : refusalMessage(read.reason, file),
       };
     }
     targets.push({ file, text: read.text });
   }
   return { ok: true, targets };
+}
+
+function toolchainOf(
+  root: string,
+  pipeline: Pipeline,
+  parsing: readonly Diagnostic[],
+): ToolchainAnalysis {
+  const disk = readDisk(root, TOOLCHAIN_FILE);
+  const analysis = analyseToolchain(
+    disk.kind === "text" ? disk.text : null,
+    pipeline,
+    loadCatalog().tools,
+    parsing,
+  );
+  return disk.kind === "unreadable"
+    ? { ...analysis, diagnostics: [unreadableToolchain(), ...analysis.diagnostics] }
+    : analysis;
 }
 
 /** What `validate`, `coverage` and `export` know about the files: they must say the same thing. */
@@ -90,12 +125,8 @@ export function analyse(targets: readonly Target[]): Analysis {
 
   const pipeline = mergePipelines(parsed.map(({ result }) => result.pipeline));
   const parsing = parsed.flatMap(({ result }) => result.diagnostics);
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline);
-  const toolchain = analyseToolchain(
-    readInsideRoot(root, TOOLCHAIN_FILE),
-    pipeline,
-    loadCatalog().tools,
-  );
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), pipeline, parsing);
+  const toolchain = toolchainOf(root, pipeline, parsing);
 
   return {
     root,

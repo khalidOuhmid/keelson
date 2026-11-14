@@ -1,0 +1,14 @@
+stages: [build, # quality gates below
+  test, deploy]
+
+compile:
+  stage: build
+  script: make
+
+unit:
+  stage: test
+  script: make check
+
+ship:
+  stage: deploy
+  script: make ship

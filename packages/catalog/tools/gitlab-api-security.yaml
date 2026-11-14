@@ -1,0 +1,27 @@
+id: gitlab-api-security
+name: 'GitLab API Security Testing'
+kind: job
+layers: [api]
+license: Proprietary
+homepage: https://docs.gitlab.com/user/application_security/api_security_testing/
+verifiedAt: https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Security/API-Security.gitlab-ci.yml
+logo: gitlab
+detect:
+  images: ['registry.gitlab.com/security-products/api-security']
+  scripts: []
+snippets:
+  gitlab: |
+    api_security:
+      stage: test
+      image: registry.gitlab.com/security-products/api-security:6
+      variables:
+        APISEC_TARGET_URL: $TARGET_URL
+        APISEC_OPENAPI: openapi.json
+      script:
+        - /peach/analyzer-api-security
+      artifacts:
+        when: always
+        reports:
+          dast: gl-api-security-report.json
+  github: null
+lastVerified: 2026-11-12

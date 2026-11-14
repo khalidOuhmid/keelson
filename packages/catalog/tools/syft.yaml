@@ -11,7 +11,14 @@ detect:
   scripts: ['\bsyft\b']
   actions: ['anchore/sbom-action']
 snippets:
-  gitlab: null
+  gitlab: |
+    syft:
+      stage: build
+      image:
+        name: anchore/syft:debug
+        entrypoint: [""]
+      script:
+        - /syft dir:. -o cyclonedx-json=sbom.cdx.json
   github: |
     - name: Run Syft
       run: docker run --rm -v "$PWD:/src" -w /src anchore/syft:latest dir:. -o cyclonedx-json=sbom.cdx.json

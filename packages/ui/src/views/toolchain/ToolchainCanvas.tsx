@@ -1,6 +1,7 @@
 import {
   applyNodeChanges,
   Background,
+  Controls,
   type Node,
   type NodeChange,
   ReactFlow,
@@ -8,6 +9,8 @@ import {
 } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ToolchainPayload } from "../../api/client.ts";
+import { BUTTON, DANGER_BUTTON, GROUP } from "../../editing/controls.ts";
+import { trapTab } from "../../focus.ts";
 import { readLayoutMetrics } from "../pipeline/metrics.ts";
 import { RefitOnResize } from "../pipeline/PipelineCanvas.tsx";
 import { SERVICE_NODE, TOOLCHAIN_JOB_NODE, type ToolLabels, toolchainGraph } from "./graph.ts";
@@ -27,8 +30,87 @@ export type ToolchainCanvasProps = {
   selectedService: string | null;
   onSelectService: (id: string | null) => void;
   onMove: (node: string, position: { x: number; y: number }) => void;
+  onResetLayout: () => void;
   invalid: boolean;
 };
+
+/** A node being dragged stays under the pointer: its drop, not a refresh, decides where it goes. */
+function keepDragged(next: Node[], current: Node[]): Node[] {
+  const dragged = new Map(current.filter((node) => node.dragging).map((node) => [node.id, node]));
+  if (dragged.size === 0) {
+    return next;
+  }
+  return next.map((node) => {
+    const held = dragged.get(node.id);
+    return held === undefined ? node : { ...node, position: held.position, dragging: true };
+  });
+}
+
+function ResetLayout({ onReset }: { onReset: () => void }) {
+  const [asking, setAsking] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const confirm = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (asking) {
+      confirm.current?.focus();
+    }
+  }, [asking]);
+  const cancel = (): void => {
+    setAsking(false);
+    trigger.current?.focus();
+  };
+
+  return (
+    <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1.5">
+      <button
+        ref={trigger}
+        type="button"
+        className={`${BUTTON} bg-surface-2`}
+        aria-expanded={asking}
+        onClick={() => setAsking(true)}
+      >
+        Reset layout
+      </button>
+      {asking ? (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Reset layout"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              cancel();
+              return;
+            }
+            trapTab(event.currentTarget, event);
+          }}
+          className={`${GROUP} max-w-64 rounded-md border border-border-default bg-surface-2 p-2.5`}
+        >
+          <p className="text-xs text-text-secondary">
+            Put every node back in its default place? The saved positions are removed from
+            layout.json.
+          </p>
+          <div className="flex gap-1.5">
+            <button
+              ref={confirm}
+              type="button"
+              className={DANGER_BUTTON}
+              onClick={() => {
+                setAsking(false);
+                onReset();
+              }}
+            >
+              Reset positions
+            </button>
+            <button type="button" className={BUTTON} onClick={cancel}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function ToolchainCanvas({
   payload,
@@ -36,6 +118,7 @@ export function ToolchainCanvas({
   selectedService,
   onSelectService,
   onMove,
+  onResetLayout,
   invalid,
 }: ToolchainCanvasProps) {
   const graph = useMemo(
@@ -53,7 +136,7 @@ export function ToolchainCanvas({
 
   const container = useRef<HTMLElement>(null);
   const [nodes, setNodes] = useState<Node[]>(graph.nodes);
-  useEffect(() => setNodes(graph.nodes), [graph]);
+  useEffect(() => setNodes((current) => keepDragged(graph.nodes, current)), [graph]);
 
   return (
     <section
@@ -86,14 +169,20 @@ export function ToolchainCanvas({
           fitViewOptions={{ minZoom: FIT_MIN_ZOOM }}
           panOnScroll
           proOptions={{ hideAttribution: true }}
+          colorMode="dark"
           fitView
           minZoom={0.3}
           maxZoom={1.6}
         >
           <Background />
-          <RefitOnResize container={container} />
+          <Controls showInteractive={false} position="bottom-right" />
+          <RefitOnResize container={container} keepMovedView />
         </ReactFlow>
       </ReactFlowProvider>
+
+      {!invalid && Object.keys(payload.positions).length > 0 ? (
+        <ResetLayout onReset={onResetLayout} />
+      ) : null}
 
       {graph.nodes.length === 0 ? (
         <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-text-muted">

@@ -26,7 +26,13 @@ export type IncludeReader = {
   /** Every `.yml` and `.yaml` file in the repository, normalised the same way. Only called for an
    *  include that carries a wildcard. */
   candidates(): readonly string[];
+  /** Whether `path`, which `read` refused, exists but resolves outside the repository root. */
+  outsideRoot?(path: string): boolean;
 };
+
+/** “You can use certain CI/CD variables” in `include:local`: such a path is only known when the
+ *  pipeline runs. */
+const VARIABLE = /\$\{?[A-Za-z_]/;
 
 export type ParsedFile = {
   file: string;
@@ -139,7 +145,14 @@ export function includeEntries(root: YAMLMap): Entry[] {
   }
 
   const node = pair.value as AnyNode;
-  return isSeq(node) ? node.items.map((item) => entryOf(item as AnyNode)) : [entryOf(node)];
+  if (isSeq(node)) {
+    return node.items.map((item) => entryOf(item as AnyNode));
+  }
+  const range = contentRange(node);
+  if (range === null || range.start === range.end) {
+    return [{ kind: "malformed", range: contentRange(pair.key as AnyNode) }];
+  }
+  return [entryOf(node)];
 }
 
 export function parseIncludedFile(file: string, text: string): ParsedFile {
@@ -180,7 +193,18 @@ type State = {
    *  would never trigger on a deep chain. */
   entered: number;
   stopped: boolean;
+  /** Each path is read and parsed once per resolution, even when it enters several times: the
+   *  merge order keeps every entry, the cost does not multiply with them. */
+  parsed: Map<string, ParsedFile | null>;
 };
+
+function load(state: State, read: IncludeReader, path: string): ParsedFile | null {
+  if (!state.parsed.has(path)) {
+    const text = read.read(path);
+    state.parsed.set(path, text === null ? null : parseIncludedFile(path, text));
+  }
+  return state.parsed.get(path) ?? null;
+}
 
 /** A failing local include is **two** things at once: an error to fix, and a hole in the
  *  displayed pipeline. The diagnostic states the first; `failed` states the second, without which
@@ -255,10 +279,10 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
     }
 
     const read = state.read;
-    if (read === null) {
-      // No reader: the include is not missing, it was not looked up. Calling it “missing” would
-      // blame the user's file for a choice made by the caller. The pipeline is partial, and that
-      // is all Keelson can say about it.
+    if (read === null || VARIABLE.test(entry.value)) {
+      // No reader, or a path only known at run time: the include is not missing, it was not
+      // looked up. Calling it “missing” would blame the user's file. The pipeline is partial, and
+      // that is all Keelson can say about it.
       state.unresolved.push({
         form: "local",
         detail: entry.value,
@@ -300,14 +324,16 @@ function walk(state: State, parent: ParsedFile, trail: readonly string[]): void 
         return;
       }
 
-      const text = read.read(path);
-      if (text === null) {
-        notFound(state, parent.file, path, entry.range, { reason: "missing", path });
+      const parsed = load(state, read, path);
+      if (parsed === null) {
+        notFound(state, parent.file, path, entry.range, {
+          reason: read.outsideRoot?.(path) === true ? "outsideRoot" : "missing",
+          path,
+        });
         continue;
       }
 
       state.entered += 1;
-      const parsed = parseIncludedFile(path, text);
       // The included file's includes go **before** it: “nested includes are resolved
       // recursively”, and the last included wins.
       walk(state, parsed, [...trail, path]);
@@ -326,6 +352,7 @@ export function resolveIncludes(main: ParsedFile, read: IncludeReader | null): I
     candidates: null,
     entered: 0,
     stopped: false,
+    parsed: new Map(),
   };
   walk(state, main, [main.file]);
   return {

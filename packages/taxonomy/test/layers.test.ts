@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { findLayer, isLayerId, LAYER_IDS, LAYERS } from "../src/index.ts";
+import {
+  findLayer,
+  GUIDELINE_COMMIT,
+  guidelineUrl,
+  isLayerId,
+  LAYER_IDS,
+  LAYERS,
+} from "../src/index.ts";
 
 describe("taxonomy", () => {
   test("thirteen OWASP layers and eight platform categories, in this order", () => {
@@ -27,6 +34,15 @@ describe("taxonomy", () => {
       expect(layer.guideline).toStartWith("current-version/");
       expect(layer.guideline).toEndWith(".md");
     }
+  });
+
+  /** `master` moves: a section renamed upstream would break the link without Keelson noticing. */
+  test("a cited section links to a pinned commit of the Guideline, not to a branch", () => {
+    expect(GUIDELINE_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(guidelineUrl(findLayer("dast"))).toBe(
+      `https://github.com/OWASP/DevSecOpsGuideline/blob/${GUIDELINE_COMMIT}/${findLayer("dast").guideline}`,
+    );
+    expect(guidelineUrl(findLayer("registry"))).toBeNull();
   });
 
   test("one summary per layer, without duplicates", () => {

@@ -1,9 +1,11 @@
 import { detectIntegrations, type Tool } from "@keelson/catalog";
 import type { Diagnostic, IntegrationKind, Pipeline, Toolchain } from "@keelson/core";
 import {
+  INVALID_YAML,
   isPartial,
   TOOLCHAIN_DUPLICATE_INTEGRATION,
   TOOLCHAIN_FILE,
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE,
   TOOLCHAIN_UNKNOWN_JOB,
   TOOLCHAIN_UNKNOWN_SERVICE,
   TOOLCHAIN_UNKNOWN_TOOL,
@@ -64,6 +66,16 @@ export function validateToolchain(
       }),
     );
 
+  const jobTools = toolchain.services
+    .filter((service) => tools.some((tool) => tool.id === service.tool && tool.kind === "job"))
+    .map((service) =>
+      diagnostic({
+        code: TOOLCHAIN_JOB_TOOL_AS_SERVICE,
+        severity: "warning",
+        params: { service: service.id, tool: service.tool },
+      }),
+    );
+
   const seen = new Set<string>();
   const reported = new Set<string>();
   const integrations = toolchain.integrations.flatMap((entry): Diagnostic[] => {
@@ -106,7 +118,7 @@ export function validateToolchain(
     ];
   });
 
-  return [...unknownTools, ...integrations];
+  return [...unknownTools, ...jobTools, ...integrations];
 }
 
 export type ToolchainAnalysis = {
@@ -115,16 +127,25 @@ export type ToolchainAnalysis = {
   proposed: ProposedIntegration[];
 };
 
-/** What the API and `keelson validate` say about the toolchain: both must say the same thing. */
+/** What the API and `keelson validate` say about the toolchain: both must say the same thing.
+ *  `parsing` are the diagnostics of the CI files: one that did not parse leaves its jobs out, as an
+ *  unresolved include does, so a job the toolchain names may be one of them. */
 export function analyseToolchain(
   text: string | null,
   pipeline: Pipeline,
   tools: readonly Tool[],
+  parsing: readonly Diagnostic[] = [],
 ): ToolchainAnalysis {
   const { toolchain, diagnostics } = parseToolchain(text);
+  const truncated = parsing.some((entry) => entry.code === INVALID_YAML);
+  const validated = validateToolchain(toolchain, pipeline, tools).map((entry) =>
+    truncated && entry.code === TOOLCHAIN_UNKNOWN_JOB
+      ? { ...entry, severity: "warning" as const }
+      : entry,
+  );
   return {
     toolchain,
-    diagnostics: [...diagnostics, ...validateToolchain(toolchain, pipeline, tools)],
+    diagnostics: [...diagnostics, ...validated],
     proposed: proposeIntegrations(pipeline, toolchain, tools),
   };
 }

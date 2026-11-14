@@ -31,12 +31,119 @@ export type LayoutColumn = {
   width: number;
 };
 
+/** A link a value is inherited along: `extends`, or a merge key (`<<: *anchor`) on a template's
+ *  map. `into` says whether the target is a job or another template. */
+export type InheritanceEdge = {
+  id: string;
+  source: string;
+  target: string;
+  kind: "extends" | "merge";
+  into: "job" | "template";
+};
+
 export type Layout = {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
   columns: LayoutColumn[];
+  /** The hidden jobs values are inherited from, in columns upstream of the stages: they are not
+   *  jobs, so no stage column holds them. A template inheriting from another is drawn one column
+   *  downstream of its parent. */
+  templates: LayoutNode[];
+  /** One per `extends` entry or merged template that names a drawn template. */
+  inheritance: InheritanceEdge[];
   height: number;
 };
+
+type Inheriting = { id: string; extends: readonly string[]; merges?: readonly string[] };
+
+function parentsOf(entry: Inheriting, drawn: ReadonlySet<string>): string[] {
+  return [...new Set([...entry.extends, ...(entry.merges ?? [])])].filter(
+    (parent) => parent !== entry.id && drawn.has(parent),
+  );
+}
+
+/** A cycle is cut where it is met: its templates share the depth of the first one reached. */
+function depths(pipeline: Pipeline, drawn: ReadonlySet<string>): Map<string, number> {
+  const byId = new Map(pipeline.templates.map((template) => [template.id, template]));
+  const found = new Map<string, number>();
+  const visiting = new Set<string>();
+  const depthOf = (id: string): number => {
+    const known = found.get(id);
+    if (known !== undefined) {
+      return known;
+    }
+    const template = byId.get(id);
+    if (template === undefined || visiting.has(id)) {
+      return -1;
+    }
+    visiting.add(id);
+    const depth = Math.max(-1, ...parentsOf(template, drawn).map(depthOf)) + 1;
+    visiting.delete(id);
+    found.set(id, depth);
+    return depth;
+  };
+  for (const template of pipeline.templates) {
+    depthOf(template.id);
+  }
+  return found;
+}
+
+function inheritanceEdges(
+  entry: Inheriting,
+  into: InheritanceEdge["into"],
+  drawn: ReadonlySet<string>,
+): InheritanceEdge[] {
+  const named = (parents: readonly string[]) =>
+    [...new Set(parents)].filter((parent) => parent !== entry.id && drawn.has(parent));
+  return [
+    ...named(entry.extends).map((parent) => ({
+      id: `${parent}=>${entry.id}`,
+      source: parent,
+      target: entry.id,
+      kind: "extends" as const,
+      into,
+    })),
+    ...named(entry.merges ?? []).map((parent) => ({
+      id: `${parent}<<${entry.id}`,
+      source: parent,
+      target: entry.id,
+      kind: "merge" as const,
+      into,
+    })),
+  ];
+}
+
+function placeTemplates(
+  pipeline: Pipeline,
+  metrics: LayoutMetrics,
+): Pick<Layout, "templates" | "inheritance"> {
+  const drawn = new Set(pipeline.templates.map((template) => template.id));
+  const depth = depths(pipeline, drawn);
+  const levels = Math.max(0, ...depth.values()) + 1;
+  const step = metrics.nodeWidth + metrics.columnGap;
+  const rows = new Map<number, number>();
+  const templates = pipeline.templates.map((template) => {
+    const level = depth.get(template.id) ?? 0;
+    const row = rows.get(level) ?? 0;
+    rows.set(level, row + 1);
+    return {
+      id: template.id,
+      x: -(levels - level) * step,
+      y: row * (metrics.nodeHeight + metrics.rowGap),
+      width: metrics.nodeWidth,
+      height: metrics.nodeHeight,
+    };
+  });
+  const inheritance = [
+    ...pipeline.templates.flatMap((template) => inheritanceEdges(template, "template", drawn)),
+    ...pipeline.jobs.flatMap((job) => inheritanceEdges(job, "job", drawn)),
+  ].sort((left, right) => left.id.localeCompare(right.id));
+  return { templates, inheritance };
+}
+
+function tallest(nodes: readonly LayoutNode[]): number {
+  return nodes.reduce((height, node) => Math.max(height, node.y + node.height), 0);
+}
 
 type Partitioned = {
   name: string;
@@ -95,6 +202,8 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
     }
   }
 
+  const inherited = placeTemplates(pipeline, metrics);
+
   if (pipeline.jobs.length === 0) {
     return {
       nodes: [],
@@ -104,7 +213,8 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
         x: index * (metrics.nodeWidth + metrics.columnGap),
         width: metrics.nodeWidth,
       })),
-      height: 0,
+      ...inherited,
+      height: tallest(inherited.templates),
     };
   }
 
@@ -183,6 +293,7 @@ export async function layoutPipeline(pipeline: Pipeline, metrics: LayoutMetrics)
     nodes,
     edges: [...edges].sort((left, right) => left.id.localeCompare(right.id)),
     columns: laidColumns,
-    height: nodes.reduce((tallest, node) => Math.max(tallest, node.y + node.height), 0),
+    ...inherited,
+    height: Math.max(tallest(nodes), tallest(inherited.templates)),
   };
 }

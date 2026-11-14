@@ -48,11 +48,20 @@ beforeEach(async () => {
     load: async () => ({ ok: true, value: loaded }),
     submit: async (op) => {
       sent.push(op);
-      return answers.shift() ?? applied("b");
+      const answer = answers.shift() ?? applied("b");
+      if (answer.ok) {
+        loaded = payload(answer.value.hash);
+      }
+      return answer;
     },
     savePositions: async (positions) => {
       saved.push(positions);
       disk = { ...disk, ...positions };
+      return { ok: true, value: { positions: disk } };
+    },
+    clearPositions: async () => {
+      saved.push("clear");
+      disk = {};
       return { ok: true, value: { positions: disk } };
     },
     newOpId: () => "op",
@@ -143,6 +152,7 @@ describe("toolchain store", () => {
           settle = resolve;
         }),
       savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     await held.getState().load();
@@ -166,6 +176,7 @@ describe("toolchain store", () => {
           settle = resolve;
         }),
       savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
       newOpId: () => "op",
     });
     await echo.getState().load();
@@ -211,7 +222,91 @@ describe("toolchain store", () => {
     expect(state().payload?.hash).toBe("b");
   });
 
-  test("a hash written twice: the echo consumes up to the last occurrence", async () => {
+  test("b, a, b written, then their echoes one by one: no notice, history kept", async () => {
+    await state().submit(draft);
+    answers.push(applied("a"));
+    await state().submit(draft);
+    answers.push(applied("b"));
+    await state().submit(draft);
+    for (const hash of ["b", "a", "b"]) {
+      await state().changed(hash);
+    }
+    expect(state().notice).toBeNull();
+    expect(state().canUndo()).toBe(true);
+    expect(state().payload?.hash).toBe("b");
+  });
+
+  test("a round-trip without echo does not hide a later external write of that text", async () => {
+    await state().submit(draft);
+    answers.push(applied("a"));
+    await state().undo();
+    loaded = payload("b");
+    await state().changed("b");
+    expect(state().payload?.hash).toBe("b");
+    expect(state().notice?.kind).toBe("reloaded");
+  });
+
+  test("an external change heard during an operation that fails shows, without a 409", async () => {
+    let settle: (value: ApiResult<ToolchainOperationPayload>) => void = () => {};
+    const held = createToolchainStore({
+      load: async () => ({ ok: true, value: loaded }),
+      submit: () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+      savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
+      newOpId: () => "op",
+    });
+    await held.getState().load();
+    const submitted = held.getState().submit(draft);
+    await held.getState().changed("z");
+    loaded = payload("z");
+    settle(failure(422));
+    await submitted;
+    expect(held.getState().payload?.hash).toBe("z");
+    expect(held.getState().notice?.kind).toBe("reloaded");
+    expect(held.getState().error?.status).toBe(422);
+  });
+
+  test("a stale echo checked while the next write is under way does not reload", async () => {
+    await state().submit(draft);
+    const held: (() => void)[] = [];
+    const drain = async () => {
+      for (let round = 0; round < 10; round += 1) {
+        for (const resolve of held.splice(0)) {
+          resolve();
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    };
+    const slow = createToolchainStore({
+      load: () =>
+        new Promise((resolve) => {
+          const disk = loaded;
+          held.push(() => resolve({ ok: true, value: disk }));
+        }),
+      submit: async () => {
+        loaded = payload("c");
+        return applied("c");
+      },
+      savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
+      newOpId: () => "op",
+    });
+    const loading = slow.getState().load();
+    await drain();
+    await loading;
+    const checking = slow.getState().changed("old");
+    await slow.getState().submit(draft);
+    await drain();
+    await checking;
+    expect(slow.getState().notice).toBeNull();
+    expect(slow.getState().payload?.hash).toBe("c");
+    expect(slow.getState().canUndo()).toBe(true);
+  });
+
+  test("a hash written twice, then an external revert to the first one, shows", async () => {
     await state().submit(draft);
     answers.push(applied("a"));
     await state().submit(draft);
@@ -227,6 +322,115 @@ describe("toolchain store", () => {
     loaded = payload("z");
     await state().changed("z");
     expect(state().notice?.kind).toBe("reloaded");
+  });
+
+  test("a refresh while a move is being saved keeps the node where it was dropped", async () => {
+    let settle: () => void = () => {};
+    const dragging = createToolchainStore({
+      load: async () => ({ ok: true, value: { ...loaded, positions: disk } }),
+      submit: async () => applied("b"),
+      savePositions: (positions) =>
+        new Promise((resolve) => {
+          settle = () => {
+            disk = { ...disk, ...positions };
+            resolve({ ok: true, value: { positions: disk } });
+          };
+        }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
+      newOpId: () => "op",
+    });
+    disk = { "job:b": { x: 0, y: 0 } };
+    await dragging.getState().load();
+    const moved = dragging.getState().move("job:a", { x: 5, y: 6 });
+    await dragging.getState().refresh();
+    expect(dragging.getState().payload?.positions["job:a"]).toEqual({ x: 5, y: 6 });
+    await dragging.getState().load();
+    expect(dragging.getState().payload?.positions["job:a"]).toEqual({ x: 5, y: 6 });
+    settle();
+    await moved;
+    await dragging.getState().refresh();
+    expect(dragging.getState().payload?.positions).toEqual({
+      "job:a": { x: 5, y: 6 },
+      "job:b": { x: 0, y: 0 },
+    });
+  });
+
+  test("the answer to a first move does not bring back a node moved again since", async () => {
+    const settles: (() => void)[] = [];
+    const dragging = createToolchainStore({
+      load: async () => ({ ok: true, value: { ...loaded, positions: disk } }),
+      submit: async () => applied("b"),
+      savePositions: (positions) =>
+        new Promise((resolve) => {
+          settles.push(() => {
+            disk = { ...disk, ...positions };
+            resolve({ ok: true, value: { positions: disk } });
+          });
+        }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
+      newOpId: () => "op",
+    });
+    await dragging.getState().load();
+    const first = dragging.getState().move("job:a", { x: 1, y: 1 });
+    const second = dragging.getState().move("job:a", { x: 2, y: 2 });
+    settles[0]?.();
+    await first;
+    expect(dragging.getState().payload?.positions["job:a"]).toEqual({ x: 2, y: 2 });
+    settles[1]?.();
+    await second;
+    expect(dragging.getState().payload?.positions["job:a"]).toEqual({ x: 2, y: 2 });
+  });
+
+  test("resetting the layout clears every saved position", async () => {
+    await state().move("job:a", { x: 1, y: 2 });
+    await state().resetLayout();
+    expect(saved.at(-1)).toBe("clear");
+    expect(state().payload?.positions).toEqual({});
+  });
+
+  test("a reset forgets a drop whose save is still pending", async () => {
+    let settle: () => void = () => {};
+    const dragging = createToolchainStore({
+      load: async () => ({ ok: true, value: { ...loaded, positions: disk } }),
+      submit: async () => applied("b"),
+      savePositions: (positions) =>
+        new Promise((resolve) => {
+          settle = () => resolve({ ok: true, value: { positions: { ...disk, ...positions } } });
+        }),
+      clearPositions: async () => ({ ok: true, value: { positions: {} } }),
+      newOpId: () => "op",
+    });
+    await dragging.getState().load();
+    const moved = dragging.getState().move("job:a", { x: 5, y: 6 });
+    await dragging.getState().resetLayout();
+    expect(dragging.getState().payload?.positions).toEqual({});
+    settle();
+    await moved;
+    expect(dragging.getState().payload?.positions).toEqual({});
+    await dragging.getState().refresh();
+    expect(dragging.getState().payload?.positions).toEqual({});
+  });
+
+  test("a refused reset is shown and the positions are read again", async () => {
+    let reads = 0;
+    const refused = createToolchainStore({
+      load: async () => {
+        reads += 1;
+        return { ok: true, value: { ...loaded, positions: { "job:a": { x: 1, y: 1 } } } };
+      },
+      submit: async () => applied("b"),
+      savePositions: async (positions) => ({ ok: true, value: { positions } }),
+      clearPositions: async () => ({
+        ok: false,
+        error: { status: 422, code: "INVALID_OPERATION", params: {} } as ApiFailure,
+      }),
+      newOpId: () => "op",
+    });
+    await refused.getState().load();
+    await refused.getState().resetLayout();
+    expect(refused.getState().error?.status).toBe(422);
+    expect(reads).toBe(2);
+    expect(refused.getState().payload?.positions).toEqual({ "job:a": { x: 1, y: 1 } });
   });
 
   test("moving a node sends only that node: the rest is the server's job", async () => {

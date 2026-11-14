@@ -1,3 +1,5 @@
+import { readFile, realpath } from "node:fs/promises";
+import { sep } from "node:path";
 import { createFileReader, type IncludeReader, readInsideRoot } from "@keelson/adapter-gitlab";
 import { type Coverage, coverage, loadCatalog } from "@keelson/catalog";
 import type {
@@ -10,15 +12,20 @@ import type {
   SpliceOperation,
 } from "@keelson/core";
 import { mergePipelines, parseOperation, TOOLCHAIN_FILE, validate } from "@keelson/core";
-import { NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
+import { INVALID_OPERATION, NOT_FOUND, STALE_DOCUMENT } from "@keelson/core/messages";
 import { analyseToolchain, LAYOUT_FILE, parseLayout } from "@keelson/toolchain";
 import { adapterFor } from "./adapters.ts";
-import { resolveWorkspaceFile, type WorkspaceFile } from "./workspace.ts";
+import { withFileLock } from "./lock.ts";
+import { resolveWorkspaceFile, unreadableWorkspaceFiles, type WorkspaceFile } from "./workspace.ts";
 import { writeAtomic } from "./write.ts";
 
 export const OPID_HISTORY = 100;
 
 type Analysis = { diagnostics: Diagnostic[]; coverage: Coverage };
+
+/** The jobs of the whole workspace, and what parsing its files said: a file that did not parse
+ *  leaves its jobs out of it. */
+type Repository = { pipeline: Pipeline; parsing: readonly Diagnostic[] };
 
 /** What the screen knows about a pipeline, computed in one place on load and after an operation:
  *  the CLI does the same computation, and both must say the same thing. */
@@ -26,12 +33,18 @@ function analyse(
   root: string,
   parsing: readonly Diagnostic[],
   pipeline: Pipeline,
-  repository: Pipeline,
+  repository: Repository,
 ): Analysis {
   const { tools } = loadCatalog();
   // `layout.json` and the toolchain are repository-wide: a job from another workflow is not unknown there.
-  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository);
-  const toolchain = analyseToolchain(readInsideRoot(root, TOOLCHAIN_FILE), repository, tools);
+  const everyParsing = [...parsing, ...repository.parsing];
+  const layout = parseLayout(readInsideRoot(root, LAYOUT_FILE), repository.pipeline, everyParsing);
+  const toolchain = analyseToolchain(
+    readInsideRoot(root, TOOLCHAIN_FILE),
+    repository.pipeline,
+    tools,
+    everyParsing,
+  );
   return {
     diagnostics: [
       ...parsing,
@@ -82,10 +95,34 @@ export type StoreResponse = {
   body: OperationBody | ErrorBody;
 };
 
+export type WrittenEvent = { file: string; hash: string; opId: string };
+
+const STRICT_UTF8 = new TextDecoder("utf-8", { fatal: true });
+
+/** Where a write must go: the target of an internal link, never the link itself, which a `rename`
+ *  would replace with a regular file. `null` if the target leaves the root. */
+async function writeTarget(root: string, absolute: string): Promise<string | null> {
+  const realRoot = await realpath(root);
+  const target = await realpath(absolute).catch(() => absolute);
+  return target.startsWith(`${realRoot}${sep}`) ? target : null;
+}
+
+/** The decoder replaces invalid bytes: writing the decoded text back would change bytes outside
+ *  the touched range. */
+async function isUtf8(path: string): Promise<boolean> {
+  try {
+    STRICT_UTF8.decode(await readFile(path));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 type Loaded = {
   absolute: string;
   text: string;
   pipeline: Pipeline;
+  parsing: Diagnostic[];
   diagnostics: Diagnostic[];
   hash: string;
   included: Record<string, string>;
@@ -96,7 +133,10 @@ export class DocumentStore {
   private readonly loaded = new Map<string, Loaded>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private readonly seen = new Map<string, Map<string, StoreResponse>>();
-  private readonly neighbours = new Map<string, { text: string; pipeline: Pipeline }>();
+  private readonly neighbours = new Map<
+    string,
+    { text: string; pipeline: Pipeline; parsing: Diagnostic[] }
+  >();
 
   /** One reader per store, hence a single walk of the repository for a glob's candidates, however
    *  many requests there are. */
@@ -107,9 +147,12 @@ export class DocumentStore {
    *  included file would always be missed. */
   private readonly loadedListeners = new Set<() => void>();
 
+  private readonly writtenListeners = new Set<(event: WrittenEvent) => void>();
+
   constructor(
     private readonly root: string,
     private files: readonly WorkspaceFile[],
+    private readonly write: (path: string, text: string) => Promise<void> = writeAtomic,
   ) {
     this.reader = createFileReader(root);
   }
@@ -129,30 +172,64 @@ export class DocumentStore {
   /** This pipeline, plus those of the workspace's other files as they are on disk. A neighbour the
    *  parser cannot read must not prevent opening this file. Per text: re-reading it for each
    *  document would make opening the repository quadratic. */
-  private repository(file: string, pipeline: Pipeline): Pipeline {
+  private repository(file: string, pipeline: Pipeline): Repository {
     const others = this.files
       .filter((entry) => entry.path !== file)
-      .flatMap((entry) => {
-        const text = this.reader.read(entry.path);
-        if (text === null) {
-          return [];
-        }
-        const known = this.neighbours.get(entry.path);
-        if (known?.text === text) {
-          return [known.pipeline];
-        }
-        try {
-          const read = adapterFor(entry.path).parse(text, { file: entry.path, read: this.reader });
-          // A workflow depends only on its text; a GitLab file also depends on its includes.
-          if (read.pipeline.provider === "github") {
-            this.neighbours.set(entry.path, { text, pipeline: read.pipeline });
-          }
-          return [read.pipeline];
-        } catch {
-          return [];
-        }
-      });
-    return mergePipelines([pipeline, ...others]);
+      .flatMap((entry) => this.parsedOnDisk(entry.path));
+    return {
+      pipeline: mergePipelines([pipeline, ...others.map((other) => other.pipeline)]),
+      parsing: [
+        ...others.flatMap((other) => other.parsing),
+        ...unreadableWorkspaceFiles(this.root).filter((entry) => entry.file !== file),
+      ],
+    };
+  }
+
+  private parsedOnDisk(
+    path: string,
+  ): { text: string; pipeline: Pipeline; parsing: Diagnostic[] }[] {
+    const text = this.reader.read(path);
+    if (text === null) {
+      return [];
+    }
+    const known = this.neighbours.get(path);
+    if (known?.text === text) {
+      return [known];
+    }
+    try {
+      const read = adapterFor(path).parse(text, { file: path, read: this.reader });
+      // A workflow depends only on its text; a GitLab file also depends on its includes.
+      const neighbour = { text, pipeline: read.pipeline, parsing: read.diagnostics };
+      if (read.pipeline.provider === "github") {
+        this.neighbours.set(path, neighbour);
+      }
+      return [neighbour];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Every CI file of the workspace together, as `keelson coverage` without arguments sees them. */
+  repositoryCoverage(): { files: string[]; coverage: Coverage } {
+    // DEBT(2026-11-12): a file the parser throws on is left out without making the coverage partial — the CLI stops on it instead; gap 44 removes the throws.
+    const parsed = this.files.flatMap((entry) => this.parsedOnDisk(entry.path));
+    const pipeline = mergePipelines(parsed.map((entry) => entry.pipeline));
+    const parsing = [
+      ...parsed.flatMap((entry) => entry.parsing),
+      ...unreadableWorkspaceFiles(this.root),
+    ];
+    const { tools } = loadCatalog();
+    const layout = parseLayout(readInsideRoot(this.root, LAYOUT_FILE), pipeline);
+    const toolchain = analyseToolchain(
+      readInsideRoot(this.root, TOOLCHAIN_FILE),
+      pipeline,
+      tools,
+      parsing,
+    );
+    return {
+      files: this.files.map((entry) => entry.path),
+      coverage: coverage(pipeline, tools, layout.overrides, parsing, toolchain.toolchain.services),
+    };
   }
 
   async load(file: string): Promise<DocumentBody | null> {
@@ -180,6 +257,7 @@ export class DocumentStore {
       absolute,
       text,
       pipeline: parsed.pipeline,
+      parsing: parsed.diagnostics,
       diagnostics,
       hash: parsed.hash,
       included: parsed.included,
@@ -200,6 +278,15 @@ export class DocumentStore {
     };
   }
 
+  /** Notified after each write of an operation, so that the other tabs learn about it: the watcher
+   *  stays silent on the server's own writes. */
+  onWritten(listener: (event: WrittenEvent) => void): () => void {
+    this.writtenListeners.add(listener);
+    return () => {
+      this.writtenListeners.delete(listener);
+    };
+  }
+
   onLoaded(listener: () => void): () => void {
     this.loadedListeners.add(listener);
     return () => {
@@ -213,6 +300,10 @@ export class DocumentStore {
 
   currentPipeline(file: string): Pipeline | undefined {
     return this.loaded.get(file)?.pipeline;
+  }
+
+  currentParsing(file: string): readonly Diagnostic[] | undefined {
+    return this.loaded.get(file)?.parsing;
   }
 
   currentText(file: string): string | undefined {
@@ -272,6 +363,11 @@ export class DocumentStore {
 
     const response = await this.executeOperation(file, operation);
     this.remember(file, opId, response);
+    if (response.status === 200 && "hash" in response.body) {
+      for (const listener of this.writtenListeners) {
+        listener({ file, hash: response.body.hash, opId });
+      }
+    }
     return response;
   }
 
@@ -285,13 +381,23 @@ export class DocumentStore {
     operation: Operation,
     write = true,
   ): Promise<StoreResponse> {
-    if (this.absolute(file) === null) {
+    const absolute = this.absolute(file);
+    if (absolute === null) {
       return {
         status: 404,
         body: { code: NOT_FOUND, params: { reason: "unknownFile", file } },
       };
     }
+    return write
+      ? withFileLock(this.root, absolute, () => this.compute(file, operation, true))
+      : this.compute(file, operation, false);
+  }
 
+  private async compute(
+    file: string,
+    operation: Operation,
+    write: boolean,
+  ): Promise<StoreResponse> {
     const validated = parseOperation(operation);
     if (!validated.ok) {
       return { status: 400, body: validated.error };
@@ -326,6 +432,20 @@ export class DocumentStore {
       return {
         status: 404,
         body: { code: NOT_FOUND, params: { reason: "missingFile", file } },
+      };
+    }
+
+    const target = await writeTarget(this.root, current.absolute);
+    if (target === null) {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: file } },
+      };
+    }
+    if (!(await isUtf8(target))) {
+      return {
+        status: 422,
+        body: { code: INVALID_OPERATION, params: { reason: "notUtf8", file } },
       };
     }
 
@@ -364,12 +484,13 @@ export class DocumentStore {
       };
     }
 
-    await writeAtomic(current.absolute, result.value.text);
-
+    // Recorded before the rename: the watcher may see the new text before this write returns, and
+    // must recognise it as the server's own.
     this.loaded.set(file, {
       absolute: current.absolute,
       text: result.value.text,
       pipeline: result.value.pipeline,
+      parsing: result.value.diagnostics,
       included: result.value.included,
       coverage: covered,
       diagnostics,
@@ -378,6 +499,12 @@ export class DocumentStore {
       // against a hash the client never received.
       hash: result.value.hash,
     });
+    try {
+      await this.write(target, result.value.text);
+    } catch (error) {
+      this.loaded.set(file, current);
+      throw error;
+    }
 
     return {
       status: 200,

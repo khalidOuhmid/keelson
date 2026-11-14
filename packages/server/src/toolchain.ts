@@ -1,4 +1,3 @@
-import { lstatSync } from "node:fs";
 import { join } from "node:path";
 import { readInsideRoot } from "@keelson/adapter-gitlab";
 import { loadCatalog } from "@keelson/catalog";
@@ -9,6 +8,7 @@ import type {
   Pipeline,
   SpliceOperation,
   Toolchain,
+  ToolchainOperation,
 } from "@keelson/core";
 import {
   emptyPipeline,
@@ -30,12 +30,11 @@ import {
   parsePositions,
   writePositions,
 } from "@keelson/toolchain";
+import { type Disk, readDisk } from "./disk.ts";
+import { withFileLock } from "./lock.ts";
 import { type DocumentStore, OPID_HISTORY } from "./store.ts";
-import { writeInsideRoot } from "./write.ts";
-
-/** What the UTF-8 decoder puts in place of invalid bytes: a file that decodes to it would be
- *  rewritten with it, so it counts as unreadable. */
-const REPLACEMENT_CHARACTER = "\uFFFD";
+import { unreadableWorkspaceFiles } from "./workspace.ts";
+import { blockedParent, writeInsideRoot } from "./write.ts";
 
 export type ToolchainBody = {
   text: string;
@@ -60,9 +59,8 @@ export type PositionsResponse = {
   body: { positions: Positions } | ErrorBody;
 };
 
-type Disk = { kind: "absent" } | { kind: "unreadable" } | { kind: "text"; text: string };
-
-function unreadable(): Diagnostic {
+/** What `keelson start` and `keelson validate` both say about a toolchain they cannot read. */
+export function unreadableToolchain(): Diagnostic {
   return {
     code: TOOLCHAIN_INVALID,
     severity: "error",
@@ -83,27 +81,15 @@ export class ToolchainStore {
     private readonly documents: DocumentStore,
   ) {}
 
-  /** A file that cannot be read is not a missing file: treating it as empty would overwrite it.
-   *  Unreadable means: what escapes the root, what refuses reading, a directory, and anything that
-   *  is not UTF-8, which the patch would rewrite with replacement characters. */
   private read(path: string): Disk {
-    const text = readInsideRoot(this.root, path);
-    if (text !== null) {
-      return text.includes(REPLACEMENT_CHARACTER) ? { kind: "unreadable" } : { kind: "text", text };
-    }
-    try {
-      lstatSync(join(this.root, path));
-      return { kind: "unreadable" };
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      return { kind: code === "ENOENT" || code === "ENOTDIR" ? "absent" : "unreadable" };
-    }
+    return readDisk(this.root, path);
   }
 
   /** A toolchain is repository-wide: its jobs are those of every file in the workspace. */
-  private async pipeline(): Promise<Pipeline> {
+  private async repository(): Promise<{ pipeline: Pipeline; parsing: Diagnostic[] }> {
     const files = this.documents.workspaceFiles().map((entry) => entry.path);
     const pipelines: Pipeline[] = [];
+    const parsing: Diagnostic[] = [];
     for (const file of files) {
       if (this.documents.currentPipeline(file) === undefined) {
         await this.documents.load(file);
@@ -111,17 +97,22 @@ export class ToolchainStore {
       const pipeline = this.documents.currentPipeline(file);
       if (pipeline !== undefined) {
         pipelines.push(pipeline);
+        parsing.push(...(this.documents.currentParsing(file) ?? []));
       }
     }
-    return mergePipelines(pipelines);
+    return {
+      pipeline: mergePipelines(pipelines),
+      parsing: [...parsing, ...unreadableWorkspaceFiles(this.root)],
+    };
   }
 
   private async body(text: string): Promise<ToolchainBody> {
-    const pipeline = await this.pipeline();
+    const { pipeline, parsing } = await this.repository();
     const { toolchain, diagnostics, proposed } = analyseToolchain(
       text === "" ? null : text,
       pipeline,
       loadCatalog().tools,
+      parsing,
     );
     const layout = parseLayout(readInsideRoot(this.root, LAYOUT_FILE), pipeline);
     return {
@@ -138,7 +129,7 @@ export class ToolchainStore {
     const disk = this.read(TOOLCHAIN_FILE);
     const body = await this.body(disk.kind === "text" ? disk.text : "");
     return disk.kind === "unreadable"
-      ? { ...body, diagnostics: [unreadable(), ...body.diagnostics] }
+      ? { ...body, diagnostics: [unreadableToolchain(), ...body.diagnostics] }
       : body;
   }
 
@@ -171,6 +162,12 @@ export class ToolchainStore {
       return { status: 400, body: validated.error };
     }
 
+    return withFileLock(this.root, join(this.root, TOOLCHAIN_FILE), () =>
+      this.applyOnDisk(validated.value),
+    );
+  }
+
+  private async applyOnDisk(operation: ToolchainOperation): Promise<ToolchainResponse> {
     const disk = this.read(TOOLCHAIN_FILE);
     if (disk.kind === "unreadable") {
       return {
@@ -179,7 +176,7 @@ export class ToolchainStore {
       };
     }
     const text = disk.kind === "text" ? disk.text : "";
-    const result = applyToolchain(text, validated.value);
+    const result = applyToolchain(text, operation);
     if (!result.ok) {
       return result.error.code === STALE_DOCUMENT
         ? { status: 409, body: { ...result.error, hash: hashText(text) } }
@@ -187,15 +184,8 @@ export class ToolchainStore {
     }
 
     if (result.value.text !== text) {
-      const written = await writeInsideRoot(this.root, TOOLCHAIN_FILE, result.value.text);
-      if (!written) {
-        return {
-          status: 422,
-          body: {
-            code: INVALID_OPERATION,
-            params: { reason: "outsideRoot", path: TOOLCHAIN_FILE },
-          },
-        };
+      if (!(await writeInsideRoot(this.root, TOOLCHAIN_FILE, result.value.text))) {
+        return { status: 422, body: this.unwritable(TOOLCHAIN_FILE) };
       }
     }
 
@@ -205,14 +195,31 @@ export class ToolchainStore {
     };
   }
 
+  /** The same refusal as `keelson apply`: a parent that is a regular file is not an escape. */
+  private unwritable(path: string): ErrorBody {
+    const blocked = blockedParent(this.root, path);
+    return blocked === null
+      ? { code: INVALID_OPERATION, params: { reason: "outsideRoot", path } }
+      : { code: INVALID_OPERATION, params: { reason: "notADirectory", path: blocked } };
+  }
+
   /** In the same queue as operations: `layout.json` is re-read just before being rewritten. */
-  savePositions(raw: unknown): Promise<PositionsResponse> {
-    const next = this.queue.then(() => this.writePositions(raw));
+  savePositions(raw: unknown, clear: unknown = false): Promise<PositionsResponse> {
+    const next = this.queue.then(() => this.writePositions(raw, clear));
     this.queue = next.catch(() => undefined);
     return next;
   }
 
-  private async writePositions(raw: unknown): Promise<PositionsResponse> {
+  private async writePositions(raw: unknown, clear: unknown): Promise<PositionsResponse> {
+    if (typeof clear !== "boolean") {
+      return {
+        status: 400,
+        body: {
+          code: INVALID_OPERATION,
+          params: { reason: "schema", path: "clear", detail: "expected a boolean" },
+        },
+      };
+    }
     const parsed = parsePositions(raw);
     if (!parsed.ok) {
       return {
@@ -228,7 +235,7 @@ export class ToolchainStore {
     const text =
       disk.kind === "unreadable"
         ? null
-        : writePositions(disk.kind === "text" ? disk.text : null, parsed.positions);
+        : writePositions(disk.kind === "text" ? disk.text : null, parsed.positions, { clear });
     if (text === null) {
       return {
         status: 422,
@@ -236,10 +243,7 @@ export class ToolchainStore {
       };
     }
     if (!(await writeInsideRoot(this.root, LAYOUT_FILE, text))) {
-      return {
-        status: 422,
-        body: { code: INVALID_OPERATION, params: { reason: "outsideRoot", path: LAYOUT_FILE } },
-      };
+      return { status: 422, body: this.unwritable(LAYOUT_FILE) };
     }
     return { status: 200, body: { positions: parseLayout(text, emptyPipeline("")).positions } };
   }

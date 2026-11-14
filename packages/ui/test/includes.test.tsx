@@ -67,6 +67,8 @@ describe("an included job in the Pipeline view", () => {
       ],
       height: 160,
       edges: [],
+      templates: [],
+      inheritance: [],
     };
     const graph = toFlowGraph(layout, pipeline(), null);
     const found = graph.nodes.find((node) => node.id === id);
@@ -107,7 +109,7 @@ describe("an included job in the Pipeline view", () => {
     expect(screen.getByText("read-only")).toBeDefined();
     const button = screen.getByRole("button", { name: /sast/ });
     expect(button.getAttribute("data-included")).toBe("true");
-    const described = button.getAttribute("aria-describedby") ?? "";
+    const described = button.getAttribute("aria-describedby")?.split(" ")[0] ?? "";
     expect(document.getElementById(described)?.textContent).toContain(
       `From included file ${INCLUDED}. Read-only.`,
     );
@@ -255,6 +257,12 @@ describe("the partial pipeline indicator", () => {
     return render(<PartialPipelineBar pipeline={pipeline({ unresolved })} />);
   }
 
+  test("its disclosure chevron takes the rotation class passed to the icon", () => {
+    renderBar([remote]);
+    const chevron = document.querySelector("summary svg");
+    expect(chevron?.getAttribute("class")).toContain("group-open:rotate-90");
+  });
+
   test("absent when every include is resolved", () => {
     const { container } = renderBar([]);
     expect(container.textContent).toBe("");
@@ -282,6 +290,34 @@ describe("the partial pipeline indicator", () => {
     expect(screen.getByText("https://example.org/ci.yml")).toBeDefined();
     expect(screen.getByText("declared in")).toBeDefined();
     expect(screen.getByText(MAIN)).toBeDefined();
+  });
+
+  test("an unread reusable workflow names the job that calls it", () => {
+    const workflow: UnresolvedInclude = {
+      form: "workflow",
+      detail: "acme/ci/.github/workflows/scan.yml@v1",
+      from: MAIN,
+      range: { start: 112, end: 150 },
+    };
+    render(
+      <PartialPipelineBar
+        pipeline={pipeline({
+          provider: "github",
+          jobs: [
+            job("build", MAIN, { range: { start: 0, end: 90 } }),
+            job("shared", MAIN, { range: { start: 100, end: 160 } }),
+          ],
+          unresolved: [workflow],
+        })}
+      />,
+    );
+    expect(screen.getByRole("listitem").textContent).toContain("called by");
+    expect(screen.getByText("shared")).toBeDefined();
+  });
+
+  test("an include has no calling job", () => {
+    renderBar([remote]);
+    expect(screen.queryByText("called by")).toBeNull();
   });
 
   /** The three differences from `NoticeBar`, which announces the consequence of an action: a gap

@@ -81,6 +81,18 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     },
   ],
   EXTENDS_CYCLE: [{ params: { trail: [".a", ".b", ".a"] }, text: "extends cycle: .a → .b → .a" }],
+  EXTENDS_DEPTH_EXCEEDED: [
+    {
+      params: { job: "deploy", limit: 11 },
+      text: 'job "deploy" inherits through more than 11 levels of extends, which GitLab refuses',
+    },
+  ],
+  VALUE_CYCLE: [
+    {
+      params: { job: "unit", key: "script" },
+      text: 'the script of job "unit" refers to itself through an alias or a !reference',
+    },
+  ],
   JOB_WITHOUT_SCRIPT: [
     { params: { job: "silent" }, text: 'job "silent" has no script, no run and no trigger' },
   ],
@@ -118,6 +130,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   LAYOUT_UNKNOWN_JOB: [
     { params: { job: "unit" }, text: 'layout.json names job "unit", which does not exist' },
   ],
+  LAYOUT_UNREAD_JOB: [
+    {
+      params: { job: "unit" },
+      text: 'layout.json names job "unit", absent from the part of the pipeline Keelson could read: its override is kept',
+    },
+  ],
   COVERAGE_LAYER_MISSING: [
     {
       params: { layer: "sast", name: "Static analysis" },
@@ -132,6 +150,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     { params: { tool: "x", logo: "y" }, text: 'tool "x" names unknown logo "y"' },
   ],
   CATALOG_MISSING_SNIPPET: [{ params: { tool: "x" }, text: 'job tool "x" has no snippet' }],
+  CATALOG_FUTURE_VERIFIED: [
+    {
+      params: { tool: "x", lastVerified: "2027-01-01" },
+      text: 'tool "x" claims a verification on 2027-01-01, which is in the future',
+    },
+  ],
   CATALOG_STALE_TOOL: [
     {
       params: { tool: "x", lastVerified: "2026-01-01" },
@@ -143,6 +167,46 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     {
       params: { job: "call", target: "o/r/.github/workflows/x.yml@v1" },
       text: 'job "call" calls the reusable workflow "o/r/.github/workflows/x.yml@v1", which Keelson does not read, so its jobs are not shown',
+    },
+  ],
+  WORKFLOW_JOB_INVALID: [
+    {
+      params: { reason: "notMap", job: "scan" },
+      text: 'job "scan" is not a map of keys, so GitHub refuses the workflow and Keelson does not show it',
+    },
+    {
+      params: { reason: "needs", job: "scan" },
+      text: 'the needs of job "scan" are neither a job name nor a list of job names, so GitHub refuses the workflow',
+    },
+  ],
+  WORKFLOW_CALL_INVALID: [
+    {
+      params: { reason: "missing", job: "scans", path: ".github/workflows/scans.yml" },
+      text: 'job "scans" calls the reusable workflow ".github/workflows/scans.yml", which does not exist',
+    },
+    {
+      params: { reason: "outsideRoot", job: "scans", path: "../x.yml" },
+      text: 'job "scans" calls the reusable workflow "../x.yml", whose path leaves the repository root',
+    },
+    {
+      params: { reason: "notInWorkflows", job: "scans", path: "ci/x.yml" },
+      text: 'job "scans" calls "ci/x.yml", but a reusable workflow is a .yml or .yaml file directly in .github/workflows',
+    },
+    {
+      params: {
+        reason: "cycle",
+        job: "back",
+        trail: [".github/workflows/a.yml", ".github/workflows/b.yml", ".github/workflows/a.yml"],
+      },
+      text: 'job "back" closes a reusable workflow cycle: .github/workflows/a.yml → .github/workflows/b.yml → .github/workflows/a.yml',
+    },
+    {
+      params: { reason: "depth", job: "next", path: ".github/workflows/w10.yml", limit: 10 },
+      text: 'job "next" calls ".github/workflows/w10.yml" beyond 10 levels of nested workflows, which GitHub refuses',
+    },
+    {
+      params: { reason: "limit", job: "c50", path: ".github/workflows/w50.yml", limit: 50 },
+      text: 'job "c50" calls ".github/workflows/w50.yml" beyond 50 unique reusable workflows, which GitHub refuses',
     },
   ],
   TOOLCHAIN_INVALID: [
@@ -165,6 +229,12 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
   ],
   TOOLCHAIN_UNKNOWN_JOB: [
     { params: { job: "b" }, text: 'toolchain.yaml names job "b", which does not exist' },
+  ],
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE: [
+    {
+      params: { service: "scan", tool: "trivy" },
+      text: 'service "scan" names "trivy", a tool that runs as a CI job: its layers count as covered by this declaration alone',
+    },
   ],
   TOOLCHAIN_DUPLICATE_INTEGRATION: [
     {
@@ -224,15 +294,11 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
     { params: { reason: "schema", path: "", detail: "Invalid input" }, text: "Invalid input" },
     {
       params: { reason: "flowStyleJob", job: "unit" },
-      text: 'job "unit" is written in flow style, in-place editing is not supported',
+      text: 'job "unit" sits in a top-level map written in flow style, in-place editing is not supported',
     },
     {
       params: { reason: "jobWithoutScript" },
       text: "an added job must have at least one script line",
-    },
-    {
-      params: { reason: "inheritedEnvironment", job: "deploy", origin: "extends" },
-      text: 'the environment of "deploy" is inherited (extends) and cannot be removed locally',
     },
     {
       params: { reason: "flowStyleToolchain", section: "services" },
@@ -255,6 +321,10 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: 'an expression reads needs or jobs as a whole or by a computed index, so it may reach "build": Keelson refuses rather than break it',
     },
     {
+      params: { reason: "readsOwnId", job: "build" },
+      text: 'job "build" compares its own id at run time (github.job or GITHUB_JOB) with its name: renaming it would change what it does',
+    },
+    {
       params: { reason: "notForProvider", operation: "addStage" },
       text: "operation addStage has no meaning in a GitHub Actions workflow",
     },
@@ -267,10 +337,18 @@ const FIXTURES: { [C in MessageCode]: readonly Case[] } = {
       text: '".devsecops/toolchain.yaml" leads outside the repository, nothing was written',
     },
     {
+      params: { reason: "notADirectory", path: ".devsecops" },
+      text: '".devsecops" is not a directory, nothing was written',
+    },
+    {
       params: { reason: "sharedValue", job: "unit", key: "needs" },
       text: 'the needs of "unit" comes through an anchor or a !reference that Keelson cannot rewrite in place',
     },
     { params: { reason: "noRootMap" }, text: "this file has no YAML map at its root" },
+    {
+      params: { reason: "notUtf8", file: ".gitlab-ci.yml" },
+      text: '".gitlab-ci.yml" is not UTF-8 text, Keelson does not rewrite it',
+    },
     {
       params: { reason: "wouldBreakYaml", operation: "renameJob" },
       text: "operation renameJob would produce invalid YAML, nothing was written",

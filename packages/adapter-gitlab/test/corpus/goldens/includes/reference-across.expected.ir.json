@@ -112,7 +112,8 @@
         "start": 0,
         "end": 82
       },
-      "file": "ci/base.yml"
+      "file": "ci/base.yml",
+      "extends": []
     }
   ],
   "opaque": [

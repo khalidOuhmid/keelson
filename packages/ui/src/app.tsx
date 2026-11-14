@@ -1,3 +1,4 @@
+import { type Coverage, lowerBoundCause } from "@keelson/catalog";
 import {
   emptyPipeline,
   isPartial,
@@ -8,12 +9,14 @@ import {
 import type { Positions } from "@keelson/toolchain";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
+import { fileInAddress, rememberFile } from "./api/address.ts";
 import {
   type ApiResult,
   type CatalogPayload,
   type DocumentPayload,
   KeelsonClient,
   type OperationPayload,
+  type RepositoryCoveragePayload,
   type ToolchainOperationPayload,
   type ToolchainPayload,
   type WorkspaceFile,
@@ -27,7 +30,9 @@ import { JobEditor } from "./editing/JobEditor.tsx";
 import { NewJobForm } from "./editing/NewJobForm.tsx";
 import { StageControls } from "./editing/StageControls.tsx";
 import { useHistoryShortcuts } from "./editing/useHistoryShortcuts.ts";
+import { focusWhenDrawn, keepFocusThrough, overlaysCover, useCoveringPanel } from "./focus.ts";
 import { DiagnosticsPanel } from "./panels/DiagnosticsPanel.tsx";
+import { IncludedFileView } from "./panels/IncludedFileView.tsx";
 import { JobDetailPanel } from "./panels/JobDetailPanel.tsx";
 import { blocksEditing, createStore, type Draft, type KeelsonStore } from "./state/store.ts";
 import { createToolchainStore, type ToolchainStore } from "./state/toolchain.ts";
@@ -39,7 +44,9 @@ import { NoticeBar } from "./states/NoticeBar.tsx";
 import { PartialPipelineBar } from "./states/PartialPipelineBar.tsx";
 import { CatalogView } from "./views/catalog/CatalogView.tsx";
 import { CoveragePanel } from "./views/coverage/CoveragePanel.tsx";
+import { JobSearch } from "./views/pipeline/JobSearch.tsx";
 import { PipelineCanvas } from "./views/pipeline/PipelineCanvas.tsx";
+import { PipelineTable } from "./views/pipeline/PipelineTable.tsx";
 import { ServicePanel } from "./views/toolchain/ServicePanel.tsx";
 import { ToolchainCanvas } from "./views/toolchain/ToolchainCanvas.tsx";
 import { ToolchainPanel } from "./views/toolchain/ToolchainPanel.tsx";
@@ -67,6 +74,8 @@ type ClientSurface = {
     opId: string,
   ) => Promise<ApiResult<ToolchainOperationPayload>>;
   savePositions: (positions: Positions) => Promise<ApiResult<{ positions: Positions }>>;
+  clearPositions: () => Promise<ApiResult<{ positions: Positions }>>;
+  repositoryCoverage: () => Promise<ApiResult<RepositoryCoveragePayload>>;
   eventsUrl: () => string;
 };
 
@@ -75,16 +84,6 @@ export type AppDeps = {
   subscribe?: typeof subscribeToEvents;
   newOpId?: () => string;
 };
-
-/** Graph layout is asynchronous: the node does not exist yet on the next render. */
-function focusWhenDrawn(selector: string, frames = 120): void {
-  const found = document.querySelector<HTMLElement>(selector);
-  if (found !== null) {
-    found.focus();
-  } else if (frames > 0) {
-    requestAnimationFrame(() => focusWhenDrawn(selector, frames - 1));
-  }
-}
 
 function browserDeps(): AppDeps {
   const token = readToken(browserLocation()) ?? "";
@@ -111,6 +110,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const DISPLAYS = [
+  { display: "graph", label: "Graph" },
+  { display: "table", label: "Table" },
+] as const;
+
+type Display = (typeof DISPLAYS)[number]["display"];
+
 export function App({ deps }: AppProps = {}) {
   const resolved = useMemo(() => deps ?? browserDeps(), [deps]);
   const store = useMemo<KeelsonStore>(
@@ -130,6 +136,7 @@ export function App({ deps }: AppProps = {}) {
         load: () => resolved.client.toolchain(),
         submit: (op, opId) => resolved.client.submitToolchain(op, opId),
         savePositions: (positions) => resolved.client.savePositions(positions),
+        clearPositions: () => resolved.client.clearPositions(),
         newOpId: resolved.newOpId ?? (() => crypto.randomUUID()),
       }),
     [resolved],
@@ -149,7 +156,29 @@ export function App({ deps }: AppProps = {}) {
   }, [toolchainStore, state.hash]);
   const [root, setRoot] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [files, setFiles] = useState<readonly WorkspaceFile[]>([]);
+  const sidebarOpenNow = useRef(false);
+  sidebarOpenNow.current = sidebarOpen;
+  const panelTrigger = useRef<HTMLButtonElement | null>(null);
+  const closeSidebar = (): void => {
+    setSidebarOpen(false);
+    panelTrigger.current?.focus();
+  };
+  const sidebar = useCoveringPanel<HTMLElement>(sidebarOpen);
+  const [display, setDisplay] = useState<Display>("graph");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [reading, setReading] = useState<string | null>(null);
+  const readingNow = useRef<string | null>(null);
+  readingNow.current = reading;
+  const readTrigger = useRef<HTMLElement | null>(null);
+  const readFile = (file: string, trigger: HTMLElement): void => {
+    readTrigger.current = trigger;
+    setReading(file);
+  };
+  const closeFile = (): void => {
+    setReading(null);
+    readTrigger.current?.focus();
+  };
+  const searchTrigger = useRef<HTMLButtonElement | null>(null);
   const loaded = useRef(false);
 
   const opening = useRef(0);
@@ -167,6 +196,7 @@ export function App({ deps }: AppProps = {}) {
     }
     store.getState().documentLoaded(path, document.value);
     store.getState().announceOpened(path, hadHistory);
+    rememberFile(path);
   };
 
   useEffect(() => {
@@ -182,17 +212,20 @@ export function App({ deps }: AppProps = {}) {
         return;
       }
 
-      const first = workspace.value.files[0];
+      const named = fileInAddress(window.location.hash);
+      const first =
+        workspace.value.files.find((entry) => entry.path === named) ?? workspace.value.files[0];
       if (first === undefined) {
         store.getState().workspaceEmpty();
         return;
       }
 
       setRoot(first.path);
-      setFiles(workspace.value.files);
+      store.getState().workspaceLoaded(workspace.value.files);
       const document = await resolved.client.document(first.path);
       if (document.ok) {
         store.getState().documentLoaded(first.path, document.value);
+        rememberFile(first.path);
         return;
       }
       store.getState().workspaceEmpty();
@@ -206,9 +239,11 @@ export function App({ deps }: AppProps = {}) {
         void toolchainStore.getState().changed(event.hash);
         return;
       }
+      const elsewhere = event.kind !== "workspace.changed" && event.file !== store.getState().file;
       void store.getState().serverEvent(event);
-      // `layout.json` may have changed: positions written by someone else arrive here.
-      if (event.kind === "coverage.changed") {
+      // `layout.json` may have changed: positions written by someone else arrive here. A file that
+      // is not open never moves `state.hash`, yet its jobs are the toolchain's too.
+      if (event.kind === "coverage.changed" || event.kind === "workspace.changed" || elsewhere) {
         void toolchainStore.getState().refresh();
       }
     });
@@ -216,15 +251,22 @@ export function App({ deps }: AppProps = {}) {
   }, [resolved, store, toolchainStore]);
 
   // When the detail panel goes away — Escape, close button or confirmed deletion — focus returns
-  // to the graph rather than falling back to <body>.
-  const hadSelection = useRef(false);
+  // to the job's node, or to the graph once the job is gone, never to <body>.
+  const lastSelection = useRef<string | null>(null);
   useEffect(() => {
-    const open = state.selectedJobId !== null;
-    if (hadSelection.current && !open) {
-      document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]')?.focus();
+    const previous = lastSelection.current;
+    if (previous !== null && state.selectedJobId === null) {
+      const remains = store.getState().pipeline?.jobs.some((job) => job.id === previous) ?? false;
+      (
+        (remains
+          ? document.querySelector<HTMLElement>(`[data-job-id="${CSS.escape(previous)}"]`)
+          : null) ??
+        document.querySelector<HTMLElement>('[aria-label="Pipeline graph"]') ??
+        document.querySelector<HTMLElement>('[aria-label="Display"] [aria-pressed="true"]')
+      )?.focus();
     }
-    hadSelection.current = open;
-  }, [state.selectedJobId]);
+    lastSelection.current = state.selectedJobId;
+  }, [state.selectedJobId, store]);
 
   const serviceOpen =
     state.view === "toolchain" &&
@@ -245,6 +287,16 @@ export function App({ deps }: AppProps = {}) {
   // canvas but can be closed from anywhere, the panel included.
   useEffect(() => {
     const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && readingNow.current !== null) {
+        setReading(null);
+        readTrigger.current?.focus();
+        return;
+      }
+      if (event.key === "Escape" && sidebarOpenNow.current) {
+        setSidebarOpen(false);
+        panelTrigger.current?.focus();
+        return;
+      }
       if (event.key === "Escape") {
         store.getState().selectJob(null);
         toolchainStore.getState().selectService(null);
@@ -302,19 +354,79 @@ export function App({ deps }: AppProps = {}) {
       : (state.pipeline?.jobs.find((job) => job.id === state.selectedJobId) ?? null);
 
   const blocking = state.diagnostics.some(blocksEditing);
+  const searchable =
+    state.status === "ready" &&
+    !blocking &&
+    state.pipeline !== null &&
+    (state.view === "pipeline" || state.view === "coverage");
+  const searchableNow = useRef(false);
+  searchableNow.current = searchable;
 
-  const reading = state.view === "coverage";
+  useEffect(() => {
+    const handle = (event: KeyboardEvent): void => {
+      if (!searchableNow.current) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const typing =
+        (target?.matches("input, select, textarea") ?? false) || target?.isContentEditable === true;
+      const shortcut =
+        ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") ||
+        (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey);
+      if (shortcut) {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, []);
+  const jobPanelOpen =
+    selected !== null && state.pipeline !== null && state.view !== "catalog" && !inToolchain;
+  const jobPanel = useCoveringPanel<HTMLElement>(jobPanelOpen);
+  const servicePanel = useCoveringPanel<HTMLElement>(selectedService !== null);
+  const readingText = reading === null ? undefined : state.included[reading];
+  const filePanel = useCoveringPanel<HTMLElement>(readingText !== undefined);
+
+  const readingCoverage = state.view === "coverage";
+  const [wholeRepository, setWholeRepository] = useState(false);
+  const [repositoryCoverage, setRepositoryCoverage] = useState<Coverage | null>(null);
+  const askedCoverage = useRef(0);
+  const severalFiles = state.files.length > 1;
+  // Re-read on every change of this file's coverage: a write or an event changed the disk.
+  useEffect(() => {
+    if (!readingCoverage || !wholeRepository || !severalFiles || state.coverage === null) {
+      return;
+    }
+    askedCoverage.current += 1;
+    const turn = askedCoverage.current;
+    void resolved.client.repositoryCoverage().then((result) => {
+      if (turn !== askedCoverage.current) {
+        return;
+      }
+      if (result.ok) {
+        setRepositoryCoverage(result.value.coverage);
+      } else {
+        store.setState({ error: result.error });
+      }
+    });
+  }, [readingCoverage, wholeRepository, severalFiles, state.coverage, resolved, store]);
+  const shownCoverage =
+    wholeRepository && severalFiles && repositoryCoverage !== null
+      ? repositoryCoverage
+      : state.coverage;
   const overlay = useMemo(
     () =>
-      reading
+      readingCoverage
         ? {
             jobs: new Map(state.coverage?.jobs.map((job) => [job.job, job.layers]) ?? []),
             selected: state.selectedLayer,
           }
         : null,
-    [reading, state.coverage, state.selectedLayer],
+    [readingCoverage, state.coverage, state.selectedLayer],
   );
 
+  const files = state.files;
   const file = state.file;
   const hash = state.hash;
   const insertion = useMemo(
@@ -368,6 +480,7 @@ export function App({ deps }: AppProps = {}) {
           selectedService={toolchainState.selectedService}
           onSelectService={(id) => toolchainStore.getState().selectService(id)}
           onMove={(node, position) => void toolchainStore.getState().move(node, position)}
+          onResetLayout={() => void toolchainStore.getState().resetLayout()}
           invalid={toolchainInvalid}
         />
       );
@@ -384,13 +497,45 @@ export function App({ deps }: AppProps = {}) {
         />
       );
     }
+    const shown = state.pipeline ?? emptyPipeline(state.file ?? "");
     return (
-      <PipelineCanvas
-        pipeline={state.pipeline ?? emptyPipeline(state.file ?? "")}
-        selectedJobId={state.selectedJobId}
-        onSelectJob={(id) => store.getState().selectJob(id)}
-        overlay={overlay}
-      />
+      <div className="flex h-full flex-col">
+        {/* biome-ignore lint/a11y/useSemanticElements: a pair of toggle buttons, not a form */}
+        <div
+          role="group"
+          aria-label="Display"
+          className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-3 py-1.5"
+        >
+          {DISPLAYS.map((entry) => (
+            <button
+              key={entry.display}
+              type="button"
+              aria-pressed={display === entry.display}
+              onClick={() => setDisplay(entry.display)}
+              className={`${BUTTON} aria-pressed:border-accent aria-pressed:bg-surface-3 aria-pressed:font-semibold aria-pressed:text-text-primary`}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1">
+          {display === "graph" ? (
+            <PipelineCanvas
+              pipeline={shown}
+              selectedJobId={state.selectedJobId}
+              onSelectJob={(id) => store.getState().selectJob(id)}
+              overlay={overlay}
+            />
+          ) : (
+            <PipelineTable
+              pipeline={shown}
+              selectedJobId={state.selectedJobId}
+              onSelectJob={(id) => store.getState().selectJob(id)}
+              overlay={overlay}
+            />
+          )}
+        </div>
+      </div>
     );
   })();
 
@@ -418,8 +563,8 @@ export function App({ deps }: AppProps = {}) {
       />
 
       <header className="flex min-h-[var(--keelson-header-height)] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border-subtle px-3 py-1">
-        <span className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
-          <span className="text-sm font-semibold text-text-primary">Keelson</span>
+        <div className="-m-1 flex items-baseline gap-2 overflow-hidden p-1">
+          <h1 className="text-sm font-semibold text-text-primary">Keelson</h1>
           {state.file === null ? null : files.length > 1 ? (
             <select
               aria-label="Pipeline file"
@@ -462,18 +607,18 @@ export function App({ deps }: AppProps = {}) {
             <span
               data-testid="included-files-tag"
               title={`Resolved includes: ${resolvedIncludes.join(", ")}`}
-              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs tracking-label text-text-muted uppercase"
+              className="shrink-0 rounded-sm border border-border-default px-1 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               {includedCount === 1 ? "1 included file" : `${includedCount} included files`}
             </span>
           )}
-        </span>
+        </div>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {state.pending || toolchainState.pending ? (
             <span
               data-testid="pending-indicator"
               role="status"
-              className="flex items-center gap-1.5 text-2xs tracking-label text-text-muted uppercase"
+              className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-text-muted uppercase"
             >
               <span aria-hidden="true" className="size-1.5 rounded-sm bg-accent" />
               Writing
@@ -481,6 +626,7 @@ export function App({ deps }: AppProps = {}) {
           ) : null}
           {showSidebar && state.view !== "catalog" ? (
             <button
+              ref={panelTrigger}
               type="button"
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -489,6 +635,19 @@ export function App({ deps }: AppProps = {}) {
               {inToolchain && (toolchainPayload?.proposed.length ?? 0) > 0
                 ? `Panel, ${toolchainPayload?.proposed.length} proposed`
                 : "Panel"}
+            </button>
+          ) : null}
+          {searchable ? (
+            <button
+              ref={searchTrigger}
+              type="button"
+              aria-expanded={searchOpen}
+              aria-keyshortcuts="Control+K Meta+K /"
+              title="Find job (Ctrl+K or /)"
+              onClick={() => setSearchOpen(true)}
+              className={BUTTON}
+            >
+              Find job
             </button>
           ) : null}
           <nav aria-label="Views" className="flex items-center gap-1">
@@ -509,8 +668,8 @@ export function App({ deps }: AppProps = {}) {
           </nav>
           {state.view === "pipeline" ? (
             <HistoryControls
-              canUndo={state.canUndo()}
-              canRedo={state.canRedo()}
+              canUndo={editable && state.canUndo()}
+              canRedo={editable && state.canRedo()}
               onUndo={() => void store.getState().undo()}
               onRedo={() => void store.getState().redo()}
             />
@@ -526,19 +685,34 @@ export function App({ deps }: AppProps = {}) {
         </span>
       </header>
 
+      {searchOpen && searchable && state.pipeline !== null ? (
+        <JobSearch
+          jobs={state.pipeline.jobs}
+          onClose={() => {
+            setSearchOpen(false);
+            searchTrigger.current?.focus();
+          }}
+          onPick={(id) => {
+            setSearchOpen(false);
+            store.getState().selectJob(id);
+            if (!overlaysCover()) {
+              focusWhenDrawn(`[data-job-id="${CSS.escape(id)}"]`);
+            }
+          }}
+        />
+      ) : null}
+
       {state.pipeline === null ? null : <PartialPipelineBar pipeline={state.pipeline} />}
 
       <div className="flex min-h-0 flex-1 overflow-x-auto">
         {showSidebar && state.pipeline !== null && state.view !== "catalog" ? (
           <aside
-            aria-label={reading ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
+            ref={sidebar.ref}
+            onKeyDown={sidebar.onKeyDown}
+            aria-label={readingCoverage ? "Coverage" : inToolchain ? "Toolchain" : "Edit pipeline"}
             className={`flex w-[var(--keelson-panel-width)] shrink-0 flex-col gap-4 overflow-y-auto border-r border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:w-full ${sidebarOpen ? "" : "max-lg:hidden"}`}
           >
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              className={`self-end lg:hidden ${BUTTON}`}
-            >
+            <button type="button" onClick={closeSidebar} className={`self-end lg:hidden ${BUTTON}`}>
               Close panel
             </button>
             {inToolchain ? (
@@ -549,22 +723,39 @@ export function App({ deps }: AppProps = {}) {
                   disabled={!toolchainEditable}
                   invalid={toolchainInvalid}
                   selectedService={toolchainState.selectedService}
-                  onSubmit={(draft) => toolchainStore.getState().submit(draft)}
+                  onSubmit={async (draft) => {
+                    let written: unknown;
+                    await keepFocusThrough(sidebar.ref.current, async () => {
+                      written = await toolchainStore.getState().submit(draft);
+                    });
+                    return written;
+                  }}
                   onSelectService={(id) => {
                     setSidebarOpen(false);
                     toolchainStore.getState().selectService(id);
                   }}
                 />
               )
-            ) : reading && state.coverage !== null ? (
+            ) : readingCoverage && state.coverage !== null ? (
               <CoveragePanel
-                coverage={state.coverage}
-                scope={files.length > 1 ? { file: state.file ?? "", count: files.length } : null}
+                coverage={shownCoverage ?? state.coverage}
+                cause={lowerBoundCause(state.pipeline, state.diagnostics)}
+                scope={
+                  severalFiles
+                    ? {
+                        file: state.file ?? "",
+                        count: files.length,
+                        whole: wholeRepository && repositoryCoverage !== null,
+                        onChange: setWholeRepository,
+                      }
+                    : null
+                }
                 selected={state.selectedLayer}
                 onSelect={(layer) => store.getState().selectLayer(layer)}
                 onShowTools={(layer) => {
                   setSidebarOpen(false);
                   store.getState().showTools(layer);
+                  focusWhenDrawn('[aria-label="Tool catalogue"] select');
                 }}
               />
             ) : (
@@ -595,6 +786,8 @@ export function App({ deps }: AppProps = {}) {
 
         {selectedService === null || toolchainPayload === null ? null : (
           <aside
+            ref={servicePanel.ref}
+            onKeyDown={servicePanel.onKeyDown}
             aria-label="Service"
             className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
           >
@@ -605,30 +798,48 @@ export function App({ deps }: AppProps = {}) {
               tool={state.catalog?.tools.find((tool) => tool.id === selectedService.tool)}
               jobs={state.pipeline?.jobs.map((job) => job.id) ?? []}
               disabled={!toolchainEditable}
-              onSubmit={(draft) => void toolchainStore.getState().submit(draft)}
+              onSubmit={(draft) =>
+                void keepFocusThrough(servicePanel.ref.current, () =>
+                  toolchainStore.getState().submit(draft),
+                )
+              }
               onClose={() => toolchainStore.getState().selectService(null)}
             />
           </aside>
         )}
 
-        {selected === null ||
-        state.pipeline === null ||
-        state.view === "catalog" ||
-        inToolchain ? null : (
-          <aside className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1">
+        {readingText === undefined || reading === null ? null : (
+          <aside
+            ref={filePanel.ref}
+            onKeyDown={filePanel.onKeyDown}
+            aria-label={`Included file ${reading}`}
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto border-l border-border-subtle bg-surface-1 max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:w-full"
+          >
+            <IncludedFileView file={reading} text={readingText} onClose={closeFile} />
+          </aside>
+        )}
+
+        {!jobPanelOpen || selected === null || state.pipeline === null ? null : (
+          <aside
+            ref={jobPanel.ref}
+            onKeyDown={jobPanel.onKeyDown}
+            aria-label="Job"
+            className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full max-lg:bg-surface-1"
+          >
             <JobDetailPanel
               job={selected}
               textOf={(file) => state.textOf(file)}
               main={state.pipeline.main}
               derivedStages={state.pipeline.provider === "github"}
               coverage={
-                reading
+                readingCoverage
                   ? (state.coverage?.jobs.find((entry) => entry.job === selected.id) ?? null)
                   : null
               }
+              onReadFile={state.included[selected.file] === undefined ? undefined : readFile}
               onClose={() => store.getState().selectJob(null)}
             />
-            {reading || selected.file !== state.pipeline.main ? null : (
+            {readingCoverage || selected.file !== state.pipeline.main ? null : (
               <div className="border-l border-border-subtle bg-surface-1 p-3">
                 <JobEditor
                   key={selected.id}
@@ -649,6 +860,8 @@ export function App({ deps }: AppProps = {}) {
           main={state.pipeline?.main ?? state.file ?? ""}
           omitInfo={state.pipeline !== null && isPartial(state.pipeline)}
           onSelectRange={(file, range) => store.getState().selectByRange(file, range)}
+          readable={(file) => state.included[file] !== undefined}
+          onReadFile={readFile}
         />
       </div>
     </div>

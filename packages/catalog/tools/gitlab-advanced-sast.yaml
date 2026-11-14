@@ -1,0 +1,23 @@
+id: gitlab-advanced-sast
+name: 'GitLab Advanced SAST'
+kind: job
+layers: [sast]
+license: Proprietary
+homepage: https://docs.gitlab.com/user/application_security/sast/gitlab_advanced_sast/
+verifiedAt: https://gitlab.com/gitlab-org/gitlab/-/blob/b0abb6eeef1f95322853634c7140ecafa6355fcf/lib/gitlab/ci/templates/Jobs/SAST.gitlab-ci.yml
+logo: gitlab
+detect:
+  images: ['registry.gitlab.com/security-products/gitlab-advanced-sast']
+  scripts: []
+snippets:
+  gitlab: |
+    gitlab-advanced-sast:
+      stage: test
+      image: registry.gitlab.com/security-products/gitlab-advanced-sast:2
+      script:
+        - /analyzer run
+      artifacts:
+        reports:
+          sast: gl-sast-report.json
+  github: null
+lastVerified: 2026-11-12

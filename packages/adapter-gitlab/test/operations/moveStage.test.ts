@@ -30,8 +30,8 @@ describe("moveStage", () => {
       toIndex: 0,
     });
     expect(applied.pipeline.stages.map((stage) => stage.name)).toEqual([
-      "deploy",
       ".pre",
+      "deploy",
       "build",
       "test",
       ".post",

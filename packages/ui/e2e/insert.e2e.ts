@@ -67,6 +67,45 @@ test.describe("insertion on the real binary", () => {
     }
   });
 
+  test("after insertion into a column taller than the canvas, the new node is on screen", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    const jobs = Array.from(
+      { length: 40 },
+      (_, index) => `job-${index}:\n  stage: build\n  script:\n    - make ${index}\n`,
+    ).join("\n");
+    const keelson = await startKeelson({ ".gitlab-ci.yml": `stages:\n  - build\n\n${jobs}` });
+    try {
+      await page.goto(keelson.url);
+      await expect(page.locator("[data-job-id=job-0]")).toBeAttached();
+      await page.getByRole("button", { name: "Catalog" }).click();
+      await page.getByRole("button", { name: "Gitleaks", exact: true }).click();
+      await page.getByRole("button", { name: "Add to pipeline" }).click();
+      await page.getByRole("button", { name: "Insert into .gitlab-ci.yml" }).click();
+
+      const node = page.locator("[data-job-id=gitleaks]");
+      await expect(node).toBeFocused();
+      const canvas = page.getByRole("region", { name: "Pipeline graph" });
+      await expect
+        .poll(async () => {
+          const box = await node.boundingBox();
+          const frame = await canvas.boundingBox();
+          return (
+            box !== null &&
+            frame !== null &&
+            box.y >= frame.y &&
+            box.x >= frame.x &&
+            box.y + box.height <= frame.y + frame.height &&
+            box.x + box.width <= frame.x + frame.width
+          );
+        })
+        .toBe(true);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("a rejected name disables Insert and writes nothing", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     const original = keelson.read();

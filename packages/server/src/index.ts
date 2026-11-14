@@ -27,15 +27,17 @@ export type KeelsonServer = {
   close(): Promise<void>;
 };
 
-export { type Adapter, adapterFor } from "./adapters.ts";
+export { type Adapter, adapterFor, isNestedWorkflow } from "./adapters.ts";
 export { MAX_BODY_BYTES } from "./app.ts";
+export { type Disk, readDisk } from "./disk.ts";
+export { LOCK_STALE_MS, LOCK_TIMEOUT_MS, withFileLock } from "./lock.ts";
 export { createToken, isAllowedHost, LOOPBACK, TOKEN_HEADER, tokensMatch } from "./security.ts";
 export { HEARTBEAT_MS } from "./sse.ts";
 export { DocumentStore, OPID_HISTORY } from "./store.ts";
-export { ToolchainStore } from "./toolchain.ts";
+export { ToolchainStore, unreadableToolchain } from "./toolchain.ts";
 export type { DocumentEvent } from "./watcher.ts";
-export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile } from "./workspace.ts";
-export { writeAtomic, writeInsideRoot } from "./write.ts";
+export { detectWorkspace, GITLAB_CI_FILE, type WorkspaceFile, type YamlPath } from "./workspace.ts";
+export { blockedParent, writeAtomic, writeInsideRoot } from "./write.ts";
 
 export async function createServer(options: ServerOptions): Promise<KeelsonServer> {
   const root = resolve(options.root);
@@ -77,6 +79,9 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
   port = typeof address === "object" && address !== null ? address.port : 0;
 
   const watcher = watchDocuments(root, store, (event) => hub.broadcast(event));
+  const unsubscribeWritten = store.onWritten((written) =>
+    hub.broadcast({ kind: "document.written", ...written }),
+  );
 
   return {
     url: `http://${LOOPBACK}:${port}/?token=${token}`,
@@ -85,6 +90,7 @@ export async function createServer(options: ServerOptions): Promise<KeelsonServe
     address: () => LOOPBACK,
     async close() {
       watcher.close();
+      unsubscribeWritten();
       hub.close();
       await new Promise<void>((settle) => {
         http.close(() => settle());

@@ -127,12 +127,13 @@ and writes.
 | GET | `/api/workspace` | 200 `{ files: [{ path, adapter }] }`, `adapter` being `gitlab` or `github` |
 | GET | `/api/catalog` | 200 `{ tools, logos, layers }` |
 | GET | `/api/documents/:file` | 200 `{ text, pipeline, diagnostics, hash, included, coverage }` · 404 |
+| GET | `/api/coverage` | 200 `{ files, coverage }`: every CI file of the workspace together, read from disk at the request, as `keelson coverage` without arguments computes it — the scope "Whole repository" of the Coverage panel |
 | POST | `/api/documents/:file/operations` | body `{ op, opId }` → 200 `{ text, pipeline, diagnostics, hash, inverse, touched, included, coverage }` · 400 `INVALID_OPERATION` · 404 · 409 `STALE_DOCUMENT` with the current `hash` · 413 · 422 `{ code, params }` |
 | POST | `/api/documents/:file/preview` | body `{ op }` → 200 the result without writing · same refusals as an operation |
 | GET | `/api/toolchain` | 200 `{ text, hash, toolchain, diagnostics, proposed, positions }` |
 | POST | `/api/toolchain/operations` | body `{ op, opId }` → 200 the same body plus `inverse` · 400 · 409 with the current `hash` · 422 |
-| PUT | `/api/layout/positions` | body `{ positions }`, merged into the file → 200 with the complete map · 400 · 422 if `layout.json` is unreadable |
-| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `coverage.changed { file }`, `toolchain.changed { hash }`, heartbeat every 15 s |
+| PUT | `/api/layout/positions` | body `{ positions, clear? }`: `positions` merged into the file; `clear: true` first drops every saved position (the toolchain's "Reset layout"), the other keys of `layout.json` stay → 200 with the complete map · 400 (`clear` not a boolean included) · 422 if `layout.json` is unreadable |
+| GET | `/api/events` | SSE `document.changed { file, hash }`, `document.removed { file }`, `document.written { file, hash, opId }` (the server's own write for an operation, so that other tabs learn about it; the sending tab recognises its `opId`), `coverage.changed { file }`, `toolchain.changed { hash }`, `workspace.changed { files: [{ path, adapter }] }` (same list as `GET /api/workspace`), heartbeat every 15 s |
 | GET | `/*` | UI bundle, SPA fallback to `index.html` |
 
 The `diagnostics` in these responses combine those of `parse` **and** those of `validate`, as
@@ -159,6 +160,13 @@ produces no text, and the client renders the sentence through `render()` from
   an editor often replaces the file through a `rename` — watching the file alone would miss the
   event. After a change it rereads: if the hash is the one it knows, it is its own write and it stays
   silent; otherwise it re-parses and emits `document.changed`. File gone → `document.removed`.
+  The store records the new hash **before** the `rename`, so an event arriving between the rename
+  and the end of the write still reads as the server's own; a failed write restores the previous
+  state. The own write is announced separately, by `document.written`.
+- **Workspace changes**: the server also watches the root, `.github` and `.github/workflows`. A
+  workflow or a `.gitlab-ci.yml` created or removed while it runs updates the file list and emits
+  `workspace.changed` with the whole new list; a loaded file that leaves the list first gets its
+  `document.removed`. A deleted then recreated `.github/workflows` is watched again.
 
 ### Security model
 

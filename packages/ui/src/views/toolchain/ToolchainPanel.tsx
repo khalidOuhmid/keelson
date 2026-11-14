@@ -1,8 +1,10 @@
 import type { Tool } from "@keelson/catalog";
 import type { ProposedIntegration } from "@keelson/toolchain";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ToolchainPayload } from "../../api/client.ts";
 import { BUTTON, FIELD, GROUP, LABEL, SECTION_HEADING } from "../../editing/controls.ts";
+import { overlaysCover } from "../../focus.ts";
+import { ChevronRightIcon } from "../../icons.tsx";
 import type { ToolchainDraft } from "../../state/toolchain.ts";
 
 type Submit = (draft: ToolchainDraft) => unknown;
@@ -201,6 +203,14 @@ export function ToolchainPanel({
   const [tool, setTool] = useState("");
   const nameField = useRef<HTMLInputElement>(null);
   const services = tools.filter((entry) => entry.kind === "service");
+  // Below `lg` the panel is a full-screen overlay: the form would push the proposals off it.
+  const [adding, setAdding] = useState(() => !overlaysCover());
+  const [asked, setAsked] = useState(0);
+  useEffect(() => {
+    if (asked > 0) {
+      nameField.current?.focus();
+    }
+  }, [asked]);
 
   if (invalid) {
     return (
@@ -233,7 +243,8 @@ export function ToolchainPanel({
                 onSubmit={onSubmit}
                 onAddService={(id) => {
                   setTool(id);
-                  nameField.current?.focus();
+                  setAdding(true);
+                  setAsked((count) => count + 1);
                 }}
               />
             ))}
@@ -280,15 +291,30 @@ export function ToolchainPanel({
 
       {/* biome-ignore lint/a11y/useSemanticElements: each list is a named group, not a landmark; fieldset is reserved for forms */}
       <div role="group" aria-label="New service" className="flex flex-col gap-2">
-        <h2 className={SECTION_HEADING}>New service</h2>
-        <AddService
-          tools={services}
-          tool={tool}
-          onTool={setTool}
-          disabled={disabled}
-          onSubmit={onSubmit}
-          nameField={nameField}
-        />
+        <h2 className={SECTION_HEADING}>
+          <button
+            type="button"
+            aria-expanded={adding}
+            aria-controls="new-service-form"
+            onClick={() => setAdding(!adding)}
+            className="group flex min-h-6 cursor-pointer items-center gap-1"
+          >
+            <ChevronRightIcon className="transition-transform duration-fast ease-out group-aria-expanded:rotate-90" />
+            New service
+          </button>
+        </h2>
+        {adding ? (
+          <div id="new-service-form">
+            <AddService
+              tools={services}
+              tool={tool}
+              onTool={setTool}
+              disabled={disabled}
+              onSubmit={onSubmit}
+              nameField={nameField}
+            />
+          </div>
+        ) : null}
       </div>
 
       {toolchain.dismissed.length === 0 ? null : (

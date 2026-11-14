@@ -56,11 +56,19 @@ import {
   YAMLMap,
   type YAMLSeq,
 } from "yaml";
-import { DEFAULT_STAGES } from "./defaults.ts";
+import { DEFAULT_STAGES, FIRST_STAGE, LAST_STAGE } from "./defaults.ts";
 import type { GitlabDocument } from "./document.ts";
 import { applySplices, type Splice } from "./emit.ts";
 import { parse } from "./parse.ts";
-import { type AnyNode, localPair, localPairs, pairRange, REFERENCE_TAG } from "./resolve.ts";
+import {
+  type AnyNode,
+  keyOf,
+  localPair,
+  localPairs,
+  MERGE_KEY,
+  pairRange,
+  REFERENCE_TAG,
+} from "./resolve.ts";
 import type { ApplyError, ApplyOk } from "./result.ts";
 import {
   afterLine,
@@ -80,6 +88,8 @@ type Geometry = {
   text: string;
   eol: string;
   indent: string;
+  /** The pipeline another text of the same file would give, includes resolved the same way. */
+  reparse: (text: string) => Pipeline;
 };
 
 type Target = {
@@ -165,16 +175,103 @@ function jobTarget(root: YAMLMap, id: string, pipeline: Pipeline): Result<Target
     return fail(JOB_NOT_FOUND, { job: id });
   }
 
-  if (map.flow === true) {
-    // DEBT(2026-10-20): jobs written in flow style ({ … }) are not editable
-    // — patching in place would assume a line-based rendering. See specs/gaps.md (2026-10-20), milestone to be defined.
+  if (root.flow === true) {
     return fail(INVALID_OPERATION, { reason: "flowStyleJob", job: id });
   }
 
   return ok({ pair, map });
 }
 
+function isFlowJob(target: Target): boolean {
+  return target.map.flow === true;
+}
+
+/** A pair of a flow map, from its key to the end of its value, separators excluded. */
+function flowPairSpan(pair: Pair<unknown, unknown>): SourceRange | null {
+  const key = nodeRange(pair.key as AnyNode);
+  if (key === undefined) {
+    return null;
+  }
+  return { start: key[0], end: nodeRange(pair.value as AnyNode)?.[1] ?? key[1] };
+}
+
+/** A new entry goes last in a flow map: after every merge key, where Psych lets it win. */
+function flowInsertion(target: Target, entry: string): Splice | null {
+  const last = localPairs(target.map).at(-1);
+  if (last === undefined) {
+    const open = nodeRange(target.map)?.[0];
+    return open === undefined ? null : { start: open + 1, end: open + 1, text: entry };
+  }
+  const end = flowPairSpan(last)?.end;
+  return end === undefined ? null : { start: end, end, text: `, ${entry}` };
+}
+
+/** Removes a pair of a flow map with one of its separators. A comment between two entries stays:
+ *  only the separator is taken with the pair then. */
+function flowRemoval(text: string, target: Target, pair: Pair<unknown, unknown>): Splice | null {
+  const pairs = localPairs(target.map);
+  const position = pairs.indexOf(pair);
+  const span = flowPairSpan(pair);
+  if (span === null || position === -1) {
+    return null;
+  }
+  const next = pairs[position + 1];
+  const nextStart = next === undefined ? undefined : flowPairSpan(next)?.start;
+  if (nextStart !== undefined) {
+    const gap = text.slice(span.end, nextStart);
+    if (!gap.includes("#")) {
+      return { start: span.start, end: nextStart, text: "" };
+    }
+    const comma = gap.indexOf(",");
+    const spaces = /^[ \t]*/.exec(gap.slice(comma + 1))?.[0].length ?? 0;
+    return comma === -1
+      ? null
+      : { start: span.start, end: span.end + comma + 1 + spaces, text: "" };
+  }
+  const previous = pairs[position - 1];
+  const previousEnd = previous === undefined ? undefined : flowPairSpan(previous)?.end;
+  if (previousEnd !== undefined && !text.slice(previousEnd, span.start).includes("#")) {
+    return { start: previousEnd, end: span.end, text: "" };
+  }
+  const ownLine = lineStart(text, span.start);
+  if (previousEnd !== undefined && linePrefix(text, span.start).trim() === "" && ownLine > 0) {
+    const eol = text[ownLine - 2] === "\r" ? 2 : 1;
+    return { start: ownLine - eol, end: span.end, text: "" };
+  }
+  return { ...span, text: "" };
+}
+
+function flowEntry(
+  splice: Splice | null,
+  reason: "needsKey" | "environmentKey" | "stageKey",
+): Planned {
+  return splice === null ? fail(RANGE_OUT_OF_BOUNDS, { reason }) : ok([splice]);
+}
+
+function renderFlowNeeds(needs: readonly Need[]): string {
+  return `needs: [${needs.map(renderFlowNeed).join(", ")}]`;
+}
+
+function renderFlowEnvironment(environment: EnvironmentInput): string {
+  if (environment.url === undefined && environment.action === undefined) {
+    return `environment: ${scalarText(environment.name)}`;
+  }
+  const fields = [
+    `name: ${scalarText(environment.name)}`,
+    ...(environment.url === undefined ? [] : [`url: ${scalarText(environment.url)}`]),
+    ...(environment.action === undefined ? [] : [`action: ${scalarText(environment.action)}`]),
+  ];
+  return `environment: { ${fields.join(", ")} }`;
+}
+
+/** After the job's key, and after its last merge key: Psych lets a later write win, so an
+ *  override written above a `<<` would be overwritten by the merged map. */
 function overrideInsertAt(geometry: Geometry, target: Target): number {
+  const lastMerge = localPairs(target.map).findLast((pair) => keyOf(pair) === MERGE_KEY);
+  const mergeEnd = lastMerge === undefined ? undefined : nodeRange(lastMerge.value as AnyNode)?.[1];
+  if (mergeEnd !== undefined) {
+    return afterLine(geometry.text, mergeEnd);
+  }
   const range = nodeRange(target.pair.key as AnyNode);
   return afterLine(geometry.text, range?.[0] ?? 0);
 }
@@ -193,6 +290,22 @@ function renderNeedItem(need: Need, prefix: string, eol: string): string {
     lines.push(`${continuation}artifacts: false`);
   }
   return lines.map((line) => `${line}${eol}`).join("");
+}
+
+function renderFlowNeed(need: Need): string {
+  if (!need.optional && need.artifacts) {
+    return need.job;
+  }
+  const options = [
+    ...(need.optional ? ["optional: true"] : []),
+    ...(need.artifacts ? [] : ["artifacts: false"]),
+  ];
+  return `{ job: ${need.job}, ${options.join(", ")} }`;
+}
+
+/** An anchored node is shared: every alias of it would change with it. */
+function anchored(node: AnyNode): boolean {
+  return (node as { anchor?: string } | null | undefined)?.anchor !== undefined;
 }
 
 function renderNeedsBlock(needs: readonly Need[], geometry: Geometry, pad: string): string {
@@ -266,7 +379,7 @@ function planAddJob(
 
   const body = [
     `${job.id}:${eol}`,
-    `${indent}stage: ${job.stage}${eol}`,
+    `${indent}stage: ${scalarText(job.stage)}${eol}`,
     needs.length === 0 ? "" : renderNeedsBlock(needs, geometry, indent),
     job.environment === undefined ? "" : renderEnvironmentBlock(job.environment, geometry, indent),
     `${indent}script:${eol}`,
@@ -424,7 +537,7 @@ function planSetJobStage(
     const end =
       isSeq(value) && value.flow !== true ? nodeRange(seqItems(value).at(-1))?.[1] : range.end;
     if (!tagged || keyStart === undefined || end === undefined) {
-      return ok([{ ...range, text: operation.stage }]);
+      return ok([{ ...range, text: scalarText(operation.stage) }]);
     }
 
     // An anchor, a comment or an explicit key live in the rewritten range: losing them silently
@@ -436,12 +549,22 @@ function planSetJobStage(
     if (anchored || commented || explicitKey) {
       return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "stage" });
     }
-    return ok([{ start: keyStart, end, text: `stage: ${operation.stage}` }]);
+    return ok([{ start: keyStart, end, text: `stage: ${scalarText(operation.stage)}` }]);
   }
 
+  if (isFlowJob(located.value)) {
+    return flowEntry(
+      flowInsertion(located.value, `stage: ${scalarText(operation.stage)}`),
+      "stageKey",
+    );
+  }
   const at = overrideInsertAt(geometry, located.value);
   return ok([
-    { start: at, end: at, text: `${geometry.indent}stage: ${operation.stage}${geometry.eol}` },
+    {
+      start: at,
+      end: at,
+      text: `${geometry.indent}stage: ${scalarText(operation.stage)}${geometry.eol}`,
+    },
   ]);
 }
 
@@ -496,6 +619,12 @@ function planAddNeed(
     if (rewritesUnmodelled(pipeline, operation.id)) {
       return unmodelledRefusal(operation.id);
     }
+    if (isFlowJob(located.value)) {
+      return flowEntry(
+        flowInsertion(located.value, renderFlowNeeds([...current, added])),
+        "needsKey",
+      );
+    }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
       {
@@ -507,9 +636,10 @@ function planAddNeed(
   }
 
   const seq = local.value as AnyNode;
-  // A shared list is not extended in place: the replacement would lose its items, and an item
-  // added to a `!reference` would be a wrong path. Keelson does not rewrite what it shares.
-  if (isAlias(seq) || (seq as { tag?: string }).tag === REFERENCE_TAG) {
+  // A shared list is not extended in place: the replacement would lose its items, an item added
+  // to a `!reference` would be a wrong path, and one added to an anchored list would reach every
+  // alias of it. Keelson does not rewrite what it shares.
+  if (isAlias(seq) || anchored(seq) || (seq as { tag?: string }).tag === REFERENCE_TAG) {
     return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
   }
 
@@ -521,15 +651,19 @@ function planAddNeed(
       const range = valueContent(seq);
       return range === null
         ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
-        : ok([{ ...range, text: `[${added.job}]` }]);
+        : ok([{ ...range, text: `[${renderFlowNeed(added)}]` }]);
     }
     const end = nodeRange(last)?.[1];
     return end === undefined
       ? fail(RANGE_OUT_OF_BOUNDS, { reason: "lastNeed" })
-      : ok([{ start: end, end, text: `, ${added.job}` }]);
+      : ok([{ start: end, end, text: `, ${renderFlowNeed(added)}` }]);
   }
 
   if (last === undefined) {
+    if (isFlowJob(located.value)) {
+      const span = flowPairSpan(local);
+      return flowEntry(span && { ...span, text: renderFlowNeeds([added]) }, "needsKey");
+    }
     const range = pairLineRange(text, local);
     return range === null
       ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
@@ -586,7 +720,14 @@ function planRemoveNeed(
     return unmodelledRefusal(operation.id);
   }
 
+  if (local !== undefined && anchored(local.value as AnyNode)) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
+  }
+
   if (local === undefined) {
+    if (isFlowJob(located.value)) {
+      return flowEntry(flowInsertion(located.value, renderFlowNeeds(remaining)), "needsKey");
+    }
     const at = overrideInsertAt(geometry, located.value);
     return ok([
       {
@@ -601,6 +742,12 @@ function planRemoveNeed(
   }
 
   if (remaining.length === 0) {
+    if (seqItems(local.value as AnyNode).some(anchored)) {
+      return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
+    }
+    if (isFlowJob(located.value)) {
+      return flowEntry(flowRemoval(geometry.text, located.value, local), "needsKey");
+    }
     const range = pairLineRange(geometry.text, local);
     return range === null
       ? fail(RANGE_OUT_OF_BOUNDS, { reason: "needsKey" })
@@ -621,6 +768,9 @@ function planRemoveNeed(
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
   if (victimRange === undefined) {
     return fail(NEED_NOT_FOUND, { reason: "notLocal", job: operation.id, need: operation.job });
+  }
+  if (anchored(victim)) {
+    return fail(INVALID_OPERATION, { reason: "sharedValue", job: operation.id, key: "needs" });
   }
 
   if (isSeq(seq) && seq.flow === true) {
@@ -651,26 +801,54 @@ function planSetEnvironment(
   const local = localPair(located.value.map, "environment");
   const inherited = pipeline.jobs.find((job) => job.id === operation.id)?.environment ?? null;
 
+  const flow = isFlowJob(located.value);
   if (operation.environment === null) {
+    const cancel = (pad: string) => `${pad}environment: null${geometry.eol}`;
+    if (local !== undefined && flow) {
+      const removal = flowRemoval(geometry.text, located.value, local);
+      const span = flowPairSpan(local);
+      if (removal === null || span === null) {
+        return fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" });
+      }
+      const removed = applySplices(geometry.text, [removal]).text;
+      const resurfaces =
+        geometry.reparse(removed).jobs.find((job) => job.id === operation.id)?.environment !== null;
+      return ok([resurfaces ? { ...span, text: "environment: null" } : removal]);
+    }
     if (local !== undefined) {
       const range = pairLineRange(geometry.text, local);
-      return range === null
-        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" })
-        : ok([{ ...range, text: "" }]);
+      const keyStart = nodeRange(local.key as AnyNode)?.[0];
+      if (range === null || keyStart === undefined) {
+        return fail(RANGE_OUT_OF_BOUNDS, { reason: "environmentKey" });
+      }
+      const removed = applySplices(geometry.text, [{ ...range, text: "" }]).text;
+      const resurfaces =
+        geometry.reparse(removed).jobs.find((job) => job.id === operation.id)?.environment !== null;
+      return ok([
+        { ...range, text: resurfaces ? cancel(linePrefix(geometry.text, keyStart)) : "" },
+      ]);
     }
     if (inherited !== null) {
-      // DEBT(2026-10-20): no mechanism to cancel an inherited environment
-      // — GitLab has no cancellation key. See specs/gaps.md (2026-10-20, 2026-11-04), milestone to be defined.
-      return fail(INVALID_OPERATION, {
-        reason: "inheritedEnvironment",
-        job: operation.id,
-        origin: inherited.origin.kind,
-      });
+      // GitLab: “to exclude a key from the extended content, assign it to null”.
+      if (flow) {
+        return flowEntry(flowInsertion(located.value, "environment: null"), "environmentKey");
+      }
+      const at = overrideInsertAt(geometry, located.value);
+      return ok([{ start: at, end: at, text: cancel(geometry.indent) }]);
     }
     return ok([]);
   }
 
   const environment = operation.environment;
+
+  if (flow) {
+    const span = local === undefined ? null : flowPairSpan(local);
+    const entry = renderFlowEnvironment(environment);
+    return flowEntry(
+      local === undefined ? flowInsertion(located.value, entry) : span && { ...span, text: entry },
+      "environmentKey",
+    );
+  }
 
   if (local !== undefined) {
     const range = pairLineRange(geometry.text, local);
@@ -696,10 +874,80 @@ function stagesSeq(root: YAMLMap): { pair: Pair<unknown, unknown>; seq: YAMLSeq 
 
 function materialiseStages(names: readonly string[], geometry: Geometry, root: YAMLMap): Splice {
   const { eol, indent } = geometry;
-  const body = names.map((name) => `${indent}- ${name}${eol}`).join("");
+  const body = names.map((name) => `${indent}- ${scalarText(name)}${eol}`).join("");
   const first = localPairs(root)[0];
   const at = nodeRange(first?.key as AnyNode)?.[0] ?? 0;
   return { start: at, end: at, text: `stages:${eol}${body}${eol}` };
+}
+
+/** Where a stage other than `.pre` and `.post` can stand: GitLab pins those two at the ends. */
+function movableBounds(names: readonly string[]): { low: number; high: number } {
+  return {
+    low: names[0] === FIRST_STAGE ? 1 : 0,
+    high: names.at(-1) === LAST_STAGE ? names.length - 1 : names.length,
+  };
+}
+
+function clamp(value: number, low: number, high: number): number {
+  return Math.min(Math.max(value, low), high);
+}
+
+/** The list item a displayed stage was read from. The display order is not the list's order once
+ *  `.pre` or `.post` is written elsewhere than at its end: the item is found by its range. */
+function stageItem(items: readonly Node[], pipeline: Pipeline, name: string): Node | undefined {
+  const start = pipeline.stages.find((stage) => stage.name === name)?.range?.start;
+  return start === undefined ? undefined : items.find((item) => nodeRange(item)?.[0] === start);
+}
+
+/** Inserts `text` in a stage list next to displayed neighbours: before `next`'s item, otherwise
+ *  after `previous`'s. A block item takes its own line; the comments around it stay where they
+ *  are. */
+function stageInsertion(
+  declared: { seq: YAMLSeq },
+  pipeline: Pipeline,
+  neighbours: { previous: string | undefined; next: string | undefined },
+  value: string,
+  geometry: Geometry,
+  ownPrefix?: string,
+): Splice | null {
+  const { text, eol } = geometry;
+  const items = declared.seq.items as Node[];
+  const next =
+    neighbours.next === undefined ? undefined : stageItem(items, pipeline, neighbours.next);
+  const previous =
+    neighbours.previous === undefined ? undefined : stageItem(items, pipeline, neighbours.previous);
+  // `.post` can be written anywhere in the list: next to it says nothing of the displayed order.
+  const pinned = neighbours.next === LAST_STAGE && previous !== undefined;
+  const nextRange = next === undefined || pinned ? undefined : nodeRange(next);
+  const previousRange = previous === undefined ? undefined : nodeRange(previous);
+
+  if (declared.seq.flow === true) {
+    if (nextRange !== undefined) {
+      return { start: nextRange[0], end: nextRange[0], text: `${value}, ` };
+    }
+    return previousRange === undefined
+      ? null
+      : { start: previousRange[1], end: previousRange[1], text: `, ${value}` };
+  }
+
+  if (nextRange !== undefined) {
+    const at = lineStart(text, nextRange[0]);
+    return {
+      start: at,
+      end: at,
+      text: `${ownPrefix ?? itemPrefix(text, nextRange[0])}${value}${eol}`,
+    };
+  }
+  if (previousRange === undefined) {
+    return null;
+  }
+  const at = afterLine(text, previousRange[1]);
+  const glue = at === text.length && !text.endsWith("\n") ? eol : "";
+  return {
+    start: at,
+    end: at,
+    text: `${glue}${ownPrefix ?? itemPrefix(text, previousRange[0])}${value}${eol}`,
+  };
 }
 
 function planAddStage(
@@ -723,64 +971,32 @@ function planAddStage(
     return fail(FROM_INCLUDED_FILE, { reason: "stages", file: foreignStagesAdd });
   }
 
-  const index = operation.index ?? pipeline.stages.length;
-  if (index > pipeline.stages.length) {
+  const names = pipeline.stages.map((stage) => stage.name);
+  if ((operation.index ?? 0) > names.length) {
     return fail(RANGE_OUT_OF_BOUNDS, {
       reason: "stageIndex",
-      index,
-      count: pipeline.stages.length,
+      index: operation.index ?? 0,
+      count: names.length,
     });
   }
+  const { low, high } = movableBounds(names);
+  const index = clamp(operation.index ?? high, low, high);
 
   const declared = stagesSeq(root);
   if (declared === null) {
-    const names: string[] = [...DEFAULT_STAGES];
-    names.splice(index, 0, operation.name);
-    return ok([materialiseStages(names, geometry, root)]);
+    const materialised: string[] = [...DEFAULT_STAGES];
+    materialised.splice(index, 0, operation.name);
+    return ok([materialiseStages(materialised, geometry, root)]);
   }
 
-  const items = declared.seq.items as Node[];
-  const { text, eol } = geometry;
-
-  if (declared.seq.flow === true) {
-    const anchor = items[index];
-    if (anchor !== undefined) {
-      const start = nodeRange(anchor)?.[0];
-      return start === undefined
-        ? fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" })
-        : ok([{ start, end: start, text: `${operation.name}, ` }]);
-    }
-    const last = items.at(-1);
-    const end = last === undefined ? undefined : nodeRange(last)?.[1];
-    return end === undefined
-      ? fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" })
-      : ok([{ start: end, end, text: `, ${operation.name}` }]);
-  }
-
-  const anchor = items[index];
-  if (anchor !== undefined) {
-    const anchorStart = nodeRange(anchor)?.[0];
-    if (anchorStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
-    }
-    const at = lineStart(text, anchorStart);
-    return ok([
-      { start: at, end: at, text: `${itemPrefix(text, anchorStart)}${operation.name}${eol}` },
-    ]);
-  }
-
-  const last = items.at(-1);
-  const lastRange = last === undefined ? undefined : nodeRange(last);
-  if (lastRange === undefined) {
-    return fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" });
-  }
-  return ok([
-    {
-      start: lastRange[2],
-      end: lastRange[2],
-      text: `${itemPrefix(text, lastRange[0])}${operation.name}${eol}`,
-    },
-  ]);
+  const splice = stageInsertion(
+    declared,
+    pipeline,
+    { previous: names[index - 1], next: names[index] },
+    scalarText(operation.name),
+    geometry,
+  );
+  return splice === null ? fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" }) : ok([splice]);
 }
 
 function planMoveStage(
@@ -790,8 +1006,7 @@ function planMoveStage(
   pipeline: Pipeline,
 ): Planned {
   const names = pipeline.stages.map((stage) => stage.name);
-  const from = names.indexOf(operation.name);
-  if (from === -1) {
+  if (!names.includes(operation.name)) {
     return fail(STAGE_NOT_FOUND, { stage: operation.name });
   }
 
@@ -806,47 +1021,109 @@ function planMoveStage(
       count: names.length,
     });
   }
+  if (operation.name === FIRST_STAGE || operation.name === LAST_STAGE) {
+    return ok([]);
+  }
 
-  const declared = stagesSeq(root);
-  const reordered = names.filter((name) => name !== operation.name);
-  reordered.splice(operation.toIndex, 0, operation.name);
+  const rest = names.filter((name) => name !== operation.name);
+  const { low, high } = movableBounds(rest);
+  const to = clamp(operation.toIndex, low, high);
+  const reordered = [...rest];
+  reordered.splice(to, 0, operation.name);
 
   if (reordered.every((name, position) => name === names[position])) {
     return ok([]);
   }
 
+  const declared = stagesSeq(root);
   if (declared === null) {
     return ok([materialiseStages(reordered, geometry, root)]);
   }
 
   const items = declared.seq.items as Node[];
-  const victim = items[from];
+  const victim = stageItem(items, pipeline, operation.name);
   const victimRange = victim === undefined ? undefined : nodeRange(victim);
-  if (victimRange === undefined) {
+  if (victim === undefined || victimRange === undefined) {
     return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
   }
 
-  const { text, eol } = geometry;
-  const prefix = linePrefix(text, victimRange[0]);
-  const line = `${prefix}${operation.name}${eol}`;
-  const removal: Splice = { start: lineStart(text, victimRange[0]), end: victimRange[2], text: "" };
-
-  const rest = items.filter((_, position) => position !== from);
-  const anchor = rest[operation.toIndex];
-  if (anchor !== undefined) {
-    const anchorStart = nodeRange(anchor)?.[0];
-    if (anchorStart === undefined) {
-      return fail(RANGE_OUT_OF_BOUNDS, { reason: "stageList" });
-    }
-    const at = lineStart(text, anchorStart);
-    return ok([removal, { start: at, end: at, text: line }]);
+  const { text } = geometry;
+  // The item is moved as written: its quotes and anchor go with it.
+  const written = text.slice(victimRange[0], victimRange[1]);
+  const ownPrefix = linePrefix(text, victimRange[0]);
+  const position = items.indexOf(victim);
+  let removal: Splice[];
+  if (declared.seq.flow === true) {
+    removal = flowItemRemoval(
+      text,
+      victimRange,
+      nodeRange(items[position - 1])?.[1],
+      nodeRange(items[position + 1])?.[0],
+    );
+  } else {
+    removal = [
+      {
+        start: lineStart(text, victimRange[0]),
+        end: afterLine(text, victimRange[1]),
+        text: "",
+      },
+    ];
   }
 
-  const last = rest.at(-1);
-  const lastEnd = last === undefined ? undefined : nodeRange(last)?.[2];
-  return lastEnd === undefined
-    ? fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" })
-    : ok([removal, { start: lastEnd, end: lastEnd, text: line }]);
+  const insertion = stageInsertion(
+    declared,
+    pipeline,
+    { previous: reordered[to - 1], next: reordered[to + 1] },
+    written,
+    geometry,
+    ownPrefix.includes("-") ? ownPrefix : undefined,
+  );
+  if (insertion === null) {
+    return fail(RANGE_OUT_OF_BOUNDS, { reason: "emptyStageList" });
+  }
+  return ok([...removal, insertion]);
+}
+
+/** The comma separating two flow items, skipping the comments in the gap between them. */
+function flowComma(text: string, from: number, to: number): number | null {
+  for (let at = from; at < to; at += 1) {
+    if (text[at] === "#") {
+      const end = text.indexOf("\n", at);
+      at = end === -1 || end > to ? to : end;
+    } else if (text[at] === ",") {
+      return at;
+    }
+  }
+  return null;
+}
+
+/** A flow item goes with the comma that separates it from its neighbour. When a comment stands in
+ *  that gap, only the item and the comma go: the comment and its line break stay where they are. */
+function flowItemRemoval(
+  text: string,
+  item: readonly [number, number, ...number[]],
+  preceding: number | undefined,
+  following: number | undefined,
+): Splice[] {
+  const [start, end] = item;
+  const gap: [number, number] | null =
+    following !== undefined
+      ? [end, following]
+      : preceding !== undefined
+        ? [preceding, start]
+        : null;
+  if (gap === null) {
+    return [{ start, end, text: "" }];
+  }
+  const comma = flowComma(text, gap[0], gap[1]);
+  if (comma === null || !text.slice(gap[0], gap[1]).includes("#")) {
+    return following !== undefined
+      ? [{ start, end: following, text: "" }]
+      : [{ start: preceding ?? start, end, text: "" }];
+  }
+  const commaSplice = { start: comma, end: comma + 1, text: "" };
+  const itemSplice = { start, end, text: "" };
+  return comma < start ? [commaSplice, itemSplice] : [itemSplice, commaSplice];
 }
 
 function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
@@ -862,9 +1139,11 @@ function planSplice(operation: SpliceOperation, geometry: Geometry): Planned {
   return ok([{ start: operation.start, end: operation.end, text: operation.text }]);
 }
 
-function jobKeyText(value: string): string {
-  const plain = stringify(value, { lineWidth: 0 }).replace(/\r?\n$/, "");
-  return plain.includes("\n") ? JSON.stringify(value) : plain;
+/** A scalar as GitLab will read it back: Psych is YAML 1.1, where `yes`, `on` or `012` are not
+ *  strings, so they are quoted. A flow indicator is quoted too, the value may land in a flow list. */
+function scalarText(value: string): string {
+  const plain = stringify(value, { lineWidth: 0, version: "1.1" }).replace(/\r?\n$/, "");
+  return plain.includes("\n") || /[,[\]{}]/.test(plain) ? JSON.stringify(value) : plain;
 }
 
 /** A block job, with no anchor or alias: copied into another file, an alias would no longer have a
@@ -948,13 +1227,13 @@ function planAddSnippet(
     (firstKey?.[0] ?? 2) - (snippet.lastIndexOf("\n", firstKey?.[0] ?? 0) + 1),
   );
   const edits = [
-    { start: keyRange[0], end: keyRange[1], text: jobKeyText(id) },
+    { start: keyRange[0], end: keyRange[1], text: scalarText(id) },
     stageRange
-      ? { start: stageRange[0], end: stageRange[1], text: jobKeyText(stage) }
+      ? { start: stageRange[0], end: stageRange[1], text: scalarText(stage) }
       : {
           start: snippet.indexOf("\n", keyRange[1]) + 1,
           end: snippet.indexOf("\n", keyRange[1]) + 1,
-          text: `${indent}stage: ${jobKeyText(stage)}\n`,
+          text: `${indent}stage: ${scalarText(stage)}\n`,
         },
   ].sort((left, right) => right.start - left.start);
   const rewritten = edits.reduce(
@@ -1000,6 +1279,14 @@ function planFor(
   }
 }
 
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
 /** Steps are applied in memory: nothing exists until all of them have passed. The inverse is
  *  computed on the final text, from the first to the last differing byte (ADR 0012). */
 function applyComposite(
@@ -1033,6 +1320,12 @@ function applyComposite(
     before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
   ) {
     suffix += 1;
+  }
+  if (prefix > 0 && isHighSurrogate(before.charCodeAt(prefix - 1))) {
+    prefix -= 1;
+  }
+  if (suffix > 0 && isLowSurrogate(before.charCodeAt(before.length - suffix))) {
+    suffix -= 1;
   }
 
   const end = after.length - suffix;
@@ -1131,6 +1424,7 @@ export function apply(document: GitlabDocument, operation: Operation): Result<Ap
     text: document.text,
     eol: eolOf(document.text),
     indent: indentUnit(document.text),
+    reparse: (text) => reparse(document, text).pipeline,
   };
 
   if (root === null && op.kind !== "splice") {

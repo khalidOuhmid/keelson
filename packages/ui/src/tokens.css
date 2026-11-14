@@ -88,6 +88,7 @@
   --keelson-row-gap: 20px;
   --keelson-focus-ring-width: 2px;
   --keelson-focus-ring-offset: 2px;
+  --keelson-emphasis-width: 2px;
   --keelson-panel-width: 352px;
   /* Canvas floor. Without it, two 352px panels crush the graph view to zero below 704px of
      width — that is, 400% zoom on a 1280px laptop (WCAG 1.4.10). */

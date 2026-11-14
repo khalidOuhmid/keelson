@@ -2,6 +2,11 @@ export const DEFAULT_STAGES = [".pre", "build", "test", "deploy", ".post"] as co
 
 export const DEFAULT_STAGE = "test";
 
+/** GitLab pins these two: `.pre` always runs first and `.post` last, wherever `stages` lists them. */
+export const FIRST_STAGE = ".pre";
+
+export const LAST_STAGE = ".post";
+
 export const RESERVED_TOP_LEVEL = [
   "after_script",
   "before_script",

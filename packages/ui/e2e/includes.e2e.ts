@@ -92,6 +92,25 @@ test.describe("local includes on the real binary", () => {
     }
   });
 
+  test("an included file can be read from its job, as it is on disk", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.locator('[data-job-id="sast"]').click();
+      await page.getByRole("button", { name: `Read ${INCLUDED_PATH}` }).click();
+
+      const viewer = page.getByRole("complementary", { name: `Included file ${INCLUDED_PATH}` });
+      await expect(viewer).toContainText("make scan");
+      await expect(viewer.getByRole("button", { name: "Close file" })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(viewer).toHaveCount(0);
+      await expect(page.getByRole("button", { name: `Read ${INCLUDED_PATH}` })).toBeFocused();
+      expect(keelson.readAt(INCLUDED_PATH)).toBe(INCLUDED);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("an included job's opaque block shows the bytes of its file", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {

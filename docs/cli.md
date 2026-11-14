@@ -40,6 +40,11 @@ Parses the pipeline (resolving local `include:` on GitLab), validates it (unknow
 cycles, unknown stages, needs pointing to a later stage, jobs without a script…), and checks
 `.devsecops/toolchain.yaml` and `.devsecops/layout.json`.
 
+The CI files are read inside the repository root, as `keelson start` reads them: a file linked
+outside the repository, a directory or a file that is not UTF-8 is a usage error (exit `2`), for
+`coverage` and `export` too. A `toolchain.yaml` that exists but cannot be read is reported as
+`TOOLCHAIN_INVALID`, never taken as missing.
+
 Text output, one line per diagnostic:
 
 ```text
@@ -57,12 +62,14 @@ keelson coverage [file] [--require <layers>] [--format text|json]
 ```
 
 Reports, for each of the 13 OWASP DevSecOps layers and 8 platform categories, whether it is covered
-and by which jobs or declared services.
+and by which jobs or declared services. Source control is also covered by the CI that runs the jobs:
+only a forge runs its own CI (`ci gitlab-ci`, `ci github-actions`).
 
 ```text
 covered  secrets                   Secrets in git  gitleaks
 missing  sast                      Static analysis
 covered  supply-chain              Supply chain  sbom
+covered  scm                       Source control  ci gitlab-ci
 ```
 
 `--require` takes a comma-separated list of layer ids and exits `1` if any of them is not covered —
@@ -78,7 +85,10 @@ Layer ids: `secrets`, `sca`, `sast`, `iac`, `supply-chain`, `iast`, `api`, `dast
 `runtime-security`, `policy`.
 
 Detection reads job images, scripts (parsed as a minimal shell, so a tool name inside a quoted string
-or a comment does not count) and GitHub Actions `uses:`. A layer override in
+or a comment does not count) and GitHub Actions `uses:`. In an image, the variables GitLab's Secure
+templates name their analyzers with (`$SECURE_ANALYZERS_PREFIX`, `$CI_TEMPLATE_REGISTRY_HOST`,
+`$CS_ANALYZER_IMAGE`, `$APISEC_IMAGE`, `$DAST_API_IMAGE`) take the templates' defaults; any other
+variable stays unresolved. A layer override in
 [`layout.json`](configuration.md#devsecopslayoutjson) replaces the detection for one job.
 
 ## `keelson export`
@@ -102,7 +112,8 @@ keelson catalog lint [dir]
 
 Lints `tools/*.yaml` in `dir` against the catalogue schema (licence, layers, detection patterns that
 compile, snippets that parse, logos that exist). Without `dir`, lints the catalogue embedded in the
-binary. Entries whose `lastVerified` date is old are reported as notices.
+binary. Entries whose `lastVerified` date is old are reported as notices; a date after today is an
+error.
 
 ## `keelson apply`
 
@@ -117,21 +128,40 @@ stop the others.
 
 | Option | Effect |
 | --- | --- |
-| `--file <path>` | CI file inside each repository (default: `.gitlab-ci.yml`) |
-| `--rebase` | Anchor each operation on the current text of each repository instead of its `baseHash` |
+| `--file <path>` | File inside each repository (default: `.gitlab-ci.yml`); it picks the target, see below |
+| `--rebase` | Anchor each operation on the current text of each repository; `baseHash` may then be left out |
 | `--dry-run` | Print a unified diff per repository and write nothing |
 | `--json` | Print `{ results: [{ repo, ok, applied, written, hash?, error? }] }` |
 
 Without `--rebase`, an operation whose `baseHash` does not match the file is refused with
 `STALE_DOCUMENT` — the safe default when an operations file was computed on a specific revision.
-With `--rebase`, one operations file can be replayed across many repositories whose files differ.
+With `--rebase`, one operations file can be replayed across many repositories whose files differ,
+and an operation written by hand may omit `baseHash` altogether; a `baseHash` that is present must
+still be a 64-character hex digest.
+
+`--file` chooses what the operations edit:
+
+| `--file` | Target | Operations |
+| --- | --- | --- |
+| `.gitlab-ci.yml` or any other path | GitLab CI, local `include:` resolved | [CI operations](#operations) |
+| `.github/workflows/<name>.yml` | GitHub Actions, through the same adapter as `keelson start` | [CI operations](#operations), GitHub column |
+| `.devsecops/toolchain.yaml` | The toolchain, created with its directory when missing | [Toolchain operations](#toolchain-operations) |
+
+An operation of the other family (a `addService` on a CI file, a `addStage` on the toolchain) is an
+invalid operations file, exit `2`. A campaign that adds a service and the job that uses it runs
+`keelson apply` twice, once per target.
+
+Just before writing, each file is read again: if it changed since it was read (an editor, a running
+`keelson start`), nothing is written and the repository fails with `STALE_DOCUMENT`.
 
 ```sh
 keelson apply add-secret-scan.json services/* --rebase --dry-run
 keelson apply add-secret-scan.json services/* --rebase --json > report.json
 ```
 
-Paths that leave a repository (`--file ../x`, symlinks pointing outside) are refused.
+Paths that leave a repository (`--file ../x`, symlinks pointing outside) are refused, and so are a
+directory, a file that is not UTF-8 (it would be rewritten with replacement characters) and a parent
+such as `.devsecops` that exists as a regular file.
 
 ### Operations
 
@@ -152,5 +182,21 @@ a `kind`. Every successful operation returns an inverse `splice` that restores t
 | `composite` | `steps[]` | yes | yes |
 | `splice` | `start`, `end`, `text` | yes | yes |
 
-Refusals carry a stable `{ code, params }`; see [specs/diagnostics.md](../specs/diagnostics.md).
-`keelson apply` currently targets GitLab CI files; GitHub workflows are edited through the UI.
+On GitLab, `setEnvironment` with `null` on a job that inherits an environment (through `extends`,
+a merge key or an include) writes `environment: null` in the job, which is how GitLab excludes an
+inherited key. Refusals carry a stable `{ code, params }`; see
+[specs/diagnostics.md](../specs/diagnostics.md).
+
+### Toolchain operations
+
+The same envelope (`v: 1`, `baseHash` of `.devsecops/toolchain.yaml`, the empty text when the file
+is missing, and `kind`), applied with `--file .devsecops/toolchain.yaml`:
+
+| Kind | Fields |
+| --- | --- |
+| `addService` | `id`, `tool`, `url` (or `null`), `environment` (or `null`) |
+| `updateService` | `id`, then any of `tool`, `url`, `environment` |
+| `removeService` | `id` |
+| `addIntegration` / `removeIntegration` | `job`, `service`, `integration` (`push`, `upload-report`, `fetch-secret`, `notify`) |
+| `dismissIntegration` / `restoreIntegration` | `job`, `tool`, `integration` |
+| `splice` | `start`, `end`, `text` |

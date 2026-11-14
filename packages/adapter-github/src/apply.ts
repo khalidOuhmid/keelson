@@ -441,6 +441,39 @@ function citesJob(
       });
 }
 
+function stringsIn(value: unknown, found: string[], seen: Set<unknown>): void {
+  if (typeof value === "string") {
+    found.push(value);
+  } else if (typeof value === "object" && value !== null && !seen.has(value)) {
+    seen.add(value);
+    for (const [name, entry] of Object.entries(value)) {
+      found.push(name);
+      stringsIn(entry, found, seen);
+    }
+  }
+}
+
+const READS_OWN_ID = /(?<![\w.-])github\s*(?:\.\s*job(?![\w-])|\[\s*['"]job['"]\s*\])/i;
+const GITHUB_JOB = /(?<![\w-])GITHUB_JOB(?!\w)/;
+
+/** `github.job` and `GITHUB_JOB` hold the running job's id: a value comparing it with the old name,
+ *  in an expression or in a shell script, turns false once the job is renamed. Naming the job is
+ *  what counts, since the literal sits outside any `needs` or `jobs` path. */
+function readsOwnId(values: unknown, id: string): Planned | null {
+  const job = (values as { jobs?: Record<string, unknown> } | null)?.jobs?.[id];
+  const strings: string[] = [];
+  stringsIn(job, strings, new Set());
+  const expressions: string[] = [];
+  expressionsIn(job, expressions, new Set());
+  const reads =
+    strings.some((value) => GITHUB_JOB.test(value)) ||
+    expressions.some((value) => READS_OWN_ID.test(value));
+  const name = new RegExp(`(?<![\\w-])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`);
+  return reads && strings.some((value) => name.test(value))
+    ? refuse({ code: INVALID_OPERATION, params: { reason: "readsOwnId", job: id } })
+    : null;
+}
+
 function readValues(document: Document.Parsed): unknown {
   try {
     return document.toJS({ mapAsMap: false });
@@ -482,7 +515,7 @@ function planRename(from: string, to: string, geometry: Geometry): Planned {
   if (refused !== null) {
     return refuse(refused);
   }
-  const cited = citesJob(geometry.values, from);
+  const cited = citesJob(geometry.values, from) ?? readsOwnId(geometry.values, from);
   if (cited !== null) {
     return cited;
   }
@@ -531,6 +564,14 @@ function planAddNeed(operation: AddNeedOperation, geometry: Geometry): Planned {
     const [start, end] = rangeOf(value);
     return ok([{ start, end, text: `[${scalar(value.value)}, ${scalar(job)}]` }]);
   }
+  if (value === null || (isScalar(value) && value.value === null && value.anchor === undefined)) {
+    const [start, end] = rangeOf(value);
+    if (end > start) {
+      return ok([{ start, end, text: scalar(job) }]);
+    }
+    const at = text.indexOf(":", rangeOf(pair.key)[1]) + 1;
+    return ok([{ start: at, end: at, text: ` ${scalar(job)}` }]);
+  }
   if (!isSeq(value) || value.anchor !== undefined) {
     return shared(operation.id, "needs");
   }
@@ -556,6 +597,30 @@ function planAddNeed(operation: AddNeedOperation, geometry: Geometry): Planned {
   const at = lineEnd(text, contentEnd(text, last));
   const tail = at === text.length && !text.endsWith("\n") ? eol : "";
   return ok([{ start: at, end: at, text: `${tail}${prefix}${scalar(job)}${eol}` }]);
+}
+
+/** Removes the item and one separator, so a list written over several lines keeps its layout. A
+ *  repeated item falls back to rewriting the list. */
+function removeFlowItem(items: readonly unknown[], job: string, list: Node): Planned | null {
+  const matches = items.filter((entry) => isScalar(entry) && entry.value === job);
+  if (matches.length !== 1) {
+    const [start, end] = rangeOf(list);
+    const rest = items.flatMap((entry) =>
+      isScalar(entry) && typeof entry.value === "string" && entry.value !== job
+        ? [entry.value]
+        : [],
+    );
+    return ok([{ start, end, text: `[${rest.map(scalar).join(", ")}]` }]);
+  }
+  const index = items.indexOf(matches[0]);
+  const next = items[index + 1];
+  const previous = items[index - 1];
+  if (next !== undefined) {
+    return ok([{ start: rangeOf(matches[0])[0], end: rangeOf(next)[0], text: "" }]);
+  }
+  return previous === undefined
+    ? null
+    : ok([{ start: rangeOf(previous)[1], end: rangeOf(matches[0])[1], text: "" }]);
 }
 
 function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Planned {
@@ -592,8 +657,7 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
     return shared(operation.id, "needs");
   }
   if (value.flow === true) {
-    const [start, end] = rangeOf(value);
-    return ok([{ start, end, text: `[${remaining.map(scalar).join(", ")}]` }]);
+    return removeFlowItem(value.items, operation.job, value) ?? shared(operation.id, "needs");
   }
   const item = value.items.find((entry) => isScalar(entry) && entry.value === operation.job);
   if (item === undefined) {
@@ -606,6 +670,12 @@ function planRemoveNeed(operation: RemoveNeedOperation, geometry: Geometry): Pla
       text: "",
     },
   ]);
+}
+
+/** The `# …` that ends the line after `offset`, with the spaces before it. */
+function trailingComment(text: string, offset: number): string {
+  const rest = text.slice(offset, lineEnd(text, offset)).replace(/\r?\n$/, "");
+  return /^\s+#/.test(rest) ? rest.trimEnd() : "";
 }
 
 function planSetEnvironment(operation: SetEnvironmentOperation, geometry: Geometry): Planned {
@@ -635,7 +705,10 @@ function planSetEnvironment(operation: SetEnvironmentOperation, geometry: Geomet
   }
   const indent = column(text, rangeOf(first.key)[0]);
   if (pair !== undefined) {
-    return ok([{ ...pairSpan(text, pair), text: indented(lines, indent, eol) }]);
+    const span = pairSpan(text, pair);
+    const kept = isScalar(pair.value) ? trailingComment(text, rangeOf(pair.value)[1]) : "";
+    const [head = "", ...rest] = lines;
+    return ok([{ ...span, text: indented([`${head}${kept}`, ...rest], indent, eol) }]);
   }
   const at = lineEnd(text, contentEnd(text, map));
   const tail = at === text.length && !text.endsWith("\n") ? eol : "";
@@ -806,13 +879,19 @@ function danglingAliases(text: string): number {
   return count;
 }
 
+/** Every re-read goes through here: without the reader, the re-read IR would lose the jobs of the
+ *  local workflows it calls. */
+function reparse(document: GithubDocument, text: string) {
+  return parse(text, { file: document.file, read: document.read });
+}
+
 function finish(
   document: GithubDocument,
   text: string,
   touched: SourceRange[],
   inverse: { start: number; end: number; text: string },
 ): Result<ApplyOk, OperationError> {
-  const after = parse(text, { file: document.file });
+  const after = reparse(document, text);
   return ok({
     text,
     document: after.document,
@@ -821,7 +900,7 @@ function finish(
     hash: after.hash,
     inverse: { v: 1, baseHash: after.hash, kind: "splice", ...inverse },
     touched,
-    included: {},
+    included: after.included,
   });
 }
 
@@ -880,7 +959,7 @@ export function apply(
   }
 
   const { text } = document;
-  const before = parse(text, { file: document.file });
+  const before = reparse(document, text);
   const root = document.yaml.contents;
   if (root !== null && !isMap(root) && op.kind !== "splice") {
     return err({ code: INVALID_OPERATION, params: { reason: "noRootMap" } });
@@ -896,6 +975,12 @@ export function apply(
     pipeline: before.pipeline,
     values: readValues(document.yaml),
   };
+  if (isAlias(jobsPair(geometry)?.value) && op.kind !== "splice") {
+    return err({
+      code: INVALID_OPERATION,
+      params: { reason: "sharedValue", job: "jobs", key: "jobs" },
+    });
+  }
   const planned = planFor(op, geometry);
   if (!planned.ok) {
     return planned;
@@ -903,7 +988,7 @@ export function apply(
 
   const spliced = applySplices(text, planned.value);
   if (op.kind !== "splice") {
-    const after = parse(spliced.text, { file: document.file });
+    const after = reparse(document, spliced.text);
     const broke =
       after.diagnostics.some((entry) => entry.code === INVALID_YAML) &&
       !before.diagnostics.some((entry) => entry.code === INVALID_YAML);

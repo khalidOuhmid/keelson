@@ -1,8 +1,9 @@
 import type { Tool } from "@keelson/catalog";
 import type { LayerId } from "@keelson/taxonomy";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CatalogPayload } from "../../api/client.ts";
 import { FIELD, GROUP, LABEL } from "../../editing/controls.ts";
+import { useCoveringPanel } from "../../focus.ts";
 import { LayerTags } from "../coverage/LayerTag.tsx";
 import {
   type AdapterFilter,
@@ -24,18 +25,77 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
     layer: initialLayer ?? "any",
     license: "any",
     adapter: "any",
+    query: "",
   });
+  const search = useRef<HTMLInputElement | null>(null);
+
+  // The command palette's shortcuts, here: the catalogue's search is its way of finding a thing.
+  useEffect(() => {
+    const handle = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        (target?.matches("input, select, textarea") ?? false) || target?.isContentEditable === true;
+      const shortcut =
+        ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") ||
+        (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey);
+      if (shortcut) {
+        event.preventDefault();
+        search.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const shown = filterTools(catalog.tools, filter).sort((left, right) =>
     left.name.localeCompare(right.name, "en", { sensitivity: "base", numeric: true }),
   );
   const selected: Tool | undefined = catalog.tools.find((tool) => tool.id === selectedId);
+  const github = insertion?.pipeline.provider === "github";
+  const panel = useCoveringPanel<HTMLElement>(selected !== undefined);
+  const rows = useRef<HTMLDivElement | null>(null);
+
+  const close = (): void => {
+    const id = selectedId;
+    setSelectedId(null);
+    if (id !== null) {
+      rows.current?.querySelector<HTMLElement>(`[data-tool-id="${CSS.escape(id)}"]`)?.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (selectedId === null) {
+      return;
+    }
+    const handle = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        close();
+      }
+    };
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  });
 
   return (
     <div className="flex h-full min-h-0 max-lg:flex-col">
       <section aria-label="Tool catalogue" className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <form className="flex shrink-0 flex-wrap gap-2 border-b border-border-subtle p-3">
+        <form
+          className="flex shrink-0 flex-wrap gap-2 border-b border-border-subtle p-3"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <label className={`${GROUP} min-w-40 flex-1`}>
+            <span className={LABEL}>Search</span>
+            <input
+              ref={search}
+              type="search"
+              className={FIELD}
+              value={filter.query}
+              placeholder="Name, layer or license"
+              aria-keyshortcuts="Control+K Meta+K /"
+              onChange={(event) => setFilter({ ...filter, query: event.target.value })}
+            />
+          </label>
           <label className={`${GROUP} min-w-40 flex-1`}>
             <span className={LABEL}>Layer</span>
             <select
@@ -94,7 +154,7 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
         {shown.length === 0 ? (
           <p className="p-3 text-sm text-text-muted">No tool matches these filters.</p>
         ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+          <div ref={rows} className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
             <table className="w-full border-collapse text-left">
               <thead className="sticky top-0 z-10 bg-surface-0 text-2xs font-semibold tracking-label text-text-muted uppercase">
                 <tr className="border-b border-border-subtle">
@@ -113,14 +173,22 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
                 {shown.map((tool) => (
                   <tr key={tool.id} className="border-b border-border-subtle">
                     <td className="max-w-0 w-1/2 py-1">
-                      <button
-                        type="button"
-                        aria-pressed={tool.id === selectedId}
-                        onClick={() => setSelectedId(tool.id)}
-                        className="w-full cursor-pointer truncate rounded-sm px-1 py-1 text-left text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:bg-surface-3 aria-pressed:font-semibold"
-                      >
-                        {tool.name}
-                      </button>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <button
+                          type="button"
+                          aria-pressed={tool.id === selectedId}
+                          data-tool-id={tool.id}
+                          onClick={() => setSelectedId(tool.id)}
+                          className="min-w-0 flex-1 cursor-pointer truncate rounded-sm px-1 py-1 text-left text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:bg-surface-3 aria-pressed:font-semibold"
+                        >
+                          {tool.name}
+                        </button>
+                        {(github ? tool.snippets.github : tool.snippets.gitlab) === null ? (
+                          <span className="shrink-0 text-2xs text-text-muted">
+                            No {github ? "GitHub Actions" : "GitLab CI"} snippet
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                     <td className="px-2 py-1">
                       <span className="flex flex-wrap items-center gap-1">
@@ -138,6 +206,8 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
 
       {selected === undefined ? null : (
         <aside
+          ref={panel.ref}
+          onKeyDown={panel.onKeyDown}
           aria-label="Tool"
           className="w-[var(--keelson-panel-width)] shrink-0 overflow-y-auto border-l border-border-subtle bg-surface-1 p-3 max-lg:fixed max-lg:inset-0 max-lg:z-20 max-lg:w-full"
         >
@@ -145,7 +215,7 @@ export function CatalogView({ catalog, initialLayer, insertion }: CatalogViewPro
             key={selected.id}
             tool={selected}
             logo={selected.logo === null ? null : (catalog.logos[selected.logo] ?? null)}
-            onClose={() => setSelectedId(null)}
+            onClose={close}
             insertion={insertion}
           />
         </aside>

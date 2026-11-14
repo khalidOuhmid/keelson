@@ -70,6 +70,36 @@ describe("detected integrations", () => {
     expect(detectIntegrations({ image: "exemple/nexus", script: [] }, [service])).toEqual([]);
   });
 
+  test("a service action declared by the entry proves the integration", () => {
+    const vault = tool("vault", {
+      kind: "service",
+      integration: "fetch-secret",
+      detect: { images: [], scripts: [], actions: ["hashicorp/vault-action"] },
+    });
+    expect(
+      detectIntegrations({ image: null, script: [], actions: ["hashicorp/vault-action@v3"] }, [
+        vault,
+      ]),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
+  test("a docker:// action is an image, and does not prove the integration either", () => {
+    expect(
+      detectIntegrations({ image: null, script: [], actions: ["docker://exemple/nexus"] }, [
+        service,
+      ]),
+    ).toEqual([]);
+  });
+
+  test("the real Vault action proposes a fetch-secret", () => {
+    expect(
+      detectIntegrations(
+        { image: null, script: [], actions: ["hashicorp/vault-action@v3"] },
+        tools,
+      ),
+    ).toEqual([{ tool: "vault", kind: "fetch-secret" }]);
+  });
+
   test("a tool without integration proposes nothing", () => {
     expect(detectIntegrations({ image: null, script: ["trivy"] }, [tool("trivy")])).toEqual([]);
   });
@@ -83,7 +113,7 @@ describe("detected integrations", () => {
       [{ id: "git", tool: "gitea", url: null, environment: null }],
     );
     const entry = result.layers.find((layer) => layer.layer === "scm");
-    expect(entry).toEqual({ layer: "scm", covered: true, jobs: [], services: ["git"] });
+    expect(entry).toEqual({ layer: "scm", covered: true, jobs: [], services: ["git"], ci: [] });
   });
 
   test("a service whose tool is unknown covers nothing", () => {
@@ -131,6 +161,8 @@ describe("the real catalogue entries", () => {
     "zaproxy/zap-weekly",
     "ghcr.io/zaproxy/zaproxy:stable",
     "owasp/zap2docker-stable",
+    "owasp/zap2docker-live",
+    "owasp/zap2docker-bare:latest",
   ])("official image %s is ZAP", (image) => {
     expect(found({ image, script: [] })).toContain("zap");
   });
@@ -154,6 +186,15 @@ describe("the real catalogue entries", () => {
     expect(
       found({ image: null, script: ['curl -F scan_type="Trivy Scan" https://x'] }),
     ).not.toContain("trivy");
+  });
+
+  test("an empty string before a quoted argument does not swallow the words between them", () => {
+    expect(
+      found({
+        image: null,
+        script: ['docker run --entrypoint "" getsentry/sentry-cli:latest sentry-cli x "$SHA"'],
+      }),
+    ).toContain("sentry");
   });
 
   test("every GitLab snippet image is recognised by its own entry", () => {
@@ -252,6 +293,7 @@ describe("coverage", () => {
       covered: true,
       jobs: ["x", "y"],
       services: [],
+      ci: [],
     });
     expect(result.layers.find((entry) => entry.layer === "dast")?.covered).toBe(false);
     expect(result.layers).toHaveLength(21);
@@ -302,6 +344,46 @@ describe("coverage", () => {
   });
 });
 
+/** Only a forge runs its CI: a job read from a GitLab CI file or a GitHub workflow proves that the
+ *  repository is hosted on one. */
+describe("source control, proven by the CI that runs the jobs", () => {
+  const scm = (jobs: Job[]) =>
+    coverage(pipeline(jobs), []).layers.find((entry) => entry.layer === "scm");
+  const inWorkflow = (id: string): Job => ({ ...job(id, null), file: ".github/workflows/ci.yml" });
+
+  test("a job of a GitLab CI file covers it", () => {
+    expect(scm([{ ...job("x", null), file: "ci/jobs.yml" }])).toEqual({
+      layer: "scm",
+      covered: true,
+      jobs: [],
+      services: [],
+      ci: ["gitlab-ci"],
+    });
+  });
+
+  test("a job of a GitHub workflow covers it", () => {
+    expect(scm([inWorkflow("x")])?.ci).toEqual(["github-actions"]);
+  });
+
+  test("a repository with both names both, once each", () => {
+    expect(scm([job("a", null), inWorkflow("b"), job("c", null)])?.ci).toEqual([
+      "gitlab-ci",
+      "github-actions",
+    ]);
+  });
+
+  test("a pipeline without jobs proves nothing", () => {
+    expect(scm([])).toMatchObject({ covered: false, ci: [] });
+  });
+
+  test("no other layer is proven by the CI", () => {
+    const others = coverage(pipeline([job("x", null)]), []).layers.filter(
+      (entry) => entry.layer !== "scm",
+    );
+    expect(others.filter((entry) => entry.covered || entry.ci.length > 0)).toEqual([]);
+  });
+});
+
 describe("two workflows, one job name", () => {
   test("a layer names the job only once", () => {
     const twice = [job("x", null, ["a"]), job("x", null, ["a"])];
@@ -324,6 +406,13 @@ describe("GitHub actions", () => {
     );
   });
 
+  test.each([
+    ["securego/gosec@v2", "gosec"],
+    ["dependency-check/Dependency-Check_Action@main", "dependency-check"],
+  ])("the official action %s is detected as %s", (action, id) => {
+    expect(found({ image: null, actions: [action] })).toEqual([id]);
+  });
+
   test("a docker:// counts as an image, even behind a container", () => {
     expect(found({ image: "node:20", actions: ["docker://aquasec/trivy"] })).toContain("trivy");
   });
@@ -336,6 +425,8 @@ describe("shell splitting on hostile input", () => {
     ["nested sh -c", "bash -c ".repeat(5000)],
     ["nested kubectl exec", "kubectl exec a -- ".repeat(5000)],
     ["a huge line", "a ".repeat(500000)],
+    ["many heredocs", "cat <<a ".repeat(5000) + "\nx\n".repeat(5000)],
+    ["quoted parentheses", `$(${'")" '.repeat(20000)}`],
   ])("%s does not crash and stays fast", (_label, line) => {
     const started = performance.now();
     expect(() => detectTools({ image: null, script: [line] }, catalog.tools)).not.toThrow();
@@ -372,6 +463,11 @@ describe("shell splitting on hostile input", () => {
     ['git commit -m "fix: use sh -c trivy fs ."'],
     ['grep -r "run sh -c trivy fs ." .'],
     ["ls /bin/sh -c trivy fs ."],
+    ["xargs grep sh -c trivy fs"],
+    ["xargs -0 -n 1 grep trivy"],
+    ["sh -s -- -c gitleaks"],
+    ["bash -s gitleaks detect"],
+    ["sh -es -- trivy fs ."],
   ])("%s runs nothing", (line) => {
     expect(detectTools({ image: null, script: [line] }, catalog.tools)).toEqual([]);
   });
@@ -381,6 +477,11 @@ describe("shell splitting on hostile input", () => {
     ['su - bob -c "trivy fs ."'],
     ['find . -exec sh -c "trivy fs ." ;'],
     ['/bin/bash -c "trivy fs ."'],
+    ["xargs trivy fs"],
+    ["xargs -n1 trivy image"],
+    ["xargs -I {} trivy image {}"],
+    ["xargs --max-args=1 -P 4 trivy image"],
+    ["cat images.txt | xargs -L 1 trivy image"],
   ])("%s runs the tool too", (line) => {
     expect(
       detectTools({ image: null, script: [line] }, catalog.tools).map((t) => t.tool),
@@ -445,6 +546,39 @@ describe("detection shell splitting", () => {
     ["env A=1 trivy fs .", "trivy"],
   ])("%s names %s", (line, tool) => {
     expect(found(line)).toContain(tool);
+  });
+});
+
+describe("detection shell splitting, quotes and heredocs", () => {
+  const catalog = loadCatalog();
+  const found = (line: string) =>
+    detectTools({ image: null, script: [line] }, catalog.tools).map((entry) => entry.tool);
+
+  test.each([
+    ['echo $(echo ")"; trivy fs .)'],
+    ["echo $(echo ')'; trivy fs .)"],
+    ['echo "$(printf "%s" "(")" && trivy fs .'],
+    ["cat <<EOF > a.txt\nit's ok\nEOF\necho 'x'; trivy fs ."],
+    ["cat <<-'EOF'\n\tit's ok\n\tEOF\ntrivy fs ."],
+    ["bash <<EOF\ntrivy fs .\nEOF"],
+    ["! trivy fs ."],
+    ["elif trivy fs .; then"],
+    ["until trivy fs .; do sleep 1; done"],
+    ["for t in a b; do trivy fs .; done"],
+  ])("%s runs the tool", (line) => {
+    expect(found(line)).toContain("trivy");
+  });
+
+  test.each([
+    ["for t in trivy grype; do echo $t; done"],
+    ["for t in trivy grype\ndo\n  echo $t\ndone"],
+    ["if true; then echo; elif grep -q trivy f; then echo; fi"],
+    ["! grep -q trivy f"],
+    ["case $T in trivy) echo t ;; esac"],
+    ["cat <<EOF\nrun trivy fs . now\nEOF"],
+    ["cat << 'EOF' > notes.md\ngitleaks detect, it's fine\nEOF"],
+  ])("%s runs nothing", (line) => {
+    expect(found(line)).toEqual([]);
   });
 });
 

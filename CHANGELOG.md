@@ -7,6 +7,23 @@ versioned; workspace packages are private.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /api/coverage` and repository-wide coverage across every CI file in the UI and the CLI.
+- GitHub Actions: local reusable workflows (`uses: ./.github/workflows/x.yml`) are read;
+  `WORKFLOW_CALL_INVALID` and `WORKFLOW_JOB_INVALID` diagnostics; jobs maps written through an alias.
+- `keelson apply` edits GitHub workflows and `.devsecops/toolchain.yaml`, under a cross-process file
+  lock.
+- UI: one tab stop for the pipeline graph with arrow-key navigation, a job search palette, template
+  `extends` and merge-key edges, a real "Reset layout", and the open file kept in the URL hash.
+
+### Fixed
+
+- Comments and flow-list layout are kept through `moveStage`, `removeNeed` and environment edits.
+- Files are read and served through a single descriptor, closing file-system races reported by CodeQL.
+- A refresh during a drag no longer moves the dragged node back.
+
+
 ## [0.1.0] — first public release
 
 ### Added

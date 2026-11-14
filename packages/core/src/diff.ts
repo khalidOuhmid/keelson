@@ -2,8 +2,9 @@ export type DiffRow = { kind: "same" | "add" | "remove"; text: string };
 
 export type VisibleRow = DiffRow | { kind: "gap"; text: "" };
 
-/** Beyond this, the longest-common-subsequence table would cost more than it brings: the middle is
- *  rendered as replaced, which is still true. */
+/** Beyond this, the longest-common-subsequence table would cost more than it brings: a search
+ *  bounded in edits takes over, and past that bound the middle is rendered as replaced, which is
+ *  still true. */
 const MAX_CELLS = 4_000_000;
 
 function linesOf(text: string): string[] {
@@ -14,14 +15,82 @@ function linesOf(text: string): string[] {
   return lines;
 }
 
+/** Myers' greedy search costs about (N + M) × D: a large file with a few distant changes, an
+ *  inserted stage at the top and a job at the bottom, stays cheap. */
+const MAX_EDITS = 1000;
+
+function myers(left: readonly string[], right: readonly string[]): DiffRow[] | null {
+  const offset = MAX_EDITS + 1;
+  const frontier = new Int32Array(2 * offset + 1);
+  const trace: Int32Array[] = [];
+  let reached = false;
+  for (let edits = 0; edits <= MAX_EDITS && !reached; edits += 1) {
+    trace.push(frontier.slice());
+    for (let diagonal = -edits; diagonal <= edits; diagonal += 2) {
+      const down =
+        diagonal === -edits ||
+        (diagonal !== edits &&
+          (frontier[offset + diagonal - 1] ?? 0) < (frontier[offset + diagonal + 1] ?? 0));
+      let x = down
+        ? (frontier[offset + diagonal + 1] ?? 0)
+        : (frontier[offset + diagonal - 1] ?? 0) + 1;
+      let y = x - diagonal;
+      while (x < left.length && y < right.length && left[x] === right[y]) {
+        x += 1;
+        y += 1;
+      }
+      frontier[offset + diagonal] = x;
+      if (x >= left.length && y >= right.length) {
+        reached = true;
+        break;
+      }
+    }
+  }
+  if (!reached) {
+    return null;
+  }
+
+  const found: DiffRow[] = [];
+  let x = left.length;
+  let y = right.length;
+  for (let edits = trace.length - 1; edits >= 0; edits -= 1) {
+    const before = trace[edits] ?? frontier;
+    const diagonal = x - y;
+    const down =
+      diagonal === -edits ||
+      (diagonal !== edits &&
+        (before[offset + diagonal - 1] ?? 0) < (before[offset + diagonal + 1] ?? 0));
+    const previous = down ? diagonal + 1 : diagonal - 1;
+    const fromX = before[offset + previous] ?? 0;
+    const fromY = fromX - previous;
+    while (x > fromX && y > fromY) {
+      x -= 1;
+      y -= 1;
+      found.push({ kind: "same", text: left[x] ?? "" });
+    }
+    if (edits > 0) {
+      found.push(
+        x === fromX
+          ? { kind: "add", text: right[fromY] ?? "" }
+          : { kind: "remove", text: left[fromX] ?? "" },
+      );
+    }
+    x = fromX;
+    y = fromY;
+  }
+  return found.reverse();
+}
+
 function middle(left: readonly string[], right: readonly string[]): DiffRow[] {
   const rows = left.length + 1;
   const columns = right.length + 1;
   if (rows * columns > MAX_CELLS) {
-    return [
-      ...left.map((text): DiffRow => ({ kind: "remove", text })),
-      ...right.map((text): DiffRow => ({ kind: "add", text })),
-    ];
+    return (
+      myers(left, right) ?? [
+        ...left.map((text): DiffRow => ({ kind: "remove", text })),
+        ...right.map((text): DiffRow => ({ kind: "add", text })),
+      ]
+    );
   }
 
   const table = new Uint32Array(rows * columns);

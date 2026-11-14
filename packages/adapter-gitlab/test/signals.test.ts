@@ -51,6 +51,22 @@ describe("signals of a job", () => {
     ).toEqual(["one", "two", "three"]);
   });
 
+  test("a script !reference to an included file reads that file's aliases", () => {
+    expect(
+      signals("include: ci/s.yml\n\njob:\n  script: !reference [.s, script]\n", {
+        "ci/s.yml": "a: &a one\n.s:\n  script:\n    - *a\n    - two\n",
+      })?.script,
+    ).toEqual(["one", "two"]);
+  });
+
+  test("an image !reference to an included map reads that file's merge key", () => {
+    expect(
+      signals("include: ci/i.yml\n\njob:\n  image: !reference [.t, image]\n  script: y\n", {
+        "ci/i.yml": ".n: &n\n  name: a/b\n.t:\n  image:\n    <<: *n\n",
+      })?.image,
+    ).toBe("a/b");
+  });
+
   test("a job with neither image nor script returns empty, not an error", () => {
     expect(signals("job:\n  stage: test\n")).toEqual({ image: null, script: [] });
   });
@@ -153,5 +169,43 @@ describe("extends merging and jobs without execution", () => {
     const started = performance.now();
     signals(`${levels.join("")}job:\n  <<: *x19\n  script: a\n`);
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe("inherit: default: written through an alias or a !reference", () => {
+  const DEFAULT = "default:\n  image: d\n  before_script:\n    - x\n\n";
+
+  test("default: *alias to false cuts off default", () => {
+    const text = `${DEFAULT}no: &no false\n\njob:\n  inherit:\n    default: *no\n  script: y\n`;
+    expect(signals(text)).toEqual({ image: null, script: ["y"] });
+  });
+
+  test("default: *alias to a list keeps only what it names", () => {
+    const text = `${DEFAULT}keep: &keep [before_script]\n\njob:\n  inherit:\n    default: *keep\n  script: y\n`;
+    expect(signals(text)).toEqual({ image: null, script: ["x", "y"] });
+  });
+
+  test("an item of the list written as an alias is read", () => {
+    const text = `${DEFAULT}k: &k before_script\n\njob:\n  inherit:\n    default: [*k]\n  script: y\n`;
+    expect(signals(text)).toEqual({ image: null, script: ["x", "y"] });
+  });
+
+  test("default: !reference to a list keeps only what it names", () => {
+    const text = `${DEFAULT}.keep:\n  list: [before_script]\n\njob:\n  inherit:\n    default: !reference [.keep, list]\n  script: y\n`;
+    expect(signals(text)).toEqual({ image: null, script: ["x", "y"] });
+  });
+
+  test("default: !reference to false cuts off default", () => {
+    const text = `${DEFAULT}.no:\n  off: false\n\njob:\n  inherit:\n    default: !reference [.no, off]\n  script: y\n`;
+    expect(signals(text)).toEqual({ image: null, script: ["y"] });
+  });
+
+  test("inherit: !reference to a map in an included file reads its alias in that file", () => {
+    const text = `include: ci/i.yml\n\n${DEFAULT}job:\n  inherit: !reference [.i, inherit]\n  script: y\n`;
+    expect(
+      signals(text, {
+        "ci/i.yml": "keep: &keep [before_script]\n.i:\n  inherit:\n    default: *keep\n",
+      }),
+    ).toEqual({ image: null, script: ["x", "y"] });
   });
 });

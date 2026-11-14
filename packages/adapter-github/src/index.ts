@@ -8,3 +8,4 @@ export {
   parse,
   WORKFLOWS_DIR,
 } from "./parse.ts";
+export type { WorkflowReader } from "./signals.ts";

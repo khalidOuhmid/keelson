@@ -1,6 +1,7 @@
 import type { Diagnostic } from "@keelson/core";
 import {
   CATALOG_DUPLICATE_TOOL,
+  CATALOG_FUTURE_VERIFIED,
   CATALOG_INVALID_TOOL,
   CATALOG_MISSING_SNIPPET,
   CATALOG_STALE_TOOL,
@@ -13,11 +14,16 @@ export const STALE_AFTER_MONTHS = 6;
 
 export type ToolFile = { file: string; text: string };
 
+const dayOf = (date: string): Date => new Date(`${date}T00:00:00Z`);
+
 function isStale(lastVerified: string, now: Date): boolean {
   const limit = new Date(now);
   limit.setUTCMonth(limit.getUTCMonth() - STALE_AFTER_MONTHS);
-  return new Date(`${lastVerified}T00:00:00Z`) < limit;
+  return dayOf(lastVerified) < limit;
 }
+
+const isFuture = (lastVerified: string, now: Date): boolean =>
+  dayOf(lastVerified) > dayOf(now.toISOString().slice(0, 10));
 
 export function lintCatalog(
   files: readonly ToolFile[],
@@ -65,6 +71,14 @@ export function lintCatalog(
         code: CATALOG_MISSING_SNIPPET,
         severity: "error",
         params: { tool: tool.id },
+        ...at,
+      });
+    }
+    if (isFuture(tool.lastVerified, now)) {
+      found.push({
+        code: CATALOG_FUTURE_VERIFIED,
+        severity: "error",
+        params: { tool: tool.id, lastVerified: tool.lastVerified },
         ...at,
       });
     }

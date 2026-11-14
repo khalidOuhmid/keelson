@@ -79,9 +79,84 @@ describe("the CLI on GitHub Actions", () => {
     expect(stdout).toContain('"leaks"');
   });
 
-  test("a directory without CI says so, code 2", async () => {
+  test("a directory without CI says so, naming workflows too, code 2", async () => {
     const empty = mkdtempSync(join(tmpdir(), "keelson-none-"));
-    expect((await run(["validate"], { cwd: empty })).exitCode).toBe(2);
+    const result = await run(["validate"], { cwd: empty });
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain(
+      "file not found: neither .gitlab-ci.yml nor a workflow in .github/workflows",
+    );
     rmSync(empty, { recursive: true });
+  });
+
+  test("a named workflow in a subdirectory, which GitHub ignores, is never read as GitLab CI", async () => {
+    mkdirSync(join(root, ".github/workflows/sub"), { recursive: true });
+    writeFileSync(join(root, ".github/workflows/sub/x.yml"), "a:\n  script: trivy fs .\n");
+    for (const command of ["validate", "coverage", "export"]) {
+      const result = await run([command, ".github/workflows/sub/x.yml"], { cwd: root });
+      expect({ command, code: result.exitCode, stderr: result.stderr }).toEqual({
+        command,
+        code: 2,
+        stderr: `keelson ${command}: .github/workflows/sub/x.yml is not a workflow GitHub runs: workflows sit directly in .github/workflows\n`,
+      });
+    }
+    const ops = join(root, "ops.json");
+    writeFileSync(ops, JSON.stringify({ kind: "removeJob", id: "a", v: 1 }));
+    const applied = await run(
+      ["apply", ops, "--rebase", "--file", ".github/workflows/sub/x.yml", root],
+      { cwd: root },
+    );
+    expect(applied.exitCode).toBe(2);
+    expect(applied.stderr).toContain("is not a workflow GitHub runs");
+    rmSync(join(root, ".github/workflows/sub"), { recursive: true });
+    rmSync(ops);
+  });
+
+  test("an unreadable workflow stops validate with its name, before any toolchain diagnostic", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "keelson-unreadable-"));
+    mkdirSync(join(repo, ".git"));
+    mkdirSync(join(repo, ".github/workflows"), { recursive: true });
+    mkdirSync(join(repo, ".devsecops"));
+    writeFileSync(
+      join(repo, ".github/workflows/ci.yml"),
+      "jobs:\n  scan:\n    steps:\n      - run: trivy fs .\n",
+    );
+    writeFileSync(join(repo, ".github/workflows/bad.yml"), Buffer.from([0x6a, 0x3a, 0xff, 0x0a]));
+    writeFileSync(
+      join(repo, ".devsecops/toolchain.yaml"),
+      "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: publish\n    service: n\n    kind: push\n",
+    );
+    const result = await run(["validate"], { cwd: repo });
+    expect(result).toEqual({
+      stdout: "",
+      stderr: `keelson validate: ${join(repo, ".github/workflows/bad.yml")} cannot be read: it is not a UTF-8 file, or not readable\n`,
+      exitCode: 2,
+    });
+    rmSync(repo, { recursive: true });
+  });
+});
+
+describe("a workflow calling a local reusable workflow", () => {
+  test("coverage of the caller alone counts the called jobs, and validate locates errors in it", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "keelson-reuse-"));
+    mkdirSync(join(repo, ".git"));
+    mkdirSync(join(repo, ".github/workflows"), { recursive: true });
+    writeFileSync(
+      join(repo, ".github/workflows/ci.yml"),
+      "on: push\njobs:\n  scans:\n    uses: ./.github/workflows/scans.yml\n",
+    );
+    writeFileSync(
+      join(repo, ".github/workflows/scans.yml"),
+      "on: workflow_call\njobs:\n  leaks:\n    steps:\n      - run: gitleaks detect\n  next:\n    uses: ./.github/workflows/gone.yml\n",
+    );
+    const coverage = await run(["coverage", ".github/workflows/ci.yml", "--require", "secrets"], {
+      cwd: repo,
+    });
+    expect(coverage.exitCode).toBe(0);
+    const validate = await run(["validate", ".github/workflows/ci.yml"], { cwd: repo });
+    expect(validate.exitCode).toBe(1);
+    expect(validate.stdout).toContain(".github/workflows/scans.yml:6");
+    expect(validate.stdout).toContain("WORKFLOW_CALL_INVALID");
+    rmSync(repo, { recursive: true });
   });
 });

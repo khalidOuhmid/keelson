@@ -48,7 +48,7 @@ describe("UNKNOWN_NEED", () => {
     const result = validate(
       pipeline({
         jobs: [job("unit", "test", [".base"])],
-        templates: [{ id: ".base", range: { start: 0, end: 1 }, file: MAIN }],
+        templates: [{ id: ".base", range: { start: 0, end: 1 }, file: MAIN, extends: [] }],
       }),
     );
     expect(codes(result)).toEqual([UNKNOWN_NEED]);

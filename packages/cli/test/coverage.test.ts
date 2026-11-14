@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadCatalog } from "@keelson/catalog";
+import { loadCatalog, lowerBoundNote } from "@keelson/catalog";
 import { run } from "../src/run.ts";
 
 let root = "";
@@ -116,9 +116,7 @@ describe("keelson coverage", () => {
   test("a partial pipeline says so: coverage is a lower bound", async () => {
     const main = `include:\n  - template: Jobs/SAST.gitlab-ci.yml\n\n${JOBS.split("\n").slice(2).join("\n")}`;
     const { stdout } = await run(["coverage"], { cwd: tree(main) });
-    expect(stdout).toContain(
-      "partial: part of the pipeline could not be read, so coverage is a lower bound",
-    );
+    expect(stdout).toContain(`partial: ${lowerBoundNote("unresolvedInclude")}`);
     expect((await json(tree(main))).body.partial).toBe(true);
   });
 
@@ -128,6 +126,8 @@ describe("keelson coverage", () => {
     const { body, exitCode } = await json(tree("a:\n  - x\n bad: [1,\n"));
     expect(exitCode).toBe(1);
     expect(body.partial).toBe(true);
+    const { stdout } = await run(["coverage"], { cwd: tree("a:\n  - x\n bad: [1,\n") });
+    expect(stdout).toContain(`partial: ${lowerBoundNote("invalidYaml")}`);
     expect(body.diagnostics.map((entry: { code: string }) => entry.code)).toContain("INVALID_YAML");
   });
 
@@ -148,10 +148,26 @@ describe("keelson coverage", () => {
     const { stdout } = await run(["validate"], { cwd: tree(JOBS, layout) });
     expect(stdout).toContain("LAYOUT_UNKNOWN_JOB");
   });
+
+  test("an override of a job from a remote include is kept, with a warning", async () => {
+    const layout = JSON.stringify({ version: 1, layers: { "remote-scan": ["sast"] } });
+    const main = `include:\n  - remote: https://example.org/ci.yml\n${JOBS}`;
+    const { stdout } = await run(["validate"], { cwd: tree(main, layout) });
+    expect(stdout).toContain("LAYOUT_UNREAD_JOB");
+    expect(stdout).toContain("its override is kept");
+    expect(stdout).not.toContain("LAYOUT_UNKNOWN_JOB");
+  });
+
+  test("so is an override of a job in a CI file that did not parse", async () => {
+    const layout = JSON.stringify({ version: 1, layers: { secrets: ["sast"] } });
+    const { stdout } = await run(["validate"], { cwd: tree("secrets: [\n", layout) });
+    expect(stdout).toContain("INVALID_YAML");
+    expect(stdout).toContain("LAYOUT_UNREAD_JOB");
+  });
 });
 
 describe("keelson catalog lint", () => {
-  const NOW = new Date("2026-11-04T00:00:00Z");
+  const NOW = new Date("2026-11-12T00:00:00Z");
 
   test("the bundled catalogue is clean", async () => {
     const result = await run(["catalog", "lint"], { now: NOW, cwd: root });
@@ -221,6 +237,13 @@ describe("the toolchain on the command line", () => {
       "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: build\n    service: n\n    kind: push\n",
     );
     expect((await run(["validate"], { cwd: root })).exitCode).toBe(0);
+  });
+
+  test("coverage --require scm is satisfied by the GitLab CI that runs the pipeline", async () => {
+    const root = repo("version: 1\n");
+    const result = await run(["coverage", "--require", "scm"], { cwd: root });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/^covered {2}scm +Source control {2}ci gitlab-ci$/m);
   });
 
   test("coverage --require scm is satisfied by a declared service, and says so", async () => {

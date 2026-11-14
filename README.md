@@ -45,6 +45,7 @@ missing, and writes the fix back into your YAML — in place, byte for byte.
 - [Coverage model](#coverage-model)
 - [Supported platforms](#supported-platforms)
 - [Security model](#security-model)
+- [How Keelson compares](#how-keelson-compares)
 - [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [Development](#development)
@@ -75,7 +76,7 @@ Keelson answers it from the repository itself:
 
 | | |
 | --- | --- |
-| 🧭 **Pipeline view** | Stages, jobs, `needs` and environments — local `include:`, `extends` and anchors resolved on GitLab; dependency levels on GitHub, like GitHub's own graph. |
+| 🧭 **Pipeline view** | Stages, jobs, `needs` and environments — local `include:`, `extends` and anchors resolved on GitLab; dependency levels on GitHub, like GitHub's own graph, local reusable workflows and composite actions read for coverage. |
 | ✍️ **Lossless editing** | Add, rename, remove jobs and needs, move stages, set environments, insert catalogue snippets. Every edit is a byte-level patch with an exact inverse, so undo always restores the original bytes. |
 | 🛡️ **Coverage overlay** | 13 OWASP DevSecOps layers + 8 platform categories, detected from images, scripts (read as a minimal shell, so `echo "trivy"` is not Trivy) and `uses:` actions. |
 | 🧰 **Catalogue** | 62 tools — Gitleaks, Semgrep, CodeQL, Trivy, Syft, Cosign, ZAP, Checkov, DefectDojo, Vault, Harbor… — with licence, detection rules and GitLab / GitHub snippets. |
@@ -242,7 +243,8 @@ runtime observability, runtime security and policy as code.
 | | Read | Coverage | Edit in the UI | `keelson apply` |
 | --- | :---: | :---: | :---: | :---: |
 | GitLab CI (`.gitlab-ci.yml`, local `include:`) | ✅ | ✅ | ✅ | ✅ |
-| GitHub Actions (`.github/workflows/*.yml`) | ✅ | ✅ | ✅ | planned |
+| GitHub Actions (`.github/workflows/*.yml`) | ✅ | ✅ | ✅ | ✅ `--file .github/workflows/<name>.yml` |
+| Toolchain (`.devsecops/toolchain.yaml`) | ✅ | ✅ | ✅ | ✅ `--file .devsecops/toolchain.yaml` |
 | Remote GitLab includes (`project:`, `remote:`, `template:`) | reported | — | — | — |
 
 ## Security model
@@ -262,6 +264,21 @@ open in your browser:
 Details in [specs/01-plan.md §7b](specs/01-plan.md). To report a vulnerability, see
 [SECURITY.md](SECURITY.md).
 
+## How Keelson compares
+
+Every building block of Keelson exists somewhere else. What we did not find, as of November 2026,
+is one open-source, local tool that combines them. Credit where it is due:
+
+| If you need… | Mature options today | What Keelson adds |
+| --- | --- | --- |
+| A graph of your pipeline | GitLab's pipeline editor *Visualize* tab, GitHub's run graph | The same graph is editable, and overlays security coverage per job |
+| Visual editing of CI YAML | [GitLab CI Preview](https://github.com/AlexanderYW/Gitlab-CI-preview) (VS Code), [PipelineUI](https://github.com/riccardoperra/pipelineui), Harness Pipeline Studio (own format) | Both GitLab CI (with includes, `extends`, anchors) and GitHub Actions, through byte-level patches with an exact inverse, property-tested |
+| Knowing which scanners run | [Endor Labs CI/CD tools](https://docs.api.endorlabs.com/ci-cd-security/ci-cd-tools), [Earthly Lunar](https://earthly.dev/how-lunar-works/), GitLab Security Inventory, [OpenSSF Scorecard](https://github.com/ossf/scorecard) | Computed statically from the YAML, offline, against the 13 layers of the OWASP DevSecOps Guideline |
+| Failing CI when a category is missing | Lunar guardrails, Endor Labs *Require Tool Category*, Snyk coverage controls | The same gate as a local CLI on static YAML, no SaaS or agent |
+| Adding a missing scanner | GitLab *Security configuration* (GitLab analyzers only), [StepSecurity](https://docs.stepsecurity.io/github/orchestrate-security/secure-workflow) | A multi-vendor catalogue, inserted into your own YAML as a previewed, format-preserving diff |
+| Modelling platform services | [Backstage](https://backstage.io) `catalog-info.yaml`, Port catalog discovery | Typed job-to-service integrations inferred from scripts, confirmed in a file next to the pipeline, counted towards coverage |
+| Changing many repositories | [Sourcegraph Batch Changes](https://sourcegraph.com/docs/batch-changes/create-a-batch-change), [multi-gitter](https://github.com/lindell/multi-gitter), [OpenRewrite](https://docs.openrewrite.org) | Typed, hash-anchored, invertible CI operations; Keelson does not open or track pull requests, so pair it with one of these |
+
 ## Documentation
 
 | | |
@@ -279,8 +296,7 @@ Details in [specs/01-plan.md §7b](specs/01-plan.md). To report a vulnerability,
 All planned milestones (L0–L8) are delivered — see the [delivery log](specs/progress.md). Next:
 
 - [ ] Publish `keelson@0.1.0` on npm with provenance
-- [ ] `keelson apply` on GitHub workflows and on `.devsecops/toolchain.yaml`
-- [ ] Resolve local reusable workflows and composite actions on GitHub
+- [x] Resolve local reusable workflows and composite actions on GitHub
 - [ ] Cached resolution of remote GitLab includes
 - [ ] More CI systems (Azure Pipelines, Jenkins, CircleCI)
 

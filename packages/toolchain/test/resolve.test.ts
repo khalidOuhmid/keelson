@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Tool } from "@keelson/catalog";
 import { emptyPipeline, type Job, type Pipeline, type Toolchain } from "@keelson/core";
-import { proposeIntegrations, validateToolchain } from "../src/index.ts";
+import { analyseToolchain, proposeIntegrations, validateToolchain } from "../src/index.ts";
 
 function tool(id: string, integration: Tool["integration"]): Tool {
   return {
@@ -130,10 +130,51 @@ describe("validation", () => {
     ).toEqual([["TOOLCHAIN_UNKNOWN_JOB", "warning"]]);
   });
 
+  test("a service whose tool runs as a CI job is a warning naming both", () => {
+    const scanner = { ...tool("trivy", null), kind: "job" as const };
+    const service = { id: "scan", tool: "trivy", url: null, environment: null };
+    expect(
+      validateToolchain(chain({ services: [service] }), pipeline({}), [...TOOLS, scanner]),
+    ).toEqual([
+      {
+        code: "TOOLCHAIN_JOB_TOOL_AS_SERVICE",
+        severity: "warning",
+        params: { service: "scan", tool: "trivy" },
+        range: null,
+        file: ".devsecops/toolchain.yaml",
+      },
+    ]);
+  });
+
   test("a duplicate is reported once", () => {
     const link = { job: "build", service: "nexus-prod", kind: "push" } as const;
     expect(codes(chain({ services: [nexus], integrations: [link, link, link] }))).toEqual([
       ["TOOLCHAIN_DUPLICATE_INTEGRATION", "warning"],
     ]);
+  });
+});
+
+describe("analyseToolchain on a pipeline whose file did not parse", () => {
+  const text =
+    "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: deploy\n    service: n\n    kind: push\n";
+  const invalid = {
+    code: "INVALID_YAML",
+    severity: "error",
+    params: { detail: "x" },
+    range: null,
+    file: "b.yml",
+  } as const;
+  const unknown = (parsing: Parameters<typeof analyseToolchain>[3]) =>
+    analyseToolchain(text, pipeline({}), TOOLS, parsing)
+      .diagnostics.filter((entry) => entry.code === "TOOLCHAIN_UNKNOWN_JOB")
+      .map((entry) => entry.severity);
+
+  test("an unknown job is only a warning: it may be one of the jobs left out", () => {
+    expect(unknown([invalid])).toEqual(["warning"]);
+  });
+
+  test("it stays an error when every file parsed", () => {
+    expect(unknown([])).toEqual(["error"]);
+    expect(unknown([{ ...invalid, code: "INCLUDE_NOT_FOUND" } as never])).toEqual(["error"]);
   });
 });

@@ -40,8 +40,8 @@ describe("addStage", () => {
       "build",
       "test",
       "deploy",
-      ".post",
       "verify",
+      ".post",
     ]);
     for (const stage of applied.pipeline.stages) {
       expect(stage.implicit).toBe(false);

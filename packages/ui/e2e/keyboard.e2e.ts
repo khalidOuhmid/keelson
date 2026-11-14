@@ -69,31 +69,159 @@ async function tabUntil(page: Page, matcher: RegExp, limit = 80): Promise<void> 
   throw new Error(`no focusable element matches ${matcher}`);
 }
 
+async function focusedJob(page: Page): Promise<string | undefined> {
+  return page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.jobId);
+}
+
+/** The graph is one tab stop (the first job); the arrows reach the others. */
+async function reachLint(page: Page): Promise<void> {
+  await tabUntil(page, /^build-image/);
+  await page.keyboard.press("ArrowRight");
+  for (const key of ["ArrowDown", "ArrowUp"]) {
+    if ((await focusedJob(page)) === "lint") {
+      return;
+    }
+    await page.keyboard.press(key);
+  }
+  expect(await focusedJob(page)).toBe("lint");
+}
+
+test("the graph is a single tab stop, traversed with the arrows", async ({ page }) => {
+  await open(page);
+
+  await tabUntil(page, /^build-image/);
+  await page.keyboard.press("Tab");
+  expect(await focusedJob(page)).toBeUndefined();
+  await page.keyboard.press("Shift+Tab");
+  expect(await focusedJob(page)).toBe("build-image");
+
+  await page.keyboard.press("End");
+  expect(await focusedJob(page)).toBe("deploy-production");
+  await page.keyboard.press("Shift+ArrowLeft");
+  expect(await focusedJob(page)).toBe("unit-tests");
+  await page.keyboard.press("Shift+ArrowLeft");
+  expect(await focusedJob(page)).toBe("build-image");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  expect(["secret-detection", "container-scan"]).toContain(await focusedJob(page));
+  await page.keyboard.press("Home");
+  expect(await focusedJob(page)).toBe("build-image");
+});
+
+test("a job reached with the keyboard is panned into view", async ({ page }) => {
+  await open(page);
+  const graph = page.getByRole("region", { name: "Pipeline graph" });
+  const box = await graph.boundingBox();
+  if (box === null) {
+    throw new Error("no graph");
+  }
+  await page.mouse.move(box.x + 40, box.y + box.height / 2);
+  for (let step = 0; step < 6; step += 1) {
+    await page.keyboard.down("Control");
+    await page.mouse.wheel(0, -400);
+    await page.keyboard.up("Control");
+  }
+  await tabUntil(page, /^build-image/);
+  await page.keyboard.press("End");
+  expect(await focusedJob(page)).toBe("deploy-production");
+
+  await expect
+    .poll(async () => {
+      const node = await page.locator('[data-job-id="deploy-production"]').boundingBox();
+      const shown = await graph.boundingBox();
+      return (
+        node !== null &&
+        shown !== null &&
+        node.x >= shown.x &&
+        node.x + node.width <= shown.x + shown.width &&
+        node.y >= shown.y &&
+        node.y + node.height <= shown.y + shown.height
+      );
+    })
+    .toBe(true);
+});
+
+test("a job is reached by typing its name, without a mouse", async ({ page }) => {
+  await open(page);
+
+  await page.keyboard.press("Control+k");
+  const field = page.getByRole("combobox", { name: "Find a job" });
+  await expect(field).toBeFocused();
+  await page.keyboard.type("deploy");
+  await expect(page.getByRole("listbox", { name: "Jobs" }).getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("region", { name: "Job detail" })).toContainText("deploy-production");
+  await expect(field).toHaveCount(0);
+  await expect.poll(() => focusedJob(page)).toBe("deploy-production");
+});
+
 test("a job can be selected from the keyboard, without a mouse", async ({ page }) => {
   await open(page);
 
-  await tabUntil(page, /^lint/);
+  await reachLint(page);
   await page.keyboard.press("Enter");
 
   await expect(page.getByRole("region", { name: "Job detail" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Job detail" })).toContainText("lint");
 });
 
+test("the graph is one tab stop, and the arrow keys reach every job", async ({ page }) => {
+  await open(page);
+  const jobs = await page
+    .locator("[data-job-id]")
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-job-id") ?? ""));
+  expect(jobs.length).toBeGreaterThan(3);
+
+  const focusedJob = () =>
+    page.evaluate(() => document.activeElement?.getAttribute("data-job-id") ?? null);
+
+  let entered: string | null = null;
+  for (let step = 0; step < 40 && entered === null; step += 1) {
+    await page.keyboard.press("Tab");
+    entered = await focusedJob();
+  }
+  expect(entered).not.toBeNull();
+
+  await page.keyboard.press("Tab");
+  expect(await focusedJob()).toBeNull();
+  await page.keyboard.press("Shift+Tab");
+  expect(await focusedJob()).toBe(entered);
+
+  const reached = new Set<string>([entered ?? ""]);
+  for (let column = 0; column < jobs.length; column += 1) {
+    await page.keyboard.press("Home");
+    for (let move = 0; move < column; move += 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+    for (const key of ["ArrowDown", "ArrowUp"]) {
+      for (let row = 0; row < jobs.length; row += 1) {
+        reached.add((await focusedJob()) ?? "");
+        await page.keyboard.press(key);
+      }
+    }
+  }
+
+  expect([...reached].filter(Boolean).sort()).toEqual([...jobs].sort());
+});
+
 test("changing a job's stage works from the keyboard", async ({ page }) => {
   await open(page);
 
-  await tabUntil(page, /^lint/);
+  await reachLint(page);
   await page.keyboard.press("Enter");
 
   const stage = page.getByRole("combobox", { name: "Stage", exact: true });
   await stage.focus();
   await stage.selectOption("scan");
 
-  // ADR 0004: browsing the select writes nothing. The 2026-10-22 review showed that reading the
-  // disk right after `selectOption` won the race against the faulty write, and that the final
-  // assertion was then satisfied by that very write. So we wait for two positive barriers — the
-  // button enabled again, then the lasting absence of an operation — before asserting that
-  // nothing was written.
+  // ADR 0004: browsing the select writes nothing. What catches a write sent by the selection is
+  // `toBeEnabled`: sending puts the editor in pending in the same render, which disables
+  // `Move to stage`, and once the write lands the job is already in the chosen stage, so the
+  // button never comes back. Checked on 2026-11-12 by making the select submit: that assertion
+  // fails first, every run; without it, `Undo` is the one that fails, after the pending wait.
+  // A write deferred past these polls would pass all three, and the disk read below only sees a
+  // write that has already landed.
   const move = page.getByRole("button", { name: "Move to stage" });
   await expect(move).toBeEnabled();
   await expect(page.getByTestId("pending-indicator")).toHaveCount(0);
@@ -111,7 +239,7 @@ test("changing a job's stage works from the keyboard", async ({ page }) => {
 test("adding a need works from the keyboard", async ({ page }) => {
   await open(page);
 
-  await tabUntil(page, /^lint/);
+  await reachLint(page);
   await page.keyboard.press("Enter");
 
   await page.getByRole("combobox", { name: "Add a need" }).focus();
@@ -242,6 +370,8 @@ test("undo and redo work with keyboard shortcuts", async ({ page }) => {
   await page.getByRole("region", { name: "Pipeline graph" }).click();
   await page.keyboard.press("Control+z");
   await expect.poll(() => keelson.read()).toBe(original);
+  // The disk changes before the response arrives: Redo exists only once it has.
+  await expect(page.getByRole("button", { name: "Redo" })).toBeEnabled();
 
   await page.keyboard.press("Control+Shift+z");
   await expect.poll(() => keelson.read()).not.toBe(original);

@@ -1,6 +1,7 @@
 export const PACKAGE_NAME = "@keelson/core";
 
 export * from "./diagnostics.ts";
+export * from "./diff.ts";
 export * from "./hash.ts";
 export * from "./ir.ts";
 /** Text rendering is **not** re-exported here: it lives behind `@keelson/core/messages`, so that
@@ -11,3 +12,4 @@ export * from "./operations.ts";
 export * from "./result.ts";
 export * from "./toolchain.ts";
 export * from "./validate.ts";
+export * from "./wire.ts";

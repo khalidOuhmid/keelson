@@ -2,6 +2,19 @@
 @import "@xyflow/react/dist/style.css";
 @import "./tokens.css";
 
+/* xyflow draws its own chrome — background, controls, edges — from `--xy-*` variables: they are
+   bound to the tokens, so the canvas follows DESIGN.md rather than xyflow's palette. */
+.react-flow {
+  --xy-background-color: var(--color-surface-0);
+  --xy-background-pattern-color: var(--color-border-subtle);
+  --xy-controls-button-background-color: var(--color-surface-2);
+  --xy-controls-button-background-color-hover: var(--color-surface-3);
+  --xy-controls-button-color: var(--color-text-secondary);
+  --xy-controls-button-color-hover: var(--color-text-primary);
+  --xy-controls-button-border-color: var(--color-border-default);
+  --xy-controls-box-shadow: none;
+}
+
 @layer base {
   :root {
     color-scheme: dark;
@@ -21,6 +34,12 @@
     font-size: var(--text-base);
     line-height: var(--text-base--line-height);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* `transition-colors` animates `outline-color`: at rest it must already be the accent, or the
+     ring starts from the inherited text colour on every control that transitions. */
+  * {
+    outline-color: var(--color-accent);
   }
 
   :focus-visible {

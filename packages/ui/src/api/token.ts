@@ -1,5 +1,6 @@
 export type Location = {
   search: string;
+  hash: string;
   pathname: string;
   replaceState: (url: string) => void;
 };
@@ -16,7 +17,9 @@ export function readToken(location: Location): string | null {
 
   params.delete(TOKEN_PARAM);
   const rest = params.toString();
-  location.replaceState(rest === "" ? location.pathname : `${location.pathname}?${rest}`);
+  location.replaceState(
+    `${rest === "" ? location.pathname : `${location.pathname}?${rest}`}${location.hash}`,
+  );
 
   return token;
 }
@@ -24,6 +27,7 @@ export function readToken(location: Location): string | null {
 export function browserLocation(): Location {
   return {
     search: window.location.search,
+    hash: window.location.hash,
     pathname: window.location.pathname,
     replaceState: (url) => window.history.replaceState(null, "", url),
   };

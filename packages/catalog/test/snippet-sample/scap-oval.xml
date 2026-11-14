@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5"
+    xmlns:oval="http://oval.mitre.org/XMLSchema/oval-common-5">
+  <generator>
+    <oval:product_name>keelson snippet sample</oval:product_name>
+    <oval:schema_version>5.11.2</oval:schema_version>
+    <oval:timestamp>2026-11-12T00:00:00</oval:timestamp>
+  </generator>
+</oval_definitions>

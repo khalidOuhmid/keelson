@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Job, Pipeline } from "@keelson/core";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { JobEditor } from "../../src/editing/JobEditor.tsx";
 import { NewJobForm } from "../../src/editing/NewJobForm.tsx";
@@ -224,6 +224,51 @@ describe("JobEditor — environment", () => {
     expect(drafts).toEqual([{ kind: "setEnvironment", id: "unit", environment: null }]);
   });
 
+  test("an inherited environment is cancelled, not removed, and the help says what is written", async () => {
+    const { drafts, submit } = collector();
+    render(
+      <JobEditor
+        job={job({
+          environment: {
+            value: { name: "production" },
+            origin: { kind: "extends", template: ".deploy-base" },
+          },
+        })}
+        pipeline={PIPELINE}
+        onSubmit={submit}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /remove environment/i })).toBeNull();
+    const cancel = screen.getByRole("button", { name: "Cancel inherited environment" });
+    expect(cancel.getAttribute("aria-describedby")).not.toBeNull();
+    const help = document.getElementById(cancel.getAttribute("aria-describedby") ?? "");
+    expect(help?.textContent).toBe(
+      "Writes environment: null in this job, which cancels the environment inherited from .deploy-base. .deploy-base is not touched.",
+    );
+    await userEvent.click(cancel);
+    expect(drafts).toEqual([{ kind: "setEnvironment", id: "unit", environment: null }]);
+  });
+
+  test("an environment from an included file is cancelled the same way, naming that file", () => {
+    render(
+      <JobEditor
+        job={job({
+          environment: {
+            value: { name: "production" },
+            origin: { kind: "include", file: "ci/deploy.yml" },
+          },
+        })}
+        pipeline={PIPELINE}
+        onSubmit={() => {}}
+      />,
+    );
+    const cancel = screen.getByRole("button", { name: "Cancel inherited environment" });
+    const help = document.getElementById(cancel.getAttribute("aria-describedby") ?? "");
+    expect(help?.textContent).toBe(
+      "Writes environment: null in this job, which cancels the environment inherited from ci/deploy.yml. ci/deploy.yml is not touched.",
+    );
+  });
+
   test("the remove button is absent when there is no environment", () => {
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => {}} />);
     expect(screen.queryByRole("button", { name: /remove environment/i })).toBeNull();
@@ -256,6 +301,21 @@ describe("JobEditor — editing disabled", () => {
     const { drafts, submit } = collector();
     render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} disabled />);
     await userEvent.click(screen.getByRole("button", { name: /delete job/i }));
+    expect(drafts).toEqual([]);
+  });
+
+  test("a submission that bypasses the disabled controls still sends nothing", () => {
+    // `disabled` on every control is the first barrier, and the tests above only reach it. A
+    // form submission is not stopped by a disabled field: a change event and a programmatic
+    // submit reach the handlers directly, so only the second barrier, the editor's own check of
+    // `disabled`, stands between them and an operation.
+    const { drafts, submit } = collector();
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={submit} disabled />);
+    const field = screen.getByRole("textbox", { name: /job id/i });
+    fireEvent.change(field, { target: { value: "renamed" } });
+    const form = field.closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form as HTMLFormElement);
     expect(drafts).toEqual([]);
   });
 });
@@ -488,6 +548,25 @@ describe("JobEditor — the confirmation is usable from the keyboard", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(drafts).toEqual([]);
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Delete job" }));
+  });
+
+  test("Tab and Shift+Tab cycle inside the dialog and never leave it", async () => {
+    render(<JobEditor job={job()} pipeline={PIPELINE} onSubmit={() => undefined} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete job" }));
+    const dialog = screen.getByRole("alertdialog");
+    const confirm = screen.getByRole("button", { name: "Delete unit" });
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+
+    await userEvent.tab();
+    expect(document.activeElement).toBe(cancel);
+    await userEvent.tab();
+    expect(document.activeElement).toBe(confirm);
+    await userEvent.tab({ shift: true });
+    expect(document.activeElement).toBe(cancel);
+    for (let step = 0; step < 5; step += 1) {
+      await userEvent.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
   });
 
   test("Cancel also returns focus to the trigger", async () => {

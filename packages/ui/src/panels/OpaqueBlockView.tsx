@@ -1,7 +1,7 @@
 import { yaml } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorState, RangeSetBuilder } from "@codemirror/state";
+import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
 
@@ -22,10 +22,38 @@ const KEELSON_HIGHLIGHT = HighlightStyle.define([
 const KEELSON_THEME = EditorView.theme({
   "&": { backgroundColor: "transparent", color: "var(--color-text-secondary)" },
   ".cm-content": { fontFamily: "inherit", fontSize: "inherit", padding: "var(--spacing)" },
-  ".cm-line": { padding: "0" },
+  ".cm-line": { paddingRight: "0" },
   ".cm-gutters": { display: "none" },
   "&.cm-focused": { outline: "none" },
 });
+
+/** Columns a wrapped line hangs past its own indentation, so that the continuation of a list item
+ *  lines up after its `- `. */
+const HANG = 2;
+
+/** A wrapped line starts again under its content, never at the left edge: a continuation at
+ *  column 0 reads as a new YAML key. */
+function hangingIndent(state: EditorState): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  for (let number = 1; number <= state.doc.lines; number += 1) {
+    const line = state.doc.line(number);
+    const indent = /^[ \t]*/.exec(line.text)?.[0] ?? "";
+    let columns = HANG;
+    for (const character of indent) {
+      columns += character === "\t" ? state.tabSize : 1;
+    }
+    builder.add(
+      line.from,
+      line.from,
+      Decoration.line({
+        attributes: { style: `padding-left: ${columns}ch; text-indent: -${columns}ch` },
+      }),
+    );
+  }
+  return builder.finish();
+}
+
+const HANGING_INDENT = EditorView.decorations.compute(["doc"], hangingIndent);
 
 export type OpaqueBlockViewProps = {
   blockKey: string;
@@ -50,6 +78,7 @@ export function OpaqueBlockView({ blockKey, source }: OpaqueBlockViewProps) {
           syntaxHighlighting(KEELSON_HIGHLIGHT),
           KEELSON_THEME,
           EditorView.lineWrapping,
+          HANGING_INDENT,
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
         ],

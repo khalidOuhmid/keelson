@@ -48,8 +48,9 @@ dismissed:                # inferred integrations you rejected, so they are not 
 | `integrations[].kind` | `push` \| `upload-report` \| `fetch-secret` \| `notify` | What the job does with the service. |
 | `dismissed[]` | `{ job, tool, kind }` | Rejected proposals. |
 
-**Inference proposes, the file decides.** Keelson reads job scripts and proposes integrations (for
-example `vault kv get` → `fetch-secret` to a Vault service). A proposal becomes real only when you
+**Inference proposes, the file decides.** Keelson reads job scripts and the GitHub actions a step
+uses, and proposes integrations (for example `vault kv get` or `uses: hashicorp/vault-action` →
+`fetch-secret` to a Vault service). A client image alone proposes nothing. A proposal becomes real only when you
 confirm it, which writes it to `integrations`; dismissing it writes it to `dismissed`. A declared
 service also counts towards coverage: a `vault` service covers the *secrets management* platform
 category even before any job uses it.
@@ -75,7 +76,7 @@ overwritten; the UI reports it as `TOOLCHAIN_INVALID` until you fix it.
 
 | Key | Notes |
 | --- | --- |
-| `layers.<job>` | Replaces detection for that job: the listed layer ids, or `[]` to claim none. Use it when a custom script does what detection cannot see. |
+| `layers.<job>` | Replaces detection for that job: the listed layer ids, or `[]` to claim none. Use it when a custom script does what detection cannot see. A job the pipeline does not have is reported (`LAYOUT_UNKNOWN_JOB`); when part of the pipeline could not be read (a remote include, a CI file that did not parse), the override is kept and `LAYOUT_UNREAD_JOB` says the job may be there. |
 | `positions.<node>` | Positions of nodes you moved in the toolchain view. |
 
 Layer ids are listed in the [CLI reference](cli.md#keelson-coverage).
@@ -112,3 +113,10 @@ snippets:
       run: docker run --rm -v "$PWD:/src" -w /src --entrypoint "" aquasec/trivy:latest trivy fs --scanners vuln,secret,misconfig .
 lastVerified: 2026-11-04
 ```
+
+`detect.images: []` means the tool publishes no image Keelson can recognise: such a tool cannot be
+detected by its image, only by its `scripts` or its GitHub `actions`. Its GitLab snippet sets no
+`image:` and its GitHub `run:` step no container, so each assumes the tool is already installed on
+the runner or in the job's image: add the install step, or an image of your own, when you insert it.
+Only a GitHub action (`codeql`) brings the tool itself. Today: `codeql`, `detect-secrets`,
+`garak`, `kubescape`, `lynis`, `modelscan`, `openscap`, `promptfoo` and `witness`.

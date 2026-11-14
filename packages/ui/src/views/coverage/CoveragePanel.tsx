@@ -1,20 +1,28 @@
-import type { Coverage, LayerCoverage } from "@keelson/catalog";
-import { findLayer, type LayerId, type LayerSource } from "@keelson/taxonomy";
-import { SECTION_HEADING } from "../../editing/controls.ts";
+import {
+  type Coverage,
+  type LayerCoverage,
+  type LowerBoundCause,
+  lowerBoundNote,
+} from "@keelson/catalog";
+import { findLayer, guidelineUrl, type LayerId, type LayerSource } from "@keelson/taxonomy";
+import { BUTTON, SECTION_HEADING } from "../../editing/controls.ts";
 import { LayerTag } from "./LayerTag.tsx";
-
-export const GUIDELINE_ROOT = "https://github.com/OWASP/DevSecOpsGuideline/blob/master/";
-
-export const LOWER_BOUND_NOTE =
-  "Coverage is a lower bound: part of the pipeline could not be read, and a layer listed as uncovered may be covered by what Keelson cannot read.";
 
 export type CoveragePanelProps = {
   coverage: Coverage;
+  /** Why coverage is partial, when it is. */
+  cause: LowerBoundCause | null;
   selected: LayerId | null;
   onSelect: (layer: LayerId) => void;
   onShowTools: (layer: LayerId) => void;
-  /** Several pipeline files: this panel describes only one, and it must say so. */
-  scope?: { file: string; count: number } | null;
+  /** Several pipeline files: the panel says which it describes, the open one or all of them, and
+   *  `onChange` lets the user choose. */
+  scope?: {
+    file: string;
+    count: number;
+    whole?: boolean;
+    onChange?: (whole: boolean) => void;
+  } | null;
 };
 
 function Uncovered({
@@ -25,6 +33,7 @@ function Uncovered({
   onShowTools: (layer: LayerId) => void;
 }) {
   const layer = findLayer(entry.layer);
+  const guideline = guidelineUrl(layer);
   return (
     <li className="flex flex-col gap-1">
       <span className="flex items-center gap-1.5">
@@ -36,16 +45,16 @@ function Uncovered({
         <button
           type="button"
           onClick={() => onShowTools(layer.id)}
-          className="cursor-pointer text-accent underline underline-offset-2"
+          className="inline-flex min-h-6 cursor-pointer items-center text-accent underline underline-offset-2"
         >
           See tools
         </button>
-        {layer.guideline === null ? null : (
+        {guideline === null ? null : (
           <a
-            href={`${GUIDELINE_ROOT}${layer.guideline}`}
+            href={guideline}
             target="_blank"
             rel="noreferrer"
-            className="text-text-secondary underline underline-offset-2"
+            className="inline-flex min-h-6 items-center text-text-secondary underline underline-offset-2"
           >
             OWASP guideline
           </a>
@@ -57,6 +66,7 @@ function Uncovered({
 
 export function CoveragePanel({
   coverage,
+  cause,
   selected,
   onSelect,
   onShowTools,
@@ -78,15 +88,37 @@ export function CoveragePanel({
         {platform.length} platform categories seen
       </p>
 
+      {scope?.onChange === undefined ? null : (
+        // biome-ignore lint/a11y/useSemanticElements: a pair of toggle buttons, not a form
+        <div role="group" aria-label="Coverage scope" className="flex items-center gap-1">
+          {[
+            { whole: false, label: "This file" },
+            { whole: true, label: "Whole repository" },
+          ].map((entry) => (
+            <button
+              key={entry.label}
+              type="button"
+              aria-pressed={(scope.whole ?? false) === entry.whole}
+              onClick={() => scope.onChange?.(entry.whole)}
+              className={`${BUTTON} aria-pressed:border-accent aria-pressed:bg-surface-3 aria-pressed:font-semibold aria-pressed:text-text-primary`}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {scope === null ? null : (
         <p data-testid="coverage-scope" className="text-sm text-text-muted">
-          In {scope.file}, 1 of {scope.count} pipeline files.
+          {scope.whole === true
+            ? `Across all ${scope.count} pipeline files.`
+            : `In ${scope.file}, 1 of ${scope.count} pipeline files.`}
         </p>
       )}
 
       {coverage.partial ? (
         <p data-testid="coverage-lower-bound" className="text-sm text-text-secondary">
-          {LOWER_BOUND_NOTE}
+          {lowerBoundNote(cause ?? "unresolvedInclude")}
         </p>
       ) : null}
 
@@ -144,6 +176,7 @@ export function CoveragePanel({
                       {[
                         ...entry.jobs,
                         ...entry.services.map((service) => `service ${service}`),
+                        ...entry.ci.map((system) => `ci ${system}`),
                       ].join(", ")}
                     </span>
                   </span>

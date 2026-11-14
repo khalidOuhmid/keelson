@@ -181,6 +181,37 @@ describe("needs", () => {
     ).toEqual(["test"]);
   });
 
+  test("adding to an empty needs: writes the need as its value", () => {
+    const text =
+      "jobs:\n  a:\n    needs:\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n";
+    const after = written(text, { kind: "addNeed", id: "a", need: { job: "z" } });
+    expect(after).toBe(
+      "jobs:\n  a:\n    needs: z\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n",
+    );
+    const commented =
+      "jobs:\n  a:\n    needs: # later\n    steps:\n      - run: x\n  z:\n    steps:\n      - run: x\n";
+    expect(written(commented, { kind: "addNeed", id: "a", need: { job: "z" } })).toContain(
+      "    needs: z # later\n",
+    );
+  });
+
+  test("removing from a multi-line flow list keeps its layout", () => {
+    const text =
+      "jobs:\n  a:\n    needs: [\n      b,\n      c,\n      d\n    ]\n    steps:\n      - run: x\n  b:\n    steps:\n      - run: x\n  c:\n    steps:\n      - run: x\n  d:\n    steps:\n      - run: x\n";
+    expect(written(text, { kind: "removeNeed", id: "a", job: "c" })).toContain(
+      "    needs: [\n      b,\n      d\n    ]\n",
+    );
+    expect(written(text, { kind: "removeNeed", id: "a", job: "d" })).toContain(
+      "    needs: [\n      b,\n      c\n    ]\n",
+    );
+    expect(written(text, { kind: "removeNeed", id: "a", job: "b" })).toContain(
+      "    needs: [\n      c,\n      d\n    ]\n",
+    );
+    expect(written(BASE, { kind: "removeNeed", id: "deploy", job: "test" })).toContain(
+      "    needs: [build]\n",
+    );
+  });
+
   test("refusals: already there, absent, cycle, options", () => {
     expect(run(BASE, { kind: "addNeed", id: "test", need: { job: "build" } })).toMatchObject({
       error: { code: "NEED_EXISTS" },
@@ -216,6 +247,20 @@ describe("environment", () => {
     const removed = written(replaced, { kind: "setEnvironment", id: "build", environment: null });
     expect(jobOf(removed, "build")?.environment).toBeNull();
     expect(removed).toBe(BASE);
+  });
+
+  test("replacing a scalar environment keeps the comment of its line", () => {
+    const text = "jobs:\n  a:\n    environment: prod # note\n    steps:\n      - run: x\n";
+    expect(
+      written(text, { kind: "setEnvironment", id: "a", environment: { name: "staging" } }),
+    ).toBe("jobs:\n  a:\n    environment: staging # note\n    steps:\n      - run: x\n");
+    const withUrl = written(text, {
+      kind: "setEnvironment",
+      id: "a",
+      environment: { name: "s", url: "https://u" },
+    });
+    expect(withUrl).toContain("    environment: # note\n      name: s\n      url: https://u\n");
+    expect(jobOf(withUrl, "a")?.environment?.value).toEqual({ name: "s", url: "https://u" });
   });
 
   test("action does not exist here", () => {
@@ -256,6 +301,14 @@ describe("safeguards", () => {
     expect(run("jobs: {a: {steps: [{run: x}]}}\n", { kind: "addJob", job: newJob })).toMatchObject({
       error: { code: "INVALID_OPERATION" },
     });
+  });
+
+  test("jobs written through an alias are shared: every edit is refused as such", () => {
+    const text = "x-jobs: &j\n  a:\n    steps:\n      - run: x\njobs: *j\n";
+    const sharedJobs = { error: { params: { reason: "sharedValue", job: "jobs", key: "jobs" } } };
+    expect(run(text, { kind: "addJob", job: newJob })).toMatchObject(sharedJobs);
+    expect(run(text, { kind: "removeJob", id: "a" })).toMatchObject(sharedJobs);
+    expect(run(text, { kind: "addNeed", id: "a", need: { job: "z" } })).toMatchObject(sharedJobs);
   });
 
   test("a shape the patch cannot write is refused, not written", () => {
@@ -441,6 +494,38 @@ jobs:
     expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
       error: { params: { reason: "citedInExpression" } },
     });
+  });
+
+  test("a shell script reaches a job only through an expression, which is read", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    env:\n      ALL: \${{ toJSON(needs) }}\n    steps:\n      - run: echo "$ALL" | jq -r .a.result\n`;
+    expect(run(text, { kind: "renameJob", from: "a", to: "c" })).toMatchObject({
+      error: { params: { reason: "dynamicExpression", job: "a" } },
+    });
+    const bare =
+      "jobs:\n  a:\n    steps:\n      - run: x\n  b:\n    needs: a\n    steps:\n      - run: echo needs.a.result\n";
+    expect(run(bare, { kind: "renameJob", from: "a", to: "c" }).ok).toBe(true);
+  });
+
+  test.each([
+    ["GITHUB_JOB in a script", '      - run: test "$GITHUB_JOB" = build && make\n'],
+    ["github.job in an if", "      - if: github.job == 'build'\n        run: make\n"],
+    ["github['job'] in an if", "      - if: github['job'] == 'build'\n        run: make\n"],
+    ["github.job in a run", `      - run: '[ "\${{ github.job }}" = build ]'\n`],
+  ])("a job comparing its own id at run time cannot be renamed: %s", (_label, step) => {
+    const text = `jobs:\n  build:\n    steps:\n${step}`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" })).toMatchObject({
+      error: { params: { reason: "readsOwnId", job: "build" } },
+    });
+  });
+
+  test("reading its own id without naming it leaves the job free to rename", () => {
+    const text = `jobs:\n  build:\n    steps:\n      - run: echo "$GITHUB_JOB"\n      - uses: actions/cache@v4\n        with:\n          key: \${{ github.job }}-deps\n`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
+  });
+
+  test("another job reading its own id does not block a rename", () => {
+    const text = `jobs:\n  build:\n    steps:\n      - run: make\n  other:\n    steps:\n      - run: test "$GITHUB_JOB" = build\n`;
+    expect(run(text, { kind: "renameJob", from: "build", to: "compile" }).ok).toBe(true);
   });
 
   test("a file whose values cannot be read is not rewritten", () => {

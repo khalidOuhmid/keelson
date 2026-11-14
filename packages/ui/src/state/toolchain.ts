@@ -19,6 +19,7 @@ export type ToolchainDependencies = {
   load: () => Promise<ApiResult<ToolchainPayload>>;
   submit: (op: ToolchainOperation, opId: string) => Promise<ApiResult<ToolchainOperationPayload>>;
   savePositions: (positions: Positions) => Promise<ApiResult<{ positions: Positions }>>;
+  clearPositions: () => Promise<ApiResult<{ positions: Positions }>>;
   newOpId: () => string;
 };
 
@@ -40,6 +41,8 @@ export type ToolchainState = {
   /** `toolchain.changed`: a known hash means it is our own write. */
   changed(hash: string): Promise<void>;
   move(node: string, position: Position): Promise<void>;
+  /** Drops every saved position: the nodes go back to their default placement. */
+  resetLayout(): Promise<void>;
   selectService(id: string | null): void;
   dismissError(): void;
   dismissNotice(): void;
@@ -55,52 +58,94 @@ export type ToolchainStore = StoreApi<ToolchainState>;
 export function createToolchainStore(dependencies: ToolchainDependencies): ToolchainStore {
   let undoStack: SpliceOperation[] = [];
   let redoStack: SpliceOperation[] = [];
-  /** The hash announced during an operation: once it is done, only this hash tells whether the
-   *  disk changed elsewhere. No other event will follow. */
-  let announced: string | null = null;
-  /** The hashes this client wrote whose echo has not arrived yet, oldest first. An echo consumes
-   *  its entry and the earlier ones, which the server's debounce may have merged: past the echo,
-   *  that same hash comes from someone else. */
-  let awaitingEcho: string[] = [];
+  /** An event heard during an operation: once it is done, the disk must be checked, since no other
+   *  event will follow. */
+  let announced = false;
+  /** Counts the operations sent: a disk read that overlaps one says nothing about the result. */
+  let writes = 0;
+  /** The nodes dropped whose position is not saved yet, with the move that placed them. */
+  const moving = new Map<string, { position: Position; move: number }>();
+  let moves = 0;
+  /** A save answered after a reset was sent says nothing about the disk: the reset comes after it. */
+  let resets = 0;
 
   return createStore<ToolchainState>((set, get) => {
+    const placed = (payload: ToolchainPayload): ToolchainPayload =>
+      moving.size === 0
+        ? payload
+        : {
+            ...payload,
+            positions: {
+              ...payload.positions,
+              ...Object.fromEntries([...moving].map(([node, entry]) => [node, entry.position])),
+            },
+          };
+
     const reload = async (): Promise<void> => {
       undoStack = [];
       redoStack = [];
-      awaitingEcho = [];
       const result = await dependencies.load();
       if (result.ok) {
-        set({ payload: result.value });
+        set({ payload: placed(result.value) });
       } else {
         set({ error: result.error });
       }
+    };
+
+    /** An event carries only a hash, and the server's debounce merges or drops echoes: the disk
+     *  itself says whether someone else wrote. */
+    const verify = async (): Promise<void> => {
+      const before = writes;
+      const result = await dependencies.load();
+      if (get().pending) {
+        announced = true;
+        return;
+      }
+      if (writes !== before) {
+        await verify();
+        return;
+      }
+      if (!result.ok) {
+        set({ error: result.error });
+        return;
+      }
+      if (result.value.hash === get().payload?.hash) {
+        return;
+      }
+      undoStack = [];
+      redoStack = [];
+      set({ payload: placed(result.value), notice: RELOADED });
     };
 
     const send = async (
       op: ToolchainOperation,
       onSuccess: (inverse: SpliceOperation) => void,
     ): Promise<boolean> => {
+      writes += 1;
       set({ pending: true, error: null });
       const result = await dependencies.submit(op, dependencies.newOpId());
       set({ pending: false });
       const heard = announced;
-      announced = null;
+      announced = false;
 
       if (result.ok) {
         const { inverse, ...payload } = result.value;
-        awaitingEcho.push(payload.hash);
         onSuccess(inverse);
-        set({ payload });
-        if (heard !== null && heard !== payload.hash) {
-          await reload();
-          set({ notice: RELOADED });
+        set({ payload: placed(payload) });
+        if (heard) {
+          await verify();
         }
         return true;
       }
       if (result.error.status === 409) {
         await reload();
+        set({ error: result.error });
+        return false;
       }
       set({ error: result.error });
+      if (heard) {
+        await verify();
+      }
       return false;
     };
 
@@ -116,7 +161,7 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       async refresh() {
         const result = await dependencies.load();
         if (result.ok && result.value.hash === get().payload?.hash) {
-          set({ payload: result.value });
+          set({ payload: placed(result.value) });
         }
       },
 
@@ -155,20 +200,14 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
       canRedo: () => redoStack.length > 0,
 
       async changed(hash) {
-        const echo = awaitingEcho.lastIndexOf(hash);
-        if (echo !== -1) {
-          awaitingEcho = awaitingEcho.slice(echo + 1);
-          return;
-        }
         if (hash === get().payload?.hash) {
           return;
         }
         if (get().pending) {
-          announced = hash;
+          announced = true;
           return;
         }
-        await reload();
-        set({ notice: RELOADED });
+        await verify();
       },
 
       async move(node, position) {
@@ -176,12 +215,41 @@ export function createToolchainStore(dependencies: ToolchainDependencies): Toolc
         if (payload === null) {
           return;
         }
-        set({ payload: { ...payload, positions: { ...payload.positions, [node]: position } } });
+        moves += 1;
+        const move = moves;
+        moving.set(node, { position, move });
+        set({ payload: placed(payload) });
+        const reset = resets;
         const result = await dependencies.savePositions({ [node]: position });
+        if (moving.get(node)?.move === move) {
+          moving.delete(node);
+        }
+        if (reset !== resets) {
+          return;
+        }
         if (result.ok) {
           const current = get().payload;
           if (current !== null) {
-            set({ payload: { ...current, positions: result.value.positions } });
+            set({ payload: placed({ ...current, positions: result.value.positions }) });
+          }
+          return;
+        }
+        set({ error: result.error });
+        await get().refresh();
+      },
+
+      async resetLayout() {
+        resets += 1;
+        moving.clear();
+        const current = get().payload;
+        if (current !== null) {
+          set({ payload: { ...current, positions: {} } });
+        }
+        const result = await dependencies.clearPositions();
+        if (result.ok) {
+          const latest = get().payload;
+          if (latest !== null) {
+            set({ payload: placed({ ...latest, positions: result.value.positions }) });
           }
           return;
         }

@@ -22,6 +22,25 @@ export const EN: Catalogue = {
     `this ${p.form} include is not resolved (${p.detail}), so the pipeline shown may be incomplete`,
   WORKFLOW_UNRESOLVED: (p) =>
     `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.target)}, which Keelson does not read, so its jobs are not shown`,
+  WORKFLOW_CALL_INVALID: {
+    missing: (p) =>
+      `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.path)}, which does not exist`,
+    outsideRoot: (p) =>
+      `job ${quoted(p.job)} calls the reusable workflow ${quoted(p.path)}, whose path leaves the repository root`,
+    notInWorkflows: (p) =>
+      `job ${quoted(p.job)} calls ${quoted(p.path)}, but a reusable workflow is a .yml or .yaml file directly in .github/workflows`,
+    cycle: (p) => `job ${quoted(p.job)} closes a reusable workflow cycle: ${chain(p.trail)}`,
+    depth: (p) =>
+      `job ${quoted(p.job)} calls ${quoted(p.path)} beyond ${p.limit} levels of nested workflows, which GitHub refuses`,
+    limit: (p) =>
+      `job ${quoted(p.job)} calls ${quoted(p.path)} beyond ${p.limit} unique reusable workflows, which GitHub refuses`,
+  },
+  WORKFLOW_JOB_INVALID: {
+    notMap: (p) =>
+      `job ${quoted(p.job)} is not a map of keys, so GitHub refuses the workflow and Keelson does not show it`,
+    needs: (p) =>
+      `the needs of job ${quoted(p.job)} are neither a job name nor a list of job names, so GitHub refuses the workflow`,
+  },
   INCLUDE_NOT_FOUND: {
     missing: (p) => `included file ${quoted(p.path)} does not exist`,
     notYaml: (p) => `included file ${quoted(p.path)} is not a .yml or .yaml file`,
@@ -36,6 +55,10 @@ export const EN: Catalogue = {
   EXTENDS_TARGET_NOT_FOUND: (p) =>
     `extends target ${quoted(p.template)} does not exist in any resolved file`,
   EXTENDS_CYCLE: (p) => `extends cycle: ${chain(p.trail)}`,
+  EXTENDS_DEPTH_EXCEEDED: (p) =>
+    `job ${quoted(p.job)} inherits through more than ${p.limit} levels of extends, which GitLab refuses`,
+  VALUE_CYCLE: (p) =>
+    `the ${p.key} of job ${quoted(p.job)} refers to itself through an alias or a !reference`,
   JOB_WITHOUT_SCRIPT: (p) => `job ${quoted(p.job)} has no script, no run and no trigger`,
   UNKNOWN_NEED: (p) => `job ${quoted(p.job)} needs ${quoted(p.need)}, which does not exist`,
   NEEDS_CYCLE: (p) => `needs cycle: ${chain(p.cycle)}`,
@@ -47,6 +70,8 @@ export const EN: Catalogue = {
   LAYOUT_UNKNOWN_LAYER: (p) =>
     `layout.json assigns job ${quoted(p.job)} to unknown layer ${quoted(p.layer)}`,
   LAYOUT_UNKNOWN_JOB: (p) => `layout.json names job ${quoted(p.job)}, which does not exist`,
+  LAYOUT_UNREAD_JOB: (p) =>
+    `layout.json names job ${quoted(p.job)}, absent from the part of the pipeline Keelson could read: its override is kept`,
   COVERAGE_LAYER_MISSING: (p) => `required layer ${quoted(p.layer)} (${p.name}) is not covered`,
   // `detail` comes from zod or `yaml`, in English.
   CATALOG_INVALID_TOOL: (p) => `invalid tool file: ${p.detail}`,
@@ -55,6 +80,8 @@ export const EN: Catalogue = {
   CATALOG_MISSING_SNIPPET: (p) => `job tool ${quoted(p.tool)} has no snippet`,
   CATALOG_STALE_TOOL: (p) =>
     `tool ${quoted(p.tool)} was last verified on ${p.lastVerified}, more than six months ago`,
+  CATALOG_FUTURE_VERIFIED: (p) =>
+    `tool ${quoted(p.tool)} claims a verification on ${p.lastVerified}, which is in the future`,
   // `detail` comes from `yaml` or zod, in English.
   TOOLCHAIN_INVALID: (p) => `.devsecops/toolchain.yaml is not usable: ${p.detail}`,
   TOOLCHAIN_UNKNOWN_TOOL: (p) =>
@@ -62,6 +89,8 @@ export const EN: Catalogue = {
   TOOLCHAIN_UNKNOWN_SERVICE: (p) =>
     `job ${quoted(p.job)} is integrated with ${quoted(p.service)}, which is not a declared service`,
   TOOLCHAIN_UNKNOWN_JOB: (p) => `toolchain.yaml names job ${quoted(p.job)}, which does not exist`,
+  TOOLCHAIN_JOB_TOOL_AS_SERVICE: (p) =>
+    `service ${quoted(p.service)} names ${quoted(p.tool)}, a tool that runs as a CI job: its layers count as covered by this declaration alone`,
   TOOLCHAIN_DUPLICATE_INTEGRATION: (p) =>
     `the ${p.kind} integration of ${quoted(p.job)} with ${quoted(p.service)} is listed twice`,
 
@@ -93,10 +122,8 @@ export const EN: Catalogue = {
     // `detail` comes from zod, in English. `path` locates it in the received operation.
     schema: (p) => (p.path === "" ? p.detail : `${p.path}: ${p.detail}`),
     flowStyleJob: (p) =>
-      `job ${quoted(p.job)} is written in flow style, in-place editing is not supported`,
+      `job ${quoted(p.job)} sits in a top-level map written in flow style, in-place editing is not supported`,
     jobWithoutScript: () => "an added job must have at least one script line",
-    inheritedEnvironment: (p) =>
-      `the environment of ${quoted(p.job)} is inherited (${p.origin}) and cannot be removed locally`,
     sharedValue: (p) =>
       `the ${p.key} of ${quoted(p.job)} comes through an anchor or a !reference that Keelson cannot rewrite in place`,
     flowStyleToolchain: (p) =>
@@ -107,10 +134,14 @@ export const EN: Catalogue = {
       `job ${quoted(p.job)} is cited in an expression that Keelson cannot rewrite, so this change would break it`,
     dynamicExpression: (p) =>
       `an expression reads needs or jobs as a whole or by a computed index, so it may reach ${quoted(p.job)}: Keelson refuses rather than break it`,
+    readsOwnId: (p) =>
+      `job ${quoted(p.job)} compares its own id at run time (github.job or GITHUB_JOB) with its name: renaming it would change what it does`,
     notForProvider: (p) => `operation ${p.operation} has no meaning in a GitHub Actions workflow`,
     invalidLayout: () => "layout.json is not usable, fix it before moving nodes",
     outsideRoot: (p) => `${quoted(p.path)} leads outside the repository, nothing was written`,
+    notADirectory: (p) => `${quoted(p.path)} is not a directory, nothing was written`,
     noRootMap: () => "this file has no YAML map at its root",
+    notUtf8: (p) => `${quoted(p.file)} is not UTF-8 text, Keelson does not rewrite it`,
     wouldBreakYaml: (p) =>
       `operation ${p.operation} would produce invalid YAML, nothing was written`,
     unreadableBody: () => "request body is not readable JSON",

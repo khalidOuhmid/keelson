@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hashText } from "@keelson/core";
-import { createServer, type KeelsonServer } from "../src/index.ts";
+import { adapterFor, createServer, isNestedWorkflow, type KeelsonServer } from "../src/index.ts";
+import { DocumentStore } from "../src/store.ts";
+import { type DocumentEvent, watchDocuments } from "../src/watcher.ts";
 import { detectWorkspace } from "../src/workspace.ts";
 
 const CI =
@@ -37,6 +39,29 @@ beforeEach(async () => {
 afterEach(async () => {
   await server.close();
   rmSync(root, { recursive: true });
+});
+
+describe("a workflow in a subdirectory, which GitHub ignores", () => {
+  test("is never read as GitLab CI", () => {
+    const text = "a:\n  script: trivy fs .\n";
+    for (const file of [".github/workflows/sub/x.yml", "/repo/.github/workflows/a/b/x.yaml"]) {
+      expect({ file, nested: isNestedWorkflow(file) }).toEqual({ file, nested: true });
+      expect(
+        adapterFor(file).parse(text, { file, read: { read: () => null, candidates: () => [] } })
+          .pipeline.provider,
+      ).toBe("github");
+    }
+    expect(isNestedWorkflow(".github/workflows/x.yml")).toBe(false);
+    expect(isNestedWorkflow("ci/workflows/x.yml")).toBe(false);
+  });
+
+  test("is not in the workspace", () => {
+    mkdirSync(join(root, ".github/workflows/sub"));
+    writeFileSync(join(root, ".github/workflows/sub/x.yml"), CI);
+    expect(detectWorkspace(root).map((file) => file.path)).not.toContain(
+      ".github/workflows/sub/x.yml",
+    );
+  });
 });
 
 describe("workspace GitHub Actions", () => {
@@ -98,12 +123,80 @@ describe("several files", () => {
   });
 });
 
+describe("a workflow created while the server runs", () => {
+  test("arrives as workspace.changed on the stream and in GET /api/workspace", async () => {
+    const stream = await fetch(`http://127.0.0.1:${server.port}/api/events?token=${server.token}`);
+    const reader = stream.body?.getReader();
+    writeFileSync(join(root, ".github/workflows/lint.yml"), CI);
+    let seen = "";
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline && !seen.includes("lint.yml")) {
+      const chunk = await Promise.race([
+        reader?.read(),
+        new Promise<undefined>((settle) => setTimeout(settle, 100)),
+      ]);
+      seen += chunk?.value === undefined ? "" : new TextDecoder().decode(chunk.value);
+    }
+    await reader?.cancel();
+    const files = [
+      { path: ".github/workflows/ci.yml", adapter: "github" },
+      { path: ".github/workflows/lint.yml", adapter: "github" },
+      { path: ".github/workflows/release.yaml", adapter: "github" },
+    ];
+    expect(seen).toContain(`event: workspace.changed\ndata: ${JSON.stringify({ files })}\n\n`);
+    expect(await (await api("/api/workspace")).json()).toEqual({ files });
+    expect((await api(documentPath(".github/workflows/lint.yml"))).status).toBe(200);
+  });
+});
+
 describe("a neighbouring file the parser cannot read", () => {
   test("the healthy document still opens", async () => {
     await server.close();
     writeFileSync(join(root, ".gitlab-ci.yml"), "job:\n  script: &s [x, *s]\n");
     server = await createServer({ root, port: 0 });
     expect((await api(documentPath(".github/workflows/ci.yml"))).status).toBe(200);
+  });
+
+  const TOOLCHAIN =
+    "version: 1\nservices:\n  n:\n    tool: nexus\nintegrations:\n  - job: job\n    service: n\n    kind: push\n";
+  const unknownJob = (diagnostics: { code: string; severity: string }[]) =>
+    diagnostics.filter((entry) => entry.code === "TOOLCHAIN_UNKNOWN_JOB").map((e) => e.severity);
+
+  test("an unreadable one may hold the job an integration names: a warning, not an error", async () => {
+    await server.close();
+    writeFileSync(join(root, ".gitlab-ci.yml"), Buffer.from([0x6a, 0x3a, 0xff, 0x0a]));
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(join(root, ".devsecops/toolchain.yaml"), TOOLCHAIN);
+    server = await createServer({ root, port: 0 });
+    const document = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      diagnostics: { code: string; severity: string }[];
+    };
+    expect(unknownJob(document.diagnostics)).toEqual(["warning"]);
+    const toolchain = await api("/api/toolchain");
+    expect(toolchain.status).toBe(200);
+    const body = (await toolchain.json()) as { diagnostics: { code: string; severity: string }[] };
+    expect(unknownJob(body.diagnostics)).toEqual(["warning"]);
+  });
+
+  test("so is a neighbour that became unreadable after the server started", async () => {
+    mkdirSync(join(root, ".devsecops"));
+    writeFileSync(
+      join(root, ".devsecops/toolchain.yaml"),
+      TOOLCHAIN.replace("job: job", "job: publish"),
+    );
+    writeFileSync(join(root, ".github/workflows/release.yaml"), Buffer.from([0xff, 0xfe, 0x00]));
+    const document = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as {
+      diagnostics: { code: string; severity: string }[];
+    };
+    expect(unknownJob(document.diagnostics)).toEqual(["warning"]);
+    const body = (await (await api("/api/toolchain")).json()) as {
+      diagnostics: { code: string; severity: string }[];
+    };
+    expect(unknownJob(body.diagnostics)).toEqual(["warning"]);
+    const repository = (await (await api("/api/coverage")).json()) as {
+      coverage: { partial: boolean };
+    };
+    expect(repository.coverage.partial).toBe(true);
   });
 });
 
@@ -158,5 +251,107 @@ describe("GitHub documents", () => {
     );
     const body = (await (await api("/api/toolchain")).json()) as { diagnostics: unknown[] };
     expect(body.diagnostics).toEqual([]);
+  });
+});
+
+describe("a local reusable workflow", () => {
+  const CALLER =
+    "on: push\njobs:\n  scans:\n    uses: ./.github/workflows/scans.yml\n  deploy:\n    needs: scans\n    runs-on: x\n    steps:\n      - run: ./deploy\n";
+  const SCANS =
+    "on: workflow_call\njobs:\n  leaks:\n    runs-on: x\n    steps:\n      - run: gitleaks detect\n";
+
+  test("is read through the bounded reader: the calling job covers what it runs", async () => {
+    writeFileSync(join(root, ".github/workflows/caller.yml"), CALLER);
+    writeFileSync(join(root, ".github/workflows/scans.yml"), SCANS);
+    await server.close();
+    server = await createServer({ root, port: 0 });
+    const body = (await (await api(documentPath(".github/workflows/caller.yml"))).json()) as {
+      pipeline: { files: string[]; unresolved: unknown[] };
+      coverage: { jobs: { job: string; layers: string[] }[] };
+      included: Record<string, string>;
+    };
+    expect(body.coverage.jobs.find((entry) => entry.job === "scans")?.layers).toContain("secrets");
+    expect(body.pipeline.files).toEqual([
+      ".github/workflows/caller.yml",
+      ".github/workflows/scans.yml",
+    ]);
+    expect(body.pipeline.unresolved).toEqual([]);
+    expect(body.included).toEqual({ ".github/workflows/scans.yml": SCANS });
+  });
+
+  test("a called workflow that is also a workspace file reloads its caller and itself", async () => {
+    writeFileSync(join(root, ".github/workflows/caller.yml"), CALLER);
+    writeFileSync(join(root, ".github/workflows/scans.yml"), SCANS);
+    const store = new DocumentStore(root, detectWorkspace(root));
+    await store.load(".github/workflows/caller.yml");
+    await store.load(".github/workflows/scans.yml");
+    const events: DocumentEvent[] = [];
+    const watcher = watchDocuments(root, store, (event) => events.push(event));
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      writeFileSync(join(root, ".github/workflows/scans.yml"), SCANS.replace("gitleaks", "trivy"));
+      const deadline = Date.now() + 2500;
+      while (Date.now() < deadline && events.length < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+      expect(events.map((event) => ("file" in event ? event.file : "")).sort()).toEqual([
+        ".github/workflows/caller.yml",
+        ".github/workflows/scans.yml",
+      ]);
+      const caller = await store.load(".github/workflows/caller.yml");
+      expect(caller?.pipeline.jobs[0]?.signals.script).toEqual(["trivy detect"]);
+    } finally {
+      watcher.close();
+    }
+  });
+});
+
+describe("GET /api/coverage", () => {
+  type Body = {
+    files: string[];
+    coverage: { partial: boolean; layers: { layer: string; covered: boolean; jobs: string[] }[] };
+  };
+  const covered = (body: Body) =>
+    body.coverage.layers.filter((entry) => entry.covered).map((entry) => entry.layer);
+
+  test("covers the layers of every workflow together, as keelson coverage does", async () => {
+    const response = await api("/api/coverage");
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Body;
+    expect(body.files).toEqual([".github/workflows/ci.yml", ".github/workflows/release.yaml"]);
+    expect(covered(body)).toContain("secrets");
+    const one = (await (await api(documentPath(".github/workflows/ci.yml"))).json()) as Body;
+    expect(covered(one)).not.toContain("secrets");
+    for (const layer of covered(one)) {
+      expect(covered(body)).toContain(layer);
+    }
+    expect(body.coverage.layers.find((entry) => entry.layer === "secrets")?.jobs).toEqual([
+      "publish",
+    ]);
+  });
+
+  test("reads the disk as it is now", async () => {
+    writeFileSync(
+      join(root, ".github/workflows/release.yaml"),
+      "on: push\njobs:\n  publish:\n    runs-on: x\n    steps:\n      - run: make\n",
+    );
+    const body = (await (await api("/api/coverage")).json()) as Body;
+    expect(covered(body)).not.toContain("secrets");
+  });
+
+  test("a workflow that does not parse makes the repository coverage partial", async () => {
+    writeFileSync(join(root, ".github/workflows/release.yaml"), "jobs: [\n");
+    const body = (await (await api("/api/coverage")).json()) as Body;
+    expect(body.coverage.partial).toBe(true);
+  });
+
+  test("refuses another method", async () => {
+    const response = await api("/api/coverage", { method: "POST" });
+    expect(response.status).toBe(405);
+  });
+
+  test("needs the token", async () => {
+    const response = await fetch(`http://127.0.0.1:${server.port}/api/coverage`);
+    expect(response.status).toBe(403);
   });
 });

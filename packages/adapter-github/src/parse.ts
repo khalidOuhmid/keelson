@@ -1,21 +1,19 @@
-import type {
-  Diagnostic,
-  Environment,
-  Job,
-  JobSignals,
-  OpaqueBlock,
-  Pipeline,
-  SourceRange,
-  Stage,
-} from "@keelson/core";
+import type { Diagnostic, Environment, Job, OpaqueBlock, Pipeline, Stage } from "@keelson/core";
 import {
   emptyPipeline,
   hashText,
   INVALID_YAML,
   JOB_WITHOUT_SCRIPT,
-  WORKFLOW_UNRESOLVED,
+  WORKFLOW_JOB_INVALID,
 } from "@keelson/core";
-import { type Document, isMap, isScalar, type Node, type Pair, parseDocument } from "yaml";
+import { type Document, isAlias, isMap, isScalar, parseDocument } from "yaml";
+import {
+  createResolution,
+  isRecord,
+  pairRange,
+  signalsOf,
+  type WorkflowReader,
+} from "./signals.ts";
 
 export const WORKFLOWS_DIR = ".github/workflows";
 
@@ -24,6 +22,9 @@ export type GithubDocument = {
   hash: string;
   yaml: Document.Parsed;
   file: string;
+  /** What it takes to reparse the same pipeline: `apply` re-reads the text, and without the reader
+   *  the called workflows' jobs would vanish from the re-read IR. */
+  read: WorkflowReader | null;
 };
 
 export type ParseResult = {
@@ -31,25 +32,14 @@ export type ParseResult = {
   pipeline: Pipeline;
   diagnostics: Diagnostic[];
   hash: string;
-  /** A workflow includes nothing: the shape stays GitLab's, so the caller need not tell them apart. */
+  /** The text of each local reusable workflow and composite action read through the reader. */
   included: Record<string, string>;
 };
 
-export type ParseOptions = { file?: string };
+export type ParseOptions = { file?: string; read?: WorkflowReader | null | undefined };
 
 /** The `jobs.<id>` keys the IR models: the rest is an opaque block. */
 const MODELLED = ["needs", "environment"];
-
-type Raw = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is Raw =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-function pairRange(pair: Pair): SourceRange {
-  const key = (pair.key as Node).range ?? [0, 0, 0];
-  const value = (pair.value as Node | null)?.range;
-  return { start: key[0], end: value?.[1] ?? key[1] };
-}
 
 function namesOf(value: unknown): string[] {
   if (typeof value === "string") {
@@ -72,55 +62,69 @@ function environmentOf(value: unknown): Environment | null {
   return null;
 }
 
-function signalsOf(job: Raw): JobSignals {
-  const script: string[] = [];
-  const actions: string[] = [];
-  const container = job.container;
-  let image =
-    typeof container === "string"
-      ? container
-      : isRecord(container) && typeof container.image === "string"
-        ? container.image
-        : null;
-
-  for (const step of Array.isArray(job.steps) ? job.steps : []) {
-    if (!isRecord(step)) {
-      continue;
-    }
-    if (typeof step.run === "string") {
-      script.push(step.run);
-    }
-    if (typeof step.uses === "string") {
-      // A `docker://` step keeps its place in `actions`: a `container` does not erase its image.
-      if (step.uses.startsWith("docker://")) {
-        image ??= step.uses.slice("docker://".length);
+/** The jobs of each needs cycle, found by Tarjan's algorithm: they share one level, so a cycle reads
+ *  as such and never as a job needing a later one. */
+function componentsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, string[]> {
+  const index = new Map<string, number>();
+  const low = new Map<string, number>();
+  const stack: string[] = [];
+  const onStack = new Set<string>();
+  const component = new Map<string, string[]>();
+  const visit = (id: string): void => {
+    index.set(id, index.size);
+    low.set(id, index.get(id) as number);
+    stack.push(id);
+    onStack.add(id);
+    for (const target of (needs.get(id) ?? []).filter((name) => needs.has(name))) {
+      if (!index.has(target)) {
+        visit(target);
+        low.set(id, Math.min(low.get(id) as number, low.get(target) as number));
+      } else if (onStack.has(target)) {
+        low.set(id, Math.min(low.get(id) as number, index.get(target) as number));
       }
-      actions.push(step.uses);
+    }
+    if (low.get(id) === index.get(id)) {
+      const members: string[] = [];
+      let member: string | undefined;
+      do {
+        member = stack.pop() as string;
+        onStack.delete(member);
+        members.push(member);
+      } while (member !== id);
+      for (const entry of members) {
+        component.set(entry, members);
+      }
+    }
+  };
+  for (const id of needs.keys()) {
+    if (!index.has(id)) {
+      visit(id);
     }
   }
-  return { image, script, ...(actions.length === 0 ? {} : { actions }) };
+  return component;
 }
 
-/** A job sits one level above its highest dependency. A cycle stops at its first visit: `validate`
- *  reports it, and the view must still render. */
+/** A job sits one level above its highest dependency outside its own cycle. */
 function levelsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, number> {
+  const components = componentsOf(needs);
   const levels = new Map<string, number>();
-  const visiting = new Set<string>();
   const level = (id: string): number => {
     const known = levels.get(id);
     if (known !== undefined) {
       return known;
     }
-    if (visiting.has(id)) {
-      return 0;
-    }
-    visiting.add(id);
+    const members = components.get(id) ?? [id];
     const deepest = Math.max(
       0,
-      ...(needs.get(id) ?? []).filter((target) => needs.has(target)).map(level),
+      ...members.flatMap((member) =>
+        (needs.get(member) ?? [])
+          .filter((target) => needs.has(target) && !members.includes(target))
+          .map(level),
+      ),
     );
-    visiting.delete(id);
-    levels.set(id, deepest + 1);
+    for (const member of members) {
+      levels.set(member, deepest + 1);
+    }
     return deepest + 1;
   };
   for (const id of needs.keys()) {
@@ -129,11 +133,18 @@ function levelsOf(needs: ReadonlyMap<string, readonly string[]>): Map<string, nu
   return levels;
 }
 
+const wellFormedNeeds = (value: unknown): boolean =>
+  value === undefined ||
+  value === null ||
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every((item) => typeof item === "string"));
+
 export function parse(text: string, options: ParseOptions = {}): ParseResult {
   const file = options.file ?? `${WORKFLOWS_DIR}/workflow.yml`;
   const yaml = parseDocument(text, { keepSourceTokens: false });
   const hash = hashText(text);
-  const document: GithubDocument = { text, hash, yaml, file };
+  const read = options.read ?? null;
+  const document: GithubDocument = { text, hash, yaml, file, read };
 
   const diagnostics: Diagnostic[] = yaml.errors.map((error) => ({
     code: INVALID_YAML,
@@ -168,9 +179,8 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       : [],
   );
 
-  const jobsNode = root.items.find(
-    (pair) => isScalar(pair.key) && pair.key.value === "jobs",
-  )?.value;
+  const written = root.items.find((pair) => isScalar(pair.key) && pair.key.value === "jobs")?.value;
+  const jobsNode = isAlias(written) ? written.resolve(yaml) : written;
   const jobsRaw = isRecord(raw.jobs) ? raw.jobs : {};
   const pairs = isMap(jobsNode) ? jobsNode.items : [];
 
@@ -181,32 +191,42 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     needs.set(id, isRecord(job) ? namesOf(job.needs) : []);
   }
   const levels = levelsOf(needs);
+  const resolution = createResolution(read);
 
   for (const pair of pairs) {
     const id = String((pair.key as { value?: unknown }).value);
     const job = jobsRaw[id];
+    const range = pairRange(pair);
     if (!isRecord(job)) {
+      diagnostics.push({
+        code: WORKFLOW_JOB_INVALID,
+        severity: "error",
+        params: { reason: "notMap", job: id },
+        range,
+        file,
+      });
       continue;
     }
+    if (!wellFormedNeeds(job.needs)) {
+      diagnostics.push({
+        code: WORKFLOW_JOB_INVALID,
+        severity: "error",
+        params: { reason: "needs", job: id },
+        range,
+        file,
+      });
+    }
 
-    const range = pairRange(pair);
     const body = pair.value;
     const opaque = (isMap(body) ? body.items : []).flatMap((entry): OpaqueBlock[] => {
       const key = isScalar(entry.key) ? String(entry.key.value) : "";
       return MODELLED.includes(key) ? [] : [{ key, range: pairRange(entry), file }];
     });
 
-    const target = typeof job.uses === "string" ? job.uses : null;
-    if (target !== null) {
-      diagnostics.push({
-        code: WORKFLOW_UNRESOLVED,
-        severity: "info",
-        params: { job: id, target },
-        range,
-        file,
-      });
-      pipeline.unresolved.push({ form: "workflow", detail: target, from: file, range });
-    } else if (!Array.isArray(job.steps) || job.steps.length === 0) {
+    const signals = signalsOf(resolution, { id, job, range, file });
+    diagnostics.push(...resolution.diagnostics.splice(0));
+    pipeline.unresolved.push(...resolution.unresolved.splice(0));
+    if (typeof job.uses !== "string" && (!Array.isArray(job.steps) || job.steps.length === 0)) {
       diagnostics.push({
         code: JOB_WITHOUT_SCRIPT,
         severity: "warning",
@@ -234,7 +254,7 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
       environment: environment === null ? null : { value: environment, origin: { kind: "local" } },
       extends: [],
       opaque,
-      signals: signalsOf(job),
+      signals,
       range,
       file,
     };
@@ -252,5 +272,12 @@ export function parse(text: string, options: ParseOptions = {}): ParseResult {
     }),
   );
 
-  return { document, pipeline, diagnostics, hash, included: {} };
+  pipeline.files.push(...resolution.included.keys());
+  return {
+    document,
+    pipeline,
+    diagnostics,
+    hash,
+    included: Object.fromEntries(resolution.included),
+  };
 }

@@ -67,6 +67,101 @@ test.describe("toolchain on the real binary", () => {
     }
   });
 
+  test("Reset layout clears the saved positions, after a confirmation", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+      ".devsecops/layout.json": `${JSON.stringify({
+        version: 1,
+        layers: { build: ["sast"] },
+        positions: { "service:vault": { x: 900, y: 700 } },
+      })}\n`,
+    });
+    const shownX = async (): Promise<number> =>
+      Number.parseFloat(
+        (
+          await page
+            .locator(".react-flow__node-service")
+            .evaluate((element) => (element as HTMLElement).style.transform)
+        ).slice("translate(".length),
+      );
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.locator("[data-service-id=vault]")).toBeVisible();
+      expect(await shownX()).toBeCloseTo(900, 2);
+
+      await page.getByRole("button", { name: "Reset layout" }).click();
+      const dialog = page.getByRole("alertdialog", { name: "Reset layout" });
+      await expect(dialog.getByRole("button", { name: "Reset positions" })).toBeFocused();
+      await dialog.getByRole("button", { name: "Reset positions" }).click();
+
+      await expect
+        .poll(() => JSON.parse(keelson.readAt(".devsecops/layout.json")))
+        .toEqual({ version: 1, layers: { build: ["sast"] }, positions: {} });
+      await expect.poll(shownX).not.toBeCloseTo(900, 2);
+      await expect(page.getByRole("button", { name: "Reset layout" })).toHaveCount(0);
+
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.locator("[data-service-id=vault]")).toBeVisible();
+      expect(await shownX()).not.toBeCloseTo(900, 2);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("a refresh during a drag leaves the dragged node under the pointer", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const node = page.locator("[data-service-id=vault]");
+      const before = await node.boundingBox();
+      const other = page.locator("[data-toolchain-job=build]");
+      const otherBefore = await other.boundingBox();
+      if (before === null || otherBefore === null) {
+        throw new Error("node missing");
+      }
+      await page.mouse.move(before.x + 20, before.y + 20);
+      await page.mouse.down();
+      await page.mouse.move(before.x - 120, before.y + 110, { steps: 8 });
+      const held = await node.boundingBox();
+
+      keelson.writeAt(
+        ".devsecops/layout.json",
+        `${JSON.stringify({ version: 1, positions: { "job:build": { x: -400, y: -300 } } })}\n`,
+      );
+      await expect
+        .poll(async () => (await other.boundingBox())?.x ?? otherBefore.x)
+        .not.toBeCloseTo(otherBefore.x, 0);
+      const during = await node.boundingBox();
+      expect(during?.x).toBeCloseTo(held?.x ?? Number.NaN, 0);
+      expect(during?.y).toBeCloseTo(held?.y ?? Number.NaN, 0);
+
+      await page.mouse.move(before.x - 140, before.y + 130, { steps: 2 });
+      await page.mouse.up();
+      await expect
+        .poll(() => {
+          try {
+            return Object.keys(JSON.parse(keelson.readAt(".devsecops/layout.json")).positions);
+          } catch {
+            return [];
+          }
+        })
+        .toEqual(["job:build", "service:vault"]);
+      const after = await node.boundingBox();
+      expect(after?.x).toBeCloseTo((held?.x ?? Number.NaN) - 20, 0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("a moved position survives a reload", async ({ page }) => {
     const keelson = await startKeelson({
       ...TREE,
@@ -234,6 +329,216 @@ test.describe("toolchain on the real binary", () => {
       await page.locator("[data-service-id=vault]").click();
       await page.getByRole("button", { name: "Remove service" }).click();
       await expect(page.getByRole("region", { name: "Toolchain graph" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Save by the keyboard keeps focus on Save once written", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("textbox", { name: "URL" }).fill("https://vault.example.org");
+      await panel.getByRole("button", { name: "Save" }).focus();
+      await page.keyboard.press("Enter");
+      await expect.poll(() => keelson.readAt(TOOLCHAIN)).toContain("https://vault.example.org");
+      await expect(panel.getByRole("button", { name: "Save" })).toBeEnabled();
+      await expect(panel.getByRole("button", { name: "Save" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Enter in a service field keeps focus on that field once written", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("textbox", { name: "Environment" }).fill("production");
+      await page.keyboard.press("Enter");
+      await expect.poll(() => keelson.readAt(TOOLCHAIN)).toContain("environment: production");
+      await expect(panel.getByRole("textbox", { name: "Environment" })).toBeEnabled();
+      await expect(panel.getByRole("textbox", { name: "Environment" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Add integration by the keyboard keeps focus on it once written", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.locator("[data-service-id=vault]").click();
+      const panel = page.getByRole("region", { name: "Service detail" });
+      await panel.getByRole("button", { name: "Add integration" }).focus();
+      await page.keyboard.press("Enter");
+      await expect(panel.getByRole("button", { name: /^Remove / })).toBeVisible();
+      await expect(panel.getByRole("button", { name: "Add integration" })).toBeEnabled();
+      await expect(panel.getByRole("button", { name: "Add integration" })).toBeFocused();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("opening a service keeps the zoom the user chose", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const graph = page.getByRole("region", { name: "Toolchain graph" });
+      const viewport = graph.locator(".react-flow__viewport");
+      await expect(page.locator("[data-service-id=vault]")).toBeVisible();
+      await graph.getByRole("button", { name: "Zoom Out" }).click();
+      await graph.getByRole("button", { name: "Zoom Out" }).click();
+      await expect.poll(() => viewport.getAttribute("style")).toMatch(/scale\(/);
+      const zoomed = await viewport.getAttribute("style");
+      await page.locator("[data-service-id=vault]").click();
+      await expect(page.getByRole("region", { name: "Service detail" })).toBeVisible();
+      await page.waitForTimeout(300);
+      expect(await viewport.getAttribute("style")).toBe(zoomed);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("Fit View brings every node back on the canvas", async ({ page }) => {
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    try {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const graph = page.getByRole("region", { name: "Toolchain graph" });
+      await graph.getByRole("button", { name: "Zoom In" }).click();
+      await graph.hover();
+      await page.mouse.wheel(2000, 2000);
+      await expect(page.locator("[data-service-id=vault]")).not.toBeInViewport();
+      await graph.getByRole("button", { name: "Fit View" }).click();
+      for (const node of await page.locator(".react-flow__node").all()) {
+        await expect(node).toBeInViewport({ ratio: 1 });
+      }
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("the canvas controls take their colours from the design tokens", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      const graph = page.getByRole("region", { name: "Toolchain graph" });
+      await expect(graph.locator(".react-flow")).toHaveClass(/\bdark\b/);
+      const button = graph.getByRole("button", { name: "Fit View" });
+      const colours = await button.evaluate((element) => {
+        const probe = document.createElement("div");
+        probe.style.background = "var(--color-surface-2)";
+        probe.style.color = "var(--color-text-secondary)";
+        probe.style.borderColor = "var(--color-border-default)";
+        document.body.append(probe);
+        const expected = getComputedStyle(probe);
+        const actual = getComputedStyle(element);
+        const result = {
+          background: [actual.backgroundColor, expected.backgroundColor],
+          color: [actual.color, expected.color],
+        };
+        probe.remove();
+        return result;
+      });
+      expect(colours.background[0]).toBe(colours.background[1]);
+      expect(colours.color[0]).toBe(colours.color[1]);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("at 375 px, the toolchain overlays keep Tab inside them", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson({
+      ...TREE,
+      [TOOLCHAIN]: "version: 1\nservices:\n  vault:\n    tool: vault\n",
+    });
+    const inside = (selector: string) =>
+      page.evaluate(
+        (query) => document.querySelector(query)?.contains(document.activeElement),
+        selector,
+      );
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.getByRole("button", { name: /^Panel/ }).click();
+      await expect(page.getByRole("button", { name: "Close panel" })).toBeFocused();
+      for (let step = 0; step < 16; step += 1) {
+        await page.keyboard.press("Tab");
+        expect(await inside('aside[aria-label="Toolchain"]')).toBe(true);
+      }
+      await page.getByRole("button", { name: "Close panel" }).click();
+
+      await page.locator("[data-service-id=vault]").click();
+      await expect(page.getByRole("region", { name: "Service detail" })).toBeVisible();
+      for (let step = 0; step < 16; step += 1) {
+        await page.keyboard.press("Tab");
+        expect(await inside('aside[aria-label="Service"]')).toBe(true);
+      }
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("at 375 px, New service is collapsed until asked for", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await page.getByRole("button", { name: /^Panel/ }).click();
+      const toggle = page.getByRole("button", { name: "New service" });
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(page.getByRole("textbox", { name: "Name" })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Add a service for deploy, HashiCorp Vault" }).click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByRole("textbox", { name: "Name" })).toBeFocused();
+
+      await toggle.click();
+      await expect(page.getByRole("textbox", { name: "Name" })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("from lg up, New service is open", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Toolchain" }).click();
+      await expect(page.getByRole("button", { name: "New service" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      await expect(page.getByRole("textbox", { name: "Name" })).toBeVisible();
     } finally {
       await keelson.stop();
     }

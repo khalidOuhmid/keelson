@@ -54,7 +54,8 @@ export type Stage = {
 export type JobSignals = {
   image: string | null;
   script: string[];
-  /** The GitHub actions (`owner/repo@ref`) of the job's steps. Absent elsewhere. */
+  /** The GitHub actions (`owner/repo@ref`) of the job's steps, and `docker://<image>` for each
+   *  further container it runs: a matrix `container`, a job of a called workflow. Absent elsewhere. */
   actions?: string[];
 };
 
@@ -67,6 +68,9 @@ export type Job = {
   unmodelledNeeds?: true;
   environment: Valued<Environment> | null;
   extends: string[];
+  /** The templates whose map is merged into the job through a merge key (`<<: *anchor`), in
+   *  order. Absent when there are none. */
+  merges?: string[];
   opaque: OpaqueBlock[];
   signals: JobSignals;
   range: SourceRange;
@@ -77,6 +81,10 @@ export type Template = {
   id: string;
   range: SourceRange;
   file: string;
+  /** The templates this one extends, as a job's `extends`. */
+  extends: string[];
+  /** As a job's `merges`. */
+  merges?: string[];
 };
 
 /** An `include` whose content is missing from the displayed pipeline: the four remote forms, and

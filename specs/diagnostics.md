@@ -39,12 +39,14 @@ exhaustiveness of the rendering branches is checked at compile time.
 | Code | Severity | Produced by | `params` | Meaning |
 | --- | --- | --- | --- | --- |
 | `INVALID_YAML` | error | `parse` | `{ detail }` | The file is not valid YAML. One diagnostic per error returned by the `yaml` library, with its position. `detail` is the library's sentence, kept verbatim: it is already in English and more precise than any rewording. Parsing continues: the returned pipeline is partial. |
-| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | An `include` of a form Keelson does not resolve: `remote`, `project`, `template` or `component`. One diagnostic per entry, not one per file. `detail` is the value as written. The pipeline shown is **partial**: see `Pipeline.unresolved` and `isPartial()`, which also count broken local `include`s, themselves reported by `INCLUDE_NOT_FOUND`. |
-| `INCLUDE_NOT_FOUND` | error | `parse` | union on `reason`: `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | An `include: local` leads to nothing usable. `missing`: the file does not exist. `notYaml`: GitLab requires the `.yml` or `.yaml` extension. `outsideRoot`: the path leaves the repository root — refused **before** any read, because the server reads the disk on behalf of a web page. `malformed`: the entry has no recognisable shape. |
+| `INCLUDE_UNRESOLVED` | info | `parse` | `{ form, detail }` | An `include` of a form Keelson does not resolve: `remote`, `project`, `template` or `component`, and a `local` path carrying a CI/CD variable (`ci/$ENV.yml`), only known when the pipeline runs. One diagnostic per entry, not one per file. `detail` is the value as written. The pipeline shown is **partial**: see `Pipeline.unresolved` and `isPartial()`, which also count broken local `include`s, themselves reported by `INCLUDE_NOT_FOUND`. |
+| `INCLUDE_NOT_FOUND` | error | `parse` | union on `reason`: `missing {path}` · `notYaml {path}` · `outsideRoot {path}` · `malformed` | An `include: local` leads to nothing usable. `missing`: the file does not exist. `notYaml`: GitLab requires the `.yml` or `.yaml` extension. `outsideRoot`: the path leaves the repository root — refused **before** any read, because the server reads the disk on behalf of a web page — or a symbolic link resolves outside it. `malformed`: the entry has no recognisable shape; an `include:` with no value is named `include` in `Pipeline.unresolved`. |
 | `INCLUDE_CYCLE` | error | `parse` | `{ trail }` | A chain of `include`s loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
 | `INCLUDE_LIMIT_EXCEEDED` | error | `parse` | `{ limit }` | More than `limit` included files. The pipeline is then partial: the first entry cut off is in `Pipeline.unresolved`. GitLab's documented limit is **150** included files per pipeline, nested ones included — a count, not a nesting depth, and Keelson does not invent another. |
 | `EXTENDS_TARGET_NOT_FOUND` | error, or warning | `parse` | `{ template }` | An `extends` points to a key absent from **all** resolved files. Downgraded to a **warning** only if an `include` that could not be read may explain the absence: a remote form, or a `local` one when the caller supplied no reader. A **broken** local `include` downgrades nothing: its cause is already an `INCLUDE_NOT_FOUND` error ([ADR 0007](adr/0007-what-degrades-a-missing-extends-target.md)). Reported once per target. |
 | `EXTENDS_CYCLE` | error | `parse` | `{ trail }` | A chain of `extends` loops. `trail` is the path of the cycle, first element repeated last. Resolution stops at the loop; parsing completes. |
+| `EXTENDS_DEPTH_EXCEEDED` | error | `parse` | `{ job, limit }` | A job inherits through more than `limit` levels of `extends`. GitLab documents **11** levels and refuses more. The templates beyond the limit are not applied; parsing completes. Reported once per job. |
+| `VALUE_CYCLE` | error | `parse` | `{ job, key }` | The value of `key` in the job refers to itself: an alias inside its own anchor (`script: &s [a, *s]`) or a loop of `!reference`s. GitLab refuses it. The loop is cut where it closes; parsing completes. A map merging itself (`&e {name: n, <<: *e}`) is not one: Psych, the parser GitLab uses, reads it as the map alone. |
 | `JOB_WITHOUT_SCRIPT` | warning | `parse` | `{ job }` | A job has no `script`, `run` or `trigger`. Evaluated **after** resolving `extends` and anchors. |
 | `UNKNOWN_NEED` | error | `validate` | `{ job, need }` | A `needs` entry points to a job that does not exist. A template (a key starting with `.`) is not a valid job for `needs`. |
 | `NEEDS_CYCLE` | error | `validate` | `{ cycle }` | The `needs` form a cycle. One diagnostic per strongly connected component; `cycle` is the path, first element repeated last. |
@@ -52,19 +54,24 @@ exhaustiveness of the rendering branches is checked at compile time.
 | `NEED_LATER_STAGE` | warning | `validate` | `{ job, stage, need, needStage }` | A job needs a job in a later stage. Not evaluated when the job's own stage is unknown. |
 | `LAYOUT_INVALID` | warning | `parseLayout` | `{ detail }` | `.devsecops/layout.json` is not valid JSON or does not follow its schema. It is then ignored: detection applies. |
 | `LAYOUT_UNKNOWN_LAYER` | warning | `parseLayout` | `{ job, layer }` | An override names a layer absent from the taxonomy. That layer is ignored; the others apply. |
-| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from the pipeline. |
+| `LAYOUT_UNKNOWN_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from the pipeline. On a partial pipeline it is `LAYOUT_UNREAD_JOB` instead. |
+| `LAYOUT_UNREAD_JOB` | warning | `parseLayout` | `{ job }` | An override names a job absent from a partial pipeline (an unresolved include, a CI file that did not parse): the job may be in the part Keelson could not read, so the override is kept. |
 | `COVERAGE_LAYER_MISSING` | error | `keelson coverage` | `{ layer, name }` | A layer required by `--require` is not covered. |
 | `CATALOG_INVALID_TOOL` | error | `catalog lint` | `{ detail }` | A catalogue entry does not follow the schema. `detail` comes from zod or `yaml`. |
 | `CATALOG_DUPLICATE_TOOL` | error | `catalog lint` | `{ tool }` | Two catalogue entries share the same identifier. |
 | `CATALOG_UNKNOWN_LOGO` | error | `catalog lint` | `{ tool, logo }` | The catalogue entry names a logo absent from the bundled catalogue. |
 | `CATALOG_MISSING_SNIPPET` | error | `catalog lint` | `{ tool }` | A tool of type `job` has no snippet. |
 | `CATALOG_STALE_TOOL` | warning | `catalog lint` | `{ tool, lastVerified }` | The catalogue entry has not been verified for more than six months. |
-| `WORKFLOW_UNRESOLVED` | info | GitHub `parse` | `{ job, target }` | A `uses:` job calls a reusable workflow, which Keelson does not read. Counted in `Pipeline.unresolved`, so the pipeline is partial ([ADR 0013](adr/0013-github-without-stages.md)). |
+| `CATALOG_FUTURE_VERIFIED` | error | `catalog lint` | `{ tool, lastVerified }` | The catalogue entry claims a verification date after today: freshness could not be judged. |
+| `WORKFLOW_UNRESOLVED` | info | GitHub `parse` | `{ job, target }` | A `uses:` job calls a reusable workflow that Keelson does not read: a remote one (`owner/repo/…@ref`), or a local one when the caller supplied no reader. Counted in `Pipeline.unresolved`, so the pipeline is partial ([ADR 0013](adr/0013-github-without-stages.md)). A local `./.github/workflows/x.yml` read through the reader is resolved instead: the signals of its jobs become those of the calling job. |
+| `WORKFLOW_CALL_INVALID` | error | GitHub `parse` | union on `reason`: `missing {job, path}` · `outsideRoot {job, path}` · `notInWorkflows {job, path}` · `cycle {job, trail}` · `depth {job, path, limit}` · `limit {job, path, limit}` | A local reusable workflow call that GitHub would refuse, so its jobs are not read and the pipeline is partial (`Pipeline.unresolved`). `missing`: no such file. `outsideRoot`: the path leaves the repository root, refused **before** any read. `notInWorkflows`: GitHub only accepts a `.yml` or `.yaml` file directly in `.github/workflows`. `cycle`: the chain of calls loops; `trail` is the cycle, first element repeated last. `depth`: more than **10** levels of workflows, the caller included. `limit`: more than **50** unique reusable workflows. Located in the file that holds the call, on the calling job. |
+| `WORKFLOW_JOB_INVALID` | error | GitHub `parse` | union on `reason`: `notMap {job}` · `needs {job}` | A job GitHub would refuse. `notMap`: the job is empty or not a map, so it is not shown. `needs`: its `needs` is neither a job name nor a list of job names (a map, or a list holding something else); the names it does hold are kept. Located on the job. |
 | `TOOLCHAIN_INVALID` | error | `parseToolchain` | `{ detail }` | `.devsecops/toolchain.yaml` is not valid YAML or does not follow its schema. The toolchain is then empty, and no operation edits it. |
 | `TOOLCHAIN_UNKNOWN_TOOL` | error | `validateToolchain` | `{ service, tool }` | A service names a tool absent from the catalogue. |
 | `TOOLCHAIN_UNKNOWN_SERVICE` | error | `validateToolchain` | `{ job, service }` | An integration names an undeclared service. |
 | `TOOLCHAIN_UNKNOWN_JOB` | error, or warning | `validateToolchain` | `{ job }` | An integration names a job absent from the pipeline. A warning on a partial pipeline: the job may come from an unresolved include. |
 | `TOOLCHAIN_DUPLICATE_INTEGRATION` | warning | `validateToolchain` | `{ job, service, kind }` | The same integration appears twice. |
+| `TOOLCHAIN_JOB_TOOL_AS_SERVICE` | warning | `validateToolchain` | `{ service, tool }` | A service names a catalogue tool of kind `job` (a scanner that runs in CI, not a platform service). Its layers still count as covered, by the declaration alone, and the warning says so. |
 
 ### Examples
 
@@ -126,6 +133,28 @@ orphan:
 
 ```
 error EXTENDS_CYCLE extends cycle: .a → .b → .a
+```
+
+**`EXTENDS_DEPTH_EXCEEDED`**
+
+```yaml
+deploy:
+  extends: .l1   # .l1 extends .l2, … .l11 extends .l12
+```
+
+```
+error EXTENDS_DEPTH_EXCEEDED job "deploy" inherits through more than 11 levels of extends, which GitLab refuses
+```
+
+**`VALUE_CYCLE`**
+
+```yaml
+unit:
+  script: &s [make, *s]
+```
+
+```
+error VALUE_CYCLE the script of job "unit" refers to itself through an alias or a !reference
 ```
 
 **`JOB_WITHOUT_SCRIPT`**
@@ -228,19 +257,20 @@ an exception: an exception can only signal a Keelson bug.
 | --- | --- | --- |
 | `notAnObject` | — | The received body is not a JSON object. |
 | `schema` | `path`, `detail` | The zod schema rejects the operation. `detail` is zod's sentence, in English; `path` locates it within the operation, and is `""` when the error concerns the root. |
-| `flowStyleJob` | `job` | The job is written in flow style (`{ … }`); editing in place would assume a line-based rendering. |
+| `flowStyleJob` | `job` | The top-level map holding the job is written in flow style (`{ … }`); a job written in flow style is edited in place, its root cannot take a block job. |
 | `jobWithoutScript` | — | `addJob` without any script line. |
-| `inheritedEnvironment` | `job`, `origin` | Removing an inherited environment: GitLab has no cancellation key. `origin` says where it comes from (`extends`, `anchor`, `default`). |
 | `sharedValue` | `job`, `key` | The value comes from an anchor alias or a `!reference`, and writing it in place would lose something: `addNeed` on a shared list, or `setJobStage` on a `!reference` carrying an anchor, a comment or an explicit `?` key. |
 | `flowStyleToolchain` | `section` | A section of `toolchain.yaml` is written in flow style and is not empty. |
 | `invalidToolchain` | — | `toolchain.yaml` carries a `TOOLCHAIN_INVALID`: Keelson does not edit a file it does not understand. |
 | `invalidSnippet` | — | `addSnippet`: the text is not the YAML of a single block-style job, without anchors or aliases. |
 | `citedInExpression` | `job` | GitHub Actions: `needs.<id>` or `jobs.<id>` appears in an expression, which Keelson does not rewrite. |
 | `dynamicExpression` | `job` | GitHub Actions: an expression reads the whole `needs` or `jobs` context, or reads it through a computed index (`toJSON(needs)`, `needs[matrix.dep]`, `jobs[inputs.x]`), and may therefore target `job` without naming it. Only the context root counts: neither `env.NEEDS` nor a `'needs-review'` label. |
+| `readsOwnId` | `job` | GitHub Actions, `renameJob` only: the job reads its own id at run time — `github.job` in an expression or `GITHUB_JOB` in a value — and its old name appears as a word in its own values, as in `test "$GITHUB_JOB" = build` or `if: github.job == 'build'`. A shell script cannot read `needs` or `jobs` except through an expression, which the two reasons above already read: this is the one way a script names a job outside `${{ }}`. Reading the id without naming the job, as in a cache key, blocks nothing. |
 | `notForProvider` | `operation` | GitHub Actions: the operation is meaningless, for lack of stages or need options. |
 | `invalidLayout` | — | **Server**: `layout.json` is not readable. Keelson does not overwrite what it does not understand. |
-| `outsideRoot` | `path` | **Server**: `.devsecops` leads outside the repository. Nothing is written. |
+| `outsideRoot` | `path` | **Server**: `.devsecops`, or the target of a linked main document, leads outside the repository. Nothing is written. |
 | `noRootMap` | — | The file has no YAML map at its root, and the operation is not a `splice`. |
+| `notUtf8` | `file` | **Server**: the document's bytes are not valid UTF-8. Decoding would replace them, and writing back the decoded text would change bytes outside the touched range: the operation and its preview are refused. A literal U+FFFD in a valid UTF-8 file is not refused. |
 | `wouldBreakYaml` | `operation` | The resulting text would be invalid YAML; nothing was written. |
 | `unreadableBody` | — | **Server**: the request body is not readable JSON. |
 | `missingOpId` | — | **Server**: `opId` missing or empty. |

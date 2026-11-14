@@ -80,6 +80,70 @@ test.describe("GitHub Actions on the real binary", () => {
     }
   });
 
+  test("the partial bar names the job that calls the unread workflow", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(REL);
+      const bar = page.getByRole("group", { name: "Partial pipeline" });
+      await bar.locator("summary").click();
+      await expect(bar.getByRole("listitem")).toContainText(/called by\s*shared/);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("levels are named once, by their column, and read as levels", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await expect(page.locator("[data-job-id=test]")).toBeVisible();
+      await expect(page.getByRole("group", { name: "Level 2", exact: true })).toBeVisible();
+      await expect(page.getByRole("group", { name: /^Stage / })).toHaveCount(0);
+      await expect(page.locator("[data-job-id=test]")).not.toContainText("level");
+      await expect(page.locator("[data-job-id=build]")).not.toContainText("level");
+
+      await page.getByRole("button", { name: "Table", exact: true }).click();
+      const table = page.getByRole("table", { name: "Pipeline jobs" });
+      await expect(table.getByRole("columnheader", { name: "Level" })).toBeVisible();
+      await expect(table.getByRole("columnheader", { name: "Stage" })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("the chosen file is kept in the address, without the token", async ({ page }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(REL);
+      await expect(page.locator("[data-job-id=publish]")).toBeVisible();
+      const address = new URL(page.url());
+      expect(address.search).not.toContain("token");
+      expect(address.hash).not.toContain("token");
+      expect(decodeURIComponent(address.hash)).toContain(REL);
+
+      await page.goto(`${keelson.url}${address.hash}`);
+      await expect(page.locator("[data-job-id=publish]")).toBeVisible();
+      await expect(page.getByLabel("Pipeline file")).toHaveValue(REL);
+      expect(new URL(page.url()).hash).toBe(address.hash);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("a file named in the address that no longer exists opens the first one", async ({
+    page,
+  }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(`${keelson.url}#file=${encodeURIComponent(".github/workflows/gone.yml")}`);
+      await expect(page.locator("[data-job-id=build]")).toBeVisible();
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("inserting a tool writes its steps, with no stage choice", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     const original = keelson.readAt(CI);
@@ -150,6 +214,28 @@ test.describe("GitHub Actions on the real binary", () => {
     }
   });
 
+  test("the Coverage panel switches to the whole repository, as keelson coverage does", async ({
+    page,
+  }) => {
+    const keelson = await startKeelson(TREE);
+    try {
+      await page.goto(keelson.url);
+      await page.getByRole("button", { name: "Coverage" }).click();
+      const covered = page.getByRole("group", { name: "Covered layers" });
+      await expect(page.getByTestId("coverage-scope")).toContainText("1 of 2 pipeline files");
+      await expect(covered.getByRole("button", { name: /Secrets/ })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Whole repository" }).click();
+      await expect(page.getByTestId("coverage-scope")).toHaveText("Across all 2 pipeline files.");
+      await expect(covered.getByRole("button", { name: /Secrets/ })).toContainText("publish");
+
+      await page.getByRole("button", { name: "This file" }).click();
+      await expect(covered.getByRole("button", { name: /Secrets/ })).toHaveCount(0);
+    } finally {
+      await keelson.stop();
+    }
+  });
+
   test("a job's panel does not mention stages", async ({ page }) => {
     const keelson = await startKeelson(TREE);
     try {
@@ -173,6 +259,54 @@ test.describe("GitHub Actions on the real binary", () => {
       await page.getByRole("button", { name: "Rename" }).click();
       await expect(page.locator("[data-job-id=compile]")).toBeVisible();
       await expect.poll(() => keelson.readAt(CI)).toContain("needs: compile");
+    } finally {
+      await keelson.stop();
+    }
+  });
+
+  test("a local reusable workflow is read: the caller covers its jobs and the file is watched", async ({
+    page,
+  }) => {
+    const SCANS = ".github/workflows/scans.yml";
+    const keelson = await startKeelson({
+      [CI]: [
+        "on: push",
+        "jobs:",
+        "  scans:",
+        "    uses: ./.github/workflows/scans.yml",
+        "  deploy:",
+        "    needs: scans",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: ./deploy",
+        "",
+      ].join("\n"),
+      [SCANS]: [
+        "on: workflow_call",
+        "jobs:",
+        "  leaks:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: gitleaks detect",
+        "",
+      ].join("\n"),
+    });
+    try {
+      await page.goto(keelson.url);
+      await page.getByLabel("Pipeline file").selectOption(CI);
+      await expect(page.locator("[data-job-id=scans]")).toBeVisible();
+      await expect(page.getByTestId("included-files-tag")).toHaveText("1 included file");
+      await expect(page.getByRole("group", { name: "Partial pipeline" })).toHaveCount(0);
+
+      await page.getByRole("button", { name: "Coverage" }).click();
+      await expect(page.locator("[data-job-id=scans]")).toContainText("Secrets");
+
+      keelson.writeAt(
+        SCANS,
+        "on: workflow_call\njobs:\n  sast:\n    runs-on: ubuntu-latest\n    steps:\n      - run: semgrep scan\n",
+      );
+      await expect(page.locator("[data-job-id=scans]")).toContainText("SAST");
+      await expect(page.locator("[data-job-id=scans]")).not.toContainText("Secrets");
     } finally {
       await keelson.stop();
     }

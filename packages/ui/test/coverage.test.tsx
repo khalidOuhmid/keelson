@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import type { Coverage, Tool } from "@keelson/catalog";
+import { type Coverage, type LowerBoundCause, lowerBoundNote, type Tool } from "@keelson/catalog";
 import type { Job, Pipeline } from "@keelson/core";
-import { findLayer, LAYERS, type LayerId } from "@keelson/taxonomy";
+import { findLayer, GUIDELINE_COMMIT, LAYERS, type LayerId } from "@keelson/taxonomy";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReactFlowProvider } from "@xyflow/react";
 import { DiagnosticsPanel } from "../src/panels/DiagnosticsPanel.tsx";
 import { CatalogView } from "../src/views/catalog/CatalogView.tsx";
 import { filterTools } from "../src/views/catalog/filter.ts";
-import { CoveragePanel, LOWER_BOUND_NOTE } from "../src/views/coverage/CoveragePanel.tsx";
+import { CoveragePanel } from "../src/views/coverage/CoveragePanel.tsx";
 import { type JobNodeData, toFlowGraph } from "../src/views/pipeline/graph.ts";
 import { JobNode, type JobNodeProps } from "../src/views/pipeline/JobNode.tsx";
 
@@ -23,6 +23,7 @@ function coverage(covered: Partial<Record<LayerId, string[]>>, partial = false):
       covered: covered[id] !== undefined,
       jobs: covered[id] ?? [],
       services: [],
+      ci: [],
     })),
   };
 }
@@ -46,12 +47,17 @@ function tool(id: string, overrides: Partial<Tool> = {}): Tool {
 }
 
 describe("coverage panel", () => {
-  function renderPanel(value: Coverage, selected: LayerId | null = null) {
+  function renderPanel(
+    value: Coverage,
+    selected: LayerId | null = null,
+    cause: LowerBoundCause | null = value.partial ? "unresolvedInclude" : null,
+  ) {
     const onSelect = mock((_layer: LayerId) => undefined);
     const onShowTools = mock((_layer: LayerId) => undefined);
     render(
       <CoveragePanel
         coverage={value}
+        cause={cause}
         selected={selected}
         onSelect={onSelect}
         onShowTools={onShowTools}
@@ -79,10 +85,24 @@ describe("coverage panel", () => {
     expect(group.textContent).toContain("service git");
   });
 
+  test("source control proven by the CI names it", () => {
+    const covered = coverage({});
+    renderPanel({
+      ...covered,
+      layers: covered.layers.map((entry) =>
+        entry.layer === "scm" ? { ...entry, covered: true, ci: ["gitlab-ci"] } : entry,
+      ),
+    });
+    const group = screen.getByRole("group", { name: "Covered layers" });
+    expect(within(group).getByText("Source control")).toBeDefined();
+    expect(group.textContent).toContain("ci gitlab-ci");
+  });
+
   test("several files: the panel says which", () => {
     render(
       <CoveragePanel
         coverage={coverage({})}
+        cause={null}
         selected={null}
         onSelect={() => undefined}
         onShowTools={() => undefined}
@@ -92,6 +112,41 @@ describe("coverage panel", () => {
     expect(screen.getByTestId("coverage-scope").textContent).toBe(
       "In ci.yml, 1 of 3 pipeline files.",
     );
+  });
+
+  test("several files: a switch chooses this file or the whole repository", async () => {
+    const scopes: boolean[] = [];
+    const { rerender } = render(
+      <CoveragePanel
+        coverage={coverage({})}
+        cause={null}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3, whole: false, onChange: (whole) => scopes.push(whole) }}
+      />,
+    );
+    const group = screen.getByRole("group", { name: "Coverage scope" });
+    expect(
+      within(group).getByRole("button", { name: "This file" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    await userEvent.click(within(group).getByRole("button", { name: "Whole repository" }));
+    expect(scopes).toEqual([true]);
+
+    rerender(
+      <CoveragePanel
+        coverage={coverage({})}
+        cause={null}
+        selected={null}
+        onSelect={() => undefined}
+        onShowTools={() => undefined}
+        scope={{ file: "ci.yml", count: 3, whole: true, onChange: (whole) => scopes.push(whole) }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Whole repository" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(screen.getByTestId("coverage-scope").textContent).toBe("Across all 3 pipeline files.");
   });
 
   test("an uncovered layer gives its summary, and its path to the tools", async () => {
@@ -116,7 +171,7 @@ describe("coverage panel", () => {
 
     const link = within(rowOf("Dynamic testing")).getByRole("link", { name: "OWASP guideline" });
     expect(link.getAttribute("href")).toBe(
-      `https://github.com/OWASP/DevSecOpsGuideline/blob/master/${findLayer("dast").guideline}`,
+      `https://github.com/OWASP/DevSecOpsGuideline/blob/${GUIDELINE_COMMIT}/${findLayer("dast").guideline}`,
     );
     const platform = screen.getByRole("group", { name: "Platform categories not seen" });
     const row = within(platform).getByText("Source control").closest("li") as HTMLElement;
@@ -142,9 +197,18 @@ describe("coverage panel", () => {
     expect(within(platform).getByText("Source control")).toBeDefined();
   });
 
-  test("a partial pipeline makes coverage a lower bound, on screen", () => {
+  test("a partial pipeline makes coverage a lower bound, on screen, in the CLI's words", () => {
     renderPanel(coverage({}, true));
-    expect(screen.getByTestId("coverage-lower-bound").textContent).toBe(LOWER_BOUND_NOTE);
+    expect(screen.getByTestId("coverage-lower-bound").textContent).toBe(
+      lowerBoundNote("unresolvedInclude"),
+    );
+  });
+
+  test("the note names the real cause: invalid YAML is not an include", () => {
+    renderPanel(coverage({}, true), null, "invalidYaml");
+    const note = screen.getByTestId("coverage-lower-bound").textContent ?? "";
+    expect(note).toContain("not valid YAML");
+    expect(note).not.toContain("include");
   });
 
   test("a complete pipeline does not say so", () => {
@@ -182,6 +246,8 @@ describe("layer labels on a node", () => {
         nodes: [{ id: "scan", x: 0, y: 0, width: 200, height: 64 }],
         columns: [],
         edges: [],
+        templates: [],
+        inheritance: [],
         height: 64,
       },
       PIPELINE,
@@ -211,7 +277,9 @@ describe("layer labels on a node", () => {
 
   test("the screen reader hears the full layer names", () => {
     const button = node({ jobs: new Map([["scan", ["sast", "sca"]]]), selected: null });
-    const description = document.getElementById(button.getAttribute("aria-describedby") ?? "");
+    const description = document.getElementById(
+      button.getAttribute("aria-describedby")?.split(" ")[0] ?? "",
+    );
     expect(description?.textContent).toContain(
       "Layers: Static analysis, Software composition analysis.",
     );
@@ -282,6 +350,27 @@ describe("catalogue", () => {
     expect(ids({ ...all, layer: "sast", adapter: "gitlab", license: "open" })).toEqual(["a"]);
   });
 
+  test("the search matches a name, a layer or a licence, in any case", () => {
+    const all = { layer: "any", license: "any", adapter: "any" } as const;
+    expect(ids({ ...all, query: "" })).toEqual(["a", "b", "c"]);
+    expect(ids({ ...all, query: "  " })).toEqual(["a", "b", "c"]);
+    expect(ids({ ...all, query: "b" })).toContain("b");
+    expect(ids({ ...all, query: "mit" })).toEqual(["a"]);
+    expect(ids({ ...all, query: "busl" })).toEqual(["c"]);
+    expect(ids({ ...all, query: "dynamic" })).toEqual(["b"]);
+    expect(ids({ ...all, query: "sca" })).toEqual(["c"]);
+    expect(ids({ ...all, query: "zzz" })).toEqual([]);
+    expect(ids({ ...all, layer: "sast", query: "busl" })).toEqual(["c"]);
+  });
+
+  test("typing in the search narrows the rows on screen, and the count follows", async () => {
+    renderCatalog();
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search" }), "busl");
+    expect(screen.getByTestId("catalog-count").textContent).toBe("1 of 3 tools");
+    expect(screen.queryByRole("button", { name: /^A/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^C/ })).toBeDefined();
+  });
+
   test("the layer filter applies on screen, and the count follows", async () => {
     renderCatalog();
     expect(screen.getByTestId("catalog-count").textContent).toBe("3 of 3 tools");
@@ -347,6 +436,25 @@ describe("catalogue", () => {
     expect(card.textContent).toContain("script: x");
     expect(card.textContent).toContain("No GitHub Actions snippet.");
     expect(card.querySelector('svg path[d="M0 0h24v24H0z"]')).not.toBeNull();
+  });
+
+  test("a tool with no snippet for the open file's CI says so in the list", () => {
+    render(
+      <CatalogView
+        catalog={{
+          layers: [...LAYERS],
+          tools: [
+            tool("kubescape", { name: "Kubescape", snippets: { gitlab: null, github: null } }),
+            tool("trivy", { name: "Trivy" }),
+          ],
+          logos: {},
+        }}
+        initialLayer={null}
+      />,
+    );
+    const rowOf = (name: string) => screen.getByRole("button", { name }).closest("tr");
+    expect(rowOf("Kubescape")?.textContent).toContain("No GitLab CI snippet");
+    expect(rowOf("Trivy")?.textContent).not.toContain("snippet");
   });
 
   test("the entry says whether the tool runs as a job or as a service", async () => {
