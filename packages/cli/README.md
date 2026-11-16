@@ -3,7 +3,7 @@
 Design a DevSecOps chain visually before you build it.
 
 ```sh
-npx keelson start
+npx @khalidouhmid/keelson start
 ```
 
 Keelson reads your native CI YAML (GitLab CI, GitHub Actions), maps every job to the 13 layers of

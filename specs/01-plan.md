@@ -116,7 +116,7 @@ applicable to repositories whose texts differ; writing is all-or-nothing per rep
 
 ## 7b. Local server and security model
 
-`npx keelson start` starts a `node:http` server that **is authoritative over the disk**. The UI
+`npx @khalidouhmid/keelson start` starts a `node:http` server that **is authoritative over the disk**. The UI
 never writes a file and does not run the adapter: it sends operations, and the server applies them
 and writes.
 

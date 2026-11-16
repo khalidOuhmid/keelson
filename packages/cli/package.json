@@ -1,5 +1,5 @@
 {
-  "name": "keelson",
+  "name": "@khalidouhmid/keelson",
   "version": "0.1.0",
   "description": "Design a DevSecOps chain visually, round-trip your native CI YAML, and map it to the OWASP DevSecOps Guideline",
   "license": "Apache-2.0",

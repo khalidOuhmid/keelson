@@ -64,6 +64,7 @@ function bundled(): Map<string, string> {
 }
 
 type Manifest = {
+  name: string;
   private?: boolean;
   version: string;
   license: string;
@@ -94,7 +95,13 @@ describe("the keelson npm package is publishable", () => {
     );
     expect(manifest.license).toBe("Apache-2.0");
     expect(existsSync(join(packageRoot, "README.md"))).toBe(true);
-    expect(readFileSync(join(packageRoot, "README.md"), "utf8")).toContain("npx keelson start");
+    expect(readFileSync(join(packageRoot, "README.md"), "utf8")).toContain(
+      "npx @khalidouhmid/keelson start",
+    );
+  });
+
+  test("it is published under the maintainer's npm scope, the bare name being taken", () => {
+    expect(manifest.name).toBe("@khalidouhmid/keelson");
   });
 
   test("the binary points at the Node bundle, and the repository is named", () => {

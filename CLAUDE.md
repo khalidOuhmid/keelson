@@ -56,7 +56,7 @@ bun run check && bun run e2e
 
 The packages that run on the user's machine — `cli`, `core`, `server`, `taxonomy`, `catalog`,
 `adapter-gitlab`, `adapter-github`, `toolchain` — use **no Bun-specific API** in their `src/`:
-neither `Bun.*` nor `bun:*`. They are built with `bun build --target=node` so that `npx keelson`
+neither `Bun.*` nor `bun:*`. They are built with `bun build --target=node` so that `npx @khalidouhmid/keelson`
 works on Node ≥ 20 without Bun installed. Bun remains the development tooling.
 
 Two independent barriers enforce it:
@@ -91,7 +91,7 @@ When adding a runtime package, give it `"types": ["node"]`, register it in `RUNT
 No dependency is currently waiting for a future milestone.
 
 `commander` was ultimately not installed: the CLI parses its arguments by hand, which is enough as
-long as the commands stay simple, and keeps a dependency out of the `npx keelson` bundle.
+long as the commands stay simple, and keeps a dependency out of the `npx @khalidouhmid/keelson` bundle.
 
 ## Root scripts
 

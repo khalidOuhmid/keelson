@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Only the `keelson` npm package is
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Only the `@khalidouhmid/keelson` npm package is
 versioned; workspace packages are private.
 
 ## [Unreleased]
@@ -39,7 +39,7 @@ versioned; workspace packages are private.
   successful operation returns an inverse `splice`. Stable, documented error codes.
 - **OWASP DevSecOps coverage.** 13 OWASP DevSecOps Guideline layers and 8 platform categories,
   detected from images, scripts parsed as a minimal shell, and GitHub Actions `uses:`.
-- **Catalogue.** 62 tools with licence, logo, detection rules and GitLab / GitHub snippets;
+- **Catalogue.** 68 tools with licence, logo, detection rules and GitLab / GitHub snippets;
   insertion previewed as a diff.
 - **Toolchain.** `.devsecops/toolchain.yaml` for named platform services and their integrations
   with jobs; inferred integrations are proposed, then confirmed or dismissed.
