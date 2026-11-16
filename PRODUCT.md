@@ -58,11 +58,11 @@ What a neighbouring tool cannot copy without changing its nature:
 - **What the model does not understand is kept as is** in opaque blocks, never rebuilt.
 - **Nothing is prescribed without justification.** Every tool proposal points to the OWASP layer it
   covers, with its licence and a verifiable snippet.
-- **Local first.** No remote service, no account: `npx keelson start` and that is all.
+- **Local first.** No remote service, no account: `npx @khalidouhmid/keelson start` and that is all.
 
 ## Operating Context
 
-- **Launch**: `npx keelson start` from the root of a repository opens a local web UI (Node ≥ 20,
+- **Launch**: `npx @khalidouhmid/keelson start` from the root of a repository opens a local web UI (Node ≥ 20,
   no Bun). The other commands are command-line: `validate`, `coverage`, `export`, `catalog lint`,
   and later `apply ops.json`.
 - **Materials handled**: the repository's `.gitlab-ci.yml` (then GitHub Actions workflows), the

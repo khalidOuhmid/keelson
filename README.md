@@ -88,8 +88,8 @@ Keelson answers it from the repository itself:
 ## Quick start
 
 > [!NOTE]
-> `keelson` 0.1.0 is release-ready but not yet on npm. Until the first release, run it from source;
-> afterwards it is a single command: `npx keelson start`.
+> `@khalidouhmid/keelson` 0.1.0 is release-ready but not yet on npm. Until the first release, run it from source;
+> afterwards it is a single command: `npx @khalidouhmid/keelson start`. Installed globally (`npm i -g @khalidouhmid/keelson`), the command is `keelson`.
 
 Requirements: [Bun](https://bun.com) ≥ 1.4 to build, Node.js ≥ 20 to run.
 
@@ -134,7 +134,7 @@ Every write is explicit, atomic and undoable. External edits to the files are pi
 
 ```yaml
 - name: Require security coverage
-  run: npx keelson coverage --require secrets,sca,sast,supply-chain
+  run: npx @khalidouhmid/keelson coverage --require secrets,sca,sast,supply-chain
 ```
 
 </details>
@@ -147,7 +147,7 @@ security-coverage:
   stage: test
   image: node:22
   script:
-    - npx keelson coverage --require secrets,sca,sast,supply-chain
+    - npx @khalidouhmid/keelson coverage --require secrets,sca,sast,supply-chain
 ```
 
 </details>
@@ -295,7 +295,7 @@ is one open-source, local tool that combines them. Credit where it is due:
 
 All planned milestones (L0–L8) are delivered — see the [delivery log](specs/progress.md). Next:
 
-- [ ] Publish `keelson@0.1.0` on npm with provenance
+- [ ] Publish `@khalidouhmid/keelson@0.1.0` on npm with provenance
 - [x] Resolve local reusable workflows and composite actions on GitHub
 - [ ] Cached resolution of remote GitLab includes
 - [ ] More CI systems (Azure Pipelines, Jenkins, CircleCI)

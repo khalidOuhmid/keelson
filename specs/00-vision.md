@@ -27,7 +27,7 @@ DevSecOps chain before implementing it, while staying wired to the repository's 
 ## End usage
 
 ```sh
-npx keelson start          # opens a local web UI in the current repository
+npx @khalidouhmid/keelson start          # opens a local web UI in the current repository
 keelson validate           # validates the pipeline and the toolchain
 keelson coverage           # reports coverage, non-zero exit if a required layer is missing
 keelson export             # exports the model
@@ -39,7 +39,7 @@ keelson export             # exports the model
   that would replace the CI YAML. The only two files it owns are `.devsecops/toolchain.yaml` (the
   services and integrations, which cannot be derived from the CI) and `.devsecops/layout.json` (node
   positions, layer overrides).
-- **Local first.** No remote service, no account. `npx keelson start`, and that's it.
+- **Local first.** No remote service, no account. `npx @khalidouhmid/keelson start`, and that's it.
 - **The round-trip is non-negotiable.** A tool that rewrites the YAML and loses the comments is a
   tool nobody uses twice.
 - **What the IR does not model is kept as is** in opaque blocks, never rebuilt.
