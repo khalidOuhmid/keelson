@@ -66,7 +66,7 @@ Keelson answers it from the repository itself:
   followed by an emit with no change is byte-identical — comments, key order, anchors included.
 - **Coverage is computed, not declared.** Jobs are mapped to the 13 OWASP DevSecOps layers and 8
   platform categories by what they actually run.
-- **Gaps come with implementations.** A curated catalogue of 62 tools proposes ready-to-insert jobs,
+- **Gaps come with implementations.** A curated catalogue of 68 tools proposes ready-to-insert jobs,
   previewed as a diff, for every uncovered layer.
 - **It scales to a fleet.** Every edit is a serialisable operation, so one change can be reviewed
   once and replayed across hundreds of repositories.
@@ -79,7 +79,7 @@ Keelson answers it from the repository itself:
 | 🧭 **Pipeline view** | Stages, jobs, `needs` and environments — local `include:`, `extends` and anchors resolved on GitLab; dependency levels on GitHub, like GitHub's own graph, local reusable workflows and composite actions read for coverage. |
 | ✍️ **Lossless editing** | Add, rename, remove jobs and needs, move stages, set environments, insert catalogue snippets. Every edit is a byte-level patch with an exact inverse, so undo always restores the original bytes. |
 | 🛡️ **Coverage overlay** | 13 OWASP DevSecOps layers + 8 platform categories, detected from images, scripts (read as a minimal shell, so `echo "trivy"` is not Trivy) and `uses:` actions. |
-| 🧰 **Catalogue** | 62 tools — Gitleaks, Semgrep, CodeQL, Trivy, Syft, Cosign, ZAP, Checkov, DefectDojo, Vault, Harbor… — with licence, detection rules and GitLab / GitHub snippets. |
+| 🧰 **Catalogue** | 68 tools — Gitleaks, Semgrep, CodeQL, Trivy, Syft, Cosign, ZAP, Checkov, DefectDojo, Vault, Harbor… — with licence, detection rules and GitLab / GitHub snippets. |
 | 🏗️ **Toolchain view** | Named platform services (Vault, Harbor, Nexus, DefectDojo, Sentry…) and their integrations with jobs, inferred from scripts and confirmed in `.devsecops/toolchain.yaml`. |
 | 🚦 **CI gate** | `keelson coverage --require secrets,sca,sast` fails the build when a mandatory layer is missing. |
 | 🚢 **Fleet edits** | `keelson apply ops.json repo-a repo-b …` — all or nothing per repository, `--dry-run` diffs, `--json` reports. |
@@ -194,7 +194,7 @@ flowchart LR
   agl --> ir["core<br/>pipeline IR"]
   agh --> ir
   tc --> tcp["toolchain"] --> ir
-  cat["catalog<br/>62 tools"] --> cov["coverage<br/>13 OWASP layers + 8 categories"]
+  cat["catalog<br/>68 tools"] --> cov["coverage<br/>13 OWASP layers + 8 categories"]
   ir --> cov
   ir --> srv["server<br/>127.0.0.1 · token · SSE"] --> ui["web UI"]
   ir --> cli["CLI"]
