@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Only the `keelson` npm package is
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). Only the `@khalidouhmid/keelson` npm package is
 versioned; workspace packages are private.
 
 ## [Unreleased]
